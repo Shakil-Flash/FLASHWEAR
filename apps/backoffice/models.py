@@ -74,7 +74,8 @@ class AuditEvent(models.Model):
         ]
 
     def __str__(self) -> str:
-        return f"{self.created_at:%Y-%m-%d %H:%M} {self.action} {self.object_repr or self.object_id}"
+        when = f"{self.created_at:%Y-%m-%d %H:%M}" if self.created_at else "(unsaved)"
+        return f"{when} {self.action} {self.object_repr or self.object_id}"
 
     def save(self, *args, **kwargs):
         """Create only: an existing row is history and history is not editable."""

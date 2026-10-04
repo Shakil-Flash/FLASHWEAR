@@ -1,0 +1,37 @@
+{% comment %}
+Alerts panel, shared by the dashboard and the alerts page.
+
+Severity is rendered as a *word* (``alert.label``) as well as a colour, so the panel stays
+readable in greyscale and for a colour-blind operator. Each row links to the screen that
+owns the rows behind the count -- never to a placeholder.
+{% endcomment %}
+<section aria-labelledby="alerts-heading" class="rounded-2xl border border-slate-200 bg-white shadow-soft">
+    <header class="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+        <div>
+            <h2 id="alerts-heading" class="text-base font-semibold text-slate-900">Alerts</h2>
+            <p class="text-sm text-slate-500">Counts against configured thresholds — no forecasts.</p>
+        </div>
+        <a class="text-sm font-medium text-flash-700 hover:underline" href="{% url 'backoffice:alerts' %}">All alerts</a>
+    </header>
+    <ul class="divide-y divide-slate-100">
+        {% for alert in alerts %}
+        <li class="flex items-start gap-4 px-5 py-3">
+            <span class="mt-0.5 inline-flex min-w-[5.5rem] justify-center rounded-full px-2 py-0.5 text-xs font-semibold
+                {% if alert.severity == 'critical' %}bg-rose-100 text-rose-800
+                {% elif alert.severity == 'warning' %}bg-amber-100 text-amber-800
+                {% else %}bg-slate-100 text-slate-700{% endif %}">
+                {{ alert.label }}
+            </span>
+            <div class="min-w-0 flex-1">
+                <p class="text-sm font-medium text-slate-900">
+                    <span class="tabular-nums">{{ alert.count }}</span>
+                    <a class="text-flash-700 hover:underline" href="{% url alert.url_name %}">{{ alert.title }}</a>
+                </p>
+                <p class="text-sm text-slate-500">{{ alert.detail }}</p>
+            </div>
+        </li>
+        {% empty %}
+        <li class="px-5 py-6 text-sm text-slate-500">Nothing needs attention right now.</li>
+        {% endfor %}
+    </ul>
+</section>

@@ -13,6 +13,13 @@ from apps.accounts.api import (
     ChangePasswordView,
 )
 from apps.accounts.api import RegisterView as AccountRegisterView
+from apps.backoffice.api import (
+    BackOfficeAlertsView,
+    BackOfficeAuditView,
+    BackOfficeDashboardView,
+    BackOfficeOrdersView,
+    BackOfficeRootView,
+)
 from apps.catalog.api import (
     BrandDetailView,
     BrandListView,
@@ -259,4 +266,15 @@ urlpatterns = [
         StaffTicketReplyView.as_view(),
         name="support-staff-ticket-reply",
     ),
+    # Phase 16: FLASH Operations (session-authenticated; every route answers 404 to a
+    # caller without the matching back-office capability).
+    path("backoffice/", BackOfficeRootView.as_view(), name="backoffice-root"),
+    path(
+        "backoffice/dashboard/",
+        BackOfficeDashboardView.as_view(),
+        name="backoffice-dashboard",
+    ),
+    path("backoffice/alerts/", BackOfficeAlertsView.as_view(), name="backoffice-alerts"),
+    path("backoffice/orders/", BackOfficeOrdersView.as_view(), name="backoffice-orders"),
+    path("backoffice/audit/", BackOfficeAuditView.as_view(), name="backoffice-audit"),
 ]

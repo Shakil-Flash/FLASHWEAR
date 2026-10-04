@@ -1,0 +1,70 @@
+{% extends "backoffice/base.html" %}
+{% load catalog_extras %}
+
+{% block title %}Promotions{% endblock title %}
+{% block breadcrumb %}Operations · Promotions{% endblock breadcrumb %}
+
+{% block content %}
+<header class="mb-5">
+    <h1 class="text-2xl font-semibold tracking-tight text-slate-900">Promotions</h1>
+    <p class="mt-1 text-sm text-slate-500">Read-only here: windows and usage limits belong to the engagement app.</p>
+</header>
+
+<nav class="mb-4 flex flex-wrap gap-1.5" aria-label="Promotion scope">
+    {% for key, label in scopes %}
+    <a href="{% query_transform scope=key %}"
+       class="rounded-full px-3 py-1 text-sm {% if filters.scope == key %}bg-slate-900 font-medium text-white{% else %}border border-slate-300 bg-white text-slate-600 hover:border-slate-900{% endif %}">{{ label }}</a>
+    {% endfor %}
+</nav>
+
+<form method="get" class="mb-4 flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-soft">
+    <div class="min-w-[14rem] flex-1">
+        <label class="block text-xs font-medium uppercase tracking-wider text-slate-500" for="promo-q">Search</label>
+        <input id="promo-q" name="q" value="{{ filters.q }}" placeholder="Code or name"
+               class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none" />
+    </div>
+    <button type="submit" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700">Search</button>
+</form>
+
+<div class="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-soft">
+    <table class="min-w-full text-sm">
+        <thead class="border-b border-slate-200 bg-slate-50 text-left text-xs uppercase tracking-wider text-slate-500">
+            <tr>
+                <th scope="col" class="px-4 py-3">Code</th>
+                <th scope="col" class="px-4 py-3">State</th>
+                <th scope="col" class="px-4 py-3">Window</th>
+                <th scope="col" class="px-4 py-3 text-right">Used</th>
+                <th scope="col" class="px-4 py-3 text-right">Limit</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+            {% for promotion in page %}
+            <tr class="hover:bg-slate-50">
+                <td class="px-4 py-3">
+                    <p class="font-mono font-medium text-slate-900">{{ promotion.code }}</p>
+                    <p class="text-xs text-slate-500">{{ promotion.name }}</p>
+                </td>
+                <td class="px-4 py-3">
+                    {% with state=states|get_item:promotion.pk %}
+                    <span class="rounded-full px-2.5 py-0.5 text-xs font-medium
+                        {% if state == 'active' %}bg-emerald-100 text-emerald-800
+                        {% elif state == 'scheduled' %}bg-sky-100 text-sky-800
+                        {% elif state == 'expired' %}bg-amber-100 text-amber-800
+                        {% else %}bg-slate-100 text-slate-700{% endif %}">{{ state|default:"inactive" }}</span>
+                    {% endwith %}
+                </td>
+                <td class="px-4 py-3 text-slate-600">
+                    {{ promotion.starts_at|date:"Y-m-d H:i" }} → {{ promotion.ends_at|date:"Y-m-d H:i" }}
+                </td>
+                <td class="px-4 py-3 text-right tabular-nums">{{ promotion.used_count }}</td>
+                <td class="px-4 py-3 text-right tabular-nums">{{ promotion.usage_limit|default:"∞" }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" class="px-4 py-8 text-center text-slate-500">No promotions match this filter.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% include "backoffice/_pagination.html" %}
+{% endblock content %}

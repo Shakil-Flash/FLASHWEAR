@@ -1,6 +1,6 @@
 """Root URL configuration.
 
-Five public surfaces:
+Six public surfaces:
 
 * ``/``             storefront pages (Django templates, Tailwind, HTMX, Alpine.js). The catalogue
   is mounted here rather than under ``/catalog/`` because ``/products/<slug>/`` is a shopper URL,
@@ -11,6 +11,8 @@ Five public surfaces:
 * ``/admin/``       Django admin back office
 * ``/payments/``    Phase 6 provider webhook and local payment controls (``/shop/`` holds the
   storefront checkout flow itself)
+* ``/operations/``  Phase 16 FLASH Operations -- the staff back office (capability-gated;
+  every route answers 404 to anyone without one)
 """
 
 from django.conf import settings
@@ -38,6 +40,8 @@ urlpatterns = [
     path("loop/", include("apps.loop.urls")),
     # Phase 15: FLASH Support & Customer Care (/support/, /support/staff/)
     path("support/", include("apps.support.urls")),
+    # Phase 16: FLASH Operations back office (/operations/, /operations/orders/ ...)
+    path("operations/", include("apps.backoffice.urls")),
 ]
 
 # Development-only convenience: Django's runserver does not serve media files.

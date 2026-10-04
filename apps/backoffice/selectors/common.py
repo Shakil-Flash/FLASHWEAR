@@ -21,7 +21,7 @@ from django.http import HttpRequest
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
-__all__ = ["DateRange", "RANGES", "paginate", "resolve_range", "sort_queryset"]
+__all__ = ["RANGES", "DateRange", "paginate", "resolve_range", "sort_queryset"]
 
 
 class DateRange(NamedTuple):

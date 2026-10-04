@@ -1,0 +1,89 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    {# Internal tool: never indexed, never followed, and no snippet of a customer's #}
+    {# order should surface in a search result. #}
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="referrer" content="no-referrer" />
+    <meta name="description" content="FLASHWEAR operations back office — staff only." />
+    <title>{% block title %}FLASH Operations{% endblock title %} · FLASHWEAR</title>
+    <link rel="stylesheet" href="{% static 'css/app.css' %}" />
+</head>
+
+<body class="h-full bg-slate-100 text-slate-900 antialiased">
+    <a href="#bo-content" class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-slate-900 focus:px-4 focus:py-2 focus:text-white">
+        Skip to content
+    </a>
+
+    <div class="mx-auto flex min-h-full max-w-[1600px]">
+        {# ---------------------------------------------------------------------------------- #}
+        {# Sidebar: rendered from the same NAVIGATION the dashboard tiles use, so a section the #}
+        {# current operator may not open is never offered to them.                              #}
+        {# ---------------------------------------------------------------------------------- #}
+        <aside class="hidden w-60 shrink-0 flex-col border-r border-slate-800 bg-slate-900 text-slate-200 md:flex">
+            <div class="flex h-16 items-center gap-2 border-b border-slate-800 px-5">
+                <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-flash-600 text-sm font-bold text-white" aria-hidden="true">F</span>
+                <div class="leading-tight">
+                    <p class="text-sm font-semibold text-white">FLASH Operations</p>
+                    <p class="text-xs text-slate-400">Back office</p>
+                </div>
+            </div>
+
+            <nav class="flex-1 overflow-y-auto px-3 py-4" aria-label="Back office">
+                {% for group in nav %}
+                <div class="mb-5">
+                    <p class="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500">{{ group.label }}</p>
+                    <ul class="space-y-0.5">
+                        {% for item in group.items %}
+                        <li>
+                            <a href="{% url item.url_name %}"
+                               class="flex items-center justify-between rounded-md px-2 py-1.5 text-sm transition hover:bg-slate-800 hover:text-white
+                                      {% if active_key == item.key %}bg-slate-800 font-medium text-white{% else %}text-slate-300{% endif %}"
+                               {% if active_key == item.key %}aria-current="page"{% endif %}>
+                                {{ item.label }}
+                            </a>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% empty %}
+                <p class="px-2 text-sm text-slate-400">No sections are available to this account.</p>
+                {% endfor %}
+            </nav>
+
+            <div class="border-t border-slate-800 px-5 py-4 text-xs text-slate-400">
+                <p class="truncate" title="{{ request.user.email }}">{{ request.user.email }}</p>
+                <div class="mt-1 flex flex-wrap items-center gap-3">
+                    <a class="text-flash-400 hover:underline" href="{% url 'core:home' %}">Storefront</a>
+                    <a class="text-flash-400 hover:underline" href="{% url 'admin:index' %}">Admin</a>
+                    <form method="post" action="{% url 'accounts:logout' %}">
+                        {% csrf_token %}
+                        <button type="submit" class="text-flash-400 hover:underline">Sign out</button>
+                    </form>
+                </div>
+            </div>
+        </aside>
+
+        <div class="flex min-w-0 flex-1 flex-col">
+            <header class="flex h-16 items-center justify-between border-b border-slate-200 bg-white px-4 sm:px-6">
+                <div class="min-w-0">
+                    <p class="truncate text-sm text-slate-500">{% block breadcrumb %}Operations{% endblock breadcrumb %}</p>
+                </div>
+                <div class="flex items-center gap-3 text-sm">
+                    <a class="rounded-full border border-slate-300 px-3 py-1.5 font-medium text-slate-700 transition hover:border-slate-900" href="{% url 'backoffice:dashboard' %}">Dashboard</a>
+                </div>
+            </header>
+
+            <main id="bo-content" class="flex-1 px-4 py-6 sm:px-6">
+                {% include "components/messages.html" %}
+                {% block content %}{% endblock content %}
+            </main>
+        </div>
+    </div>
+</body>
+
+</html>

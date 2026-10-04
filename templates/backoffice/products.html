@@ -1,0 +1,100 @@
+{% extends "backoffice/base.html" %}
+{% load catalog_extras %}
+
+{% block title %}Products{% endblock title %}
+{% block breadcrumb %}Operations · Products{% endblock breadcrumb %}
+
+{% block content %}
+<header class="mb-5 flex flex-wrap items-end justify-between gap-4">
+    <div>
+        <h1 class="text-2xl font-semibold tracking-tight text-slate-900">Products</h1>
+        <p class="mt-1 text-sm text-slate-500">{{ page.paginator.count }} product{{ page.paginator.count|pluralize }} match.</p>
+    </div>
+</header>
+
+<section aria-label="Catalogue health" class="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <a href="{% url 'backoffice:products' %}" class="rounded-xl border border-slate-200 bg-white p-4 shadow-soft">
+        <p class="text-xs uppercase tracking-wider text-slate-500">Products</p>
+        <p class="mt-1 text-xl font-semibold tabular-nums">{{ health.products_total }}</p>
+    </a>
+    <a href="{% query_transform issue='missing_images' %}" class="rounded-xl border border-slate-200 bg-white p-4 shadow-soft hover:border-slate-900">
+        <p class="text-xs uppercase tracking-wider text-slate-500">Missing images</p>
+        <p class="mt-1 text-xl font-semibold tabular-nums {% if health.missing_images %}text-amber-700{% endif %}">{{ health.missing_images }}</p>
+    </a>
+    <a href="{% query_transform issue='no_active_variants' %}" class="rounded-xl border border-slate-200 bg-white p-4 shadow-soft hover:border-slate-900">
+        <p class="text-xs uppercase tracking-wider text-slate-500">No sellable variant</p>
+        <p class="mt-1 text-xl font-semibold tabular-nums {% if health.no_active_variants %}text-amber-700{% endif %}">{{ health.no_active_variants }}</p>
+    </a>
+    <a href="{% query_transform issue='unpublished' %}" class="rounded-xl border border-slate-200 bg-white p-4 shadow-soft hover:border-slate-900">
+        <p class="text-xs uppercase tracking-wider text-slate-500">Not live</p>
+        <p class="mt-1 text-xl font-semibold tabular-nums">{{ health.drafts }} draft · {{ health.archived }} archived</p>
+    </a>
+</section>
+
+<form method="get" class="mb-4 flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-soft">
+    <div class="min-w-[14rem] flex-1">
+        <label class="block text-xs font-medium uppercase tracking-wider text-slate-500" for="prod-q">Search</label>
+        <input id="prod-q" name="q" value="{{ filters.q }}" placeholder="Product name or slug"
+               class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none" />
+    </div>
+    <div>
+        <label class="block text-xs font-medium uppercase tracking-wider text-slate-500" for="prod-issue">Issue</label>
+        <select id="prod-issue" name="issue" class="mt-1 rounded-lg border border-slate-300 px-3 py-2 text-sm">
+            <option value="">Any</option>
+            <option value="unpublished" {% if filters.issue == 'unpublished' %}selected{% endif %}>Not live</option>
+            <option value="missing_images" {% if filters.issue == 'missing_images' %}selected{% endif %}>Missing images</option>
+            <option value="no_active_variants" {% if filters.issue == 'no_active_variants' %}selected{% endif %}>No sellable variant</option>
+        </select>
+    </div>
+    <button type="submit" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700">Filter</button>
+</form>
+
+<form method="post" action="{% url 'backoffice:products_bulk' %}">
+    {% csrf_token %}
+    <div class="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-soft">
+        <table class="min-w-full text-sm">
+            <thead class="border-b border-slate-200 bg-slate-50 text-left text-xs uppercase tracking-wider text-slate-500">
+                <tr>
+                    <th scope="col" class="px-4 py-3"><span class="sr-only">Select</span></th>
+                    <th scope="col" class="px-4 py-3">Product</th>
+                    <th scope="col" class="px-4 py-3">Status</th>
+                    <th scope="col" class="px-4 py-3 text-right">Variants</th>
+                    <th scope="col" class="px-4 py-3 text-right">Images</th>
+                    <th scope="col" class="px-4 py-3">Updated</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                {% for product in page %}
+                <tr class="hover:bg-slate-50">
+                    <td class="px-4 py-3">
+                        {% if can_manage %}
+                        <input type="checkbox" name="selected" value="{{ product.pk }}" aria-label="Select {{ product.name }}"
+                               class="h-4 w-4 rounded border-slate-300" />
+                        {% endif %}
+                    </td>
+                    <td class="px-4 py-3">
+                        <p class="font-medium text-slate-900">{{ product.name }}</p>
+                        <p class="text-xs text-slate-500">{{ product.category.name|default:"—" }} · {{ product.brand.name|default:"—" }}</p>
+                    </td>
+                    <td class="px-4 py-3"><span class="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700">{{ product.get_status_display }}</span></td>
+                    <td class="px-4 py-3 text-right tabular-nums">{{ product.active_variant_count }}/{{ product.variant_count }}</td>
+                    <td class="px-4 py-3 text-right tabular-nums {% if product.image_count == 0 %}text-amber-700{% endif %}">{{ product.image_count }}</td>
+                    <td class="px-4 py-3 text-slate-500">{{ product.updated_at|date:"Y-m-d" }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6" class="px-4 py-8 text-center text-slate-500">No products match these filters.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if can_manage %}
+    <div class="mt-4 flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-soft">
+        {% for field in bulk_form %}{% include "backoffice/_field.html" with field=field %}{% endfor %}
+        <button type="submit" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700">Apply to selection</button>
+    </div>
+    {% endif %}
+</form>
+
+{% include "backoffice/_pagination.html" %}
+{% endblock content %}

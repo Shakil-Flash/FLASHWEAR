@@ -1,0 +1,68 @@
+{% extends "backoffice/base.html" %}
+{% load catalog_extras %}
+
+{% block title %}Payments{% endblock title %}
+{% block breadcrumb %}Operations · Payments{% endblock breadcrumb %}
+
+{% block content %}
+<header class="mb-5 flex flex-wrap items-end justify-between gap-4">
+    <div>
+        <h1 class="text-2xl font-semibold tracking-tight text-slate-900">Payments</h1>
+        <p class="mt-1 text-sm text-slate-500">State and reference only — provider payloads are never shown.</p>
+    </div>
+    {% include "backoffice/_range_filter.html" %}
+</header>
+
+<form method="get" class="mb-4 flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-soft">
+    <div class="min-w-[14rem] flex-1">
+        <label class="block text-xs font-medium uppercase tracking-wider text-slate-500" for="pay-q">Search</label>
+        <input id="pay-q" name="q" value="{{ filters.q }}" placeholder="Order number or provider reference"
+               class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none" />
+    </div>
+    <div>
+        <label class="block text-xs font-medium uppercase tracking-wider text-slate-500" for="pay-status">Status</label>
+        <select id="pay-status" name="status" class="mt-1 rounded-lg border border-slate-300 px-3 py-2 text-sm">
+            <option value="">Any</option>
+            {% for value, label in status_choices %}
+            <option value="{{ value }}" {% if filters.status == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <button type="submit" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700">Filter</button>
+</form>
+
+<div class="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-soft">
+    <table class="min-w-full text-sm">
+        <thead class="border-b border-slate-200 bg-slate-50 text-left text-xs uppercase tracking-wider text-slate-500">
+            <tr>
+                <th scope="col" class="px-4 py-3">Order</th>
+                <th scope="col" class="px-4 py-3">Provider</th>
+                <th scope="col" class="px-4 py-3">Status</th>
+                <th scope="col" class="px-4 py-3 text-right">Amount</th>
+                <th scope="col" class="px-4 py-3"><a href="{% query_transform sort='-created_at' %}">Created</a></th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+            {% for payment in page %}
+            <tr class="hover:bg-slate-50">
+                <td class="px-4 py-3">
+                    <a class="text-flash-700 hover:underline" href="{% url 'backoffice:payment_detail' payment.pk %}">
+                        {{ payment.order.number }}
+                    </a>
+                </td>
+                <td class="px-4 py-3 text-slate-600">{{ payment.provider }}</td>
+                <td class="px-4 py-3">
+                    <span class="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700">{{ payment.get_status_display }}</span>
+                </td>
+                <td class="px-4 py-3 text-right tabular-nums">{{ payment.currency|default:"GBP" }} {{ payment.amount }}</td>
+                <td class="px-4 py-3 text-slate-500">{{ payment.created_at|date:"Y-m-d H:i" }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" class="px-4 py-8 text-center text-slate-500">No payments match these filters.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% include "backoffice/_pagination.html" %}
+{% endblock content %}

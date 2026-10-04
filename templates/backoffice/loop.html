@@ -1,0 +1,122 @@
+{% extends "backoffice/base.html" %}
+{% load catalog_extras %}
+
+{% block title %}FLASH Loop{% endblock title %}
+{% block breadcrumb %}Operations · FLASH Loop{% endblock breadcrumb %}
+
+{% block content %}
+<header class="mb-5">
+    <h1 class="text-2xl font-semibold tracking-tight text-slate-900">FLASH Loop</h1>
+    <p class="mt-1 text-sm text-slate-500">
+        {{ counts.items }} item{{ counts.items|pluralize }} awaiting review ·
+        {{ counts.listings }} listing{{ counts.listings|pluralize }} pending ·
+        {{ counts.trade_ins }} trade-in{{ counts.trade_ins|pluralize }} ·
+        {{ counts.recycling }} recycling request{{ counts.recycling|pluralize }}
+    </p>
+</header>
+
+<nav class="mb-4 flex flex-wrap gap-1.5" aria-label="Loop queues">
+    {% for key, label in tabs %}
+    <a href="{% query_transform tab=key %}"
+       class="rounded-full px-3 py-1 text-sm {% if tab == key %}bg-slate-900 font-medium text-white{% else %}border border-slate-300 bg-white text-slate-600 hover:border-slate-900{% endif %}">{{ label }}</a>
+    {% endfor %}
+</nav>
+
+<form method="get" class="mb-4 flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-soft">
+    <input type="hidden" name="tab" value="{{ tab }}" />
+    <div class="min-w-[14rem] flex-1">
+        <label class="block text-xs font-medium uppercase tracking-wider text-slate-500" for="loop-q">Search</label>
+        <input id="loop-q" name="q" value="{{ filters.q }}" placeholder="Title or owner email"
+               class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none" />
+    </div>
+    <div>
+        <label class="block text-xs font-medium uppercase tracking-wider text-slate-500" for="loop-status">Status</label>
+        <select id="loop-status" name="status" class="mt-1 rounded-lg border border-slate-300 px-3 py-2 text-sm">
+            <option value="">Awaiting review</option>
+            {% for value, label in status_choices %}
+            <option value="{{ value }}" {% if filters.status == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <button type="submit" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700">Filter</button>
+</form>
+
+{% if tab == 'listings' %}
+<div class="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-soft">
+    <table class="min-w-full text-sm">
+        <thead class="border-b border-slate-200 bg-slate-50 text-left text-xs uppercase tracking-wider text-slate-500">
+            <tr>
+                <th scope="col" class="px-4 py-3">Listing</th>
+                <th scope="col" class="px-4 py-3">Status</th>
+                <th scope="col" class="px-4 py-3 text-right">Asking</th>
+                <th scope="col" class="px-4 py-3">Listed</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+            {% for listing in listings %}
+            <tr class="hover:bg-slate-50">
+                <td class="px-4 py-3">
+                    <p class="font-medium text-slate-900">{{ listing.item.title }}</p>
+                    <p class="text-xs text-slate-500">{{ listing.item.user.email }} · item #{{ listing.item.pk }}</p>
+                </td>
+                <td class="px-4 py-3"><span class="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700">{{ listing.get_status_display }}</span></td>
+                <td class="px-4 py-3 text-right tabular-nums">{{ listing.asking_price|default:"—" }}</td>
+                <td class="px-4 py-3 text-slate-500">{{ listing.listed_at|date:"Y-m-d H:i"|default:"—" }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4" class="px-4 py-8 text-center text-slate-500">No listings in this queue.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% else %}
+<div class="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-soft">
+    <table class="min-w-full text-sm">
+        <thead class="border-b border-slate-200 bg-slate-50 text-left text-xs uppercase tracking-wider text-slate-500">
+            <tr>
+                <th scope="col" class="px-4 py-3">Item</th>
+                <th scope="col" class="px-4 py-3">Owner</th>
+                <th scope="col" class="px-4 py-3">Status</th>
+                <th scope="col" class="px-4 py-3">Submitted</th>
+                {% if can_manage %}<th scope="col" class="px-4 py-3">Decision</th>{% endif %}
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+            {% for item in page %}
+            <tr class="hover:bg-slate-50">
+                <td class="px-4 py-3">
+                    <p class="font-medium text-slate-900">{{ item.title|default:"(untitled)" }}</p>
+                    <p class="text-xs text-slate-500">#{{ item.pk }} · {{ item.get_type_display }} · {{ item.get_condition_display }}</p>
+                </td>
+                <td class="px-4 py-3 text-slate-600">{{ item.user.email }}</td>
+                <td class="px-4 py-3"><span class="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700">{{ item.get_status_display }}</span></td>
+                <td class="px-4 py-3 text-slate-500">{{ item.created_at|date:"Y-m-d H:i" }}</td>
+                {% if can_manage %}
+                <td class="px-4 py-3">
+                    <form method="post" action="{% url 'backoffice:loop_action' item.pk %}" class="flex flex-wrap items-end gap-2">
+                        {% csrf_token %}
+                        <label class="sr-only" for="loop-action-{{ item.pk }}">Decision for item {{ item.pk }}</label>
+                        <select id="loop-action-{{ item.pk }}" name="action" class="rounded-lg border border-slate-300 px-2 py-1.5 text-sm">
+                            {% for value, label in action_form.action.choices %}
+                            <option value="{{ value }}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                        <label class="sr-only" for="loop-note-{{ item.pk }}">Note</label>
+                        <input id="loop-note-{{ item.pk }}" name="note" maxlength="255" placeholder="Note"
+                               class="rounded-lg border border-slate-300 px-2 py-1.5 text-sm" />
+                        <button type="submit" class="rounded-lg bg-slate-900 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-slate-700">Apply</button>
+                    </form>
+                </td>
+                {% endif %}
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" class="px-4 py-8 text-center text-slate-500">No items in this queue.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% include "backoffice/_pagination.html" %}
+{% endif %}
+{% endblock content %}

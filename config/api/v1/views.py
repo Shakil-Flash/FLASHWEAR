@@ -47,6 +47,7 @@ class ApiRootView(APIView):
                     "support_staff_tickets": reverse(
                         "v1:support-staff-ticket-list", request=request
                     ),
+                    "backoffice": reverse("v1:backoffice-root", request=request),
                 },
             }
         )

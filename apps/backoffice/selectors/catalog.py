@@ -8,7 +8,8 @@ services* (:func:`apps.inventory.services.adjust_stock`,
 
 from __future__ import annotations
 
-from django.db.models import Count, F, Prefetch, Q, QuerySet
+from django.db.models import Count, F, FloatField, Prefetch, Q, QuerySet
+from django.db.models.functions import Cast
 from django.utils import timezone
 
 from apps.backoffice.selectors.common import sort_queryset
@@ -24,8 +25,8 @@ __all__ = [
     "drops",
     "low_stock_rows",
     "products",
-    "promotions",
     "promotion_state",
+    "promotions",
     "quests",
     "recent_movements",
     "stock_rows",
@@ -48,9 +49,15 @@ STOCK_SORTS = {
 }
 
 
-def stock_state(stock: Stock, threshold: int) -> str:
-    """A word for the row, so the template never computes business state itself."""
-    available = stock.on_hand - stock.reserved
+def stock_state(stock: Stock, threshold: int, available: int | None = None) -> str:
+    """A word for the row, so the template never computes business state itself.
+
+    ``available`` comes from the ``qty_available`` annotation when the row was listed
+    (annotating ``available`` itself would collide with the model's read-only property,
+    which Django materialises with ``setattr``). Un-annotated rows fall back to it.
+    """
+    if available is None:
+        available = stock.available
     if available <= 0:
         return "out"
     if available <= threshold:
@@ -65,13 +72,13 @@ def stock_rows(
 ) -> QuerySet:
     """Every SKU with its counters and the product it hangs off.
 
-    ``available`` is annotated rather than filtered through the model property: the
-    property cannot be used in a ``WHERE`` clause, and computing it in Python would mean
+    ``qty_available`` is annotated rather than filtered through the model property: a
+    property cannot appear in a ``WHERE`` clause, and computing it in Python would mean
     loading the table first.
     """
     qs = Stock.objects.select_related(
         "variant__product", "variant__color", "variant__size"
-    ).annotate(available=F("on_hand") - F("reserved"))
+    ).annotate(qty_available=F("on_hand") - F("reserved"))
 
     needle = (q or "").strip()
     if needle:
@@ -85,9 +92,9 @@ def stock_rows(
 
     threshold = _low_stock_threshold()
     if state == "out":
-        qs = qs.filter(available__lte=0)
+        qs = qs.filter(qty_available__lte=0)
     elif state == "low":
-        qs = qs.filter(available__gt=0, available__lte=threshold)
+        qs = qs.filter(qty_available__gt=0, qty_available__lte=threshold)
     elif state == "reserved":
         qs = qs.filter(reserved__gt=0)
 
@@ -97,8 +104,8 @@ def stock_rows(
 def low_stock_rows() -> QuerySet:
     """Variants at or below the low-stock threshold (used by tiles and alerts)."""
     threshold = _low_stock_threshold()
-    return Stock.objects.annotate(available=F("on_hand") - F("reserved")).filter(
-        available__lte=threshold
+    return Stock.objects.annotate(qty_available=F("on_hand") - F("reserved")).filter(
+        qty_available__lte=threshold
     )
 
 
@@ -211,8 +218,12 @@ def promotions(*, scope: str = "", q: str = "") -> QuerySet:
             from django.conf import settings
 
             fraction = settings.BACKOFFICE_PROMOTION_LIMIT_FRACTION
-            qs = qs.filter(is_active=True, usage_limit__isnull=False).extra(
-                where=["used_count >= usage_limit * %s"], params=[fraction]
+            qs = (
+                qs.filter(is_active=True, usage_limit__isnull=False)
+                .annotate(
+                    used_fraction=Cast("used_count", FloatField()) / F("usage_limit"),
+                )
+                .filter(used_fraction__gte=fraction)
             )
     needle = (q or "").strip()
     if needle:
@@ -223,9 +234,9 @@ def promotions(*, scope: str = "", q: str = "") -> QuerySet:
 def quests(*, q: str = "", publish_state: str = "", sort: str = "") -> QuerySet:
     """Quest definitions with participation counts (one aggregate, not per row)."""
     qs = Quest.objects.annotate(
-        participant_count=Count("userquest", distinct=True),
+        participant_count=Count("progress", distinct=True),
         completed_count=Count(
-            "userquest", filter=Q(userquest__status="completed"), distinct=True
+            "progress", filter=Q(progress__status="completed"), distinct=True
         ),
     ).order_by("sort_order", "-pk")
     if publish_state in Quest.PublishState.values:

@@ -1,0 +1,128 @@
+{% extends "backoffice/base.html" %}
+{% load catalog_extras %}
+
+{% block title %}Order {{ order.number }}{% endblock title %}
+{% block breadcrumb %}Operations · <a class="text-flash-700 hover:underline" href="{% url 'backoffice:orders' %}">Orders</a> · {{ order.number }}{% endblock breadcrumb %}
+
+{% block content %}
+<header class="mb-6 flex flex-wrap items-start justify-between gap-4">
+    <div>
+        <h1 class="text-2xl font-semibold tracking-tight text-slate-900">{{ order.number }}</h1>
+        <p class="mt-1 text-sm text-slate-500">
+            {{ order.get_status_display }} · {{ order.currency }} {{ order.total }} · placed {{ order.created_at|date:"Y-m-d H:i" }}
+        </p>
+    </div>
+    <span class="rounded-full bg-slate-900 px-3 py-1 text-sm font-medium text-white">{{ order.get_status_display }}</span>
+</header>
+
+<div class="grid gap-6 lg:grid-cols-3">
+    <section class="lg:col-span-2 space-y-6">
+        {# ---- items ----------------------------------------------------------------------- #}
+        <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft">
+            <h2 class="border-b border-slate-100 px-5 py-4 text-base font-semibold text-slate-900">Items</h2>
+            <table class="min-w-full text-sm">
+                <thead class="border-b border-slate-200 bg-slate-50 text-left text-xs uppercase tracking-wider text-slate-500">
+                    <tr>
+                        <th scope="col" class="px-5 py-3">Product</th>
+                        <th scope="col" class="px-5 py-3">Variant</th>
+                        <th scope="col" class="px-5 py-3 text-right">Qty</th>
+                        <th scope="col" class="px-5 py-3 text-right">Line total</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for item in order.items.all %}
+                    <tr>
+                        <td class="px-5 py-3">{{ item.variant.product.name }}</td>
+                        <td class="px-5 py-3 text-slate-600">{{ item.variant.color }} / {{ item.variant.size }}</td>
+                        <td class="px-5 py-3 text-right tabular-nums">{{ item.quantity }}</td>
+                        <td class="px-5 py-3 text-right tabular-nums">{{ order.currency }} {{ item.line_total }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="4" class="px-5 py-6 text-center text-slate-500">No line items.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <dl class="grid gap-2 border-t border-slate-100 px-5 py-4 text-sm sm:grid-cols-2">
+                <div class="flex justify-between"><dt class="text-slate-500">Subtotal</dt><dd class="tabular-nums">{{ order.currency }} {{ order.subtotal }}</dd></div>
+                <div class="flex justify-between"><dt class="text-slate-500">Shipping</dt><dd class="tabular-nums">{{ order.currency }} {{ order.shipping_amount }}</dd></div>
+                <div class="flex justify-between"><dt class="text-slate-500">Discount</dt><dd class="tabular-nums">−{{ order.currency }} {{ order.discount_amount }}</dd></div>
+                <div class="flex justify-between font-medium"><dt class="text-slate-700">Total</dt><dd class="tabular-nums">{{ order.currency }} {{ order.total }}</dd></div>
+            </dl>
+        </div>
+
+        {# ---- timeline --------------------------------------------------------------------- #}
+        <div class="rounded-2xl border border-slate-200 bg-white shadow-soft">
+            <h2 class="border-b border-slate-100 px-5 py-4 text-base font-semibold text-slate-900">Timeline</h2>
+            <ol class="divide-y divide-slate-100">
+                {% for entry in timeline %}
+                <li class="px-5 py-3">
+                    <p class="text-sm">
+                        <span class="text-slate-400 tabular-nums">{{ entry.at|date:"Y-m-d H:i" }}</span>
+                        <span class="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">{{ entry.source }}</span>
+                        <span class="ml-2 font-medium text-slate-900">{{ entry.label }}</span>
+                    </p>
+                    {% if entry.note %}<p class="mt-1 text-sm text-slate-600">{{ entry.note }}</p>{% endif %}
+                    {% if entry.actor %}<p class="mt-0.5 text-xs text-slate-400">{{ entry.actor }}</p>{% endif %}
+                </li>
+                {% empty %}
+                <li class="px-5 py-6 text-sm text-slate-500">Nothing has happened to this order yet.</li>
+                {% endfor %}
+            </ol>
+        </div>
+    </section>
+
+    <aside class="space-y-6">
+        {# ---- actions ------------------------------------------------------------------------ #}
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
+            <h2 class="text-base font-semibold text-slate-900">Actions</h2>
+            {% if can_manage %}
+            <form method="post" action="{% url 'backoffice:order_action' order.number %}" class="mt-3">
+                {% csrf_token %}
+                {% for field in action_form %}{% include "backoffice/_field.html" with field=field %}{% endfor %}
+                <button type="submit" class="w-full rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700">Apply</button>
+            </form>
+            <form method="post" action="{% url 'backoffice:order_note' order.number %}" class="mt-4 border-t border-slate-100 pt-4">
+                {% csrf_token %}
+                {% for field in note_form %}{% include "backoffice/_field.html" with field=field %}{% endfor %}
+                <button type="submit" class="w-full rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-900">Add note</button>
+            </form>
+            {% else %}
+            <p class="mt-2 text-sm text-slate-500">You can read this order but not change it.</p>
+            {% endif %}
+        </div>
+
+        {# ---- facts ------------------------------------------------------------------------- #}
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
+            <h2 class="text-base font-semibold text-slate-900">Facts</h2>
+            <dl class="mt-3 space-y-2 text-sm">
+                <div class="flex justify-between gap-3"><dt class="text-slate-500">Customer</dt><dd class="truncate text-slate-900">{{ order.user.email|default:"—" }}</dd></div>
+                <div class="flex justify-between gap-3"><dt class="text-slate-500">Promotion</dt><dd class="text-slate-900">{{ order.promotion_code|default:"—" }}</dd></div>
+                <div class="flex justify-between gap-3"><dt class="text-slate-500">Points redeemed</dt><dd class="tabular-nums">{{ order.loyalty_points }}</dd></div>
+                <div class="flex justify-between gap-3"><dt class="text-slate-500">Shipping</dt><dd class="text-slate-900">{{ order.shipping_name }}</dd></div>
+                {% if order.payment %}
+                <div class="flex justify-between gap-3">
+                    <dt class="text-slate-500">Payment</dt>
+                    <dd><a class="text-flash-700 hover:underline" href="{% url 'backoffice:payment_detail' order.payment.pk %}">{{ order.payment.get_status_display }}</a></dd>
+                </div>
+                {% endif %}
+                <div class="flex justify-between gap-3"><dt class="text-slate-500">Paid at</dt><dd class="text-slate-900">{{ order.paid_at|date:"Y-m-d H:i"|default:"—" }}</dd></div>
+            </dl>
+        </div>
+
+        {# ---- shipments ------------------------------------------------------------------------ #}
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
+            <h2 class="text-base font-semibold text-slate-900">Shipments</h2>
+            <ul class="mt-3 space-y-2 text-sm">
+                {% for shipment in order.shipments.all %}
+                <li class="rounded-xl bg-slate-50 px-4 py-2.5">
+                    <p class="font-medium text-slate-900">{{ shipment.get_status_display }}</p>
+                    <p class="text-slate-600">{{ shipment.carrier|default:"—" }} {{ shipment.tracking_number }}</p>
+                </li>
+                {% empty %}
+                <li class="text-sm text-slate-500">No shipment opened yet.</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </aside>
+</div>
+{% endblock content %}

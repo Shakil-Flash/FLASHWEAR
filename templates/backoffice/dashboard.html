@@ -1,0 +1,138 @@
+{% extends "backoffice/base.html" %}
+
+{% block title %}Dashboard{% endblock title %}
+{% block breadcrumb %}Operations · Dashboard{% endblock breadcrumb %}
+
+{% block content %}
+<header class="mb-6 flex flex-wrap items-end justify-between gap-4">
+    <div>
+        <h1 class="text-2xl font-semibold tracking-tight text-slate-900">Dashboard</h1>
+        <p class="mt-1 text-sm text-slate-500">{{ summary.range.label }} · every figure below is a live count.</p>
+    </div>
+    {% include "backoffice/_range_filter.html" %}
+</header>
+
+{# ---- sales -------------------------------------------------------------------------------- #}
+<section aria-labelledby="sales-heading" class="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
+        <p class="text-xs font-medium uppercase tracking-wider text-slate-500">Gross</p>
+        <p class="mt-1 text-2xl font-semibold tabular-nums text-slate-900">£{{ summary.sales.gross }}</p>
+        <p class="mt-1 text-sm text-slate-500">{{ summary.sales.paid }} paid order{{ summary.sales.paid|pluralize }}</p>
+    </div>
+    <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
+        <p class="text-xs font-medium uppercase tracking-wider text-slate-500">Average order</p>
+        <p class="mt-1 text-2xl font-semibold tabular-nums text-slate-900">£{{ summary.sales.aov }}</p>
+        <p class="mt-1 text-sm text-slate-500">{{ summary.sales.placed }} placed in total</p>
+    </div>
+    <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
+        <p class="text-xs font-medium uppercase tracking-wider text-slate-500">Discounts</p>
+        <p class="mt-1 text-2xl font-semibold tabular-nums text-slate-900">£{{ summary.sales.discounts }}</p>
+        <p class="mt-1 text-sm text-slate-500">promo + FLASH Points, frozen at checkout</p>
+    </div>
+    <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
+        <p class="text-xs font-medium uppercase tracking-wider text-slate-500">Customers</p>
+        <p class="mt-1 text-2xl font-semibold tabular-nums text-slate-900">{{ summary.customers.total }}</p>
+        <p class="mt-1 text-sm text-slate-500">{{ summary.customers.new }} new · {{ summary.customers.buying }} bought this window</p>
+    </div>
+</section>
+
+<div class="grid gap-6 lg:grid-cols-3">
+    {# ---- order pipeline -------------------------------------------------------------------- #}
+    <section aria-labelledby="pipeline-heading" class="rounded-2xl border border-slate-200 bg-white shadow-soft lg:col-span-2">
+        <header class="border-b border-slate-100 px-5 py-4">
+            <h2 id="pipeline-heading" class="text-base font-semibold text-slate-900">Order pipeline</h2>
+            <p class="text-sm text-slate-500">Current status of every order, all time.</p>
+        </header>
+        <ul class="grid gap-3 px-5 py-4 sm:grid-cols-2">
+            {% for row in pipeline %}
+            <li class="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-2.5">
+                <span class="text-sm text-slate-700">{{ row.label }}</span>
+                <span class="text-sm font-semibold tabular-nums text-slate-900">{{ row.count }}</span>
+            </li>
+            {% empty %}
+            <li class="text-sm text-slate-500">No orders yet.</li>
+            {% endfor %}
+        </ul>
+        <footer class="border-t border-slate-100 px-5 py-3 text-sm">
+            <a class="text-flash-700 hover:underline" href="{% url 'backoffice:orders' %}">Open the order queue</a>
+        </footer>
+    </section>
+
+    {# ---- alerts ---------------------------------------------------------------------------- #}
+    {% include "backoffice/_alerts.html" with alerts=alerts %}
+</div>
+
+<div class="mt-6 grid gap-6 lg:grid-cols-3">
+    {# ---- inventory -------------------------------------------------------------------------- #}
+    <section aria-labelledby="stock-heading" class="rounded-2xl border border-slate-200 bg-white shadow-soft">
+        <header class="border-b border-slate-100 px-5 py-4">
+            <h2 id="stock-heading" class="text-base font-semibold text-slate-900">Inventory</h2>
+        </header>
+        <ul class="space-y-2 px-5 py-4 text-sm">
+            <li class="flex justify-between"><span class="text-slate-600">Out of stock</span><span class="font-semibold tabular-nums">{{ summary.inventory.out }}</span></li>
+            <li class="flex justify-between"><span class="text-slate-600">Low stock</span><span class="font-semibold tabular-nums">{{ summary.inventory.low }}</span></li>
+            <li class="flex justify-between"><span class="text-slate-600">Units reserved</span><span class="font-semibold tabular-nums">{{ summary.inventory.reserved }}</span></li>
+            <li class="flex justify-between"><span class="text-slate-600">Active holds</span><span class="font-semibold tabular-nums">{{ summary.inventory.active }}</span></li>
+            <li class="flex justify-between"><span class="text-slate-600">Holds past expiry</span><span class="font-semibold tabular-nums">{{ summary.inventory.stale }}</span></li>
+        </ul>
+        <footer class="border-t border-slate-100 px-5 py-3 text-sm">
+            <a class="text-flash-700 hover:underline" href="{% url 'backoffice:inventory' %}">Inventory</a>
+        </footer>
+    </section>
+
+    {# ---- support & moderation ---------------------------------------------------------------- #}
+    <section aria-labelledby="service-heading" class="rounded-2xl border border-slate-200 bg-white shadow-soft">
+        <header class="border-b border-slate-100 px-5 py-4">
+            <h2 id="service-heading" class="text-base font-semibold text-slate-900">Service &amp; community</h2>
+        </header>
+        <ul class="space-y-2 px-5 py-4 text-sm">
+            <li class="flex justify-between"><span class="text-slate-600">Open tickets</span><span class="font-semibold tabular-nums">{{ summary.support.open }}</span></li>
+            <li class="flex justify-between"><span class="text-slate-600">Urgent tickets</span><span class="font-semibold tabular-nums">{{ summary.support.urgent }}</span></li>
+            <li class="flex justify-between"><span class="text-slate-600">Escalated</span><span class="font-semibold tabular-nums">{{ summary.support.escalated }}</span></li>
+            <li class="flex justify-between"><span class="text-slate-600">Past first response</span><span class="font-semibold tabular-nums">{{ summary.support.waiting }}</span></li>
+            <li class="flex justify-between"><span class="text-slate-600">Reviews pending</span><span class="font-semibold tabular-nums">{{ summary.reviews.pending }}</span></li>
+            <li class="flex justify-between"><span class="text-slate-600">Loop items in review</span><span class="font-semibold tabular-nums">{{ summary.loop.items }}</span></li>
+        </ul>
+        <footer class="flex gap-4 border-t border-slate-100 px-5 py-3 text-sm">
+            <a class="text-flash-700 hover:underline" href="{% url 'backoffice:support' %}">Support</a>
+            <a class="text-flash-700 hover:underline" href="{% url 'backoffice:reviews' %}">Reviews</a>
+            <a class="text-flash-700 hover:underline" href="{% url 'backoffice:loop' %}">Loop</a>
+        </footer>
+    </section>
+
+    {# ---- merchandising ------------------------------------------------------------------------ #}
+    <section aria-labelledby="trade-heading" class="rounded-2xl border border-slate-200 bg-white shadow-soft">
+        <header class="border-b border-slate-100 px-5 py-4">
+            <h2 id="trade-heading" class="text-base font-semibold text-slate-900">Trade &amp; marketing</h2>
+        </header>
+        <ul class="space-y-2 px-5 py-4 text-sm">
+            <li class="flex justify-between"><span class="text-slate-600">Live drops</span><span class="font-semibold tabular-nums">{{ summary.drops.live|default:0 }}</span></li>
+            <li class="flex justify-between"><span class="text-slate-600">Drops ending soon</span><span class="font-semibold tabular-nums">{{ summary.drops.ending_soon }}</span></li>
+            <li class="flex justify-between"><span class="text-slate-600">Running promotions</span><span class="font-semibold tabular-nums">{{ summary.promotions.running }}</span></li>
+            <li class="flex justify-between"><span class="text-slate-600">Promotions near limit</span><span class="font-semibold tabular-nums">{{ summary.promotions.near_limit }}</span></li>
+            <li class="flex justify-between"><span class="text-slate-600">Published quests</span><span class="font-semibold tabular-nums">{{ summary.quests.published|default:0 }}</span></li>
+            <li class="flex justify-between"><span class="text-slate-600">Points issued / redeemed</span><span class="font-semibold tabular-nums">{{ summary.points.issued }} / {{ summary.points.redeemed }}</span></li>
+        </ul>
+        <footer class="flex gap-4 border-t border-slate-100 px-5 py-3 text-sm">
+            <a class="text-flash-700 hover:underline" href="{% url 'backoffice:promotions' %}">Promotions</a>
+            <a class="text-flash-700 hover:underline" href="{% url 'backoffice:drops' %}">Drops</a>
+            <a class="text-flash-700 hover:underline" href="{% url 'backoffice:points' %}">Points</a>
+        </footer>
+    </section>
+</div>
+
+{# ---- section tiles -------------------------------------------------------------------------- #}
+<section aria-labelledby="sections-heading" class="mt-6">
+    <h2 id="sections-heading" class="mb-3 text-sm font-semibold uppercase tracking-wider text-slate-500">Sections</h2>
+    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {% for group in nav %}
+            {% for item in group.items %}
+            <a href="{% url item.url_name %}" class="group rounded-2xl border border-slate-200 bg-white p-4 shadow-soft transition hover:border-slate-900">
+                <p class="text-xs font-medium uppercase tracking-wider text-slate-500">{{ group.label }}</p>
+                <p class="mt-1 text-sm font-semibold text-slate-900 group-hover:text-flash-700">{{ item.label }}</p>
+            </a>
+            {% endfor %}
+        {% endfor %}
+    </div>
+</section>
+{% endblock content %}

@@ -1,0 +1,45 @@
+{% extends "backoffice/base.html" %}
+
+{% block title %}Payment {{ payment.pk }}{% endblock title %}
+{% block breadcrumb %}Operations · <a class="text-flash-700 hover:underline" href="{% url 'backoffice:payments' %}">Payments</a> · {{ payment.pk }}{% endblock breadcrumb %}
+
+{% block content %}
+<header class="mb-6">
+    <h1 class="text-2xl font-semibold tracking-tight text-slate-900">Payment {{ payment.pk }}</h1>
+    <p class="mt-1 text-sm text-slate-500">
+        {{ payment.get_status_display }} · {{ payment.currency|default:"GBP" }} {{ payment.amount }}
+        · order <a class="text-flash-700 hover:underline" href="{% url 'backoffice:order_detail' payment.order.number %}">{{ payment.order.number }}</a>
+    </p>
+</header>
+
+<div class="grid gap-6 lg:grid-cols-3">
+    <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft lg:col-span-2">
+        <h2 class="text-base font-semibold text-slate-900">Provider events</h2>
+        <p class="text-sm text-slate-500">Event type and time only — the raw payload belongs to the provider and stays off this screen.</p>
+        <ol class="mt-4 divide-y divide-slate-100">
+            {% for event in events %}
+            <li class="flex items-start justify-between gap-4 py-3">
+                <div>
+                    <p class="text-sm font-medium text-slate-900">{{ event.get_event_type_display|default:event.event_type }}</p>
+                    <p class="text-xs text-slate-500">{{ event.provider }} · {{ event.event_id|default:"—" }}</p>
+                </div>
+                <time class="text-sm text-slate-500 tabular-nums" datetime="{{ event.received_at|date:'c' }}">{{ event.received_at|date:"Y-m-d H:i:s" }}</time>
+            </li>
+            {% empty %}
+            <li class="py-6 text-sm text-slate-500">No provider events recorded.</li>
+            {% endfor %}
+        </ol>
+    </section>
+
+    <aside class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
+        <h2 class="text-base font-semibold text-slate-900">Facts</h2>
+        <dl class="mt-3 space-y-2 text-sm">
+            <div class="flex justify-between gap-3"><dt class="text-slate-500">Customer</dt><dd class="truncate">{{ payment.order.user.email|default:"—" }}</dd></div>
+            <div class="flex justify-between gap-3"><dt class="text-slate-500">Provider</dt><dd>{{ payment.provider }}</dd></div>
+            <div class="flex justify-between gap-3"><dt class="text-slate-500">Reference</dt><dd class="truncate">{{ payment.provider_reference|default:"—" }}</dd></div>
+            <div class="flex justify-between gap-3"><dt class="text-slate-500">Created</dt><dd>{{ payment.created_at|date:"Y-m-d H:i" }}</dd></div>
+            <div class="flex justify-between gap-3"><dt class="text-slate-500">Updated</dt><dd>{{ payment.updated_at|date:"Y-m-d H:i" }}</dd></div>
+        </dl>
+    </aside>
+</div>
+{% endblock content %}

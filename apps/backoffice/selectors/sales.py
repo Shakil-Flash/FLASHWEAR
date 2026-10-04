@@ -25,7 +25,7 @@ from django.utils.translation import gettext_lazy as _
 from apps.backoffice.selectors.common import DateRange, sort_queryset
 from apps.engagement.models import PointsTransaction
 from apps.orders.models import Order, Shipment, ShipmentEvent
-from apps.payments.models import Payment, PaymentEvent
+from apps.payments.models import Payment
 from apps.support.models import SupportTicket
 
 __all__ = [

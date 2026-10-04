@@ -1,0 +1,85 @@
+{% extends "backoffice/base.html" %}
+{% load catalog_extras %}
+
+{% block title %}Audit log{% endblock title %}
+{% block breadcrumb %}Operations · Audit log{% endblock breadcrumb %}
+
+{% block content %}
+<header class="mb-5 flex flex-wrap items-end justify-between gap-4">
+    <div>
+        <h1 class="text-2xl font-semibold tracking-tight text-slate-900">Audit log</h1>
+        <p class="mt-1 text-sm text-slate-500">
+            {{ page.paginator.count }} event{{ page.paginator.count|pluralize }} match.
+            Append-only — nothing here can be edited or deleted, from this screen or any other.
+        </p>
+    </div>
+    {% include "backoffice/_range_filter.html" %}
+</header>
+
+<form method="get" class="mb-4 flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-soft">
+    <div class="min-w-[12rem] flex-1">
+        <label class="block text-xs font-medium uppercase tracking-wider text-slate-500" for="aud-q">Search</label>
+        <input id="aud-q" name="q" value="{{ filters.q }}" placeholder="Object, actor or reason"
+               class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none" />
+    </div>
+    <div>
+        <label class="block text-xs font-medium uppercase tracking-wider text-slate-500" for="aud-actor">Actor contains</label>
+        <input id="aud-actor" name="actor" value="{{ filters.actor }}"
+               class="mt-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none" />
+    </div>
+    <div>
+        <label class="block text-xs font-medium uppercase tracking-wider text-slate-500" for="aud-domain">Domain</label>
+        <select id="aud-domain" name="domain" class="mt-1 rounded-lg border border-slate-300 px-3 py-2 text-sm">
+            <option value="">Any</option>
+            {% for value, label in domain_choices %}
+            <option value="{{ value }}" {% if filters.domain == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div>
+        <label class="block text-xs font-medium uppercase tracking-wider text-slate-500" for="aud-action">Action</label>
+        <select id="aud-action" name="action" class="mt-1 rounded-lg border border-slate-300 px-3 py-2 text-sm">
+            <option value="">Any</option>
+            {% for value, label in action_choices %}
+            <option value="{{ value }}" {% if filters.action == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <button type="submit" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700">Filter</button>
+</form>
+
+<div class="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-soft">
+    <table class="min-w-full text-sm">
+        <thead class="border-b border-slate-200 bg-slate-50 text-left text-xs uppercase tracking-wider text-slate-500">
+            <tr>
+                <th scope="col" class="px-4 py-3"><a href="{% query_transform sort='-created_at' %}">When</a></th>
+                <th scope="col" class="px-4 py-3">Actor</th>
+                <th scope="col" class="px-4 py-3"><a href="{% query_transform sort='action' %}">Action</a></th>
+                <th scope="col" class="px-4 py-3">Object</th>
+                <th scope="col" class="px-4 py-3">Reason</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+            {% for event in page %}
+            <tr class="hover:bg-slate-50">
+                <td class="px-4 py-3 text-slate-500 tabular-nums">{{ event.created_at|date:"Y-m-d H:i:s" }}</td>
+                <td class="px-4 py-3 text-slate-600">{{ event.actor_label }}</td>
+                <td class="px-4 py-3">
+                    <span class="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700">{{ event.action }}</span>
+                    <p class="mt-0.5 text-xs text-slate-500">{{ event.get_domain_display }}</p>
+                </td>
+                <td class="px-4 py-3">
+                    <p class="text-slate-900">{{ event.object_repr|default:"—" }}</p>
+                    <p class="text-xs text-slate-500">{{ event.object_type }}{% if event.object_id %} · {{ event.object_id }}{% endif %}</p>
+                </td>
+                <td class="px-4 py-3 text-slate-600">{{ event.reason|default:"—" }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" class="px-4 py-8 text-center text-slate-500">No audit events match these filters.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% include "backoffice/_pagination.html" %}
+{% endblock content %}
