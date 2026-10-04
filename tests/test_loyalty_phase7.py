@@ -11,7 +11,6 @@ from datetime import timedelta
 from decimal import Decimal
 
 import pytest
-from django.conf import settings
 from django.db import connection
 from django.urls import reverse
 from django.utils import timezone
@@ -21,7 +20,12 @@ from apps.engagement.services import loyalty
 from apps.engagement.services.errors import LoyaltyError
 from apps.orders.models import Order
 from apps.orders.services import StaleCheckout, cancel_order, create_order_from_checkout
-from tests.phase6_helpers import message_texts, open_checkout, place_and_pay, placed_order, seed_stock
+from tests.phase6_helpers import (
+    message_texts,
+    open_checkout,
+    place_and_pay,
+    placed_order,
+)
 from tests.phase7_helpers import (
     checkout_totals,
     discounted_checkout,
@@ -62,9 +66,12 @@ class TestEarning:
     def test_an_unpaid_order_awards_nothing(self, user, product):
         placed_order(user, product.variants.first(), stock=10)
 
-        assert PointsTransaction.objects.filter(
-            transaction_type=PointsTransaction.TransactionType.PURCHASE_EARN
-        ).exists() is False
+        assert (
+            PointsTransaction.objects.filter(
+                transaction_type=PointsTransaction.TransactionType.PURCHASE_EARN
+            ).exists()
+            is False
+        )
         assert loyalty.balance_for(user) == 0
 
     def test_points_are_earned_on_the_discounted_subtotal(self, user, product):
@@ -110,7 +117,12 @@ class TestEarning:
 class TestRedemptionRules:
     @pytest.mark.parametrize(
         ("points", "expected"),
-        [(100, Decimal("1.00")), (150, Decimal("1.50")), (0, Decimal("0.00")), (333, Decimal("3.33"))],
+        [
+            (100, Decimal("1.00")),
+            (150, Decimal("1.50")),
+            (0, Decimal("0.00")),
+            (333, Decimal("3.33")),
+        ],
     )
     def test_points_convert_to_currency(self, points, expected):
         assert loyalty.redeem_discount(points) == expected
@@ -118,17 +130,13 @@ class TestRedemptionRules:
     @pytest.mark.parametrize("points", [0, -100])
     def test_zero_or_negative_points_are_refused(self, points):
         with pytest.raises(LoyaltyError) as exc:
-            loyalty.validate_redemption(
-                _userless(), points, eligible_subtotal=Decimal("100.00")
-            )
+            loyalty.validate_redemption(_userless(), points, eligible_subtotal=Decimal("100.00"))
 
         assert exc.value.code == "invalid"
 
     def test_points_must_land_on_the_increment_grid(self):
         with pytest.raises(LoyaltyError) as exc:
-            loyalty.validate_redemption(
-                _userless(), 150, eligible_subtotal=Decimal("100.00")
-            )
+            loyalty.validate_redemption(_userless(), 150, eligible_subtotal=Decimal("100.00"))
 
         assert exc.value.code == "increment"
         assert "multiples of 100" in exc.value.message
@@ -137,9 +145,7 @@ class TestRedemptionRules:
         grant_points(user, 200)
 
         with pytest.raises(LoyaltyError) as exc:
-            loyalty.validate_redemption(
-                user, 300, eligible_subtotal=Decimal("100.00")
-            )
+            loyalty.validate_redemption(user, 300, eligible_subtotal=Decimal("100.00"))
 
         assert exc.value.code == "insufficient"
 
@@ -147,18 +153,14 @@ class TestRedemptionRules:
         grant_points(user, 10_000)
 
         with pytest.raises(LoyaltyError) as exc:
-            loyalty.validate_redemption(
-                user, 5_100, eligible_subtotal=Decimal("100.00")
-            )
+            loyalty.validate_redemption(user, 5_100, eligible_subtotal=Decimal("100.00"))
 
         assert exc.value.code == "over_limit"
 
     def test_max_redeemable_floors_to_the_increment(self, user):
         grant_points(user, 1_050)
 
-        maximum = loyalty.max_redeemable_points(
-            user, eligible_subtotal=Decimal("100.00")
-        )
+        maximum = loyalty.max_redeemable_points(user, eligible_subtotal=Decimal("100.00"))
 
         assert maximum == 1_000  # balance 1050 floors to 1000; the 50-cap allows 5000
 
@@ -166,9 +168,7 @@ class TestRedemptionRules:
         settings.LOYALTY_MIN_ORDER_AMOUNT = Decimal("50.00")
         grant_points(user, 5_000)
 
-        maximum = loyalty.max_redeemable_points(
-            user, eligible_subtotal=Decimal("40.00")
-        )
+        maximum = loyalty.max_redeemable_points(user, eligible_subtotal=Decimal("40.00"))
 
         assert maximum == 0
 
@@ -200,9 +200,7 @@ class TestReservations:
 
         assert loyalty.held_for(user) == 100
         assert loyalty.balance_for(user) == 400
-        assert PointsReservation.objects.filter(
-            status=PointsReservation.Status.ACTIVE
-        ).count() == 1
+        assert PointsReservation.objects.filter(status=PointsReservation.Status.ACTIVE).count() == 1
 
     def test_an_impossible_reapply_fails_and_keeps_the_old_hold(self, user, product):
         grant_points(user, 500)
@@ -271,7 +269,7 @@ class TestLifecycle:
 
         pay_order(order)
 
-        hold = PointsReservation.objects.get()
+        hold = PointsReservation.objects.get(order=order)
         assert hold.status == PointsReservation.Status.CONSUMED
         redemption = PointsTransaction.objects.get(
             transaction_type=PointsTransaction.TransactionType.REDEMPTION
@@ -288,7 +286,7 @@ class TestLifecycle:
 
         cancel_order(order)
 
-        hold = PointsReservation.objects.get()
+        hold = PointsReservation.objects.get(order=order)
         assert hold.status == PointsReservation.Status.RELEASED
         assert loyalty.balance_for(user) == 500
         assert not PointsTransaction.objects.filter(
@@ -360,7 +358,7 @@ class TestSweepers:
         released = loyalty.sweep_expired_reservations()
 
         assert released == 0
-        hold = PointsReservation.objects.get()
+        hold = PointsReservation.objects.get(order=order)
         assert hold.status == PointsReservation.Status.ACTIVE
 
     def test_due_earnings_expire_with_an_offsetting_row(self, user, product):
@@ -388,21 +386,25 @@ class TestSweepers:
         second = loyalty.expire_due_points()
 
         assert (first, second) == (1, 0)
-        assert PointsTransaction.objects.filter(
-            transaction_type=PointsTransaction.TransactionType.EXPIRATION
-        ).count() == 1
+        assert (
+            PointsTransaction.objects.filter(
+                transaction_type=PointsTransaction.TransactionType.EXPIRATION
+            ).count()
+            == 1
+        )
 
     def test_expiry_defers_while_the_customer_holds_a_checkout(self, user, product):
         place_and_pay(user, product.variants.first(), stock=10)
         PointsTransaction.objects.update(expires_at=timezone.now() - timedelta(days=1))
-        loyalty.reserve_for_checkout(
-            open_checkout(user, variant=product.variants.first()), 100
-        )
+        loyalty.reserve_for_checkout(open_checkout(user, variant=product.variants.first()), 100)
 
         expired = loyalty.expire_due_points()
 
         assert expired == 0
-        assert loyalty.balance_for(user) == 490  # untouched, minus the 100 held
+        assert not PointsTransaction.objects.filter(
+            transaction_type=PointsTransaction.TransactionType.EXPIRATION
+        ).exists()
+        assert loyalty.balance_for(user) == 390  # ledger intact (490), minus the 100 held
 
     def test_the_celery_task_reports_both_counts(self, user, product):
         from apps.engagement.tasks import sweep_loyalty
@@ -477,9 +479,7 @@ class TestAdminAdjustment:
 
 class TestConcurrencyContract:
     @pytest.mark.django_db(transaction=True)
-    def test_only_one_racing_checkout_can_hold_the_same_points(
-        self, db, user, product
-    ):
+    def test_only_one_racing_checkout_can_hold_the_same_points(self, db, user, product):
         if connection.vendor != "postgresql":
             pytest.skip("select_for_update semantics are only observable on PostgreSQL")
 
@@ -510,8 +510,7 @@ class TestConcurrencyContract:
                 connections.close_all()
 
         threads = [
-            threading.Thread(target=attempt, args=(checkout,))
-            for checkout in (first, second)
+            threading.Thread(target=attempt, args=(checkout,)) for checkout in (first, second)
         ]
         for thread in threads:
             thread.start()
@@ -528,3 +527,93 @@ def _userless():
     from django.contrib.auth import get_user_model
 
     return get_user_model()(pk=999_999, email="nobody@flashwear.test")
+
+
+# =============================================================================
+# Admin: the read-only ledger, the adjust action and hold release
+# =============================================================================
+
+
+class TestPointsAdmin:
+    def _changelist(self, client, admin_user):
+        from django.contrib.admin.helpers import ACTION_CHECKBOX_NAME
+
+        client.force_login(admin_user)
+        return reverse("admin:engagement_pointstransaction_changelist"), ACTION_CHECKBOX_NAME
+
+    def test_the_ledger_has_no_add_change_or_delete(self, client, admin_user, user):
+        grant_points(user, 100)
+        entry = PointsTransaction.objects.get()
+        changelist, _ = self._changelist(client, admin_user)
+
+        add_page = client.get(f"{changelist}add/")
+        change_page = client.get(f"{changelist}{entry.pk}/change/")
+        delete_page = client.post(f"{changelist}{entry.pk}/delete/")
+
+        assert add_page.status_code == 403
+        # Change stays viewable as evidence but nothing is editable: every field is
+        # readonly and the save button never renders.
+        assert change_page.status_code == 200
+        assert 'name="_save"' not in change_page.content.decode()
+        assert delete_page.status_code == 403
+
+    def test_the_adjust_action_walks_through_the_intermediate_form(self, client, admin_user, user):
+        grant_points(user, 100)
+        entry = PointsTransaction.objects.get()
+        changelist, checkbox = self._changelist(client, admin_user)
+        selected = {checkbox: [str(entry.pk)], "action": "adjust_selected_users"}
+
+        intermediate = client.post(changelist, selected)
+
+        assert intermediate.status_code == 200
+        assert "Adjust FLASH Points" in intermediate.content.decode()
+
+        applied = client.post(
+            changelist, {**selected, "apply": "1", "amount": "250", "note": "Goodwill"}
+        )
+
+        assert applied.status_code == 302
+        assert loyalty.balance_for(user) == 350
+        assert PointsTransaction.objects.count() == 2
+        assert PointsTransaction.objects.filter(
+            transaction_type=PointsTransaction.TransactionType.ADMIN_ADJUSTMENT,
+            amount=250,
+            note="Goodwill",
+        ).exists()
+
+    def test_a_zero_adjustment_is_refused_by_the_service(self, client, admin_user, user):
+        grant_points(user, 100)
+        entry = PointsTransaction.objects.get()
+        changelist, checkbox = self._changelist(client, admin_user)
+        selected = {checkbox: [str(entry.pk)], "action": "adjust_selected_users"}
+
+        response = client.post(
+            changelist,
+            {**selected, "apply": "1", "amount": "0", "note": "nothing"},
+            follow=True,
+        )
+
+        assert PointsTransaction.objects.count() == 1
+        assert loyalty.balance_for(user) == 100
+        assert "non-zero" in message_texts(response)
+
+    def test_the_release_action_returns_held_points(self, client, admin_user, user, product):
+        from django.contrib.admin.helpers import ACTION_CHECKBOX_NAME
+
+        grant_points(user, 500)
+        checkout = open_checkout(user, variant=product.variants.first())
+        hold = loyalty.reserve_for_checkout(checkout, 300)
+        client.force_login(admin_user)
+
+        response = client.post(
+            reverse("admin:engagement_pointsreservation_changelist"),
+            {
+                ACTION_CHECKBOX_NAME: [str(hold.pk)],
+                "action": "release_selected",
+            },
+        )
+
+        assert response.status_code == 302
+        hold.refresh_from_db()
+        assert hold.status == PointsReservation.Status.RELEASED
+        assert loyalty.balance_for(user) == 500

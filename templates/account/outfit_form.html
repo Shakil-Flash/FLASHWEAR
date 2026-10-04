@@ -1,0 +1,35 @@
+{% extends "account/base_account.html" %}
+
+{% block account_title %}New outfit{% endblock account_title %}
+{% block account_heading %}New outfit{% endblock account_heading %}
+{% block account_intro %}
+    Give it a name first -- you'll pick the pieces next. Everything stays a draft until you save it.
+{% endblock account_intro %}
+{% block meta_robots %}noindex, nofollow{% endblock meta_robots %}
+
+{% block account_content %}
+<form method="post" novalidate class="max-w-2xl rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+    <div class="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700" role="alert">
+        {% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="space-y-5">
+        {% include "account/_field.html" with field=form.name %}
+        {% include "account/_field.html" with field=form.description %}
+        <div class="grid gap-5 sm:grid-cols-3">
+            {% include "account/_field.html" with field=form.occasion %}
+            {% include "account/_field.html" with field=form.season %}
+            {% include "account/_field.html" with field=form.style %}
+        </div>
+    </div>
+
+    <div class="mt-6 flex flex-wrap items-center gap-4">
+        <button type="submit" class="inline-flex items-center justify-center rounded-full bg-flash-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-flash-700 focus:outline-none focus:ring-2 focus:ring-flash-500/30 focus:ring-offset-2 focus:ring-offset-white">Create outfit</button>
+        <a href="{% url 'account:outfits' %}" class="text-sm font-medium text-slate-700 underline-offset-4 hover:underline">Cancel</a>
+    </div>
+</form>
+{% endblock account_content %}

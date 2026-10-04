@@ -16,6 +16,7 @@ from django.contrib.auth.decorators import login_required
 from django.urls import path
 
 from apps.accounts import views
+from apps.closet import views as closet_views
 from apps.engagement.views import loyalty_dashboard
 from apps.orders.views import OrderDetailView, OrderListView, order_cancel
 
@@ -85,4 +86,45 @@ urlpatterns += [
     protected("orders/<str:number>/cancel/", order_cancel, "order-cancel"),
     # Phase 7: FLASH Points dashboard (view lives in apps.engagement).
     protected("loyalty/", loyalty_dashboard, "loyalty"),
+    # Phase 8: FLASH Closet and the outfit builder (views live in apps.closet).
+    protected("closet/", closet_views.closet_page, "closet"),
+    protected("closet/new/", closet_views.item_create, "closet-item-create"),
+    protected("closet/purchases/", closet_views.purchases_page, "closet-purchases"),
+    protected(
+        "closet/purchases/<int:pk>/add/",
+        closet_views.item_add_purchase,
+        "closet-add-purchase",
+    ),
+    protected("closet/<int:pk>/edit/", closet_views.item_edit, "closet-item-edit"),
+    protected("closet/<int:pk>/archive/", closet_views.item_archive, "closet-item-archive"),
+    protected("closet/<int:pk>/restore/", closet_views.item_restore, "closet-item-restore"),
+    protected("closet/<int:pk>/delete/", closet_views.item_delete, "closet-item-delete"),
+    protected("outfits/", closet_views.outfits_page, "outfits"),
+    protected("outfits/new/", closet_views.outfit_create, "outfit-create"),
+    protected("outfits/<int:pk>/", closet_views.outfit_detail, "outfit-detail"),
+    protected("outfits/<int:pk>/update/", closet_views.outfit_update, "outfit-update"),
+    protected("outfits/<int:pk>/save/", closet_views.outfit_save, "outfit-save"),
+    protected("outfits/<int:pk>/archive/", closet_views.outfit_archive, "outfit-archive"),
+    protected("outfits/<int:pk>/restore/", closet_views.outfit_restore, "outfit-restore"),
+    protected(
+        "outfits/<int:pk>/duplicate/",
+        closet_views.outfit_duplicate,
+        "outfit-duplicate",
+    ),
+    protected("outfits/<int:pk>/delete/", closet_views.outfit_delete, "outfit-delete"),
+    protected(
+        "outfits/<int:pk>/items/add/",
+        closet_views.outfit_item_add,
+        "outfit-item-add",
+    ),
+    protected(
+        "outfits/<int:pk>/items/<int:item_id>/remove/",
+        closet_views.outfit_item_remove,
+        "outfit-item-remove",
+    ),
+    protected(
+        "outfits/<int:pk>/items/<int:item_id>/move/",
+        closet_views.outfit_item_move,
+        "outfit-item-move",
+    ),
 ]

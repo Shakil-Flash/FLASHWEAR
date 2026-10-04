@@ -146,8 +146,9 @@ against `config.settings.production`.
 
 See `.env.example` for every supported variable (DEBUG, SECRET_KEY, ALLOWED_HOSTS, CSRF,
 DATABASE_URL, REDIS_URL, CELERY_BROKER_URL, CELERY_RESULT_BACKEND, CORS, email, storage, the
-Phase 3 `CATALOG_*` settings, the Phase 5 cart/checkout settings, and the Phase 6 `INVENTORY_*`
-and `PAYMENT_*` settings). Never commit `.env`.
+Phase 3 `CATALOG_*` settings, the Phase 5 cart/checkout settings, the Phase 6 `INVENTORY_*`
+and `PAYMENT_*` settings, and the Phase 7 `LOYALTY_*`/`REVIEWS_PER_PAGE` settings). Never
+commit `.env`.
 
 ## Running Tests
 
@@ -579,6 +580,86 @@ Refunds and returns, split shipments, partial captures, tax, multi-currency, and
 provider other than the development simulator. The enum values and state graphs those features
 need exist; the workflows deliberately do not.
 
+## Reviews, loyalty & promotions (Phase 7)
+
+### The one decision everything follows from
+
+Moderated reviews, FLASH Points and promotion codes share one app (`apps/engagement`) because
+they share one rule: nothing that touches money or public trust is written from the browser.
+Checkout remains the only writer of orders — engagement contributes a *discount* which checkout
+re-validates under locks before it becomes an order, and reviews are only ever born from a real
+purchase.
+
+### Reviews
+
+- Purchase-gated: you can only review a product from your own order in
+  `paid/processing/shipped/delivered` that contains it; everyone else sees the published list
+  plus a reason ("Sign in to review", "purchase required", "you already reviewed this").
+- Born `PENDING`; only operators publish, and moderation never deletes. Editing a published
+  review returns it to `PENDING` (audit over convenience). Deletion is POST-only.
+- The product page carries the full section: histogram (string keys `"1".."5"`), allow-listed
+  sorts (`newest/highest/lowest`), verified-purchase pill, pagination at `REVIEWS_PER_PAGE`.
+- API: `GET/POST /api/v1/products/<slug>/reviews/`, `GET/PATCH/DELETE /api/v1/reviews/<pk>/`
+  under session authentication — anonymous writes get 403 (no credential challenge exists).
+
+### FLASH Points
+
+- Append-only integer ledger (`PointsTransaction`); the balance is the sum of credits minus
+  debits, and admin corrections append a row rather than edit one.
+- Rates: `LOYALTY_EARN_RATE=10` points per 1.00 spent on `subtotal − promotion` (floored),
+  `LOYALTY_REDEEM_RATE=100` points = 1.00 off, redemptions in steps of
+  `LOYALTY_REDEEM_INCREMENT`, capped at `LOYALTY_MAX_REDEEM_PERCENT` of the pre-shipping total.
+- Earning fires on `order_paid` (`ref=order:<number>`), cancel and expiry are ledger events
+  too; the beat task `engagement.sweep_loyalty` expires rows older than
+  `LOYALTY_EXPIRY_DAYS` while active holds defer their own expiry.
+- Checkout never mutates balance: validation freezes a `PointsReservation`, placement converts
+  it, any handoff disagreement or cancel releases it. The dashboard (`/accounts/loyalty/`,
+  nav "Loyalty") shows balance, expiring-soon points and the paginated ledger.
+
+### Promotions
+
+- `Promotion` campaigns: percentage or fixed, start/end window, global and per-user usage
+  limits, minimum order amount, and a toggle for whether points may stack on top.
+- One central engine decides every verdict. Unknown or malformed codes get the same generic
+  "not valid" message (no enumeration); a known code that is inactive, out of window or
+  limit-reached gets its specific reason.
+- `used_count` increments only at order placement, under row locks, and is never released on
+  cancel — a code that sold out stays sold out. `PromotionUsage` is unique per
+  `(promotion, order)` so a replay cannot double-charge the budget.
+
+### Checkout math and the handoff
+
+`total = subtotal − promotion − loyalty + shipping`, with shipping always computed from the
+pre-discount subtotal. Validation freezes both discounts into the snapshot as strings;
+placement re-runs the engine (`_revalidate_discounts`) and re-attaches points conditionally
+(`status=ACTIVE AND points=frozen`) after the order row exists — any disagreement raises
+`StaleCheckout`, rolls everything back and says "please review your order again". Lock order:
+checkout → payment → order → reservation → stock rows (asc) → promotion → the customer's
+`auth_user` row as a leaf.
+
+### URLs
+
+- `/products/<slug>/` — review section; POST `/products/<slug>/reviews/create/`,
+  `/reviews/<pk>/edit/`, `/reviews/<pk>/delete/`
+- `/accounts/loyalty/` — points dashboard
+- `/checkout/` — "Offers & FLASH Points" panel; POST `/checkout/promotion/` and
+  `/checkout/loyalty/` apply or clear before validation
+- `/api/v1/products/<slug>/reviews/`, `/api/v1/reviews/<pk>/`,
+  `/api/v1/checkout/promotion/`
+
+### Settings
+
+`LOYALTY_EARN_RATE`, `LOYALTY_REDEEM_RATE`, `LOYALTY_REDEEM_INCREMENT`,
+`LOYALTY_MAX_REDEEM_PERCENT`, `LOYALTY_MIN_ORDER_AMOUNT`, `LOYALTY_EXPIRY_DAYS`,
+`LOYALTY_RESERVATION_MINUTES`, `LOYALTY_SWEEP_INTERVAL_SECONDS`, `REVIEWS_PER_PAGE` — all
+documented in `.env.example`.
+
+### What is *not* here
+
+Review photos, helpfulness voting, point transfers or gifting, tiered VIP status, refunds of
+redeemed points beyond cancel reversal, BOGO or multi-item promotions, stacking more than one
+code (one code at a time by design), and automatic coupon email campaigns.
+
 ## Project Structure
 
 ```
@@ -594,7 +675,8 @@ flashwear/
 │   ├── shop/                   # cart, wishlist, shipping, checkout session, merge signals
 │   ├── inventory/              # stock counters, holds, movement ledger, sweeper task
 │   ├── orders/                 # order, items, address snapshot, events, shipments, admin, API
-│   └── payments/               # attempts, events, provider registry, signed webhooks
+│   ├── payments/               # attempts, events, provider registry, signed webhooks
+│   └── engagement/             # reviews, FLASH Points ledger, promotion engine, sweep task
 ├── frontend/css/tailwind.css   # Tailwind entry point (design tokens live in tailwind.config.js)
 ├── templates/                  # base, components, pages, accounts, catalog, shop, error pages
 ├── static/                     # built css, vendored js, app js
@@ -632,15 +714,17 @@ management/commands/seed_catalog.py
 
 ## Future Phases
 
-- **Phase 7+:** reviews, coupons/loyalty, FLASH DNA, closet, outfits, AI stylist, drops,
-  creators, resale, gamification — plus the Phase 6 follow-ons the state graphs already reserve
-  room for: refunds/returns and real payment providers.
+- **Phase 8+:** FLASH DNA, closet, outfits, AI stylist, drops, creators, resale, gamification —
+  plus the Phase 6 follow-ons the state graphs already reserve room for: refunds/returns and
+  real payment providers.
 
 Phases 1 (foundation), 2 (accounts), 3 (catalogue), 4 (storefront, discovery, API, SEO), 5
-(cart, wishlist, checkout) and 6 (orders, payments, inventory, delivery) are built. Phase 6 picks
-up exactly where Phase 5 stops: a validated `CheckoutSession` plus its frozen snapshot is the
-handoff an order is built from, and the navigation still lists the not-yet-built surfaces as
-"coming soon" rather than linking to pages that do not exist.
+(cart, wishlist, checkout), 6 (orders, payments, inventory, delivery) and 7 (reviews, FLASH
+Points, promotions) are built. Phase 7 picks up exactly where Phase 6 stops: the order
+placement transaction gains two handoff checks — the promotion discount is re-validated and
+the frozen points reservation is re-attached — so a stale review step can never produce a
+wrong total, and the navigation's Loyalty entry is live while the remaining not-yet-built
+surfaces are still listed as "coming soon".
 
 The catalogue deliberately stops at the edge of selling. `ProductVariant` has a price but no
 quantity — inventory is the `inventory` app's job (Phase 6), and the API, templates and admin were

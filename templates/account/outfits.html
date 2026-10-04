@@ -1,0 +1,89 @@
+{% extends "account/base_account.html" %}
+
+{% block account_title %}My Outfits{% endblock account_title %}
+{% block account_heading %}My Outfits{% endblock account_heading %}
+{% block account_intro %}
+    Combinations of the pieces in your closet. Drafts stay private until you save them, and
+    archiving keeps history without cluttering the list.
+{% endblock account_intro %}
+{% block meta_robots %}noindex, nofollow{% endblock meta_robots %}
+
+{% block account_content %}
+<div class="space-y-6">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+        <nav aria-label="Outfit status">
+            <ul class="flex flex-wrap gap-2">
+                {% for key, label, count in status_tabs %}
+                <li>
+                    <a href="{% if key %}?status={{ key }}{% else %}?{% endif %}"
+                       {% if active_status == key %}aria-current="true"{% endif %}
+                       class="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-flash-500/30 {% if active_status == key %}bg-flash-600 text-white shadow-soft{% else %}border border-slate-200 bg-white text-slate-700 hover:border-slate-300{% endif %}">
+                        {{ label }}
+                        <span class="{% if active_status == key %}text-flash-100{% else %}text-slate-400{% endif %} text-xs">{{ count }}</span>
+                    </a>
+                </li>
+                {% endfor %}
+            </ul>
+        </nav>
+        <a href="{% url 'account:outfit-create' %}" class="inline-flex items-center justify-center rounded-full bg-flash-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-flash-700 focus:outline-none focus:ring-2 focus:ring-flash-500/30 focus:ring-offset-2 focus:ring-offset-white">New outfit</a>
+    </div>
+
+    {% if not outfits %}
+    <div class="rounded-2xl border border-dashed border-slate-300 p-10 text-center">
+        <p class="text-base font-semibold text-slate-900">{% if active_status %}No {% endif %}outfits yet</p>
+        <p class="mt-1 text-sm text-slate-600">
+            An outfit is a name plus the pieces you reach for together. Start one, then fill it on the builder.
+        </p>
+        <div class="mt-5">
+            <a href="{% url 'account:outfit-create' %}" class="inline-flex items-center justify-center rounded-full bg-flash-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-flash-700 focus:outline-none focus:ring-2 focus:ring-flash-500/30">Create your first outfit</a>
+        </div>
+    </div>
+    {% else %}
+    <ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {% for outfit, completeness in outfits %}
+        <li class="flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-soft transition hover:border-slate-300">
+            <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                    <a href="{% url 'account:outfit-detail' outfit.pk %}" class="text-base font-semibold text-slate-900 underline-offset-4 hover:underline">{{ outfit.name }}</a>
+                    <p class="mt-0.5 text-xs text-slate-500">
+                        {{ outfit.items.count }} piece{{ outfit.items.count|pluralize }}
+                        · updated {{ outfit.updated_at|date:"j M Y" }}
+                    </p>
+                </div>
+                <span class="shrink-0 rounded-full px-2.5 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide {% if outfit.status == 'saved' %}bg-flash-50 text-flash-700 ring-1 ring-flash-200{% elif outfit.status == 'draft' %}bg-amber-50 text-amber-700 ring-1 ring-amber-200{% else %}bg-slate-100 text-slate-600 ring-1 ring-slate-200{% endif %}">{{ outfit.get_status_display }}</span>
+            </div>
+
+            <p class="mt-3">
+                <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold {% if completeness.status == 'complete' %}bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200{% elif completeness.status == 'almost' %}bg-amber-50 text-amber-700 ring-1 ring-amber-200{% else %}bg-slate-100 text-slate-600 ring-1 ring-slate-200{% endif %}">{{ completeness.label }}</span>
+            </p>
+
+            <p class="mt-2 line-clamp-2 text-sm text-slate-600">{{ outfit.description|default:"No description yet." }}</p>
+
+            <div class="mt-4 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-4">
+                <a href="{% url 'account:outfit-detail' outfit.pk %}" class="text-sm font-medium text-slate-700 underline-offset-4 hover:underline focus:outline-none focus:ring-2 focus:ring-flash-500/30 rounded">Open</a>
+                <form method="post" action="{% url 'account:outfit-duplicate' outfit.pk %}">
+                    {% csrf_token %}
+                    <button type="submit" class="text-sm font-medium text-slate-700 underline-offset-4 hover:underline focus:outline-none focus:ring-2 focus:ring-flash-500/30 rounded">Duplicate</button>
+                </form>
+                {% if outfit.status == 'archived' %}
+                <form method="post" action="{% url 'account:outfit-restore' outfit.pk %}">
+                    {% csrf_token %}
+                    <button type="submit" class="text-sm font-medium text-slate-700 underline-offset-4 hover:underline focus:outline-none focus:ring-2 focus:ring-flash-500/30 rounded">Restore</button>
+                </form>
+                {% else %}
+                <form method="post" action="{% url 'account:outfit-archive' outfit.pk %}">
+                    {% csrf_token %}
+                    <button type="submit" class="text-sm font-medium text-slate-500 underline-offset-4 hover:text-slate-700 hover:underline focus:outline-none focus:ring-2 focus:ring-flash-500/30 rounded">Archive</button>
+                </form>
+                {% endif %}
+                <form method="post" action="{% url 'account:outfit-delete' outfit.pk %}" class="ml-auto" onsubmit="return confirm('Delete {{ outfit.name|escapejs }}? Your clothes stay in your closet.');">
+                    {% csrf_token %}
+                    <button type="submit" class="text-sm font-medium text-red-600 underline-offset-4 hover:underline focus:outline-none focus:ring-2 focus:ring-red-500/30 rounded">Delete</button>
+                </form>
+            </div>
+        </li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+</div>
+{% endblock account_content %}

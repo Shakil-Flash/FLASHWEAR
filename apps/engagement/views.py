@@ -84,9 +84,7 @@ def review_edit(request, pk: int):
                 body=form.cleaned_data["body"],
             )
             if updated.status == Review.Status.PENDING:
-                messages.success(
-                    request, _("Your changes are saved and awaiting moderation.")
-                )
+                messages.success(request, _("Your changes are saved and awaiting moderation."))
             else:
                 messages.success(request, _("Your review has been updated."))
             return _to_product(product)

@@ -210,9 +210,7 @@ class TestReviewFormFlow:
         assert Review.objects.count() == 0
         assert "Sign in to review this product." in message_texts(response)
 
-    def test_a_purchase_submits_a_pending_review_and_lands_on_reviews(
-        self, client, user, product
-    ):
+    def test_a_purchase_submits_a_pending_review_and_lands_on_reviews(self, client, user, product):
         place_and_pay(user, product.variants.first(), stock=10)
         client.force_login(user)
 
@@ -291,9 +289,7 @@ class TestReviewEditing:
         assert response.status_code == 200
         assert review.title in response.content.decode()
 
-    def test_someone_elses_review_is_a_404_never_a_403(
-        self, client, user, other_user, product
-    ):
+    def test_someone_elses_review_is_a_404_never_a_403(self, client, user, other_user, product):
         order = place_and_pay(other_user, product.variants.first(), stock=10)
         review = make_review(order, other_user, product, status=Review.Status.PENDING)
         client.force_login(user)
@@ -311,9 +307,7 @@ class TestReviewEditing:
         assert response.status_code == 302
         assert response["Location"].startswith(reverse("accounts:login"))
 
-    def test_editing_published_content_returns_it_to_moderation(
-        self, client, user, product
-    ):
+    def test_editing_published_content_returns_it_to_moderation(self, client, user, product):
         order = place_and_pay(user, product.variants.first(), stock=10)
         review = make_review(order, user, product, status=Review.Status.PUBLISHED)
         client.force_login(user)
@@ -343,9 +337,7 @@ class TestReviewEditing:
         review.refresh_from_db()
         assert review.status == Review.Status.PUBLISHED
 
-    def test_editing_someone_elses_review_is_a_404(
-        self, client, user, other_user, product
-    ):
+    def test_editing_someone_elses_review_is_a_404(self, client, user, other_user, product):
         order = place_and_pay(other_user, product.variants.first(), stock=10)
         review = make_review(order, other_user, product, status=Review.Status.PENDING)
         client.force_login(user)
@@ -365,9 +357,7 @@ class TestReviewDeletion:
         review = make_review(order, user, product, status=Review.Status.PUBLISHED)
         client.force_login(user)
 
-        response = client.post(
-            reverse("engagement:review-delete", args=[review.pk]), follow=True
-        )
+        response = client.post(reverse("engagement:review-delete", args=[review.pk]), follow=True)
 
         assert Review.objects.count() == 0
         assert "deleted" in message_texts(response).lower()
@@ -382,9 +372,7 @@ class TestReviewDeletion:
         assert response.status_code == 405
         assert Review.objects.filter(pk=review.pk).exists()
 
-    def test_someone_elses_review_cannot_be_deleted(
-        self, client, user, other_user, product
-    ):
+    def test_someone_elses_review_cannot_be_deleted(self, client, user, other_user, product):
         order = place_and_pay(other_user, product.variants.first(), stock=10)
         review = make_review(order, other_user, product, status=Review.Status.PUBLISHED)
         client.force_login(user)
@@ -411,9 +399,7 @@ class TestModeration:
         assert review.published_at is not None
         assert review.moderated_at is not None
 
-    def test_the_bulk_action_is_idempotent_but_can_always_unpublish(
-        self, user, product
-    ):
+    def test_the_bulk_action_is_idempotent_but_can_always_unpublish(self, user, product):
         order = place_and_pay(user, product.variants.first(), stock=10)
         first = make_review(order, user, product, status=Review.Status.PENDING)
 
@@ -423,9 +409,7 @@ class TestModeration:
         again = review_services.moderate(
             Review.objects.filter(pk=first.pk), Review.Status.PUBLISHED
         )
-        hidden = review_services.moderate(
-            Review.objects.filter(pk=first.pk), Review.Status.HIDDEN
-        )
+        hidden = review_services.moderate(Review.objects.filter(pk=first.pk), Review.Status.HIDDEN)
 
         assert (published, again, hidden) == (1, 0, 1)
         first.refresh_from_db()
@@ -435,20 +419,14 @@ class TestModeration:
         order = place_and_pay(user, product.variants.first(), stock=10)
         review = make_review(order, user, product, status=Review.Status.PENDING)
 
-        review_services.moderate(
-            Review.objects.filter(pk=review.pk), Review.Status.REJECTED
-        )
+        review_services.moderate(Review.objects.filter(pk=review.pk), Review.Status.REJECTED)
 
-        assert Review.objects.filter(
-            pk=review.pk, status=Review.Status.REJECTED
-        ).exists()
+        assert Review.objects.filter(pk=review.pk, status=Review.Status.REJECTED).exists()
 
     def test_the_admin_exposes_bulk_moderation_actions(self):
         from apps.engagement.admin import ReviewAdmin
 
-        assert {"approve_selected", "reject_selected", "hide_selected"} <= set(
-            ReviewAdmin.actions
-        )
+        assert {"approve_selected", "reject_selected", "hide_selected"} <= set(ReviewAdmin.actions)
 
 
 # =============================================================================
@@ -463,9 +441,7 @@ class TestProductPageDisplay:
         order = place_and_pay(user, product.variants.first(), stock=10)
         make_review(order, user, product, rating=5)
         make_review(order, second_reviewer, product, rating=3)
-        make_review(
-            order, third_reviewer, product, rating=1, status=Review.Status.PENDING
-        )
+        make_review(order, third_reviewer, product, rating=1, status=Review.Status.PENDING)
 
         response = client.get(product.get_absolute_url())
         summary = response.context["review_summary"]
@@ -484,9 +460,7 @@ class TestProductPageDisplay:
         assert response.status_code == 200
         assert len(response.context["review_page"]) == 1
 
-    def test_sorting_by_rating_is_allowlisted(
-        self, client, user, second_reviewer, product
-    ):
+    def test_sorting_by_rating_is_allowlisted(self, client, user, second_reviewer, product):
         order = place_and_pay(user, product.variants.first(), stock=10)
         low = make_review(order, user, product, rating=2)
         high = make_review(order, second_reviewer, product, rating=5)
@@ -509,9 +483,7 @@ class TestProductPageDisplay:
         assert len(second_page.context["review_page"]) == 1
         assert second_page.context["review_page"].number == 2
 
-    def test_json_ld_carries_the_aggregate_once_a_review_exists(
-        self, client, user, product
-    ):
+    def test_json_ld_carries_the_aggregate_once_a_review_exists(self, client, user, product):
         without = client.get(product.get_absolute_url()).content.decode()
         order = place_and_pay(user, product.variants.first(), stock=10)
         make_review(order, user, product, rating=4)
@@ -597,9 +569,7 @@ class TestReviewAPI:
         assert response.status_code == 403
         assert Review.objects.count() == 0
 
-    def test_a_purchaser_creates_a_pending_review_through_the_api(
-        self, api_client, user, product
-    ):
+    def test_a_purchaser_creates_a_pending_review_through_the_api(self, api_client, user, product):
         place_and_pay(user, product.variants.first(), stock=10)
         api_client.force_authenticate(user=user)
 
@@ -621,9 +591,7 @@ class TestReviewAPI:
         place_and_pay(user, product.variants.first(), stock=10)
         api_client.force_authenticate(user=user)
 
-        response = api_client.post(
-            _review_url(product.slug), review_payload(status="published")
-        )
+        response = api_client.post(_review_url(product.slug), review_payload(status="published"))
 
         assert response.status_code == 201
         assert Review.objects.get().status == Review.Status.PENDING
@@ -639,9 +607,7 @@ class TestReviewDetailAPI:
         assert response.status_code == 200
         assert response.data["title"] == review.title
 
-    def test_a_pending_review_is_invisible_to_anonymous_readers(
-        self, api_client, user, product
-    ):
+    def test_a_pending_review_is_invisible_to_anonymous_readers(self, api_client, user, product):
         order = place_and_pay(user, product.variants.first(), stock=10)
         review = make_review(order, user, product, status=Review.Status.PENDING)
 
@@ -662,25 +628,19 @@ class TestReviewDetailAPI:
         order = place_and_pay(user, product.variants.first(), stock=10)
         review = make_review(order, user, product, status=Review.Status.PUBLISHED)
 
-        patched = api_client.patch(
-            f"/api/v1/reviews/{review.pk}/", {"title": "Hijacked"}
-        )
+        patched = api_client.patch(f"/api/v1/reviews/{review.pk}/", {"title": "Hijacked"})
         deleted = api_client.delete(f"/api/v1/reviews/{review.pk}/")
 
         assert patched.status_code == 403
         assert deleted.status_code == 403
         assert Review.objects.filter(pk=review.pk).exists()
 
-    def test_a_foreign_write_is_a_404_not_a_403(
-        self, api_client, user, other_user, product
-    ):
+    def test_a_foreign_write_is_a_404_not_a_403(self, api_client, user, other_user, product):
         order = place_and_pay(other_user, product.variants.first(), stock=10)
         review = make_review(order, other_user, product, status=Review.Status.PUBLISHED)
         api_client.force_authenticate(user=user)
 
-        patched = api_client.patch(
-            f"/api/v1/reviews/{review.pk}/", {"title": "Mine now"}
-        )
+        patched = api_client.patch(f"/api/v1/reviews/{review.pk}/", {"title": "Mine now"})
         deleted = api_client.delete(f"/api/v1/reviews/{review.pk}/")
 
         assert patched.status_code == 404
@@ -694,9 +654,7 @@ class TestReviewDetailAPI:
         review = make_review(order, user, product, status=Review.Status.PUBLISHED)
         api_client.force_authenticate(user=user)
 
-        response = api_client.patch(
-            f"/api/v1/reviews/{review.pk}/", {"title": "A better title"}
-        )
+        response = api_client.patch(f"/api/v1/reviews/{review.pk}/", {"title": "A better title"})
 
         assert response.status_code == 200
         review.refresh_from_db()
@@ -712,3 +670,65 @@ class TestReviewDetailAPI:
 
         assert response.status_code == 204
         assert not Review.objects.filter(pk=review.pk).exists()
+
+
+# =============================================================================
+# Admin: bulk moderation
+# =============================================================================
+
+
+class TestReviewAdminFlows:
+    def _post_action(self, client, admin_user, action, review):
+        from django.contrib.admin.helpers import ACTION_CHECKBOX_NAME
+
+        client.force_login(admin_user)
+        return client.post(
+            reverse("admin:engagement_review_changelist"),
+            {ACTION_CHECKBOX_NAME: [str(review.pk)], "action": action},
+        )
+
+    def test_the_queue_offers_the_moderation_actions(self, client, admin_user, user, product):
+        order = place_and_pay(user, product.variants.first(), stock=10)
+        make_review(order, user, product)
+        client.force_login(admin_user)
+
+        response = client.get(reverse("admin:engagement_review_changelist"))
+
+        content = response.content.decode()
+        assert "Approve selected reviews (publish)" in content
+        assert "Reject selected reviews" in content
+        assert "Hide selected reviews (unpublish)" in content
+
+    def test_bulk_approve_publishes_a_pending_review(self, client, admin_user, user, product):
+        order = place_and_pay(user, product.variants.first(), stock=10)
+        review = make_review(order, user, product)
+
+        response = self._post_action(client, admin_user, "approve_selected", review)
+
+        assert response.status_code == 302
+        review.refresh_from_db()
+        assert review.status == Review.Status.PUBLISHED
+        assert review.published_at is not None
+
+    def test_bulk_reject_and_hide_move_the_status(
+        self, client, admin_user, user, product, second_reviewer
+    ):
+        order = place_and_pay(user, product.variants.first(), stock=10)
+        rejected = make_review(order, user, product, title="Rejected one")
+        hidden = make_review(order, second_reviewer, product, title="Hidden one", rating=4)
+
+        self._post_action(client, admin_user, "reject_selected", rejected)
+        self._post_action(client, admin_user, "hide_selected", hidden)
+
+        rejected.refresh_from_db()
+        hidden.refresh_from_db()
+        assert rejected.status == Review.Status.REJECTED
+        assert hidden.status == Review.Status.HIDDEN
+
+    def test_moderation_never_deletes_anything(self, client, admin_user, user, product):
+        order = place_and_pay(user, product.variants.first(), stock=10)
+        review = make_review(order, user, product)
+
+        self._post_action(client, admin_user, "reject_selected", review)
+
+        assert Review.objects.filter(pk=review.pk).exists()

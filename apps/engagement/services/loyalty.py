@@ -66,8 +66,9 @@ def balance_for(user, *, excluding_checkout=None) -> int:
 def held_for(user) -> int:
     """Points currently pinned to this customer's checkouts (display only)."""
     held = (
-        PointsReservation.objects.filter(user=user, status=PointsReservation.Status.ACTIVE)
-        .aggregate(total=Sum("points"))["total"]
+        PointsReservation.objects.filter(
+            user=user, status=PointsReservation.Status.ACTIVE
+        ).aggregate(total=Sum("points"))["total"]
         or 0
     )
     return int(held)
@@ -94,8 +95,7 @@ def earn_points_for_order(order) -> PointsTransaction | None:
             "user_id": order.user_id,
             "amount": points,
             "order": order,
-            "expires_at": timezone.now()
-            + timedelta(days=int(settings.LOYALTY_EXPIRY_DAYS)),
+            "expires_at": timezone.now() + timedelta(days=int(settings.LOYALTY_EXPIRY_DAYS)),
             "note": "Earned on purchase.",
         },
     )
@@ -152,14 +152,10 @@ def max_redeemable_points(user, *, eligible_subtotal: Decimal, excluding_checkou
         return 0
 
     increment = int(settings.LOYALTY_REDEEM_INCREMENT)
-    balance_cap = max(
-        0, balance_for(user, excluding_checkout=excluding_checkout)
-    )
+    balance_cap = max(0, balance_for(user, excluding_checkout=excluding_checkout))
     balance_points = (balance_cap // increment) * increment
 
-    percent_cap = (
-        eligible_subtotal * Decimal(settings.LOYALTY_MAX_REDEEM_PERCENT) / Decimal("100")
-    )
+    percent_cap = eligible_subtotal * Decimal(settings.LOYALTY_MAX_REDEEM_PERCENT) / Decimal("100")
     percent_points = int(percent_cap * Decimal(settings.LOYALTY_REDEEM_RATE))
     percent_points = (percent_points // increment) * increment
 
@@ -180,21 +176,15 @@ def validate_redemption(
 
     increment = int(settings.LOYALTY_REDEEM_INCREMENT)
     if points % increment:
-        raise LoyaltyError(
-            f"FLASH Points redeem in multiples of {increment}.", code="increment"
-        )
+        raise LoyaltyError(f"FLASH Points redeem in multiples of {increment}.", code="increment")
 
     maximum = max_redeemable_points(
         user, eligible_subtotal=eligible_subtotal, excluding_checkout=excluding_checkout
     )
     if points > maximum:
-        spendable = max(
-            0, balance_for(user, excluding_checkout=excluding_checkout)
-        )
+        spendable = max(0, balance_for(user, excluding_checkout=excluding_checkout))
         if points > spendable:
-            raise LoyaltyError(
-                "You do not have that many FLASH Points.", code="insufficient"
-            )
+            raise LoyaltyError("You do not have that many FLASH Points.", code="insufficient")
         raise LoyaltyError(
             f"You can redeem at most {maximum} points on this order.", code="over_limit"
         )
@@ -219,9 +209,7 @@ def reserve_for_checkout(checkout, points) -> PointsReservation | None:
 
         available = balance_for(checkout.user, excluding_checkout=checkout)
         if points > available:
-            raise LoyaltyError(
-                "You do not have that many FLASH Points.", code="insufficient"
-            )
+            raise LoyaltyError("You do not have that many FLASH Points.", code="insufficient")
 
         _release_checkout_hold(checkout)
         return PointsReservation.objects.create(
@@ -240,9 +228,9 @@ def attach_points_to_order(checkout, order) -> PointsReservation | None:
     ).first()
     if hold is None:
         return None
-    PointsReservation.objects.filter(
-        pk=hold.pk, status=PointsReservation.Status.ACTIVE
-    ).update(order=order)
+    PointsReservation.objects.filter(pk=hold.pk, status=PointsReservation.Status.ACTIVE).update(
+        order=order
+    )
     hold.order = order
     return hold
 

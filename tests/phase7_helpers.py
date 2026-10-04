@@ -45,7 +45,9 @@ def make_promotion(
         "code": code,
         "name": overrides.pop("name", f"{code.title()} offer"),
         "discount_type": (
-            Promotion.DiscountType.PERCENTAGE if percent is not None else Promotion.DiscountType.FIXED
+            Promotion.DiscountType.PERCENTAGE
+            if percent is not None
+            else Promotion.DiscountType.FIXED
         ),
         "discount_value": Decimal(str(percent if percent is not None else fixed)),
         "starts_at": now - timedelta(days=1),
@@ -104,7 +106,9 @@ def checkout_totals(checkout) -> dict:
     }
 
 
-def discounted_checkout(user, variant, *, quantity: int = 1, code=None, points: int = 0, stock: int | None = 10):
+def discounted_checkout(
+    user, variant, *, quantity: int = 1, code=None, points: int = 0, stock: int | None = 10
+):
     """A validated checkout with a promotion code and/or points applied, through real services."""
     from apps.shop.checkout import (
         set_loyalty_points,

@@ -135,9 +135,7 @@ def create_order_from_checkout(checkout: CheckoutSession) -> Order:
     subtotal = Decimal(snapshot["subtotal"])
     shipping = Decimal(snapshot["shipping"]["amount"])
     total = Decimal(snapshot["total"])
-    live = _revalidate_discounts(
-        checkout, subtotal, promo_payload.get("code", ""), frozen_points
-    )
+    live = _revalidate_discounts(checkout, subtotal, promo_payload.get("code", ""), frozen_points)
     if live.promotion_discount != frozen_promo or live.loyalty_discount != frozen_loyalty:
         raise StaleCheckout(
             ["Your discounts changed since the review step. Please review your order again."]
@@ -243,9 +241,7 @@ def _revalidate_discounts(
             excluding_checkout=checkout,
         )
     except EngagementError as exc:
-        raise StaleCheckout(
-            [f"{exc.message} Please review your order again."]
-        ) from exc
+        raise StaleCheckout([f"{exc.message} Please review your order again."]) from exc
 
 
 def _consume_promotion(live, checkout: CheckoutSession, order: Order) -> None:
@@ -263,9 +259,7 @@ def _consume_promotion(live, checkout: CheckoutSession, order: Order) -> None:
             discount=live.promotion_discount,
         )
     except EngagementError as exc:
-        raise StaleCheckout(
-            [f"{exc.message} Please review your order again."]
-        ) from exc
+        raise StaleCheckout([f"{exc.message} Please review your order again."]) from exc
 
 
 def _convert_cart(cart) -> None:

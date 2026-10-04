@@ -20,7 +20,8 @@ ACCOUNT_SECTIONS: list[tuple[str, str | None, bool]] = [
     (_("Addresses"), "account:addresses", True),
     (_("Reviews"), None, False),
     (_("FLASH DNA"), None, False),
-    (_("FLASH Closet"), None, False),
+    (_("FLASH Closet"), "account:closet", True),
+    (_("Outfits"), "account:outfits", True),
     (_("Loyalty"), "account:loyalty", True),
     (_("Notifications"), None, False),
     (_("Security"), "account:security", True),
@@ -40,8 +41,10 @@ def account_sections(request=None) -> list[dict]:
         active = False
         if request is not None and url:
             path = request.path
-            # Everything else is a leaf page, so a child path ("/account/addresses/3/") still
-            # counts as being inside its section.
-            active = path == url or (path.startswith(f"{url}/") and url_name != "account:dashboard")
+            # Everything else is a leaf page, so a child path ("/account/closet/new/") still
+            # counts as being inside its section. ``url`` already ends in "/", which is why
+            # the prefix match uses it directly -- appending another slash would only ever
+            # match "//". The dashboard is excluded: "/account/" prefixes the whole area.
+            active = path == url or (path.startswith(url) and url_name != "account:dashboard")
         sections.append({"label": label, "url": url, "live": live, "active": active})
     return sections

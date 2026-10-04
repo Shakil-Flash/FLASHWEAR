@@ -102,7 +102,9 @@ def create_review(*, user, product, rating: int, title: str, body: str) -> Revie
                 status=Review.Status.PENDING,
             )
     except IntegrityError as exc:
-        raise ReviewError("You have already reviewed this product.", code="already_reviewed") from exc
+        raise ReviewError(
+            "You have already reviewed this product.", code="already_reviewed"
+        ) from exc
 
 
 def update_review(review: Review, *, rating: int, title: str, body: str) -> Review:
@@ -112,9 +114,7 @@ def update_review(review: Review, *, rating: int, title: str, body: str) -> Revi
     customer just wrote. No content change (identical resubmit) leaves the status alone.
     """
     content_changed = (
-        int(rating) != review.rating
-        or title.strip() != review.title
-        or body.strip() != review.body
+        int(rating) != review.rating or title.strip() != review.title or body.strip() != review.body
     )
     review.rating = int(rating)
     review.title = title.strip()
@@ -159,17 +159,14 @@ def aggregate_for(product) -> dict:
     template dictionary lookup does not int-cast keys). ``shares`` are integer percentages
     summing to 100 (or all 0), so templates never divide.
     """
-    stats = (
-        Review.objects.filter(product=product, status=Review.Status.PUBLISHED)
-        .aggregate(
-            count=Count("id"),
-            average=Avg("rating", output_field=DecimalField()),
-            r1=Count("id", filter=Q(rating=1)),
-            r2=Count("id", filter=Q(rating=2)),
-            r3=Count("id", filter=Q(rating=3)),
-            r4=Count("id", filter=Q(rating=4)),
-            r5=Count("id", filter=Q(rating=5)),
-        )
+    stats = Review.objects.filter(product=product, status=Review.Status.PUBLISHED).aggregate(
+        count=Count("id"),
+        average=Avg("rating", output_field=DecimalField()),
+        r1=Count("id", filter=Q(rating=1)),
+        r2=Count("id", filter=Q(rating=2)),
+        r3=Count("id", filter=Q(rating=3)),
+        r4=Count("id", filter=Q(rating=4)),
+        r5=Count("id", filter=Q(rating=5)),
     )
     count = stats["count"] or 0
     distribution = {
@@ -181,12 +178,9 @@ def aggregate_for(product) -> dict:
     }
     average = None
     if count:
-        average = (stats["average"] or Decimal(0)).quantize(
-            Decimal("0.1"), rounding=ROUND_HALF_UP
-        )
+        average = (stats["average"] or Decimal(0)).quantize(Decimal("0.1"), rounding=ROUND_HALF_UP)
     shares = {
-        stars: (round(distribution[stars] * 100 / count) if count else 0)
-        for stars in distribution
+        stars: (round(distribution[stars] * 100 / count) if count else 0) for stars in distribution
     }
     return {
         "count": count,

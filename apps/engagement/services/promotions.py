@@ -129,10 +129,7 @@ def consume_usage(
             raise PromotionError("That code is no longer valid.", code="expired")
         if locked.usage_limit is not None and locked.used_count >= locked.usage_limit:
             raise PromotionError("That code has reached its usage limit.", code="limit_reached")
-        if (
-            locked.per_user_limit is not None
-            and uses_by(user, locked) >= locked.per_user_limit
-        ):
+        if locked.per_user_limit is not None and uses_by(user, locked) >= locked.per_user_limit:
             raise PromotionError("You have already used that code.", code="user_limit_reached")
 
         locked.used_count = locked.used_count + 1

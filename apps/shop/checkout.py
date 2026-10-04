@@ -116,9 +116,7 @@ def set_promotion_code(checkout: CheckoutSession, code: str) -> CheckoutSession:
     )
     checkout.promotion_code = breakdown.promotion_code
     _reopen_if_stale(checkout)
-    checkout.save(
-        update_fields=["promotion_code", "status", "validated_at", "updated_at"]
-    )
+    checkout.save(update_fields=["promotion_code", "status", "validated_at", "updated_at"])
     return checkout
 
 
@@ -134,9 +132,7 @@ def set_loyalty_points(checkout: CheckoutSession, points) -> CheckoutSession:
     )
     checkout.loyalty_points = breakdown.points
     _reopen_if_stale(checkout)
-    checkout.save(
-        update_fields=["loyalty_points", "status", "validated_at", "updated_at"]
-    )
+    checkout.save(update_fields=["loyalty_points", "status", "validated_at", "updated_at"])
     _reserve_points(checkout, breakdown.points)
     return checkout
 
@@ -341,4 +337,3 @@ def cart_matches_snapshot(cart: Cart, snapshot: dict) -> bool:
         for line in snapshot.get("lines", [])
     ]
     return current == frozen
-

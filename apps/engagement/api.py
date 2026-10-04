@@ -16,7 +16,7 @@ from django.db.models import Q
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
 from rest_framework import status as http_status
-from rest_framework.exceptions import NotFound, NotAuthenticated, PermissionDenied
+from rest_framework.exceptions import NotAuthenticated, NotFound, PermissionDenied
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -51,9 +51,7 @@ class ProductReviewsView(APIView):
         product = _published_product(slug)
         sort = request.query_params.get("sort", review_services.DEFAULT_SORT)
         verified_only = request.query_params.get("verified", "").lower() in TRUE_VALUES
-        queryset = review_services.public_queryset(
-            product, sort=sort, verified_only=verified_only
-        )
+        queryset = review_services.public_queryset(product, sort=sort, verified_only=verified_only)
         paginator = PageNumberPagination()
         page = paginator.paginate_queryset(queryset, request, view=self)
         serializer = ReviewSerializer(page, many=True)
@@ -86,9 +84,7 @@ class ReviewDetailView(APIView):
     def _resolve(self, request, pk: int) -> Review:
         queryset = Review.objects.select_related("author").filter(pk=pk)
         if request.user.is_authenticated:
-            queryset = queryset.filter(
-                Q(status=Review.Status.PUBLISHED) | Q(author=request.user)
-            )
+            queryset = queryset.filter(Q(status=Review.Status.PUBLISHED) | Q(author=request.user))
         else:
             queryset = queryset.filter(status=Review.Status.PUBLISHED)
         review = queryset.first()
@@ -135,8 +131,8 @@ class PromotionValidateView(APIView):
         try:
             breakdown = compute_discounts(
                 user=request.user,
-                subtotal=form.cleaned_data["subtotal"],
-                promotion_code=form.cleaned_data["code"],
+                subtotal=form.validated_data["subtotal"],
+                promotion_code=form.validated_data["code"],
                 loyalty_points=0,
             )
         except EngagementError as exc:

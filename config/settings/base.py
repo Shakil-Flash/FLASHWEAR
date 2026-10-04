@@ -90,6 +90,12 @@ LOCAL_APPS = [
     # orders and catalogue but nothing above imports it directly (the checkout reaches
     # engagement through lazy service calls), which keeps the migration graph a tree.
     "apps.engagement",
+    # Phase 8: the private wardrobe and outfit builder. Also a leaf, and deliberately
+    # signal-free -- closet rows only ever appear through its own explicit services.
+    "apps.styling",
+    "apps.recommendations",
+    "apps.closet",
+    # Phase 10: personalized discovery and recommendations.
 ]
 
 INSTALLED_APPS = [*LOCAL_APPS, *THIRD_PARTY_APPS, *DJANGO_APPS]

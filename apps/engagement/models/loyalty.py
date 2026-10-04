@@ -122,7 +122,9 @@ class PointsTransaction(TimestampedModel):
                 name="engagement_points_earn_types_positive",
             ),
             models.CheckConstraint(
-                condition=~models.Q(transaction_type__in=["redemption", "refund_reversal", "expiration"])
+                condition=~models.Q(
+                    transaction_type__in=["redemption", "refund_reversal", "expiration"]
+                )
                 | models.Q(amount__lt=0),
                 name="engagement_points_spend_types_negative",
             ),

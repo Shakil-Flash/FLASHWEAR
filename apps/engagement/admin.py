@@ -47,7 +47,14 @@ __all__ = ["PointsReservationAdmin", "PointsTransactionAdmin", "PromotionAdmin",
 class ReviewAdmin(admin.ModelAdmin):
     """Moderation queue: newest pending first, bulk status transitions."""
 
-    list_display = ("product", "author_email", "rating", "status", "verified_purchase", "created_at")
+    list_display = (
+        "product",
+        "author_email",
+        "rating",
+        "status",
+        "verified_purchase",
+        "created_at",
+    )
     list_filter = ("status", "rating", "verified_purchase")
     search_fields = ("product__name", "product__slug", "author__email", "title", "body")
     list_select_related = ("product", "author")
@@ -100,7 +107,21 @@ class PromotionAdminForm(forms.ModelForm):
 
     class Meta:
         model = Promotion
-        fields = "__all__"
+        fields = (
+            "code",
+            "name",
+            "description",
+            "discount_type",
+            "discount_value",
+            "starts_at",
+            "ends_at",
+            "is_active",
+            "usage_limit",
+            "used_count",
+            "per_user_limit",
+            "min_order_amount",
+            "allow_loyalty_redemption",
+        )
 
     def clean_code(self) -> str:
         from apps.engagement.services.promotions import normalise_code
@@ -121,11 +142,7 @@ class PromotionAdminForm(forms.ModelForm):
             raise forms.ValidationError(_("The end of the window must be after its start."))
         discount_type = cleaned.get("discount_type")
         value = cleaned.get("discount_value")
-        if (
-            discount_type == Promotion.DiscountType.PERCENTAGE
-            and value is not None
-            and value > 100
-        ):
+        if discount_type == Promotion.DiscountType.PERCENTAGE and value is not None and value > 100:
             raise forms.ValidationError(_("A percentage discount cannot exceed 100%."))
         if value is not None and value <= 0:
             raise forms.ValidationError(_("The discount must be greater than zero."))
@@ -243,9 +260,7 @@ class PointsTransactionAdmin(admin.ModelAdmin):
         if "apply" in request.POST and form.is_valid():
             amount = form.cleaned_data["amount"]
             note = form.cleaned_data["note"]
-            user_ids = list(
-                queryset.values_list("user_id", flat=True).order_by().distinct()
-            )
+            user_ids = list(queryset.values_list("user_id", flat=True).order_by().distinct())
             applied = 0
             for user_id in user_ids:
                 try:

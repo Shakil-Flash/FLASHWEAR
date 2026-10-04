@@ -1,0 +1,87 @@
+{% extends "account/base_account.html" %}
+
+{% block account_title %}{{ outfit.name }}{% endblock account_title %}
+{% block account_heading %}{{ outfit.name }}{% endblock account_heading %}
+{% block account_intro %}
+    {{ completeness.label }} ({{ completeness.status }}){% endblock account_intro %}
+{% block meta_robots %}noindex, nofollow{% endblock meta_robots %}
+
+{% block account_content %}
+<div class="space-y-6">
+    <div class="flex items-center justify-between gap-3">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-900">{{ outfit.name }}</h1>
+            <p class="text-sm text-slate-500">{{ outfit.description|default:"No description yet." }}</p>
+        </div>
+        <div class="flex items-center gap-2">
+            <span class="rounded-full px-2.5 py-1 text-xs font-semibold {% if completeness.status == 'complete' %}bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200{% elif completeness.status == 'almost' %}bg-amber-50 text-amber-700 ring-1 ring-amber-200{% else %}bg-slate-100 text-slate-600 ring-1 ring-slate-200{% endif %}">{{ completeness.label }}</span>
+            <a href="{% url 'account:outfit-save' outfit.pk %}" class="text-sm font-medium text-slate-700 underline-offset-4 hover:underline focus:outline-none focus:ring-2 focus:ring-flash-500/30 rounded">Save</a>
+        </div>
+    </div>
+
+    {% if completeness.status == 'complete' %}
+    <p class="mt-1 text-sm text-emerald-600">Complete — all required pieces are present.</p>
+    {% elif completeness.status == 'almost' %}
+    <p class="mt-1 text-sm text-amber-600">Almost there — just one piece missing.</p>
+    {% else %}
+    <p class="mt-1 text-sm text-red-600">Incomplete — two or more pieces missing.</p>
+    {% endif %}
+
+    {% comment %}Currently worn pieces, in order.{% endcomment %}
+    {% if links %}
+    <ol class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 mt-6">
+        {% for link in links %}
+        <li class="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-soft" aria-label="Piece {{ forloop.counter }}">
+            <div class="flex-1 min-w-0">
+                <p class="truncate text-sm font-semibold text-slate-900" title="{{ link.closet_item.name }}">{{ link.closet_item.name }}</p>
+                <p class="mt-0.5 text-xs text-slate-500">{{ link.get_role_display }}</p>
+            </div>
+            <div class="flex gap-2">
+                <form method="post" action="{% url 'account:outfit-item-remove' outfit.pk link.pk %}" class="flex-1" onsubmit="return confirm('Remove {{ link.closet_item.name|escapejs }} from this outfit?');">
+                    {% csrf_token %}
+                    <button type="submit" class="text-xs font-medium text-slate-500 rounded px-2 py-1">Remove</button>
+                </form>
+                <form method="post" action="{% url 'account:outfit-item-move' outfit.pk link.pk %}" class="flex-1" style="display:inline;">
+                    {% csrf_token %}
+                    <input type="hidden" name="direction" value="up">
+                    <button type="submit" class="text-xs rounded bg-slate-100 px-2 py-0.5 text-slate-700" title="Move up">↑</button>
+                </form>
+                <form method="post" action="{% url 'account:outfit-item-move' outfit.pk link.pk %}" class="flex-1" style="display:inline;">
+                    {% csrf_token %}
+                    <input type="hidden" name="direction" value="down">
+                    <button type="submit" class="text-xs rounded bg-slate-100 px-2 py-0.5 text-slate-700" title="Move down">↓</button>
+                </form>
+            </div>
+        </li>
+        {% empty %}
+        <li class="col-span-2 text-center text-slate-500 py-8">No pieces in this outfit yet.</li>
+        {% endfor %}
+    </ol>
+    {% else %}
+    <p class="text-slate-500 py-8">No pieces in this outfit yet.</p>
+    {% endif %}
+
+    {% comment %}Add a piece to this outfit.{% endcomment %}
+    <section class="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
+        <h2 class="text-sm font-medium uppercase tracking-wide text-slate-600 mb-4">Add a piece</h2>
+
+        {% if pick_category %}
+        <p class="text-xs text-slate-500 mb-3">Showing items in <strong>{{ pick_category|capfirst }}</strong>. <a href="{% url 'account:outfit-detail' outfit.pk %}">Clear filter</a>.</p>
+        {% endif %}
+
+        <div class="grid grid-cols-2 gap-4">
+            {% for item in available %}
+            <div class="border rounded bg-slate-50 p-3 flex flex-col items-center gap-2">
+                <img src="{% if item.display_image %}{{ item.display_image.url }}{% else %}{{ item.name|slice:":1"|upper }}{% endif %}" alt="{{ item.name }}" class="w-16 h-16 object-cover rounded" />
+                <p class="truncate text-center line-clamp-1 text-sm font-medium text-slate-900" title="{{ item.name }}">{{ item.name }}</p>
+                <form method="post" action="{% url 'account:outfit-item-add' outfit.pk %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="closet_item" value="{{ item.pk }}">
+                    <button type="submit" class="w-full py-2 rounded bg-flash-600 text-white text-sm font-medium transition hover:bg-flash-700 focus:outline-none focus:ring-2 focus:ring-flash-500/30">Add</button>
+                </form>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+</div>
+{% endblock account_content %}

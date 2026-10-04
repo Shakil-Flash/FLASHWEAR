@@ -23,7 +23,6 @@ from decimal import Decimal
 
 from django.conf import settings
 from django.db import models
-from django.db.models import F
 from django.utils.translation import gettext_lazy as _
 
 from apps.catalog.models.base import TimestampedModel
@@ -121,8 +120,7 @@ class Promotion(TimestampedModel):
                 name="engagement_promotion_value_positive",
             ),
             models.CheckConstraint(
-                condition=models.Q(discount_type="fixed")
-                | models.Q(discount_value__lte=100),
+                condition=models.Q(discount_type="fixed") | models.Q(discount_value__lte=100),
                 name="engagement_promotion_percent_at_most_100",
             ),
             models.CheckConstraint(
@@ -135,8 +133,7 @@ class Promotion(TimestampedModel):
                 name="engagement_promotion_used_within_limit",
             ),
             models.CheckConstraint(
-                condition=models.Q(per_user_limit__isnull=True)
-                | models.Q(per_user_limit__gt=0),
+                condition=models.Q(per_user_limit__isnull=True) | models.Q(per_user_limit__gt=0),
                 name="engagement_promotion_per_user_limit_positive",
             ),
             models.CheckConstraint(
@@ -150,10 +147,16 @@ class Promotion(TimestampedModel):
 
     @property
     def discount_label(self) -> str:
-        """Human summary for admin lists and checkout messages, currency-symbol-free."""
+        """Human summary for admin lists and checkout messages, currency-symbol-free.
+
+        ``normalize`` strips trailing zeros without going through scientific notation
+        (``f"{Decimal('10.00'):g}"`` keeps the zeros; ``:g`` on a Decimal is not ``:g`` on a
+        float), so a 10% promotion reads "10% off", not "10.00% off".
+        """
+        value = self.discount_value.normalize()
         if self.discount_type == self.DiscountType.PERCENTAGE:
-            return f"{self.discount_value:g}% off"
-        return f"{self.discount_value:g} off"
+            return f"{value:f}% off"
+        return f"{value:f} off"
 
 
 class PromotionUsage(TimestampedModel):
