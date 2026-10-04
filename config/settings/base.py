@@ -94,8 +94,13 @@ LOCAL_APPS = [
     # signal-free -- closet rows only ever appear through its own explicit services.
     "apps.styling",
     "apps.recommendations",
+    "apps.drops",
     "apps.closet",
     # Phase 10: personalized discovery and recommendations.
+    # Phase 12: creator economy (not yet wired into INSTALLED_APPS).
+    # Phase 13: FLASH Loop -- resale, trade-in and recycling. A leaf app: it reads
+    # the catalogue, closet, orders and engagement but nothing above imports it.
+    "apps.loop",
 ]
 
 INSTALLED_APPS = [*LOCAL_APPS, *THIRD_PARTY_APPS, *DJANGO_APPS]
@@ -376,6 +381,64 @@ CATALOG_CURRENCY_SYMBOL = {
     "INR": "₹",
     "AED": "AED ",
 }.get(CATALOG_CURRENCY_CODE, f"{CATALOG_CURRENCY_CODE} ")
+
+# --------------------------------------------------------------------------------------
+# FLASH Loop (Phase 13): resale, trade-in and recycling
+# --------------------------------------------------------------------------------------
+
+# Resale pricing guard rails. A seller proposes an asking price; it is validated
+# against these bounds and against the project's money conventions (plain Decimal,
+# two places, storefront currency). The platform never guarantees to buy at the
+# asking price.
+LOOP_RESALE_MIN_PRICE = Decimal(env("LOOP_RESALE_MIN_PRICE", default="1.00"))
+LOOP_RESALE_MAX_PRICE = Decimal(env("LOOP_RESALE_MAX_PRICE", default="50000.00"))
+
+# How many photos a seller may attach, and how long a listing stays active before
+# the sweeper expires it (a Celery task, not a correctness dependency).
+LOOP_MAX_IMAGES = env.int("LOOP_MAX_IMAGES", default=5)
+LOOP_LISTING_TTL_DAYS = env.int("LOOP_LISTING_TTL_DAYS", default=90)
+
+# Only in-house FLASHWEAR merchandise enters the Loop in this phase. A product is
+# eligible when it carries no external brand label (in-house) or one of these brand
+# slugs. Third-party goods are rejected with a clear message; marketplace support for
+# them is a later phase.
+LOOP_ELIGIBLE_BRAND_SLUGS = env.list("LOOP_ELIGIBLE_BRAND_SLUGS", default=["flashwear"])
+
+# Deterministic trade-in valuation inputs (see ``apps.loop.services.valuation``).
+# The estimate is a policy output, not an AI prediction and not a guarantee: the
+# final credit is set by a reviewer after inspection.
+LOOP_TRADE_IN_BASE_VALUE = Decimal(env("LOOP_TRADE_IN_BASE_VALUE", default="20.00"))
+# An estimate may never exceed this fraction of the item's original unit price, so
+# the policy cannot out-value the garment it is valuing.
+LOOP_TRADE_IN_MAX_FRACTION_OF_PRICE = Decimal(
+    env("LOOP_TRADE_IN_MAX_FRACTION_OF_PRICE", default="0.50")
+)
+# Age depreciation brackets: (age in days or None for "and everything older",
+# multiplier). Applied to the purchase/add-to-closet date.
+LOOP_TRADE_IN_AGE_BRACKETS = (
+    (180, Decimal("1.00")),
+    (365, Decimal("0.90")),
+    (None, Decimal("0.80")),
+)
+
+# Recycling programme scope. A product is recyclable when any of its materials, or
+# its most specific category slug, is listed here. Products outside the programme
+# get a friendly, honest reason instead of a fake acceptance.
+LOOP_RECYCLABLE_MATERIALS = env.list(
+    "LOOP_RECYCLABLE_MATERIALS",
+    default=[
+        "organic-cotton",
+        "cotton",
+        "linen",
+        "polyester",
+        "recycled-polyester",
+        "wool",
+        "denim",
+    ],
+)
+LOOP_RECYCLABLE_CATEGORIES = env.list(
+    "LOOP_RECYCLABLE_CATEGORIES", default=["t-shirts", "hoodies", "jeans", "dresses"]
+)
 
 # --------------------------------------------------------------------------------------
 # Cart and checkout (Phase 5)

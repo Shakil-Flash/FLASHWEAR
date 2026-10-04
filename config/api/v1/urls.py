@@ -50,6 +50,12 @@ from apps.styling.api import (
     StylistSaveOutfitView,
     StylistStyleProductView,
 )
+from apps.drops.api import (
+    DropDetailView,
+    DropInterestView,
+    DropProductsView,
+    DropRootView,
+)
 from config.api.v1.views import ApiRootView
 
 app_name = "v1"
@@ -110,4 +116,9 @@ urlpatterns = [
     path("recommendations/similar/", SimilarProductsView.as_view(), name="similar-products"),
     path("recommendations/new-for-you/", NewForYouView.as_view(), name="new-for-you"),
     path("recommendations/feedback/", FeedbackView.as_view(), name="feedback"),
+    # Phase 11: FLASH Drops and Smart Collections (session-authenticated).
+    path("drops/", DropRootView.as_view(), name="drop-root"),
+    path("drops/<slug:slug>/", DropDetailView.as_view(), name="drop-detail"),
+    path("drops/<slug:slug>/products/", DropProductsView.as_view(), name="drop-products"),
+    path("drops/<int:id>/interest/", DropInterestView.as_view(), name="drop-interest"),
 ]

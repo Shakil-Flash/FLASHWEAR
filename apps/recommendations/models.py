@@ -72,6 +72,9 @@ class RecommendationSignal(models.Model):
         ),
     )
 
+    def __str__(self) -> str:
+        return f"Signal {self.signal_type} for user {self.user_id}"
+
     # ---- Deduplication / recency -------------------------------------------
 
     # Allow the same signal kind to be recorded multiple times (e.g. multiple

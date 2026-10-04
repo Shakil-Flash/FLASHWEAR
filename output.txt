@@ -1,0 +1,19 @@
+============================= test session starts =============================
+platform win32 -- Python 3.12.10, pytest-9.1.1, pluggy-1.6.0 -- F:\FLASHWEAR\.venv\Scripts\python.exe
+cachedir: .pytest_cache
+django: version: 5.2.17, settings: config.settings.testing (from ini)
+DJANGO_SETTINGS_MODULE: config.settings.testing
+rootdir: F:\FLASHWEAR
+configfile: pyproject.toml
+plugins: anyio-4.15.1, platformdirs-4.12.2, cov-7.1.0, django-4.14.0
+collecting ... collected 1 item
+
+tests/test_accounts.py::TestLoginView::test_get_renders_form PASSED      [100%]
+
+============================== warnings summary ===============================
+apps\recommendations\models.py:108
+  F:\FLASHWEAR\apps\recommendations\models.py:108: RemovedInDjango60Warning: CheckConstraint.check is deprecated in favor of `.condition`.
+    models.CheckConstraint(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 1 passed, 1 warning in 1.72s =========================
