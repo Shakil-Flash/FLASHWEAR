@@ -7,6 +7,30 @@ from django.db import models
 from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 
+#: Signal type choices for ``RecommendationSignal``.
+#: The keys match the ``signal_type`` field values.
+SIGNAL_CHOICES = [
+    ("dna_style", "DNA style match"),
+    ("dna_color", "DNA color match"),
+    ("dna_category", "DNA category match"),
+    ("dna_fit", "DNA fit match"),
+    ("dna_material", "DNA material match"),
+    ("dna_occasion", "DNA occasion match"),
+    ("dna_season", "DNA season match"),
+    ("dna_brand", "DNA brand preference"),
+    ("dna_price", "DNA price range preference"),
+    ("closet_complement", "Closet complement"),
+    ("outfit_completion", "Outfit completion"),
+    ("purchase_history", "Purchase history"),
+    ("review_preference", "Review preference"),
+    ("popularity", "Product popularity"),
+    ("recency", "Product recency"),
+    ("category_match", "Category match"),
+    ("brand_match", "Brand match"),
+    ("color_match", "Color match"),
+    ("style_match", "Style match"),
+]
+
 
 class RecommendationSignal(models.Model):
     """A structured signal contributing to a recommendation score.
@@ -18,13 +42,6 @@ class RecommendationSignal(models.Model):
     not *why*. The scoring engine interprets them.
     """
 
-    class Meta:
-        verbose_name = _("Recommendation Signal")
-        verbose_name_plural = _("Recommendation Signals")
-        ordering = ("-created_at",)
-
-    # ---- Identity ------------------------------------------------------------
-
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -33,30 +50,6 @@ class RecommendationSignal(models.Model):
     )
 
     signed_at = models.DateTimeField(_("signed at"), auto_now_add=True)
-
-    # ---- Signal type --------------------------------------------------------
-
-    SIGNAL_CHOICES = [
-        ("dna_style", "DNA style match"),
-        ("dna_color", "DNA color match"),
-        ("dna_category", "DNA category match"),
-        ("dna_fit", "DNA fit match"),
-        ("dna_material", "DNA material match"),
-        ("dna_occasion", "DNA occasion match"),
-        ("dna_season", "DNA season match"),
-        ("dna_brand", "DNA brand preference"),
-        ("dna_price", "DNA price range preference"),
-        ("closet_complement", "Closet complement"),
-        ("outfit_completion", "Outfit completion"),
-        ("purchase_history", "Purchase history"),
-        ("review_preference", "Review preference"),
-        ("popularity", "Product popularity"),
-        ("recency", "Product recency"),
-        ("category_match", "Category match"),
-        ("brand_match", "Brand match"),
-        ("color_match", "Color match"),
-        ("style_match", "Style match"),
-    ]
 
     signal_type = models.CharField(_("signal type"), max_length=32, choices=SIGNAL_CHOICES)
 
@@ -115,9 +108,6 @@ class RecommendationSignal(models.Model):
             ),
         ]
 
-    def __str__(self) -> str:
-        return f"Signal {self.signal_type} for user {self.user_id} at {self.signed_at}"
-
 
 class RecommendationScore(models.Model):
     """A structured score for a single product against a user's profile.
@@ -129,15 +119,8 @@ class RecommendationScore(models.Model):
     Each score breaks down into weighted signals so the output is explainable.
     """
 
-    class Meta:
-        verbose_name = _("Recommendation Score")
-        verbose_name_plural = _("Recommendation Scores")
-
     # ---- Identity ------------------------------------------------------------
 
-    # The product being scored. We do NOT cascade-delete so that if the
-    # product is later archived, historical score records kept for audit
-    # purposes remain traceable.
     product = models.ForeignKey(
         "catalog.Product",
         on_delete=models.PROTECT,
@@ -191,10 +174,21 @@ class RecommendationScore(models.Model):
 
     calculated_at = models.DateTimeField(_("calculated at"), auto_now_add=True)
 
+    class Meta:
+        verbose_name = _("Recommendation Score")
+        verbose_name_plural = _("Recommendation Scores")
+        ordering = ("-calculated_at",)
+
     def __str__(self) -> str:
-        return (
-            f"Score product {self.product_id} for user {self.user_id}: total={self.total_final:.2f}"
-        )
+        return f"Score product {self.product_id} for user {self.user_id}: total={self.total_final:.2f}"
+
+
+class FeedbackChoice(models.TextChoices):
+    NOT_INTERESTED = "not_interested", _("Not interested")
+    NOT_MY_STYLE = "not_my_style", _("Not my style")
+    ALREADY_OWN = "already_own", _("Already own")
+    TOO_EXPENSIVE = "too_expensive", _("Too expensive")
+    WRONG_CATEGORY = "wrong_category", _("Wrong category")
 
 
 class RecommendationFeedback(models.Model):
@@ -209,24 +203,6 @@ class RecommendationFeedback(models.Model):
     - Always tied to a specific recommendation context (type + run ID).
     - Ownership-scoped: a user can only own their own feedback.
     """
-
-    class FeedbackChoice(models.TextChoices):
-        NOT_INTERESTED = "not_interested", _("Not interested")
-        NOT_MY_STYLE = "not_my_style", _("Not my style")
-        ALREADY_OWN = "already_own", _("Already own")
-        TOO_EXPENSIVE = "too_expensive", _("Too expensive")
-        WRONG_CATEGORY = "wrong_category", _("Wrong category")
-
-    class Meta:
-        verbose_name = _("Recommendation Feedback")
-        verbose_name_plural = _("Recommendation Feedback")
-        ordering = ("-given_at",)
-        constraints = [
-            models.UniqueConstraint(
-                fields=["user", "recommendation_run_id", "product"],
-                name="unique_user_feedback_per_run_product",
-            ),
-        ]
 
     # ---- Identity ------------------------------------------------------------
 
@@ -266,3 +242,14 @@ class RecommendationFeedback(models.Model):
 
     def __str__(self) -> str:
         return f"Feedback {self.choice} on product {self.product_id} by user {self.user_id} run {self.recommendation_run_id}"
+
+    class Meta:
+        verbose_name = _("Recommendation Feedback")
+        verbose_name_plural = _("Recommendation Feedback")
+        ordering = ("-given_at",)
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "recommendation_run_id", "product"],
+                name="unique_user_feedback_per_run_product",
+            ),
+        ]

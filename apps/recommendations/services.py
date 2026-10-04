@@ -13,6 +13,7 @@ from collections import defaultdict
 
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
+from django.db import models
 from django.db.models import Q
 
 from apps.catalog.models import Product
@@ -84,13 +85,13 @@ def extract_dna_signals(user) -> dict[str, list[str] | None]:
     when the user has no FLASH DNA profile.
     """
     from apps.styling.services.dna import (
-        dna_style_fn,
-        dna_color_list,
         dna_category_list,
-        dna_occasion_list,
-        dna_season_list,
+        dna_color_list,
         dna_fit_list,
         dna_material_list,
+        dna_occasion_list,
+        dna_season_list,
+        dna_style_fn,
     )
 
     try:
@@ -98,13 +99,14 @@ def extract_dna_signals(user) -> dict[str, list[str] | None]:
     except ObjectDoesNotExist:
         return None
 
+    styles_val = dna_style_fn(dna)
     return {
-        "styles": dna_style_fn(dna),
+        "styles": styles_val,
         "colors": dna_color_list(dna, preferred=True),
         "disliked_colors": dna_color_list(dna, preferred=False),
         "categories": dna_category_list(dna),
-        "fits": dna_fit_list(dna),
-        "materials": dna_material_list(dna),
+        "fits": dna_fit_list(styles_val),
+        "materials": dna_material_list([]),  # placeholder - no material data from DNA yet
         "occasions": dna_occasion_list(dna),
         "seasons": dna_season_list(dna),
         "brands": [b.name for b in dna.preferred_brands.all()],
@@ -112,11 +114,14 @@ def extract_dna_signals(user) -> dict[str, list[str] | None]:
     }
 
 
-def dna_fit_list(dna: FlashDNA) -> list[str]:
-    """Infer preferred fits from DNA style keywords."""
-    styles = dna_style_fn(dna)
+def dna_fit_list(dna_styles: list[str]) -> list[str]:
+    """Infer preferred fits from DNA style keywords.
+
+    Accepts a pre-extracted list of style strings instead of a DNA object,
+    avoiding circular import issues with dna_style_fn.
+    """
     inferred = []
-    for s in styles:
+    for s in dna_styles:
         if "oversized" in s.lower():
             inferred.append("Oversized")
         elif "slim" in s.lower():
@@ -128,8 +133,12 @@ def dna_fit_list(dna: FlashDNA) -> list[str]:
     return inferred
 
 
-def dna_material_list(dna: FlashDNA) -> list[str]:
-    """Return the customer's preferred material names as a plain list."""
+def dna_material_list(dna_styles: list[str]) -> list[str]:
+    """Return the customer's preferred material names as a plain list.
+
+    Accepts a pre-extracted list of style strings to avoid circular import
+    issues with the FlashDNA model import.
+    """
     # Placeholder — DNA has no material field yet; return empty list.
     # Future: store Material rows and return their names.
     return []
