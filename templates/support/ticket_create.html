@@ -1,0 +1,46 @@
+{% extends "account/base_account.html" %}
+
+{% block account_title %}Open a ticket{% endblock account_title %}
+{% block account_heading %}Open a ticket{% endblock account_heading %}
+{% block account_intro %}Say what happened in your own words. Attach a screenshot or a receipt if it helps -- plain text, images, or a PDF.{% endblock account_intro %}
+{% block meta_robots %}noindex, follow{% endblock meta_robots %}
+
+{% block account_content %}
+<form method="post" action="{% url 'support:ticket-create' %}" enctype="multipart/form-data" novalidate class="max-w-2xl rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+    <div class="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700" role="alert">
+        {% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="space-y-5">
+        {% include "account/_field.html" with field=form.subject %}
+        {% include "account/_field.html" with field=form.category %}
+        {% include "account/_field.html" with field=form.description %}
+
+        <fieldset class="space-y-3 rounded-xl bg-slate-50 p-4">
+            <legend class="px-1 text-xs font-semibold uppercase tracking-wide text-slate-500">What is it about? (optional)</legend>
+            {% include "account/_field.html" with field=form.order %}
+            {% include "account/_field.html" with field=form.product %}
+            <div class="grid gap-5 sm:grid-cols-2">
+                {% include "account/_field.html" with field=form.review %}
+                {% include "account/_field.html" with field=form.loop_item %}
+            </div>
+            {% include "account/_field.html" with field=form.quest %}
+        </fieldset>
+
+        <div>
+            <label for="id_files" class="block text-sm font-medium text-slate-700">Attachments</label>
+            <input type="file" name="files" id="id_files" multiple class="mt-2 block w-full text-sm text-slate-600" accept=".jpg,.jpeg,.png,.webp,.pdf,.txt,image/*,application/pdf,text/plain" />
+            <p class="mt-1.5 text-xs text-slate-500">JPEG, PNG, WebP, PDF or plain text, up to 5&nbsp;MB each.</p>
+        </div>
+    </div>
+
+    <div class="mt-6 flex flex-wrap items-center gap-4">
+        <button type="submit" class="inline-flex items-center justify-center rounded-full bg-flash-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-flash-700 focus:outline-none focus:ring-2 focus:ring-flash-500/30 focus:ring-offset-2 focus:ring-offset-white">Send to the team</button>
+        <a href="{% url 'support:home' %}" class="text-sm font-medium text-slate-700 underline-offset-4 hover:underline">Cancel</a>
+    </div>
+</form>
+{% endblock account_content %}

@@ -1,0 +1,87 @@
+{% extends "account/base_account.html" %}
+
+{% block account_title %}{{ quest.name }} — Quests{% endblock account_title %}
+{% block account_heading %}{{ quest.name }}{% endblock account_heading %}
+{% block account_intro %}Progress is measured from your own account activity — here is where it stands.{% endblock account_intro %}
+
+{% block account_content %}
+<div class="max-w-3xl space-y-6">
+
+    {% comment %}Status + progress: one card, because they are one idea.{% endcomment %}
+    <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft" aria-labelledby="progress-heading">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+            <div>
+                <p id="progress-heading" class="text-sm font-medium text-slate-500">
+                    {% if quest_progress.is_completed %}Completed{% elif quest_progress.state == "active" %}In progress
+                    {% elif quest_progress.state == "scheduled" %}Starts {{ quest.start_at|date:"N j, Y" }}
+                    {% elif quest_progress.state == "ended" %}This quest has ended{% else %}Not available{% endif %}
+                </p>
+                {% if quest.repeat_period != "none" %}
+                <p class="mt-1 text-xs text-slate-500">
+                    Repeats {{ quest.get_repeat_period_display|lower }} — progress resets each period.
+                </p>
+                {% endif %}
+            </div>
+            <div class="flex shrink-0 items-center gap-2">
+                {% if quest.points_reward %}
+                <span class="rounded-full bg-flash-50 px-3 py-1.5 text-sm font-semibold text-flash-800">+{{ quest.points_reward }} points</span>
+                {% endif %}
+                {% if quest.badge %}
+                <span class="rounded-full bg-amber-50 px-3 py-1.5 text-sm font-semibold text-amber-800">{{ quest.badge.name }} badge</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="mt-5">
+            <div class="flex items-baseline justify-between text-sm text-slate-600">
+                <span class="font-medium text-slate-900">{{ quest_progress.progress }} / {{ quest_progress.target }}</span>
+                <span>{{ quest_progress.percent }}%</span>
+            </div>
+            <div class="mt-2 h-3 w-full overflow-hidden rounded-full bg-slate-100"
+                 role="progressbar" aria-valuemin="0" aria-valuemax="{{ quest_progress.target }}"
+                 aria-valuenow="{{ quest_progress.percent }}" aria-label="Progress on {{ quest.name }}">
+                <div class="h-full rounded-full {% if quest_progress.is_completed %}bg-emerald-500{% else %}bg-flash-600{% endif %}"
+                     style="width: {{ quest_progress.percent }}%"></div>
+            </div>
+        </div>
+
+        {% if quest_progress.is_completed %}
+        <div class="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+            <p class="text-sm font-medium text-emerald-900">
+                Reward earned{% if quest_progress.completed_at %} on {{ quest_progress.completed_at|date:"N j, Y" }}{% endif %}.
+                {% if quest.points_reward %}{{ quest.points_reward }} points were added to your balance.{% endif %}
+            </p>
+            <a href="{% url 'account:rewards' %}" class="text-sm font-semibold text-emerald-800 underline-offset-4 hover:underline">See rewards</a>
+        </div>
+        {% endif %}
+
+        {% if can_start %}
+        <form method="post" action="{% url 'account:quest-start' quest.slug %}" class="mt-5">
+            {% csrf_token %}
+            <button type="submit" class="rounded-xl bg-flash-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-flash-700 focus:outline-none focus:ring-2 focus:ring-flash-500/40">
+                Start quest
+            </button>
+        </form>
+        {% endif %}
+    </section>
+
+    {% if quest.description %}
+    <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft" aria-labelledby="how-heading">
+        <h2 id="how-heading" class="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500">How it works</h2>
+        <p class="mt-3 text-sm leading-relaxed text-slate-700">{{ quest.description }}</p>
+        <p class="mt-3 text-xs leading-relaxed text-slate-500">
+            Progress comes straight from your account data — orders, reviews, your closet — so it can
+            only ever reflect things you have actually done on FLASHWEAR.
+        </p>
+        {% if cta %}
+        <a href="{{ cta.1 }}" class="mt-4 inline-flex rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800">{{ cta.0 }}</a>
+        {% endif %}
+    </section>
+    {% endif %}
+
+    {% if quest.end_at and quest_progress.state != "ended" %}
+    <p class="text-xs text-slate-500">This quest closes {{ quest.end_at|date:"N j, Y" }}.</p>
+    {% endif %}
+
+</div>
+{% endblock account_content %}

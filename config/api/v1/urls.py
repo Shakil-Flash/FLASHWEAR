@@ -52,6 +52,12 @@ from apps.loop.api import (
     TradeInListCreateView,
 )
 from apps.orders.api import OrderDetailView, OrderListView
+from apps.quests.api import (
+    QuestDetailAPIView,
+    QuestListAPIView,
+    QuestStartAPIView,
+    RewardsAPIView,
+)
 from apps.recommendations.api import (
     ClosetComplementView,
     FeedbackView,
@@ -67,6 +73,23 @@ from apps.styling.api import (
     StylistRecommendView,
     StylistSaveOutfitView,
     StylistStyleProductView,
+)
+from apps.support.api import (
+    StaffTicketAssignView,
+    StaffTicketDetailView,
+    StaffTicketEscalateView,
+    StaffTicketLinkView,
+    StaffTicketListView,
+    StaffTicketNoteView,
+    StaffTicketPriorityView,
+    StaffTicketReplyView,
+    StaffTicketStatusView,
+    SupportRootView,
+    SupportTicketCloseView,
+    SupportTicketDetailView,
+    SupportTicketListCreateView,
+    SupportTicketMessagesView,
+    SupportTicketReopenView,
 )
 from config.api.v1.views import ApiRootView
 
@@ -161,4 +184,79 @@ urlpatterns = [
     path("loop/trade-ins/", TradeInListCreateView.as_view(), name="loop-trade-in-list"),
     path("loop/recycling/", RecycleListCreateView.as_view(), name="loop-recycle-list"),
     path("loop/credits/", LoopCreditListView.as_view(), name="loop-credit-list"),
+    # Phase 14: quests and rewards (session-authenticated, customer-scoped; progress is
+    # server-derived and the start action takes no input).
+    path("quests/", QuestListAPIView.as_view(), name="quest-list"),
+    path("quests/<slug:slug>/", QuestDetailAPIView.as_view(), name="quest-detail"),
+    path("quests/<slug:slug>/start/", QuestStartAPIView.as_view(), name="quest-start"),
+    path("rewards/", RewardsAPIView.as_view(), name="rewards"),
+    # Phase 15: FLASH Support & Customer Care (session-authenticated; the customer's own
+    # tickets at /support/tickets/, the desk's queue under /support/staff/).
+    path("support/", SupportRootView.as_view(), name="support-root"),
+    path("support/tickets/", SupportTicketListCreateView.as_view(), name="support-ticket-list"),
+    path(
+        "support/tickets/<str:number>/",
+        SupportTicketDetailView.as_view(),
+        name="support-ticket-detail",
+    ),
+    path(
+        "support/tickets/<str:number>/messages/",
+        SupportTicketMessagesView.as_view(),
+        name="support-ticket-message-list",
+    ),
+    path(
+        "support/tickets/<str:number>/close/",
+        SupportTicketCloseView.as_view(),
+        name="support-ticket-close",
+    ),
+    path(
+        "support/tickets/<str:number>/reopen/",
+        SupportTicketReopenView.as_view(),
+        name="support-ticket-reopen",
+    ),
+    path(
+        "support/staff/tickets/",
+        StaffTicketListView.as_view(),
+        name="support-staff-ticket-list",
+    ),
+    path(
+        "support/staff/tickets/<str:number>/",
+        StaffTicketDetailView.as_view(),
+        name="support-staff-ticket-detail",
+    ),
+    path(
+        "support/staff/tickets/<str:number>/assign/",
+        StaffTicketAssignView.as_view(),
+        name="support-staff-ticket-assign",
+    ),
+    path(
+        "support/staff/tickets/<str:number>/status/",
+        StaffTicketStatusView.as_view(),
+        name="support-staff-ticket-status",
+    ),
+    path(
+        "support/staff/tickets/<str:number>/priority/",
+        StaffTicketPriorityView.as_view(),
+        name="support-staff-ticket-priority",
+    ),
+    path(
+        "support/staff/tickets/<str:number>/escalate/",
+        StaffTicketEscalateView.as_view(),
+        name="support-staff-ticket-escalate",
+    ),
+    path(
+        "support/staff/tickets/<str:number>/link/",
+        StaffTicketLinkView.as_view(),
+        name="support-staff-ticket-link",
+    ),
+    path(
+        "support/staff/tickets/<str:number>/note/",
+        StaffTicketNoteView.as_view(),
+        name="support-staff-ticket-note",
+    ),
+    path(
+        "support/staff/tickets/<str:number>/reply/",
+        StaffTicketReplyView.as_view(),
+        name="support-staff-ticket-reply",
+    ),
 ]

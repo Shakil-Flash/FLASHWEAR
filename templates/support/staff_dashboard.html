@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% comment %}
+The desk queue. Every control here is a GET parameter on one form, so the whole filter
+state survives a refresh and an agent can link a colleague to "everything escalated that
+is mine". Counts come from one aggregate in ``selectors.desk_counts`` -- the header must
+not cost eight queries.
+{% endcomment %}
+
+{% block title %}Support desk | FLASHWEAR{% endblock title %}
+{% block meta_robots %}noindex, nofollow{% endblock meta_robots %}
+
+{% block content %}
+<div class="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+    <div class="flex flex-wrap items-end justify-between gap-4">
+        <div>
+            <p class="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">FLASH Support</p>
+            <h1 class="mt-1 text-2xl font-semibold text-slate-900">Queue</h1>
+        </div>
+        <p class="text-sm text-slate-600">{{ counts.total|default:0 }} ticket{{ counts.total|default:0|pluralize }} · {{ counts.unassigned|default:0 }} unassigned</p>
+    </div>
+
+    <div class="mt-6 grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        <div class="rounded-2xl border border-slate-200 bg-white p-4"><p class="text-xs uppercase tracking-wide text-slate-500">Open</p><p class="mt-1 text-xl font-semibold text-slate-900">{{ counts.open|default:0 }}</p></div>
+        <div class="rounded-2xl border border-slate-200 bg-white p-4"><p class="text-xs uppercase tracking-wide text-slate-500">In progress</p><p class="mt-1 text-xl font-semibold text-slate-900">{{ counts.in_progress|default:0 }}</p></div>
+        <div class="rounded-2xl border border-slate-200 bg-white p-4"><p class="text-xs uppercase tracking-wide text-slate-500">Waiting on customer</p><p class="mt-1 text-xl font-semibold text-slate-900">{{ counts.waiting_customer|default:0 }}</p></div>
+        <div class="rounded-2xl border border-slate-200 bg-white p-4"><p class="text-xs uppercase tracking-wide text-slate-500">Waiting internal</p><p class="mt-1 text-xl font-semibold text-slate-900">{{ counts.waiting_internal|default:0 }}</p></div>
+        <div class="rounded-2xl border border-red-200 bg-red-50/60 p-4"><p class="text-xs uppercase tracking-wide text-red-700">Escalated</p><p class="mt-1 text-xl font-semibold text-red-800">{{ counts.escalated|default:0 }}</p></div>
+        <div class="rounded-2xl border border-slate-200 bg-white p-4"><p class="text-xs uppercase tracking-wide text-slate-500">Resolved</p><p class="mt-1 text-xl font-semibold text-slate-900">{{ counts.resolved|default:0 }}</p></div>
+    </div>
+
+    <form method="get" action="" class="mt-6 flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-soft">
+        <div>
+            <label for="id_status" class="block text-sm font-medium text-slate-700">Status</label>
+            <select name="status" id="id_status" class="mt-2 block w-full rounded-xl border border-slate-300 px-3 py-2.5 text-slate-900 shadow-soft transition focus:border-flash-500 focus:outline-none focus:ring-2 focus:ring-flash-500/20">
+                {% for value, label in status_choices %}
+                <option value="{{ value }}" {% if value == filters.status %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label for="id_category" class="block text-sm font-medium text-slate-700">Category</label>
+            <select name="category" id="id_category" class="mt-2 block w-full rounded-xl border border-slate-300 px-3 py-2.5 text-slate-900 shadow-soft transition focus:border-flash-500 focus:outline-none focus:ring-2 focus:ring-flash-500/20">
+                {% for value, label in category_choices %}
+                <option value="{{ value }}" {% if value == filters.category %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="min-w-56">
+            <label for="id_q" class="block text-sm font-medium text-slate-700">Search</label>
+            <input type="search" name="q" id="id_q" value="{{ filters.q }}" placeholder="Ticket number or subject" class="mt-2 block w-full rounded-xl border border-slate-300 px-3 py-2.5 text-slate-900 shadow-soft transition placeholder:text-slate-400 focus:border-flash-500 focus:outline-none focus:ring-2 focus:ring-flash-500/20" />
+        </div>
+        <label class="flex items-center gap-2 pb-2 text-sm font-medium text-slate-700">
+            <input type="checkbox" name="mine" value="1" {% if filters.mine %}checked{% endif %} class="h-5 w-5 rounded border-slate-300 text-flash-600 focus:ring-flash-500/30" />
+            Only mine
+        </label>
+        <div class="flex gap-3 pb-1">
+            <button type="submit" class="inline-flex items-center justify-center rounded-full bg-flash-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-flash-700">Apply</button>
+            <a href="{% url 'support:staff-dashboard' %}" class="inline-flex items-center text-sm font-medium text-slate-700 underline-offset-4 hover:underline">Clear</a>
+        </div>
+    </form>
+
+    <div class="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft">
+        <table class="min-w-full divide-y divide-slate-200 text-sm">
+            <thead class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <tr>
+                    <th scope="col" class="px-4 py-3">Ticket</th>
+                    <th scope="col" class="px-4 py-3">Subject</th>
+                    <th scope="col" class="px-4 py-3">Customer</th>
+                    <th scope="col" class="px-4 py-3">Priority</th>
+                    <th scope="col" class="px-4 py-3">Status</th>
+                    <th scope="col" class="px-4 py-3">Assigned</th>
+                    <th scope="col" class="px-4 py-3">Opened</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                {% for ticket in page.object_list %}
+                <tr class="hover:bg-slate-50/70">
+                    <td class="px-4 py-3 whitespace-nowrap">
+                        <a href="{% url 'support:staff-ticket-detail' ticket.number %}" class="font-semibold text-slate-900 underline-offset-4 hover:underline">{{ ticket.number }}</a>
+                    </td>
+                    <td class="px-4 py-3">
+                        <a href="{% url 'support:staff-ticket-detail' ticket.number %}" class="text-slate-700 hover:underline">{{ ticket.subject }}</a>
+                        <span class="block text-xs text-slate-500">{{ ticket.get_category_display }} · {{ ticket.message_count }} message{{ ticket.message_count|pluralize }}</span>
+                    </td>
+                    <td class="px-4 py-3 text-slate-600">{{ ticket.customer.email|default:"—" }}</td>
+                    <td class="px-4 py-3 text-slate-600">{{ ticket.get_priority_display }}</td>
+                    <td class="px-4 py-3">{% include "support/_status_pill.html" with status=ticket.status label=ticket.get_status_display %}</td>
+                    <td class="px-4 py-3 text-slate-600">{{ ticket.assigned_to.email|default:"Unassigned" }}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-slate-500">{{ ticket.created_at|date:"N j" }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="7" class="px-4 py-8 text-center text-slate-600">Nothing matches that filter.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if page.has_other_pages %}
+    <nav class="mt-6 flex items-center justify-between text-sm" aria-label="Queue pages">
+        {% if page.has_previous %}
+        <a href="?page={{ page.previous_page_number }}&amp;status={{ filters.status }}&amp;category={{ filters.category }}&amp;q={{ filters.q }}{% if filters.mine %}&amp;mine=1{% endif %}" class="font-medium text-slate-900 underline-offset-4 hover:underline">Newer</a>
+        {% else %}<span class="text-slate-300">—</span>{% endif %}
+        <span class="text-slate-500">Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+        {% if page.has_next %}
+        <a href="?page={{ page.next_page_number }}&amp;status={{ filters.status }}&amp;category={{ filters.category }}&amp;q={{ filters.q }}{% if filters.mine %}&amp;mine=1{% endif %}" class="font-medium text-slate-900 underline-offset-4 hover:underline">Older</a>
+        {% else %}<span class="text-slate-300">—</span>{% endif %}
+    </nav>
+    {% endif %}
+</div>
+{% endblock content %}

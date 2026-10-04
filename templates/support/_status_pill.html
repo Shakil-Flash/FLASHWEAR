@@ -1,0 +1,15 @@
+{% comment %}
+One ticket status pill, used by the customer list, the ticket page and the desk queue.
+
+Included as ``{% include "support/_status_pill.html" with status=ticket.status label=ticket.get_status_display %}``.
+The colour lives here rather than in three templates so "escalated" never looks like
+"resolved" on one screen and ordinary on another.
+{% endcomment %}
+<span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold
+    {% if status == 'open' %}bg-flash-50 text-flash-800
+    {% elif status == 'in_progress' %}bg-sky-50 text-sky-800
+    {% elif status == 'waiting_for_customer' %}bg-amber-50 text-amber-800
+    {% elif status == 'waiting_internal' %}bg-violet-50 text-violet-800
+    {% elif status == 'escalated' %}bg-red-50 text-red-800
+    {% elif status == 'resolved' %}bg-emerald-50 text-emerald-800
+    {% else %}bg-slate-100 text-slate-600{% endif %}">{{ label }}</span>

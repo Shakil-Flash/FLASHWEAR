@@ -101,6 +101,17 @@ LOCAL_APPS = [
     # Phase 13: FLASH Loop -- resale, trade-in and recycling. A leaf app: it reads
     # the catalogue, closet, orders and engagement but nothing above imports it.
     "apps.loop",
+    # Phase 14: FLASH Quests & Rewards -- deterministic quests, progress and badges.
+    # Also a leaf: it measures rows written by every app below it and writes only to its
+    # own tables plus idempotent BONUS ledger entries.
+    "apps.quests",
+    # Phase 15: FLASH Support & Customer Care -- tickets, transcripts and the staff desk.
+    # The last leaf: it references every domain above so a ticket can point at the row it
+    # is about, and nothing imports it back.
+    "apps.support",
+    # Phase 16: FLASHWEAR Back Office -- /operations/. Reads every domain above and calls
+    # their services; its only table is the staff audit log, and nothing imports it back.
+    "apps.backoffice",
 ]
 
 INSTALLED_APPS = [*LOCAL_APPS, *THIRD_PARTY_APPS, *DJANGO_APPS]
@@ -268,8 +279,13 @@ REVIEWS_PER_PAGE = env.int("REVIEWS_PER_PAGE", default=6)
 # points. Same pattern as the inventory sweep: one named setting, one beat entry.
 LOYALTY_SWEEP_INTERVAL_SECONDS = env.int("LOYALTY_SWEEP_INTERVAL_SECONDS", default=60)
 
+# How often (seconds) the quest sweeper re-derives progress for users holding an active
+# participation row -- the no-signal half of quest progress (see apps.quests.tasks).
+QUESTS_SWEEP_INTERVAL_SECONDS = env.int("QUESTS_SWEEP_INTERVAL_SECONDS", default=300)
+
 # Periodic work (requires `celery beat` alongside the worker). Sweepers give expired
-# things back: stock holds, points holds, and due point balances.
+# things back: stock holds, points holds, due point balances -- and re-derive quest
+# progress that arrived without an event.
 CELERY_BEAT_SCHEDULE = {
     "inventory-sweep-expired-reservations": {
         "task": "inventory.sweep_expired_reservations",
@@ -278,6 +294,10 @@ CELERY_BEAT_SCHEDULE = {
     "engagement-sweep-loyalty": {
         "task": "engagement.sweep_loyalty",
         "schedule": LOYALTY_SWEEP_INTERVAL_SECONDS,
+    },
+    "quests-sweep-progress": {
+        "task": "quests.sweep_progress",
+        "schedule": QUESTS_SWEEP_INTERVAL_SECONDS,
     },
 }
 
@@ -439,6 +459,64 @@ LOOP_RECYCLABLE_MATERIALS = env.list(
 LOOP_RECYCLABLE_CATEGORIES = env.list(
     "LOOP_RECYCLABLE_CATEGORIES", default=["t-shirts", "hoodies", "jeans", "dresses"]
 )
+
+# --------------------------------------------------------------------------------------
+# FLASH Support & Customer Care (Phase 15)
+# --------------------------------------------------------------------------------------
+
+# Attachments are validated by content, never by name (the same rule as avatars and
+# product imagery). SVG and HTML are absent on purpose: they are script containers, and a
+# ticket has no legitimate reason to carry one.
+SUPPORT_ATTACHMENT_MAX_BYTES = env.int("SUPPORT_ATTACHMENT_MAX_BYTES", default=5 * 1024 * 1024)
+SUPPORT_ATTACHMENT_MAX_PIXELS = env.int("SUPPORT_ATTACHMENT_MAX_PIXELS", default=8000)
+SUPPORT_ATTACHMENT_ALLOWED_EXTENSIONS = env.list(
+    "SUPPORT_ATTACHMENT_ALLOWED_EXTENSIONS",
+    default=[".jpg", ".jpeg", ".png", ".webp", ".pdf", ".txt"],
+)
+
+# Where ticket evidence is stored. Deliberately **outside** ``MEDIA_ROOT``: the web server
+# serves MEDIA directly, and screenshots of a customer's order are not public assets. The
+# download route (/support/attachments/<pk>/) is the only reader, and it checks ownership.
+SUPPORT_ATTACHMENT_ROOT = env(
+    "SUPPORT_ATTACHMENT_ROOT", default=str(BASE_DIR / "private" / "support")
+)
+
+# Per-user write limits for the help desk. Tickets are limited hard (queue flooding) and
+# messages more loosely (a real conversation can be long, an abuse run cannot wait 5
+# minutes between sends).
+SUPPORT_MAX_TICKETS_PER_WINDOW = env.int("SUPPORT_MAX_TICKETS_PER_WINDOW", default=5)
+SUPPORT_MAX_MESSAGES_PER_WINDOW = env.int("SUPPORT_MAX_MESSAGES_PER_WINDOW", default=30)
+SUPPORT_MESSAGE_WINDOW_SECONDS = env.int("SUPPORT_MESSAGE_WINDOW_SECONDS", default=300)
+SUPPORT_TICKETS_PER_PAGE = env.int("SUPPORT_TICKETS_PER_PAGE", default=20)
+
+# Housekeeping windows for the support Celery tasks. Both tasks are conveniences: no
+# correctness depends on a worker being up.
+SUPPORT_CLOSE_AFTER_DAYS = env.int("SUPPORT_CLOSE_AFTER_DAYS", default=14)
+SUPPORT_REMIND_AFTER_DAYS = env.int("SUPPORT_REMIND_AFTER_DAYS", default=3)
+# Off by default: sending from a worker needs ACCOUNT_EMAIL_BASE_URL configured, and a
+# guessed link is worse than no nudge at all.
+SUPPORT_SEND_REMINDERS = env.bool("SUPPORT_SEND_REMINDERS", default=False)
+
+# --------------------------------------------------------------------------------------
+# FLASHWEAR Back Office (Phase 16)
+# --------------------------------------------------------------------------------------
+
+# Operational thresholds. Every one is a *count* the dashboard can compute from rows that
+# already exist -- there is no modelled "anomaly score" behind any of them, and a rule
+# that cannot be stated as a query is not an alert.
+BACKOFFICE_PAGE_SIZE = env.int("BACKOFFICE_PAGE_SIZE", default=25)
+BACKOFFICE_LOW_STOCK_THRESHOLD = env.int("BACKOFFICE_LOW_STOCK_THRESHOLD", default=5)
+BACKOFFICE_ALERT_PAYMENT_FAILURES = env.int("BACKOFFICE_ALERT_PAYMENT_FAILURES", default=3)
+BACKOFFICE_STALE_PAYMENT_MINUTES = env.int("BACKOFFICE_STALE_PAYMENT_MINUTES", default=60)
+BACKOFFICE_ALERT_CANCELLED_ORDERS = env.int("BACKOFFICE_ALERT_CANCELLED_ORDERS", default=5)
+BACKOFFICE_REVIEW_BACKLOG = env.int("BACKOFFICE_REVIEW_BACKLOG", default=20)
+BACKOFFICE_SLA_WAITING_DAYS = env.int("BACKOFFICE_SLA_WAITING_DAYS", default=3)
+BACKOFFICE_DROP_ENDING_HOURS = env.int("BACKOFFICE_DROP_ENDING_HOURS", default=24)
+# A promotion is "approaching its limit" at this fraction of ``usage_limit``.
+BACKOFFICE_PROMOTION_LIMIT_FRACTION = env.float(
+    "BACKOFFICE_PROMOTION_LIMIT_FRACTION", default=0.9
+)
+
 
 # --------------------------------------------------------------------------------------
 # Cart and checkout (Phase 5)

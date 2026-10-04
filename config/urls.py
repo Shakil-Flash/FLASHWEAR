@@ -36,6 +36,8 @@ urlpatterns = [
     path("", include("apps.engagement.urls")),
     # Phase 13: FLASH Loop public resale shelf (/loop/, /loop/resale/<slug>/)
     path("loop/", include("apps.loop.urls")),
+    # Phase 15: FLASH Support & Customer Care (/support/, /support/staff/)
+    path("support/", include("apps.support.urls")),
 ]
 
 # Development-only convenience: Django's runserver does not serve media files.

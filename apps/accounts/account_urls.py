@@ -20,6 +20,7 @@ from apps.closet import views as closet_views
 from apps.engagement.views import loyalty_dashboard
 from apps.loop import views as loop_views
 from apps.orders.views import OrderDetailView, OrderListView, order_cancel
+from apps.quests import views as quest_views
 
 app_name = "account"
 
@@ -135,4 +136,9 @@ urlpatterns += [
     protected("loop/<int:pk>/photos/", loop_views.loop_item_photo_add, "loop-item-photo"),
     protected("loop/<int:pk>/submit/", loop_views.loop_item_submit, "loop-item-submit"),
     protected("loop/<int:pk>/cancel/", loop_views.loop_item_cancel, "loop-item-cancel"),
+    # Phase 14: quests and badges (views live in apps.quests).
+    protected("quests/", quest_views.quest_list, "quests"),
+    protected("quests/<str:slug>/", quest_views.quest_detail, "quest-detail"),
+    protected("quests/<str:slug>/start/", quest_views.quest_start, "quest-start"),
+    protected("rewards/", quest_views.rewards_dashboard, "rewards"),
 ]

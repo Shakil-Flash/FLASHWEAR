@@ -94,6 +94,7 @@ class FlashDNA(models.Model):
     favorite_colors = models.ManyToManyField(
         Color,
         blank=True,
+        related_name="favorite_dna",
         verbose_name=_("favorite colors"),
         help_text=_("Colors the customer loves. Rows from the catalogue colour system."),
     )
@@ -103,6 +104,7 @@ class FlashDNA(models.Model):
     disliked_colors = models.ManyToManyField(
         Color,
         blank=True,
+        related_name="disliked_dna",
         verbose_name=_("disliked colors"),
         help_text=_(
             "Colors the customer actively avoids. Rows from the catalogue colour system. "
@@ -235,20 +237,36 @@ class FlashDNA(models.Model):
     def clean(self) -> None:
         """Validate field constraints."""
 
-        # At least some preferences should be set; a profile with zero fields is unhelpful.
-        total_fields = (
-            bool(self.styles)
-            + self.favorite_colors.count()
-            + self.disliked_colors.count()
-            + self.preferred_categories.count()
-            + self.preferred_fits.count()
-            + self.preferred_materials.count()
-            + self.preferred_occasions.count()
-            + self.preferred_seasons.count()
-            + (1 if self.preferred_price_range else 0)
-            + self.preferred_brands.count()
-            + bool(self.fashion_goal)
-        )
+        # On an unsaved row the M2M relations cannot be read (Django raises), so only the
+        # plain fields participate in the emptiness check before the first INSERT; every
+        # later validation (update_dna's full_clean) re-checks the complete profile.
+        if self.pk is None:
+            total_fields = (
+                bool(self.styles)
+                + bool(self.preferred_categories)
+                + bool(self.preferred_occasions)
+                + bool(self.preferred_seasons)
+                + (1 if self.preferred_price_range else 0)
+                + bool(self.fashion_goal)
+            )
+        else:
+            # At least some preferences should be set; a profile with zero fields is unhelpful.
+            # The M2M groups are booleans, not sizes: the check below only asks "is anything
+            # set at all", and three of these fields are CharFields (whose ``count()`` would
+            # be str.count and raise on an empty argument list).
+            total_fields = (
+                bool(self.styles)
+                + bool(self.favorite_colors.exists())
+                + bool(self.disliked_colors.exists())
+                + bool(self.preferred_categories)
+                + bool(self.preferred_fits.exists())
+                + bool(self.preferred_materials.exists())
+                + bool(self.preferred_occasions)
+                + bool(self.preferred_seasons)
+                + (1 if self.preferred_price_range else 0)
+                + bool(self.preferred_brands.exists())
+                + bool(self.fashion_goal)
+            )
         if total_fields == 0:
             raise ValidationError(
                 _("At least one preference must be set so the AI stylist has something to weight."),
@@ -261,21 +279,34 @@ class FlashDNA(models.Model):
 
     @property
     def is_complete(self) -> bool:
-        """Whether the profile has enough explicit preferences for the AI to weight them."""
-        fields = [
+        """Whether the profile has enough explicit preferences for the AI to weight them.
+
+        "Enough" means *any* preference at all -- the same bar as the create-time emptiness
+        check. The scalar fields are CharFields (plain truthiness); the M2M groups can only
+        be read once the row exists, so an unsaved profile is judged on scalars alone.
+        """
+        scalars = (
             self.styles,
-            self.favorite_colors.count(),
-            self.disliked_colors.count(),
-            self.preferred_categories.count(),
-            self.preferred_fits.count(),
-            self.preferred_materials.count(),
-            self.preferred_occasions.count(),
-            self.preferred_seasons.count(),
+            self.preferred_categories,
+            self.preferred_occasions,
+            self.preferred_seasons,
             self.preferred_price_range,
-            self.preferred_brands.count(),
-            bool(self.fashion_goal),
-        ]
-        return any(fields)
+            self.fashion_goal,
+        )
+        if any(scalars):
+            return True
+        if self.pk is None:
+            return False
+        return any(
+            qs.exists()
+            for qs in (
+                self.favorite_colors.all(),
+                self.disliked_colors.all(),
+                self.preferred_fits.all(),
+                self.preferred_materials.all(),
+                self.preferred_brands.all(),
+            )
+        )
 
 
 # ---------------------------------------------------------------------------

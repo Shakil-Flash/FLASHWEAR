@@ -1,0 +1,2 @@
+{% load i18n %}{% autoescape off %}{% blocktranslate %}FLASHWEAR Support: {{ headline }} ({{ ticket.number }}){% endblocktranslate %}
+{% endautoescape %}

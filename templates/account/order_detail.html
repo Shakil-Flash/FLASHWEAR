@@ -110,6 +110,17 @@
     </form>
     {% endif %}
 
+    {% comment %}
+    The "Need help?" path: carrying the order number in the query string means the ticket
+    form opens already pointing at this order, and ``_prefill`` re-checks it belongs to the
+    person following the link before it is echoed back.
+    {% endcomment %}
+    <p class="text-sm text-slate-600">
+        Something not right?
+        <a href="{% url 'support:ticket-create' %}?order={{ order.number|urlencode }}"
+           class="font-medium text-slate-900 underline-offset-4 hover:underline">Open a support ticket about this order</a>.
+    </p>
+
     {% if events %}
     <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
         <h2 class="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500">History</h2>

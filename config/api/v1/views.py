@@ -43,6 +43,10 @@ class ApiRootView(APIView):
                     "closet_items": reverse("v1:closet-item-list", request=request),
                     "outfits": reverse("v1:outfit-list", request=request),
                     "checkout_promotion": reverse("v1:checkout-promotion", request=request),
+                    "support_tickets": reverse("v1:support-ticket-list", request=request),
+                    "support_staff_tickets": reverse(
+                        "v1:support-staff-ticket-list", request=request
+                    ),
                 },
             }
         )

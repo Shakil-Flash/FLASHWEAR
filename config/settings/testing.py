@@ -43,6 +43,11 @@ WHITENOISE_USE_FINDERS = True
 
 MEDIA_ROOT = BASE_DIR / "test-media"
 
+# Support evidence is written by the model's own storage (not STORAGES["default"]), so it
+# needs its own test override: without it every upload test would leave files in
+# ``private/support`` inside the checkout.
+SUPPORT_ATTACHMENT_ROOT = BASE_DIR / "test-media" / "support"
+
 # Tests log to the console only; no rotating log files are written to disk.
 # ``tests/test_infrastructure.py`` asserts the production shape of the logging
 # configuration against ``config.settings.base``.

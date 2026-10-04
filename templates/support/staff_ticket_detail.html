@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+
+{% comment %}
+One ticket, everything the desk can do to it.
+
+The order is deliberate: read the transcript first, act second, and the audit trail last --
+an agent should see what happened before deciding what happens next. Internal notes render
+in their own colour and carry an explicit label, because the one thing this page must never
+do is make an agent post a private note in public by accident.
+
+Forms are separate endpoints rather than one "save" button: each POST does exactly one
+thing, so a double-submit cannot both escalate and reassign.
+{% endcomment %}
+
+{% block title %}{{ ticket.number }} | FLASH Support{% endblock title %}
+{% block meta_robots %}noindex, nofollow{% endblock meta_robots %}
+
+{% block content %}
+<div class="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+    <a href="{% url 'support:staff-dashboard' %}" class="text-sm font-medium text-slate-700 underline-offset-4 hover:underline">← Back to the queue</a>
+
+    <div class="mt-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
+        <div class="flex flex-wrap items-start justify-between gap-4">
+            <div class="min-w-0">
+                <p class="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">{{ ticket.get_category_display }} · {{ ticket.get_priority_display }} priority · opened {{ ticket.created_at|date:"N j, Y" }}</p>
+                <h1 class="mt-1 text-2xl font-semibold text-slate-900">{{ ticket.number }}</h1>
+                <p class="mt-1 text-slate-700">{{ ticket.subject }}</p>
+            </div>
+            {% include "support/_status_pill.html" with status=ticket.status label=ticket.get_status_display %}
+        </div>
+
+        <dl class="mt-6 grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
+            <div>
+                <dt class="text-xs font-semibold uppercase tracking-wide text-slate-500">Customer</dt>
+                <dd class="mt-1 text-slate-900">{{ ticket.customer.email|default:"Account removed" }}</dd>
+            </div>
+            <div>
+                <dt class="text-xs font-semibold uppercase tracking-wide text-slate-500">Assigned to</dt>
+                <dd class="mt-1 text-slate-900">{{ ticket.assigned_to.email|default:"Unassigned" }}</dd>
+            </div>
+            <div>
+                <dt class="text-xs font-semibold uppercase tracking-wide text-slate-500">Source</dt>
+                <dd class="mt-1 text-slate-900">{{ ticket.get_source_display }}</dd>
+            </div>
+            <div>
+                <dt class="text-xs font-semibold uppercase tracking-wide text-slate-500">Messages</dt>
+                <dd class="mt-1 text-slate-900">{{ ticket.message_count }}</dd>
+            </div>
+        </dl>
+
+        {% if ticket.reference_labels %}
+        <p class="mt-4 text-sm text-slate-600">Linked records: {{ ticket.reference_labels|join:", " }}</p>
+        {% endif %}
+
+        {% if ticket.status == 'escalated' %}
+        <div class="mt-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+            <p class="font-semibold">Escalated{% if ticket.escalation_target %} to {{ ticket.escalation_target }}{% endif %}</p>
+            {% if ticket.escalation_reason %}<p class="mt-1">{{ ticket.escalation_reason }}</p>{% endif %}
+            <p class="mt-1 text-xs">{{ ticket.escalated_by.email|default:"System" }} · {{ ticket.escalated_at|date:"N j, Y, P" }}</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="mt-6 grid gap-6 lg:grid-cols-3">
+        <div class="space-y-6 lg:col-span-2">
+            <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
+                <h2 class="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500">Transcript</h2>
+                <ol class="mt-4 space-y-6">
+                    {% for message in transcript %}
+                    <li class="{% if message.is_internal %}rounded-xl border border-amber-200 bg-amber-50/70 p-4{% elif message.author_type == 'customer' %}border-l-4 border-flash-500 pl-4{% else %}border-l-4 border-slate-300 pl-4{% endif %}">
+                        <div class="flex flex-wrap items-baseline justify-between gap-2">
+                            <p class="text-sm font-semibold text-slate-900">
+                                {% if message.is_internal %}
+                                <span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-amber-800">Internal note</span>
+                                {{ message.author.email|default:"System" }}
+                                {% elif message.author_type == 'customer' %}
+                                {{ message.author.email|default:"Customer" }}
+                                {% else %}
+                                {{ message.author.email|default:"The FLASH team" }}
+                                {% endif %}
+                            </p>
+                            <p class="text-xs text-slate-500">{{ message.created_at|date:"N j, Y, P" }}</p>
+                        </div>
+                        <p class="mt-1.5 whitespace-pre-line text-sm {% if message.is_internal %}text-amber-900{% else %}text-slate-700{% endif %}">{{ message.body }}</p>
+                        {% if message.attachments.all %}
+                        <ul class="mt-2 space-y-1">
+                            {% for attachment in message.attachments.all %}
+                            <li class="text-sm">
+                                <a href="{% url 'support:attachment' attachment.pk %}" class="font-medium text-slate-900 underline-offset-4 hover:underline">{{ attachment.original_filename }}</a>
+                                <span class="text-xs text-slate-500">({{ attachment.size|filesizeformat }})</span>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                        {% endif %}
+                    </li>
+                    {% empty %}
+                    <li class="rounded-xl border border-dashed border-slate-300 p-4 text-sm text-slate-600">No messages yet.</li>
+                    {% endfor %}
+                </ol>
+            </section>
+
+            <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
+                <h2 class="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500">Reply to the customer</h2>
+                <p class="mt-1 text-xs text-slate-500">Public. The customer is emailed and the ticket waits on them.</p>
+                <form method="post" action="{% url 'support:staff-reply' ticket.number %}" enctype="multipart/form-data" novalidate class="mt-4 space-y-4">
+                    {% csrf_token %}
+                    {% include "account/_field.html" with field=reply_form.body %}
+                    <div>
+                        <label for="id_reply_files" class="block text-sm font-medium text-slate-700">Attachments</label>
+                        <input type="file" name="files" id="id_reply_files" multiple class="mt-2 block w-full text-sm text-slate-600" accept=".jpg,.jpeg,.png,.webp,.pdf,.txt,image/*,application/pdf,text/plain" />
+                    </div>
+                    <button type="submit" class="inline-flex items-center justify-center rounded-full bg-flash-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-flash-700 focus:outline-none focus:ring-2 focus:ring-flash-500/30 focus:ring-offset-2 focus:ring-offset-white">Send reply</button>
+                </form>
+            </section>
+
+            <section class="rounded-2xl border border-amber-200 bg-amber-50/40 p-6 shadow-soft">
+                <h2 class="text-sm font-semibold uppercase tracking-[0.08em] text-amber-800">Internal note</h2>
+                <p class="mt-1 text-xs text-amber-800">Only the support team sees this. It is never rendered to, or emailed to, the customer.</p>
+                <form method="post" action="{% url 'support:staff-note' ticket.number %}" enctype="multipart/form-data" novalidate class="mt-4 space-y-4">
+                    {% csrf_token %}
+                    {% include "account/_field.html" with field=note_form.body %}
+                    <div>
+                        <label for="id_note_files" class="block text-sm font-medium text-slate-700">Attachments</label>
+                        <input type="file" name="files" id="id_note_files" multiple class="mt-2 block w-full text-sm text-slate-600" accept=".jpg,.jpeg,.png,.webp,.pdf,.txt,image/*,application/pdf,text/plain" />
+                    </div>
+                    <button type="submit" class="inline-flex items-center justify-center rounded-full border border-amber-300 bg-white px-5 py-2.5 text-sm font-semibold text-amber-900 transition hover:bg-amber-100">Add note</button>
+                </form>
+            </section>
+        </div>
+
+        <div class="space-y-6">
+            <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
+                <h2 class="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500">Status</h2>
+                <form method="post" action="{% url 'support:staff-status' ticket.number %}" class="mt-4 space-y-4">
+                    {% csrf_token %}
+                    {% include "account/_field.html" with field=status_form.status %}
+                    <button type="submit" class="inline-flex w-full items-center justify-center rounded-full bg-flash-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-flash-700">Update status</button>
+                </form>
+            </section>
+
+            <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
+                <h2 class="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500">Assignment</h2>
+                <form method="post" action="{% url 'support:staff-assign' ticket.number %}" class="mt-4 space-y-4">
+                    {% csrf_token %}
+                    {% include "account/_field.html" with field=assign_form.agent_email %}
+                    {% if agent_count %}<p class="text-xs text-slate-500">{{ agent_count }} member{{ agent_count|pluralize }} on the desk.</p>{% endif %}
+                    <button type="submit" class="inline-flex w-full items-center justify-center rounded-full border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">Assign</button>
+                </form>
+            </section>
+
+            <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
+                <h2 class="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500">Priority</h2>
+                <form method="post" action="{% url 'support:staff-priority' ticket.number %}" class="mt-4 space-y-4">
+                    {% csrf_token %}
+                    {% include "account/_field.html" with field=priority_form.priority %}
+                    <button type="submit" class="inline-flex w-full items-center justify-center rounded-full border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">Set priority</button>
+                </form>
+            </section>
+
+            <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
+                <h2 class="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500">Escalate</h2>
+                <form method="post" action="{% url 'support:staff-escalate' ticket.number %}" class="mt-4 space-y-4">
+                    {% csrf_token %}
+                    {% include "account/_field.html" with field=escalate_form.target %}
+                    {% include "account/_field.html" with field=escalate_form.reason %}
+                    <button type="submit" class="inline-flex w-full items-center justify-center rounded-full border border-red-300 bg-white px-5 py-2.5 text-sm font-semibold text-red-700 transition hover:bg-red-50">Escalate</button>
+                </form>
+            </section>
+
+            <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
+                <h2 class="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500">Link a record</h2>
+                <p class="mt-1 text-xs text-slate-500">Blank means leave it alone. Primary keys only.</p>
+                <form method="post" action="{% url 'support:staff-link' ticket.number %}" class="mt-4 space-y-3">
+                    {% csrf_token %}
+                    <div class="grid gap-3 sm:grid-cols-2">
+                        {% include "account/_field.html" with field=link_form.order %}
+                        {% include "account/_field.html" with field=link_form.payment %}
+                        {% include "account/_field.html" with field=link_form.shipment %}
+                        {% include "account/_field.html" with field=link_form.product %}
+                        {% include "account/_field.html" with field=link_form.review %}
+                        {% include "account/_field.html" with field=link_form.loop_item %}
+                    </div>
+                    {% include "account/_field.html" with field=link_form.quest %}
+                    <button type="submit" class="inline-flex w-full items-center justify-center rounded-full border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">Save links</button>
+                </form>
+            </section>
+
+            <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
+                <h2 class="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500">Audit trail</h2>
+                <ol class="mt-4 space-y-3 text-sm">
+                    {% for event in events %}
+                    <li class="border-b border-slate-100 pb-3 last:border-0 last:pb-0">
+                        <p class="font-medium text-slate-900">{{ event.get_event_type_display }}</p>
+                        <p class="text-xs text-slate-500">
+                            {{ event.created_at|date:"N j, Y, P" }}
+                            {% if event.actor %} · {{ event.actor.email }}{% endif %}
+                            {% if event.old_value or event.new_value %} · {{ event.old_value|default:"—" }} → {{ event.new_value|default:"—" }}{% endif %}
+                        </p>
+                        {% if event.metadata.reason %}<p class="mt-1 text-xs text-slate-600">{{ event.metadata.reason }}</p>{% endif %}
+                    </li>
+                    {% empty %}
+                    <li class="text-slate-600">No events recorded.</li>
+                    {% endfor %}
+                </ol>
+            </section>
+        </div>
+    </div>
+</div>
+{% endblock content %}

@@ -24,6 +24,9 @@ ACCOUNT_SECTIONS: list[tuple[str, str | None, bool]] = [
     (_("Outfits"), "account:outfits", True),
     (_("FLASH Loop"), "account:loop", True),
     (_("Loyalty"), "account:loyalty", True),
+    (_("Quests"), "account:quests", True),
+    (_("Rewards"), "account:rewards", True),
+    (_("Support"), "support:home", True),
     (_("Notifications"), None, False),
     (_("Security"), "account:security", True),
 ]

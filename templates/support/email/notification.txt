@@ -1,0 +1,13 @@
+{% load i18n %}{% autoescape off %}{% blocktranslate %}{{ headline }}{% endblocktranslate %}
+
+{% blocktranslate %}Ticket {{ ticket.number }} — {{ ticket.subject }}{% endblocktranslate %}
+{% blocktranslate %}Status: {{ ticket.get_status_display }}{% endblocktranslate %}
+
+{% if staff_view %}{% blocktranslate %}Open it on the desk:{% endblocktranslate %}
+{% else %}{% blocktranslate %}Open it here:{% endblocktranslate %}
+{% endif %}{{ base_url }}{{ ticket_path }}
+
+{% blocktranslate %}Reply from this page and the whole conversation stays on the ticket. If you were not expecting this message, you can ignore it — nothing changes without you.{% endblocktranslate %}
+
+{% blocktranslate %}FLASHWEAR — Fashion Beyond Ordinary{% endblocktranslate %}
+{% endautoescape %}
