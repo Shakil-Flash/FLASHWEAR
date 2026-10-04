@@ -11,20 +11,6 @@ class CreatorPostProduct(models.Model):
     Never duplicates Product or Variant data — price always comes from catalog.
     """
 
-    class Meta:
-        verbose_name = _("creator post product")
-        verbose_name_plural = _("creator post products")
-        constraints = [
-            models.UniqueConstraint(
-                fields=["post", "product"],
-                name="unique_post_product_tag",
-            ),
-        ]
-        indexes = [
-            models.Index(fields=["post"], name="post_product_post_idx"),
-            models.Index(fields=["product"], name="post_product_product_idx"),
-        ]
-
     post = models.ForeignKey(
         "creator.CreatorPost",
         on_delete=models.CASCADE,
@@ -49,6 +35,20 @@ class CreatorPostProduct(models.Model):
         help_text=_("Optional label displayed on the product card, e.g. 'Worn by Creator'."),
     )
     created_at = models.DateTimeField(_("created at"), auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("creator post product")
+        verbose_name_plural = _("creator post products")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["post", "product"],
+                name="unique_post_product_tag",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["post"], name="post_product_post_idx"),
+            models.Index(fields=["product"], name="post_product_product_idx"),
+        ]
 
     def __str__(self) -> str:
         return f"{self.product.name} tagged on post {self.post_id}"

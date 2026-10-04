@@ -250,8 +250,7 @@ class LoopItem(TimestampedModel):
         ordering = ("-created_at",)
         constraints = [
             models.CheckConstraint(
-                condition=models.Q(asking_price__isnull=True)
-                | models.Q(asking_price__gte=0),
+                condition=models.Q(asking_price__isnull=True) | models.Q(asking_price__gte=0),
                 name="loop_item_asking_price_non_negative",
             ),
             # One *active* loop workflow per physical unit. Terminal rows (sold,

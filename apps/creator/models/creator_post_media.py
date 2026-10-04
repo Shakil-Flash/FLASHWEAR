@@ -10,20 +10,6 @@ class CreatorPostMedia(models.Model):
     Separate model for deterministic ordering and primary/cover handling.
     """
 
-    class Meta:
-        verbose_name = _("creator post media")
-        verbose_name_plural = _("creator post media")
-        ordering = ("sort_order", "id")
-        constraints = [
-            models.UniqueConstraint(
-                fields=["post", "sort_order"],
-                name="unique_post_media_order",
-            ),
-        ]
-        indexes = [
-            models.Index(fields=["post", "sort_order"], name="post_media_order_idx"),
-        ]
-
     post = models.ForeignKey(
         "creator.CreatorPost",
         on_delete=models.CASCADE,
@@ -52,6 +38,20 @@ class CreatorPostMedia(models.Model):
         help_text=_("Mark the cover/primary image for the post."),
     )
     created_at = models.DateTimeField(_("created at"), auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("creator post media")
+        verbose_name_plural = _("creator post media")
+        ordering = ("sort_order", "id")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["post", "sort_order"],
+                name="unique_post_media_order",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["post", "sort_order"], name="post_media_order_idx"),
+        ]
 
     def __str__(self) -> str:
         return f"Media {self.sort_order} for post {self.post_id}"

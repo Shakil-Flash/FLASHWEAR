@@ -1,0 +1,135 @@
+{% extends "account/base_account.html" %}
+{% load catalog_extras %}
+
+{% comment %}
+``/account/loop/`` -- the customer's FLASH Loop dashboard.
+
+Sections arrive pre-grouped from selectors.user_dashboard(); the template
+only renders them. Trade-in credit is labelled as Loop credit and never as
+FLASH Points or wallet balance: the two balances do not mix. Every status
+shows its text label alongside its colour so state is never colour-only.
+{% endcomment %}
+
+{% block account_title %}FLASH Loop{% endblock account_title %}
+
+{% block account_heading %}FLASH Loop{% endblock account_heading %}
+{% block account_intro %}
+    Resell, trade in or recycle the FLASHWEAR pieces you're done wearing.
+{% endblock account_intro %}
+
+{% block account_content %}
+    <div class="flex flex-wrap items-center justify-between gap-3">
+        <a href="{% url 'account:loop-create' %}"
+           class="inline-flex items-center rounded-full bg-flash-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-flash-700">
+            Start a new loop
+        </a>
+        <a href="{% url 'loop:resale-shelf' %}" class="text-sm font-medium text-slate-600 underline-offset-2 hover:text-slate-900 hover:underline">
+            Browse the pre-loved shelf
+        </a>
+    </div>
+
+    <section class="mt-6 rounded-2xl border border-slate-200 bg-white p-5" aria-labelledby="loop-credit-heading">
+        <h2 id="loop-credit-heading" class="text-sm font-semibold text-slate-900">Loop credit</h2>
+        <p class="mt-1 text-2xl font-semibold text-slate-950">{{ credit_total|money }}</p>
+        <p class="mt-2 text-xs text-slate-500">
+            Earned from trade-ins. Loop credit is separate from FLASH Points and cannot be spent
+            as cash here.
+        </p>
+        {% if credits %}
+            <ul class="mt-3 divide-y divide-slate-100 border-t border-slate-100">
+                {% for credit in credits %}
+                    <li class="flex items-center justify-between gap-3 py-2 text-sm">
+                        <span class="text-slate-700">
+                            Trade-in credit
+                            <span class="text-slate-400">· {{ credit.awarded_at|date:"N j, Y" }}</span>
+                        </span>
+                        <span class="font-medium text-slate-900">{{ credit.amount|money }}</span>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p class="mt-3 text-sm text-slate-500">No credit yet. Trade in a piece to earn some.</p>
+        {% endif %}
+    </section>
+
+    {% with active_count=counts.drafts|add:counts.pending_review|add:counts.active %}
+        <section class="mt-6" aria-labelledby="loop-active-heading">
+            <div class="flex items-center justify-between">
+                <h2 id="loop-active-heading" class="text-lg font-semibold text-slate-950">In progress</h2>
+                <p class="text-sm text-slate-500" role="status">{{ active_count }} active</p>
+            </div>
+
+            {% if active_count %}
+                <ul class="mt-3 space-y-3">
+                    {% for item, related in sections.drafts %}
+                        <li>{% include "loop/_dashboard_row.html" with badge="Draft" %}</li>
+                    {% endfor %}
+                    {% for item, related in sections.pending_review %}
+                        <li>{% include "loop/_dashboard_row.html" with badge="In review" %}</li>
+                    {% endfor %}
+                    {% for item, related in sections.active %}
+                        <li>{% include "loop/_dashboard_row.html" with badge="Live" %}</li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <div class="mt-3 rounded-2xl border border-dashed border-slate-300 bg-white/70 p-8 text-center">
+                    <p class="text-sm text-slate-600">Nothing in progress right now.</p>
+                    <a href="{% url 'account:loop-create' %}"
+                       class="mt-4 inline-flex items-center rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-900">
+                        Start a loop
+                    </a>
+                </div>
+            {% endif %}
+        </section>
+    {% endwith %}
+
+    <section class="mt-8" aria-labelledby="loop-tradein-heading">
+        <div class="flex items-center justify-between">
+            <h2 id="loop-tradein-heading" class="text-lg font-semibold text-slate-950">Trade-ins</h2>
+            <p class="text-sm text-slate-500">{{ counts.trade_ins }} total</p>
+        </div>
+        {% if sections.trade_ins %}
+            <ul class="mt-3 space-y-3">
+                {% for item, related in sections.trade_ins %}
+                    <li>{% include "loop/_dashboard_row.html" %}</li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p class="mt-3 text-sm text-slate-500">No trade-ins yet.</p>
+        {% endif %}
+    </section>
+
+    <section class="mt-8" aria-labelledby="loop-recycle-heading">
+        <div class="flex items-center justify-between">
+            <h2 id="loop-recycle-heading" class="text-lg font-semibold text-slate-950">Recycling</h2>
+            <p class="text-sm text-slate-500">{{ counts.recycling }} total</p>
+        </div>
+        {% if sections.recycling %}
+            <ul class="mt-3 space-y-3">
+                {% for item, related in sections.recycling %}
+                    <li>{% include "loop/_dashboard_row.html" %}</li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p class="mt-3 text-sm text-slate-500">No recycling requests yet.</p>
+        {% endif %}
+    </section>
+
+    <section class="mt-8" aria-labelledby="loop-history-heading">
+        <div class="flex items-center justify-between">
+            <h2 id="loop-history-heading" class="text-lg font-semibold text-slate-950">History</h2>
+        </div>
+        {% if sections.sold or sections.cancelled %}
+            <ul class="mt-3 space-y-3">
+                {% for item, related in sections.sold %}
+                    <li>{% include "loop/_dashboard_row.html" with badge="Sold" %}</li>
+                {% endfor %}
+                {% for item, related in sections.cancelled %}
+                    <li>{% include "loop/_dashboard_row.html" with badge="Cancelled" %}</li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p class="mt-3 text-sm text-slate-500">No finished loops yet.</p>
+        {% endif %}
+    </section>
+{% endblock account_content %}

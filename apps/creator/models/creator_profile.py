@@ -20,14 +20,6 @@ class CreatorProfile(models.Model):
     One profile per user; creation is controlled via application workflow.
     """
 
-    class Meta:
-        verbose_name = _("creator profile")
-        verbose_name_plural = _("creator profiles")
-        indexes = [
-            models.Index(fields=["user"], name="creator_user_idx"),
-            models.Index(fields=["status"], name="creator_status_idx"),
-        ]
-
     user = models.OneToOneField(
         "accounts.User",
         on_delete=models.CASCADE,
@@ -101,6 +93,14 @@ class CreatorProfile(models.Model):
     created_at = models.DateTimeField(_("created at"), auto_now_add=True)
     updated_at = models.DateTimeField(_("updated at"), auto_now=True)
 
+    class Meta:
+        verbose_name = _("creator profile")
+        verbose_name_plural = _("creator profiles")
+        indexes = [
+            models.Index(fields=["user"], name="creator_user_idx"),
+            models.Index(fields=["status"], name="creator_status_idx"),
+        ]
+
     def __str__(self) -> str:
         return self.display_name or self.user.email
 
@@ -134,22 +134,6 @@ class CreatorApplication(models.Model):
     - approval creates/enables the CreatorProfile
     - rejection does not expose internal reviewer notes to the applicant
     """
-
-    class Meta:
-        verbose_name = _("creator application")
-        verbose_name_plural = _("creator applications")
-        constraints = [
-            models.UniqueConstraint(
-                fields=["user"],
-                name="one_active_application_per_user",
-                condition=models.Q(status__in=["pending", "approved"]),
-            ),
-        ]
-        indexes = [
-            models.Index(fields=["user"], name="creator_app_user_idx"),
-            models.Index(fields=["status"], name="creator_app_status_idx"),
-            models.Index(fields=["reviewer"], name="creator_app_reviewer_idx"),
-        ]
 
     applicant = models.ForeignKey(
         "accounts.User",
@@ -203,6 +187,22 @@ class CreatorApplication(models.Model):
         blank=True,
     )
 
+    class Meta:
+        verbose_name = _("creator application")
+        verbose_name_plural = _("creator applications")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user"],
+                name="one_active_application_per_user",
+                condition=models.Q(status__in=["pending", "approved"]),
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["user"], name="creator_app_user_idx"),
+            models.Index(fields=["status"], name="creator_app_status_idx"),
+            models.Index(fields=["reviewer"], name="creator_app_reviewer_idx"),
+        ]
+
     class Status(models.TextChoices):
         PENDING = "pending", _("Pending")
         APPROVED = "approved", _("Approved")
@@ -211,13 +211,13 @@ class CreatorApplication(models.Model):
     def __str__(self) -> str:
         return f"Application by {self.applicant.email} — {self.status}"
 
+    def save(self, *args, **kwargs):
+        """Ensure status consistency."""
+        super().save(*args, **kwargs)
+
     def clean(self):
         """Validate application state."""
         if self.status == CreatorStatus.REJECTED and not self.reviewer:
             raise models.ValidationError(
                 {"reviewer": "A reviewer must be set for rejected applications."}
             )
-
-    def save(self, *args, **kwargs):
-        """Ensure status consistency."""
-        super().save(*args, **kwargs)

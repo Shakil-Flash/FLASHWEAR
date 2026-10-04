@@ -1,0 +1,81 @@
+{% comment %}
+One resale listing card for the public shelf grid.
+
+Reads only what public_resale_listings() selected: product facts, price,
+condition and an optional seller display name. No seller contact data,
+no moderation notes, no ownership evidence -- none of it is in the
+queryset, so none of it can render here either.
+
+Included inside ``{% for listing in listings %}``, hence ``listing.``
+on every lookup.
+{% endcomment %}
+{% load catalog_extras %}
+{% with item=listing.loop_item %}
+    <article class="group relative flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft transition hover:-translate-y-0.5 hover:shadow-elevated">
+        <a href="{% url 'loop:resale-detail' slug=listing.slug %}" class="block aspect-[4/5] overflow-hidden bg-slate-100">
+            {% with images=item.images.all %}
+                {% if images %}
+                    <img src="{{ images.0.image.url }}"
+                         alt="{{ images.0.alt_text }}"
+                         width="640"
+                         height="800"
+                         loading="lazy"
+                         decoding="async"
+                         class="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+                {% elif item.product %}
+                    {% with product_image=item.product.primary_image %}
+                        {% if product_image %}
+                            <img src="{{ product_image.image.url }}"
+                                 alt="{{ product_image.alt_text }}"
+                                 width="640"
+                                 height="800"
+                                 loading="lazy"
+                                 decoding="async"
+                                 class="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+                        {% else %}
+                            <span class="flex h-full w-full items-center justify-center text-sm text-slate-400">No image yet</span>
+                        {% endif %}
+                    {% endwith %}
+                {% else %}
+                    <span class="flex h-full w-full items-center justify-center text-sm text-slate-400">No image yet</span>
+                {% endif %}
+            {% endwith %}
+        </a>
+
+        <div class="flex flex-1 flex-col gap-1 p-4">
+            {% if item.product and item.product.brand %}
+                <p class="text-xs font-medium uppercase tracking-[0.08em] text-slate-500">{{ item.product.brand.name }}</p>
+            {% endif %}
+            <h3 class="text-sm font-semibold text-slate-900">
+                <a href="{% url 'loop:resale-detail' slug=listing.slug %}" class="after:absolute after:inset-0 focus:outline-none">
+                    {{ item.display_title }}
+                </a>
+            </h3>
+
+            <p class="mt-1 text-sm text-slate-700">
+                <span class="font-semibold">{{ listing.asking_price|money }}</span>
+                <span class="text-slate-500">pre-loved</span>
+            </p>
+
+            <ul class="mt-2 flex flex-wrap items-center gap-1.5" aria-label="Listing facts">
+                <li>
+                    <span class="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">
+                        {{ item.get_condition_display }}
+                    </span>
+                </li>
+                {% if item.variant %}
+                    <li>
+                        <span class="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">
+                            {{ item.variant.option_label }}
+                        </span>
+                    </li>
+                {% endif %}
+                <li>
+                    <span class="inline-flex rounded-full border border-slate-300 px-2 py-0.5 text-xs font-medium text-slate-600">
+                        {{ item.get_authenticity_status_display }}
+                    </span>
+                </li>
+            </ul>
+        </div>
+    </article>
+{% endwith %}

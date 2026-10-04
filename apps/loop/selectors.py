@@ -15,6 +15,8 @@ Where a query happens decides what it may contain:
 
 from __future__ import annotations
 
+from decimal import Decimal
+
 from django.db.models import Count, Q, QuerySet
 from django.utils import timezone
 
@@ -116,7 +118,9 @@ def public_resale_listings(
             | Q(loop_item__description__icontains=text)
         )
 
-    return queryset.order_by(*PUBLIC_SORT_CHOICES.get(sort, PUBLIC_SORT_CHOICES[DEFAULT_PUBLIC_SORT]))
+    return queryset.order_by(
+        *PUBLIC_SORT_CHOICES.get(sort, PUBLIC_SORT_CHOICES[DEFAULT_PUBLIC_SORT])
+    )
 
 
 def public_listing(slug: str) -> ResaleListing | None:
@@ -183,10 +187,7 @@ def user_dashboard(user) -> dict:
     own aggregate.
     """
     items = list(user_loop_items(user))
-    listings_by_item = {
-        listing.loop_item_id: listing
-        for listing in user_resale_listings(user)
-    }
+    listings_by_item = {listing.loop_item_id: listing for listing in user_resale_listings(user)}
     trade_ins = {req.loop_item_id: req for req in user_trade_ins(user)}
     recycles = {req.loop_item_id: req for req in user_recycle_requests(user)}
 
@@ -225,7 +226,9 @@ def user_dashboard(user) -> dict:
         "sections": sections,
         "counts": {key: len(value) for key, value in sections.items()},
         "credits": credits,
-        "credit_total": sum((credit.amount for credit in credits), start=0),
+        # Decimal start value: an empty list must sum to a Decimal, not a bare
+        # int, because the storefront's money filter formats Decimals only.
+        "credit_total": sum((credit.amount for credit in credits), start=Decimal("0.00")),
         "total_items": len(items),
     }
 

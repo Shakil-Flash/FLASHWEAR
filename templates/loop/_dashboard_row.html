@@ -1,0 +1,31 @@
+{% comment %}
+One dashboard row: a loop item plus its related listing/request.
+
+Included from loop_dashboard.html inside ``{% for item, related in ... %}``,
+so ``item`` and ``related`` come from the loop and ``badge`` is passed via
+``{% include ... with badge=... %}``. The badge is always a text label --
+status is never conveyed by colour alone.
+{% endcomment %}
+{% load catalog_extras %}
+<div class="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4">
+    <div class="min-w-0 flex-1">
+        <p class="truncate text-sm font-semibold text-slate-900">{{ item.display_title }}</p>
+        <p class="mt-0.5 text-xs text-slate-500">
+            {{ item.get_type_display }} · {{ item.get_condition_display }} ·
+            submitted {{ item.created_at|date:"N j, Y" }}
+        </p>
+        {% if related.asking_price %}
+            <p class="mt-1 text-sm font-medium text-slate-700">{{ related.asking_price|money }}</p>
+        {% endif %}
+    </div>
+
+    <span class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
+        {% if badge %}{{ badge }}{% elif related %}{{ related.get_status_display }}{% else %}In progress{% endif %}
+    </span>
+
+    <a href="{% url 'account:loop-item-detail' pk=item.pk %}"
+       class="inline-flex items-center rounded-full border border-slate-300 bg-white px-3.5 py-1.5 text-xs font-medium text-slate-700 transition hover:border-slate-900">
+        View
+        <span class="sr-only"> {{ item.display_title }}</span>
+    </a>
+</div>

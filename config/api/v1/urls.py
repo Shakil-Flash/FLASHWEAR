@@ -32,7 +32,25 @@ from apps.closet.api import (
     OutfitListView,
 )
 from apps.core.api import health
+from apps.drops.api import (
+    DropDetailView,
+    DropInterestView,
+    DropProductsView,
+    DropRootView,
+)
 from apps.engagement.api import ProductReviewsView, PromotionValidateView, ReviewDetailView
+from apps.loop.api import (
+    LoopCreditListView,
+    LoopItemCancelView,
+    LoopItemDetailView,
+    LoopItemListCreateView,
+    LoopItemSubmitView,
+    LoopRootView,
+    RecycleListCreateView,
+    ResaleListingDetailView,
+    ResaleListingListView,
+    TradeInListCreateView,
+)
 from apps.orders.api import OrderDetailView, OrderListView
 from apps.recommendations.api import (
     ClosetComplementView,
@@ -49,12 +67,6 @@ from apps.styling.api import (
     StylistRecommendView,
     StylistSaveOutfitView,
     StylistStyleProductView,
-)
-from apps.drops.api import (
-    DropDetailView,
-    DropInterestView,
-    DropProductsView,
-    DropRootView,
 )
 from config.api.v1.views import ApiRootView
 
@@ -112,7 +124,11 @@ urlpatterns = [
     path("recommendations/", RecommendationRootView.as_view(), name="recommendations-root"),
     path("recommendations/for-you/", ForYouView.as_view(), name="for-you"),
     path("recommendations/closet/", ClosetComplementView.as_view(), name="closet-complement"),
-    path("recommendations/outfit/<int:outfit_id>/", OutfitCompletionView.as_view(), name="outfit-completion"),
+    path(
+        "recommendations/outfit/<int:outfit_id>/",
+        OutfitCompletionView.as_view(),
+        name="outfit-completion",
+    ),
     path("recommendations/similar/", SimilarProductsView.as_view(), name="similar-products"),
     path("recommendations/new-for-you/", NewForYouView.as_view(), name="new-for-you"),
     path("recommendations/feedback/", FeedbackView.as_view(), name="feedback"),
@@ -121,4 +137,28 @@ urlpatterns = [
     path("drops/<slug:slug>/", DropDetailView.as_view(), name="drop-detail"),
     path("drops/<slug:slug>/products/", DropProductsView.as_view(), name="drop-products"),
     path("drops/<int:id>/interest/", DropInterestView.as_view(), name="drop-interest"),
+    # Phase 13: FLASH Loop (resale shelf public; items/trade-ins/recycling
+    # session-authenticated and customer-scoped).
+    path("loop/", LoopRootView.as_view(), name="loop-root"),
+    path("loop/resale/", ResaleListingListView.as_view(), name="loop-resale-list"),
+    path(
+        "loop/resale/<slug:slug>/",
+        ResaleListingDetailView.as_view(),
+        name="loop-resale-detail",
+    ),
+    path("loop/items/", LoopItemListCreateView.as_view(), name="loop-item-list"),
+    path("loop/items/<int:pk>/", LoopItemDetailView.as_view(), name="loop-item-detail"),
+    path(
+        "loop/items/<int:pk>/submit/",
+        LoopItemSubmitView.as_view(),
+        name="loop-item-submit",
+    ),
+    path(
+        "loop/items/<int:pk>/cancel/",
+        LoopItemCancelView.as_view(),
+        name="loop-item-cancel",
+    ),
+    path("loop/trade-ins/", TradeInListCreateView.as_view(), name="loop-trade-in-list"),
+    path("loop/recycling/", RecycleListCreateView.as_view(), name="loop-recycle-list"),
+    path("loop/credits/", LoopCreditListView.as_view(), name="loop-credit-list"),
 ]

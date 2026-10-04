@@ -7,28 +7,26 @@ for computed values, and proper validation.
 
 from rest_framework import serializers
 
-from accounts.models import User
 from .models import (
-    CreatorProfile,
     CreatorApplication,
     CreatorPost,
-    CreatorPostMedia,
-    CreatorPostProduct,
-    CreatorPostOutfit,
     CreatorPostLike,
-    CreatorPostSave,
+    CreatorPostMedia,
+    CreatorPostOutfit,
+    CreatorPostProduct,
     CreatorPostReport,
+    CreatorPostSave,
+    CreatorPostStatus,
+    CreatorProfile,
 )
 
-
 # ── CreatorProfile ──────────────────────────────────────────────────
+
 
 class CreatorProfileSerializer(serializers.ModelSerializer):
     """Serializer for CreatorProfile — public and admin views."""
 
-    user_email = serializers.EmailField(
-        source="user.email", read_only=True
-    )
+    user_email = serializers.EmailField(source="user.email", read_only=True)
     is_approved = serializers.BooleanField(read_only=True)
     is_pending = serializers.BooleanField(read_only=True)
     is_rejected = serializers.BooleanField(read_only=True)
@@ -58,12 +56,17 @@ class CreatorProfileSerializer(serializers.ModelSerializer):
 
     def validate_slug(self, value):
         """Ensure slug is unique."""
-        if CreatorProfile.objects.filter(slug=value).exclude(pk=self.instance.pk if self.instance else None).exists():
+        if (
+            CreatorProfile.objects.filter(slug=value)
+            .exclude(pk=self.instance.pk if self.instance else None)
+            .exists()
+        ):
             raise serializers.ValidationError("A creator with this slug already exists.")
         return value
 
 
 # ── CreatorApplication ─────────────────────────────────────────────
+
 
 class CreatorApplicationSerializer(serializers.ModelSerializer):
     """Serializer for CreatorApplication — submission and moderation."""
@@ -94,25 +97,18 @@ class CreatorApplicationSerializer(serializers.ModelSerializer):
 
     def validate_status(self, value):
         """Only allow valid status transitions."""
-        valid_transitions = {
-            "pending": ["approved", "rejected"],
-            "approved": [],  # final state
-            "rejected": [],  # final state
-        }
-        current = self.status if hasattr(self, "status") else "pending"
         # This is a simplification; full transition logic is in services
         return value
 
 
 # ── CreatorPost ────────────────────────────────────────────────────
 
+
 class CreatorPostSerializer(serializers.ModelSerializer):
     """Serializer for CreatorPost — public and admin views."""
 
-    creator_display_name = serializers.CharField(
-        source="creator.display_name", read_only=True
-    )
- creator_slug = serializers.CharField(source="creator.slug", read_only=True)
+    creator_display_name = serializers.CharField(source="creator.display_name", read_only=True)
+    creator_slug = serializers.CharField(source="creator.slug", read_only=True)
     is_published = serializers.BooleanField(read_only=True)
     is_draft = serializers.BooleanField(read_only=True)
     like_count = serializers.ReadOnlyField()
@@ -165,6 +161,7 @@ class CreatorPostSerializer(serializers.ModelSerializer):
 
 # ── CreatorPostMedia ───────────────────────────────────────────────
 
+
 class CreatorPostMediaSerializer(serializers.ModelSerializer):
     """Serializer for CreatorPostMedia."""
 
@@ -187,6 +184,7 @@ class CreatorPostMediaSerializer(serializers.ModelSerializer):
 
 
 # ── CreatorPostProduct ─────────────────────────────────────────────
+
 
 class CreatorPostProductSerializer(serializers.ModelSerializer):
     """Serializer for CreatorPostProduct — product tagging."""
@@ -215,19 +213,20 @@ class CreatorPostProductSerializer(serializers.ModelSerializer):
     def validate_product(self, value):
         """Only published products may be tagged."""
         if not value.is_published:
-            raise serializers.ValidationError("Only published products may be tagged in creator posts.")
+            raise serializers.ValidationError(
+                "Only published products may be tagged in creator posts."
+            )
         return value
 
 
 # ── CreatorPostOutfit ──────────────────────────────────────────────
 
+
 class CreatorPostOutfitSerializer(serializers.ModelSerializer):
     """Serializer for CreatorPostOutfit — outfit tagging."""
 
     outfit_name = serializers.CharField(source="outfit.name", read_only=True)
-    outfit_description = serializers.CharField(
-        source="outfit.description", read_only=True
-    )
+    outfit_description = serializers.CharField(source="outfit.description", read_only=True)
 
     class Meta:
         model = CreatorPostOutfit
@@ -245,6 +244,7 @@ class CreatorPostOutfitSerializer(serializers.ModelSerializer):
 
 # ── CreatorPostLike ────────────────────────────────────────────────
 
+
 class CreatorPostLikeSerializer(serializers.ModelSerializer):
     """Serializer for CreatorPostLike."""
 
@@ -257,6 +257,7 @@ class CreatorPostLikeSerializer(serializers.ModelSerializer):
 
 
 # ── CreatorPostSave ────────────────────────────────────────────────
+
 
 class CreatorPostSaveSerializer(serializers.ModelSerializer):
     """Serializer for CreatorPostSave."""
@@ -271,11 +272,12 @@ class CreatorPostSaveSerializer(serializers.ModelSerializer):
 
 # ── CreatorPostReport ──────────────────────────────────────────────
 
+
 class CreatorPostReportSerializer(serializers.ModelSerializer):
     """Serializer for CreatorPostReport."""
 
     reporter_email = serializers.EmailField(source="user.email", read_only=True)
-    reason_display = serializers.CharField(source.get_reason_display, read_only=True)
+    reason_display = serializers.CharField(source="get_reason_display", read_only=True)
 
     class Meta:
         model = CreatorPostReport

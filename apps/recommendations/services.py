@@ -18,6 +18,7 @@ from django.db.models import Q
 
 from apps.catalog.models import Product
 from apps.closet.models.items import ClosetItem
+from apps.closet.models.outfits import Outfit
 from apps.orders.models import Order, OrderItem
 
 logger = logging.getLogger(__name__)
@@ -265,8 +266,8 @@ def extract_review_signals(user) -> dict[str, list[str] | None]:
 
     # Collect categories, colors, styles from reviewed products
     categories: set[str] = set()
-    colors: set[str] = set()
-    styles: set[str] = set()
+    _colors: set[str] = set()
+    _styles: set[str] = set()
 
     for review in reviews:
         product = review.product
@@ -327,15 +328,15 @@ def _apply_dna_filters(
     * price range match
     """
     dna_styles = signals.get("dna_styles")
-    dna_colors = signals.get("dna_colors")
-    dna_disliked_colors = signals.get("dna_disliked_colors")
-    dna_categories = signals.get("dna_categories")
-    dna_fits = signals.get("dna_fits")
-    dna_materials = signals.get("dna_materials")
-    dna_occasions = signals.get("dna_occasions")
-    dna_seasons = signals.get("dna_seasons")
-    dna_brands = signals.get("dna_brands")
-    dna_price_range = signals.get("dna_price_range")
+    _dna_colors = signals.get("dna_colors")
+    _dna_disliked_colors = signals.get("dna_disliked_colors")
+    _dna_categories = signals.get("dna_categories")
+    _dna_fits = signals.get("dna_fits")
+    _dna_materials = signals.get("dna_materials")
+    _dna_occasions = signals.get("dna_occasions")
+    _dna_seasons = signals.get("dna_seasons")
+    _dna_brands = signals.get("dna_brands")
+    _dna_price_range = signals.get("dna_price_range")
 
     if dna_styles:
         queryset = queryset.filter(
@@ -397,11 +398,11 @@ def generate_candidates(
     qs = _build_base_queryset(user)
 
     # 2. Extract signals
-    dna_signals = extract_dna_signals(user) or {}
-    closet_signals = extract_closet_signals(user) or {}
-    outfit_signals = extract_outfit_signals(user) or {}
-    purchase_signals = extract_purchase_signals(user) or {}
-    review_signals = extract_review_signals(user) or {}
+    _dna_signals = extract_dna_signals(user) or {}
+    _closet_signals = extract_closet_signals(user) or {}
+    _outfit_signals = extract_outfit_signals(user) or {}
+    _purchase_signals = extract_purchase_signals(user) or {}
+    _review_signals = extract_review_signals(user) or {}
 
     # 3. Lightweight filtering — visibility only
     # (Heavy exclusion is the scoring engine's job, not the candidate generator's)
@@ -658,9 +659,7 @@ def score_product(
         from apps.catalog.services import discovery
 
         # Get facet count for this product's categories as a popularity proxy
-        facet_counts = discovery.get_facet_counts(
-            user=request.user if user.is_authenticated else None
-        )
+        facet_counts = discovery.get_facet_counts(user=user if user.is_authenticated else None)
         cat_name = product.category or ""
         if cat_name and cat_name in facet_counts.get("categories", {}):
             pop_raw = facet_counts["categories"][cat_name]
@@ -774,14 +773,14 @@ def apply_diversity_constraints(
         # Check constraints
         cat_ok = category_counts[cat] < max_per_category
         brand_ok = brand_counts[brand] < max_per_brand
-        color_ok = color_counts[color] < max_per_color
+        color_ok = color_counts[primary_color] < max_per_color
 
         if cat_ok and brand_ok and color_ok:
             # Apply
             result.append(entry)
             category_counts[cat] += 1
             brand_counts[brand] += 1
-            color_counts[color] += 1
+            color_counts[primary_color] += 1
         # else: skip — next product in score order will be considered
 
     return result

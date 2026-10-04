@@ -30,7 +30,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.loop.models import LoopCredit, LoopItem, RecycleRequest, ResaleListing, TradeInRequest
-from apps.loop.services.eligibility import verify_loop_eligibility
+from apps.loop.services.eligibility import check_recycling_eligibility, verify_loop_eligibility
 from apps.loop.services.errors import LoopError, OwnershipError, TransitionError
 from apps.loop.services.valuation import estimate_trade_in_credit
 
@@ -149,6 +149,12 @@ def create_loop_item(
         product_id=product_id,
     )
 
+    if loop_type == LoopItem.Type.RECYCLE:
+        # Recycling is a product-level policy, not an ownership question:
+        # a garment the programme cannot process is refused with the
+        # configured honest reason before any row is written.
+        check_recycling_eligibility(evidence.product)
+
     if loop_type == LoopItem.Type.RESALE and asking_price is None:
         raise LoopError("A resale item needs an asking price.", code="loop_missing_price")
     if loop_type != LoopItem.Type.RESALE:
@@ -230,9 +236,7 @@ def _ensure_trade_in(item: LoopItem) -> TradeInRequest:
 def _ensure_recycle(item: LoopItem) -> RecycleRequest:
     if item.pk and hasattr(item, "recycle_request"):
         return item.recycle_request
-    request = RecycleRequest(
-        loop_item=item, user=item.user, status=RecycleRequest.Status.SUBMITTED
-    )
+    request = RecycleRequest(loop_item=item, user=item.user, status=RecycleRequest.Status.SUBMITTED)
     request.save()
     return request
 
@@ -249,9 +253,7 @@ def start_review(item: LoopItem, *, actor) -> LoopItem:
     if item.status == LoopItem.Status.UNDER_REVIEW:
         return item
     if item.status != LoopItem.Status.SUBMITTED:
-        raise TransitionError(
-            "Only a submitted item can be reviewed.", code="loop_not_submitted"
-        )
+        raise TransitionError("Only a submitted item can be reviewed.", code="loop_not_submitted")
     if item.type == LoopItem.Type.TRADE_IN:
         request = _trade_in(item)
         if request.status == TradeInRequest.Status.SUBMITTED:
@@ -487,9 +489,7 @@ def decline_trade_in(item: LoopItem, *, actor) -> TradeInRequest:
     if request.status == TradeInRequest.Status.DECLINED:
         return request
     if not request.can_transition_to(TradeInRequest.Status.DECLINED):
-        raise TransitionError(
-            "This trade-in cannot be declined now.", code="loop_bad_transition"
-        )
+        raise TransitionError("This trade-in cannot be declined now.", code="loop_bad_transition")
     request.status = TradeInRequest.Status.DECLINED
     request.save(update_fields=["status", "updated_at"])
     if item.is_active:
@@ -512,10 +512,10 @@ def complete_trade_in(item: LoopItem, *, actor) -> LoopCredit:
         if existing is not None:
             return existing
     if not item.can_transition_to(LoopItem.Status.TRADE_IN_COMPLETED):
-        raise TransitionError(
-            "This trade-in cannot be completed yet.", code="loop_bad_transition"
-        )
-    credit_amount = request.final_credit if request.final_credit is not None else request.estimated_credit
+        raise TransitionError("This trade-in cannot be completed yet.", code="loop_bad_transition")
+    credit_amount = (
+        request.final_credit if request.final_credit is not None else request.estimated_credit
+    )
     if credit_amount is None:
         raise LoopError("This trade-in has no credit to award.", code="loop_no_offer")
 

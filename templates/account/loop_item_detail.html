@@ -1,0 +1,201 @@
+{% extends "account/base_account.html" %}
+{% load catalog_extras %}
+
+{% comment %}
+``/account/loop/<pk>/`` -- one loop item, owned by the signed-in customer.
+
+The view scopes the fetch by ``request.user`` first, so another customer's
+id 404s here. Status is shown as a text label (never colour alone), and the
+submit / cancel buttons only appear when the view says the transition is
+legal -- all state changes still go through the service layer, which
+re-checks ownership and the transition graph on POST.
+{% endcomment %}
+
+{% block account_title %}{{ loop_item.display_title }}{% endblock account_title %}
+
+{% block account_heading %}{{ loop_item.display_title }}{% endblock account_heading %}
+{% block account_intro %}
+    {{ loop_item.get_type_display }} · {{ loop_item.get_condition_display }} ·
+    <span class="font-medium text-slate-900">{{ loop_item.get_status_display }}</span>
+{% endblock account_intro %}
+
+{% block account_content %}
+    <div class="flex flex-wrap items-center gap-2" aria-label="Item status">
+        <span class="inline-flex rounded-full bg-slate-900 px-2.5 py-1 text-xs font-semibold text-white">
+            {{ loop_item.get_status_display }}
+        </span>
+        <span class="inline-flex rounded-full border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-700">
+            {{ loop_item.get_authenticity_status_display }}
+        </span>
+        <span class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
+            Created {{ loop_item.created_at|date:"N j, Y" }}
+        </span>
+    </div>
+
+    {% if loop_item.status == "submitted" or loop_item.status == "under_review" %}
+        <div class="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+            Your item is with our moderation team. We'll check authenticity and condition
+            before anything appears publicly.
+        </div>
+    {% endif %}
+
+    <section class="mt-6 rounded-2xl border border-slate-200 bg-white p-5" aria-labelledby="loop-details-heading">
+        <h2 id="loop-details-heading" class="text-sm font-semibold text-slate-900">Details</h2>
+        <dl class="mt-3 grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
+            <div>
+                <dt class="text-slate-500">Type</dt>
+                <dd class="mt-0.5 font-medium text-slate-900">{{ loop_item.get_type_display }}</dd>
+            </div>
+            <div>
+                <dt class="text-slate-500">Condition</dt>
+                <dd class="mt-0.5 font-medium text-slate-900">{{ loop_item.get_condition_display }}</dd>
+            </div>
+            {% if loop_item.product %}
+                <div>
+                    <dt class="text-slate-500">Product</dt>
+                    <dd class="mt-0.5 font-medium text-slate-900">{{ loop_item.product.name }}</dd>
+                </div>
+            {% endif %}
+            {% if loop_item.variant %}
+                <div>
+                    <dt class="text-slate-500">Size</dt>
+                    <dd class="mt-0.5 font-medium text-slate-900">{{ loop_item.variant.size.name }}</dd>
+                </div>
+            {% endif %}
+            {% if listing %}
+                <div>
+                    <dt class="text-slate-500">Asking price</dt>
+                    <dd class="mt-0.5 font-medium text-slate-900">{{ listing.asking_price|money }}</dd>
+                </div>
+            {% endif %}
+            <div class="sm:col-span-2">
+                <dt class="text-slate-500">Condition notes</dt>
+                <dd class="mt-0.5 text-slate-800">
+                    {% if loop_item.condition_notes %}{{ loop_item.condition_notes }}{% else %}<span class="text-slate-400">None given</span>{% endif %}
+                </dd>
+            </div>
+            {% if loop_item.description %}
+                <div class="sm:col-span-2">
+                    <dt class="text-slate-500">Description</dt>
+                    <dd class="mt-0.5 text-slate-800">{{ loop_item.description }}</dd>
+                </div>
+            {% endif %}
+        </dl>
+    </section>
+
+    {% if trade_in %}
+        <section class="mt-6 rounded-2xl border border-flash-200 bg-flash-50 p-5" aria-labelledby="loop-tradein-heading">
+            <h2 id="loop-tradein-heading" class="text-sm font-semibold text-flash-900">Trade-in</h2>
+            <p class="mt-1 text-sm text-flash-900">
+                Status: <span class="font-medium">{{ trade_in.get_status_display }}</span>
+            </p>
+            {% if trade_in.final_credit %}
+                <p class="mt-2 text-lg font-semibold text-flash-900">Offered credit: {{ trade_in.final_credit|money }}</p>
+            {% elif trade_in.estimated_credit %}
+                <p class="mt-2 text-sm text-flash-900">Estimated credit: {{ trade_in.estimated_credit|money }} (not a promise -- our reviewer confirms after inspection).</p>
+            {% else %}
+                <p class="mt-2 text-sm text-flash-900">No credit offered yet. Our team reviews your submission first.</p>
+            {% endif %}
+        </section>
+    {% endif %}
+
+    {% if recycle %}
+        <section class="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-5" aria-labelledby="loop-recycle-heading">
+            <h2 id="loop-recycle-heading" class="text-sm font-semibold text-emerald-900">Recycling</h2>
+            <p class="mt-1 text-sm text-emerald-900">
+                Status: <span class="font-medium">{{ recycle.get_status_display }}</span>
+            </p>
+            <p class="mt-2 text-sm text-emerald-900">
+                We'll confirm collection details once your request is accepted.
+            </p>
+        </section>
+    {% endif %}
+
+    {% if circularity %}
+        <section class="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-5" aria-labelledby="loop-impact-heading">
+            <h2 id="loop-impact-heading" class="text-sm font-semibold text-emerald-900">Estimated impact</h2>
+            <ul class="mt-2 space-y-1 text-sm text-emerald-900">
+                <li>
+                    About {{ circularity.lifecycle_extension_months.0 }}–{{ circularity.lifecycle_extension_months.1 }}
+                    more months of wear (estimate, by material)
+                </li>
+                <li>
+                    {% if circularity.recycle_eligible %}Recyclable at end of life{% else %}Not in the recycling programme yet{% endif %}
+                </li>
+            </ul>
+        </section>
+    {% endif %}
+
+    <section class="mt-6 rounded-2xl border border-slate-200 bg-white p-5" aria-labelledby="loop-photos-heading">
+        <div class="flex items-center justify-between">
+            <h2 id="loop-photos-heading" class="text-sm font-semibold text-slate-900">Photos</h2>
+            <p class="text-xs text-slate-500">{{ images|length }} of {{ max_images }}</p>
+        </div>
+
+        {% if images %}
+            <ul class="mt-3 grid grid-cols-3 gap-3 sm:grid-cols-4" aria-label="Uploaded photos">
+                {% for image in images %}
+                    <li class="overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
+                        <img src="{{ image.image.url }}"
+                             alt="{{ image.alt_text }}"
+                             width="160"
+                             height="200"
+                             loading="lazy"
+                             decoding="async"
+                             class="aspect-[4/5] w-full object-cover" />
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p class="mt-3 text-sm text-slate-500">No photos yet.</p>
+        {% endif %}
+
+        {% if can_cancel and images|length < max_images %}
+            <form method="post" action="{% url 'account:loop-item-photo' pk=loop_item.pk %}" enctype="multipart/form-data" class="mt-5 border-t border-slate-100 pt-5">
+                {% csrf_token %}
+                {% if photo_form.non_field_errors %}
+                    <div class="mb-3 rounded-xl bg-red-50/60 p-3 ring-1 ring-red-200" role="alert">
+                        {% for error in photo_form.non_field_errors %}<p class="text-sm text-red-700">{{ error }}</p>{% endfor %}
+                    </div>
+                {% endif %}
+                <div class="grid gap-4 sm:grid-cols-2">
+                    {% include "account/_field.html" with field=photo_form.image %}
+                    {% include "account/_field.html" with field=photo_form.kind %}
+                </div>
+                <div class="mt-4">
+                    {% include "account/_field.html" with field=photo_form.alt_text %}
+                </div>
+                <button type="submit"
+                        class="mt-4 inline-flex items-center rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-900">
+                    Add photo
+                </button>
+            </form>
+        {% endif %}
+    </section>
+
+    <div class="mt-8 flex flex-wrap gap-3 border-t border-slate-200 pt-6">
+        {% if can_submit %}
+            <form method="post" action="{% url 'account:loop-item-submit' pk=loop_item.pk %}">
+                {% csrf_token %}
+                <button type="submit"
+                        class="inline-flex items-center rounded-full bg-flash-600 px-6 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-flash-700">
+                    Submit for review
+                </button>
+            </form>
+        {% endif %}
+
+        {% if can_cancel %}
+            <form method="post" action="{% url 'account:loop-item-cancel' pk=loop_item.pk %}">
+                {% csrf_token %}
+                <button type="submit"
+                        class="inline-flex items-center rounded-full border border-slate-300 bg-white px-6 py-2.5 text-sm font-medium text-slate-700 transition hover:border-slate-900">
+                    Cancel request
+                </button>
+            </form>
+        {% endif %}
+
+        <a href="{% url 'account:loop' %}" class="inline-flex items-center px-3 py-2.5 text-sm font-medium text-slate-600 underline-offset-2 hover:text-slate-900 hover:underline">
+            Back to FLASH Loop
+        </a>
+    </div>
+{% endblock account_content %}

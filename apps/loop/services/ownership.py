@@ -34,8 +34,8 @@ from django.conf import settings
 
 from apps.catalog.models import Product, ProductVariant
 from apps.closet.models import ClosetItem
-from apps.orders.models import Order, OrderItem
 from apps.loop.services.errors import EligibilityError, OwnershipError
+from apps.orders.models import Order, OrderItem
 
 __all__ = ["OwnershipEvidence", "find_ownership_evidence", "verify_ownership"]
 
@@ -173,9 +173,9 @@ def find_ownership_evidence(
     """
     if closet_item_id is not None:
         try:
-            closet_item = ClosetItem.objects.select_related(
-                "variant__product", "order_item"
-            ).get(pk=closet_item_id)
+            closet_item = ClosetItem.objects.select_related("variant__product", "order_item").get(
+                pk=closet_item_id
+            )
         except ClosetItem.DoesNotExist:
             return None
         try:
@@ -185,9 +185,9 @@ def find_ownership_evidence(
 
     if order_item_id is not None:
         try:
-            order_item = OrderItem.objects.select_related(
-                "variant__product", "order"
-            ).get(pk=order_item_id)
+            order_item = OrderItem.objects.select_related("variant__product", "order").get(
+                pk=order_item_id
+            )
         except OrderItem.DoesNotExist:
             return None
         try:
@@ -197,9 +197,7 @@ def find_ownership_evidence(
 
     if variant_id is not None:
         try:
-            variant = ProductVariant.objects.select_related("product").get(
-                pk=variant_id
-            )
+            variant = ProductVariant.objects.select_related("product").get(pk=variant_id)
         except ProductVariant.DoesNotExist:
             return None
         try:
@@ -215,9 +213,7 @@ def find_ownership_evidence(
         _require_flashwear(product)
         variants = list(product.variants.all())
         for variant in variants:
-            evidence = find_ownership_evidence(
-                user, variant_id=variant.id
-            )
+            evidence = find_ownership_evidence(user, variant_id=variant.id)
             if evidence is not None:
                 return evidence
         return None

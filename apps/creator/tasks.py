@@ -7,8 +7,9 @@ Background tasks for creator operations. Only add tasks where genuinely useful:
 Publication state is never dependent on Celery - the database is authoritative.
 """
 
-from django.utils import timezone
 from celery import shared_task
+from django.db import models
+from django.utils import timezone
 
 
 @shared_task
@@ -44,6 +45,7 @@ def increment_post_views(post_id):
     """
     try:
         from creator.models import CreatorPost
+
         post = CreatorPost.objects.get(pk=post_id)
         post.view_count = models.F("view_count") + 1
         post.save(update_fields=["view_count"])

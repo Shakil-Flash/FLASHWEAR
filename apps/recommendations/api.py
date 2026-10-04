@@ -121,7 +121,8 @@ class OutfitCompletionView(APIView):
         """Get outfit completion recommendations."""
         try:
             from apps.closet.models import Outfit
-            outfit = Outfit.objects.get(
+
+            _outfit = Outfit.objects.get(
                 pk=outfit_id, user=request.user, status=Outfit.Status.SAVED
             )
         except ObjectDoesNotExist:
@@ -155,7 +156,8 @@ class SimilarProductsView(APIView):
         """Get similar products to the given product."""
         try:
             from apps.catalog.models import Product as ProductModel
-            product = ProductModel.objects.get(slug=slug, is_purchasable=True)
+
+            _product = ProductModel.objects.get(slug=slug, is_purchasable=True)
         except ObjectDoesNotExist:
             return Response(
                 {"detail": "Product not found."},
@@ -225,10 +227,9 @@ class FeedbackView(APIView):
             try:
                 choice_enum = RecommendationFeedback.FeedbackChoice(choice)
             except ValueError:
+                allowed = list(RecommendationFeedback.FeedbackChoice.values)
                 return Response(
-                    {
-                        "detail": f"Invalid choice. Must be one of: {list(RecommendationFeedback.FeedbackChoice.values)}"
-                    },
+                    {"detail": f"Invalid choice. Must be one of: {allowed}"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 

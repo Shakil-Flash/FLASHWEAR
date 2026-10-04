@@ -18,6 +18,7 @@ from django.urls import path
 from apps.accounts import views
 from apps.closet import views as closet_views
 from apps.engagement.views import loyalty_dashboard
+from apps.loop import views as loop_views
 from apps.orders.views import OrderDetailView, OrderListView, order_cancel
 
 app_name = "account"
@@ -127,4 +128,11 @@ urlpatterns += [
         closet_views.outfit_item_move,
         "outfit-item-move",
     ),
+    # Phase 13: FLASH Loop seller dashboard and listing flow (views in apps.loop).
+    protected("loop/", loop_views.loop_dashboard, "loop"),
+    protected("loop/new/", loop_views.loop_create, "loop-create"),
+    protected("loop/<int:pk>/", loop_views.loop_item_detail, "loop-item-detail"),
+    protected("loop/<int:pk>/photos/", loop_views.loop_item_photo_add, "loop-item-photo"),
+    protected("loop/<int:pk>/submit/", loop_views.loop_item_submit, "loop-item-submit"),
+    protected("loop/<int:pk>/cancel/", loop_views.loop_item_cancel, "loop-item-cancel"),
 ]

@@ -72,9 +72,6 @@ class RecommendationSignal(models.Model):
         ),
     )
 
-    def __str__(self) -> str:
-        return f"Signal {self.signal_type} for user {self.user_id}"
-
     # ---- Deduplication / recency -------------------------------------------
 
     # Allow the same signal kind to be recorded multiple times (e.g. multiple
@@ -110,6 +107,9 @@ class RecommendationSignal(models.Model):
                 name="signal_strength_positive",
             ),
         ]
+
+    def __str__(self) -> str:
+        return f"Signal {self.signal_type} for user {self.user_id}"
 
 
 class RecommendationScore(models.Model):
@@ -183,7 +183,9 @@ class RecommendationScore(models.Model):
         ordering = ("-calculated_at",)
 
     def __str__(self) -> str:
-        return f"Score product {self.product_id} for user {self.user_id}: total={self.total_final:.2f}"
+        return (
+            f"Score product {self.product_id} for user {self.user_id}: total={self.total_final:.2f}"
+        )
 
 
 class FeedbackChoice(models.TextChoices):
@@ -243,9 +245,6 @@ class RecommendationFeedback(models.Model):
 
     given_at = models.DateTimeField(_("given at"), auto_now_add=True)
 
-    def __str__(self) -> str:
-        return f"Feedback {self.choice} on product {self.product_id} by user {self.user_id} run {self.recommendation_run_id}"
-
     class Meta:
         verbose_name = _("Recommendation Feedback")
         verbose_name_plural = _("Recommendation Feedback")
@@ -256,3 +255,9 @@ class RecommendationFeedback(models.Model):
                 name="unique_user_feedback_per_run_product",
             ),
         ]
+
+    def __str__(self) -> str:
+        return (
+            f"Feedback {self.choice} on product {self.product_id}"
+            f" by user {self.user_id} run {self.recommendation_run_id}"
+        )

@@ -9,9 +9,7 @@ Ensure one-to-one consistency between User and CreatorProfile.
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
-from accounts.models import User
-from .models import CreatorProfile, CreatorApplication
-from .services import approve_application
+from .models import CreatorApplication, CreatorProfile
 
 
 @receiver(post_save, sender=CreatorApplication)
@@ -28,10 +26,12 @@ def on_creator_application_save(sender, instance, created, **kwargs):
     # by the admin/service layer directly
     if instance.status == instance.Status.APPROVED:
         # Create the profile if it doesn't exist
-        profile, _ = CreatorProfile.objects.get_or_create(
+        _profile, _ = CreatorProfile.objects.get_or_create(
             user=instance.applicant,
             defaults={
-                "display_name": instance.requested_display_name or instance.applicant.get_full_name() or instance.applicant.email,
+                "display_name": instance.requested_display_name
+                or instance.applicant.get_full_name()
+                or instance.applicant.email,
                 "slug": instance.applicant.username or instance.applicant.email.split("@")[0],
                 "status": "approved",  # Will be converted to CreatorStatus.APPROVED
             },

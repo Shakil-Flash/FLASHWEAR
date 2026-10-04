@@ -122,6 +122,23 @@ class FlashDrop(models.Model):
     def __str__(self) -> str:
         return f"{self.name} ({self.status})"
 
+    def save(self, *args, **kwargs) -> None:
+        """Derive status on every save and stamp published_at on first launch."""
+        derived = self.effective_state
+
+        # If status changed from DRAFT/SCHEDULED to LIVE, stamp published_at
+        was_draft_or_scheduled = self.pk is None or (
+            FlashDrop.objects.filter(pk=self.pk).values("status").first().get("status", "draft")
+            in (DropStatus.DRAFT, DropStatus.SCHEDULED)
+        )
+
+        if derived == DropStatus.LIVE and was_draft_or_scheduled:
+            if self.published_at is None:
+                self.published_at = timezone.now()
+
+        self.status = derived
+        super().save(*args, **kwargs)
+
     @property
     def is_draft(self) -> bool:
         return self.status == DropStatus.DRAFT
@@ -141,23 +158,6 @@ class FlashDrop(models.Model):
     @property
     def is_cancelled(self) -> bool:
         return self.status == DropStatus.CANCELLED
-
-    def save(self, *args, **kwargs) -> None:
-        """Derive status on every save and stamp published_at on first launch."""
-        derived = self.effective_state
-
-        # If status changed from DRAFT/SCHEDULED to LIVE, stamp published_at
-        was_draft_or_scheduled = self.pk is None or (
-            FlashDrop.objects.filter(pk=self.pk).values("status").first().get("status", "draft")
-            in (DropStatus.DRAFT, DropStatus.SCHEDULED)
-        )
-
-        if derived == DropStatus.LIVE and was_draft_or_scheduled:
-            if self.published_at is None:
-                self.published_at = timezone.now()
-
-        self.status = derived
-        super().save(*args, **kwargs)
 
     @property
     def effective_state(self) -> DropStatus:

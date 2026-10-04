@@ -24,22 +24,6 @@ class CreatorApplication(models.Model):
     - rejection does not expose internal reviewer notes to the applicant
     """
 
-    class Meta:
-        verbose_name = _("creator application")
-        verbose_name_plural = _("creator applications")
-        constraints = [
-            models.UniqueConstraint(
-                fields=["applicant"],
-                name="one_active_application_per_user",
-                condition=models.Q(status__in=["pending", "approved"]),
-            ),
-        ]
-        indexes = [
-            models.Index(fields=["applicant"], name="creator_app_applicant_idx"),
-            models.Index(fields=["status"], name="creator_app_status_idx"),
-            models.Index(fields=["reviewer"], name="creator_app_reviewer_idx"),
-        ]
-
     applicant = models.ForeignKey(
         "accounts.User",
         on_delete=models.CASCADE,
@@ -93,6 +77,22 @@ class CreatorApplication(models.Model):
         blank=True,
     )
 
+    class Meta:
+        verbose_name = _("creator application")
+        verbose_name_plural = _("creator applications")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["applicant"],
+                name="one_active_application_per_user",
+                condition=models.Q(status__in=["pending", "approved"]),
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["applicant"], name="creator_app_applicant_idx"),
+            models.Index(fields=["status"], name="creator_app_status_idx"),
+            models.Index(fields=["reviewer"], name="creator_app_reviewer_idx"),
+        ]
+
     class Status(models.TextChoices):
         PENDING = "pending", _("Pending")
         APPROVED = "approved", _("Approved")
@@ -101,13 +101,13 @@ class CreatorApplication(models.Model):
     def __str__(self) -> str:
         return f"Application by {self.applicant.email} — {self.status}"
 
+    def save(self, *args, **kwargs):
+        """Ensure status consistency."""
+        super().save(*args, **kwargs)
+
     def clean(self):
         """Validate application state."""
         if self.status == CreatorStatus.REJECTED and not self.reviewer:
             raise models.ValidationError(
                 {"reviewer": "A reviewer must be set for rejected applications."}
             )
-
-    def save(self, *args, **kwargs):
-        """Ensure status consistency."""
-        super().save(*args, **kwargs)

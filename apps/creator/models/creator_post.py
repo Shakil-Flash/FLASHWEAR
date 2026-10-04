@@ -21,17 +21,6 @@ class CreatorPost(models.Model):
     The creator owns the post; only the creator or staff can modify it.
     """
 
-    class Meta:
-        verbose_name = _("creator post")
-        verbose_name_plural = _("creator posts")
-        ordering = ("-published_at", "-created_at")
-        indexes = [
-            models.Index(fields=["creator"], name="creator_post_creator_idx"),
-            models.Index(fields=["status"], name="creator_post_status_idx"),
-            models.Index(fields=["published_at"], name="creator_post_published_idx"),
-            models.Index(fields=["creator", "status"], name="creator_post_creat_status_idx"),
-        ]
-
     creator = models.ForeignKey(
         "creator.CreatorProfile",
         on_delete=models.CASCADE,
@@ -97,6 +86,17 @@ class CreatorPost(models.Model):
     )
     created_at = models.DateTimeField(_("created at"), auto_now_add=True)
     updated_at = models.DateTimeField(_("updated at"), auto_now=True)
+
+    class Meta:
+        verbose_name = _("creator post")
+        verbose_name_plural = _("creator posts")
+        ordering = ("-published_at", "-created_at")
+        indexes = [
+            models.Index(fields=["creator"], name="creator_post_creator_idx"),
+            models.Index(fields=["status"], name="creator_post_status_idx"),
+            models.Index(fields=["published_at"], name="creator_post_published_idx"),
+            models.Index(fields=["creator", "status"], name="creator_post_creat_status_idx"),
+        ]
 
     def __str__(self) -> str:
         return f"{self.title} by {self.creator.display_name}"

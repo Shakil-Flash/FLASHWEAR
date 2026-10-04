@@ -138,7 +138,7 @@ class LoopItemCreateForm(forms.Form):
     def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.user = user
-        self.fields["owned_item"].choices = [("", "—")] + owned_item_choices(user)
+        self.fields["owned_item"].choices = [("", "—"), *owned_item_choices(user)]
 
     def clean_owned_item(self):
         value = self.cleaned_data["owned_item"]
@@ -176,6 +176,6 @@ class LoopPhotoForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["alt_text"].required = True
-        self.fields["alt_text"].help_text = (
-            "Describe the photo for screen readers, e.g. 'Front of the hoodie'."
-        )
+        self.fields[
+            "alt_text"
+        ].help_text = "Describe the photo for screen readers, e.g. 'Front of the hoodie'."

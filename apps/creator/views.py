@@ -9,104 +9,68 @@ All views follow the project's established patterns:
 - Proper pagination and error handling
 """
 
-from django.contrib.auth.decorators import login_required, user_passes_test
-from django.shortcuts import render, get_object_or_404, redirect
-from django.utils.decorators import method_decorator
-from django.views import View
-from django.views.generic import ListView, DetailView
 from django.core.paginator import Paginator
-from django.db.models import Count, Q
-from django.http import JsonResponse, Http404
-from django.urls import reverse
-from django.conf import settings
-
-from rest_framework.views import APIView
+from django.db import models, transaction
+from django.shortcuts import get_object_or_404, redirect, render
+from rest_framework import permissions, status
+from rest_framework.decorators import api_view, never_cache, permission_classes
 from rest_framework.response import Response
-from rest_framework import status, permissions
-from rest_framework.decorators import api_view, permission_classes, never_cache
 
-from accounts.models import User
 from .models import (
-    CreatorProfile,
-    CreatorApplication,
     CreatorPost,
-    CreatorPostMedia,
-    CreatorPostProduct,
-    CreatorPostOutfit,
-    CreatorPostLike,
-    CreatorPostSave,
     CreatorPostReport,
-)
-from .services import (
-    get_or_create_profile,
-    approve_application,
-    reject_application,
-    suspend_profile,
-    restore_profile,
-    create_post,
-    publish_post,
-    archive_post,
-    reject_post,
-    moderate_post,
-    like_post,
-    unlike_post,
-    save_post,
-    unsave_post,
-    report_post,
-    resolve_report,
-    create_application,
-    add_product_tag,
-    remove_product_tag,
-    add_outfit_tag,
-    remove_outfit_tag,
-)
-from .selectors import (
-    get_creator_profile,
-    get_active_profiles,
-    get_featured_profiles,
-    get_newest_profiles,
-    get_published_posts,
-    get_featured_posts,
-    get_newest_posts,
-    get_draft_posts_by_creator,
-    get_pending_review_posts_by_creator,
-    get_popular_posts,
-    get_posts_by_creator,
-    get_post_media,
-    get_post_product_tags,
-    get_post_outfit_tags,
-    can_user_like,
-    can_user_save,
-    has_user_liked,
-    has_user_saved,
-    has_user_reported,
-    get_reports_for_post,
-    is_post_reportable_by,
-    get_recent_activity,
-    get_creator_stats,
+    CreatorPostStatus,
+    CreatorProfile,
 )
 from .permissions import (
-    check_creator_ownership,
-    check_post_ownership,
-    check_moderation_privilege,
+    check_like_toggle_duplicate,
+    check_report_privilege,
+    check_save_toggle_duplicate,
     check_user_can_like,
     check_user_can_save,
-    check_report_privilege,
-    check_like_toggle_duplicate,
-    check_save_toggle_duplicate,
+)
+from .selectors import (
+    get_active_profiles,
+    get_creator_stats,
+    get_draft_posts_by_creator,
+    get_featured_posts,
+    get_featured_profiles,
+    get_newest_posts,
+    get_newest_profiles,
+    get_pending_review_posts_by_creator,
+    get_popular_posts,
+    get_post_media,
+    get_post_outfit_tags,
+    get_post_product_tags,
+    get_posts_by_creator,
+    has_user_liked,
+    has_user_saved,
+    is_post_reportable_by,
 )
 from .serializers import (
-    CreatorProfileSerializer,
     CreatorApplicationSerializer,
-    CreatorPostSerializer,
-    CreatorPostMediaSerializer,
-    CreatorPostProductSerializer,
-    CreatorPostOutfitSerializer,
     CreatorPostLikeSerializer,
-    CreatorPostSaveSerializer,
+    CreatorPostOutfitSerializer,
+    CreatorPostProductSerializer,
     CreatorPostReportSerializer,
+    CreatorPostSaveSerializer,
+    CreatorPostSerializer,
+    CreatorProfileSerializer,
 )
-
+from .services import (
+    add_outfit_tag,
+    add_product_tag,
+    create_application,
+    create_post,
+    get_or_create_profile,
+    like_post,
+    remove_outfit_tag,
+    remove_product_tag,
+    report_post,
+    save_post,
+    unlike_post,
+    unsave_post,
+)
 
 # =============================================================================
 # Server-rendered views (HTMX/Django template views)
@@ -124,11 +88,15 @@ def creator_list(request):
     page_number = request.GET.get("page")
     page_obj = paginator.get_page(page_number)
 
-    return render(request, "creator/creator_list.html", {
-        "profiles": page_obj,
-        "featured": featured,
-        "newest": newest,
-    })
+    return render(
+        request,
+        "creator/creator_list.html",
+        {
+            "profiles": page_obj,
+            "featured": featured,
+            "newest": newest,
+        },
+    )
 
 
 def creator_detail(request, slug):
@@ -149,12 +117,16 @@ def creator_detail(request, slug):
     if request.user.is_authenticated:
         user_can_interact = True
 
-    return render(request, "creator/creator_detail.html", {
-        "profile": profile,
-        "stats": profile_stats,
-        "posts": page_obj,
-        "user_can_interact": user_can_interact,
-    })
+    return render(
+        request,
+        "creator/creator_detail.html",
+        {
+            "profile": profile,
+            "stats": profile_stats,
+            "posts": page_obj,
+            "user_can_interact": user_can_interact,
+        },
+    )
 
 
 def creator_me(request):
@@ -178,12 +150,16 @@ def creator_me(request):
     # Pending moderation
     pending_posts = get_pending_review_posts_by_creator(profile)
 
-    return render(request, "creator/creator_dashboard.html", {
-        "profile": profile,
-        "published_posts": published_posts,
-        "draft_posts": draft_posts,
-        "pending_posts": pending_posts,
-    })
+    return render(
+        request,
+        "creator/creator_dashboard.html",
+        {
+            "profile": profile,
+            "published_posts": published_posts,
+            "draft_posts": draft_posts,
+            "pending_posts": pending_posts,
+        },
+    )
 
 
 def creator_apply(request):
@@ -205,9 +181,13 @@ def creator_apply(request):
             )
             return redirect("creator:apply_success")
         except ValueError as e:
-            return render(request, "creator/creator_apply.html", {
-                "error": str(e),
-            })
+            return render(
+                request,
+                "creator/creator_apply.html",
+                {
+                    "error": str(e),
+                },
+            )
 
     return render(request, "creator/creator_apply.html")
 
@@ -217,7 +197,7 @@ def post_detail(request, slug):
     post = get_object_or_404(CreatorPost, slug=slug, status=CreatorPostStatus.PUBLISHED)
 
     # Increment view count
-    with __import__('django').db.transaction.atomic():
+    with transaction.atomic():
         post.view_count = models.F("view_count") + 1
         post.save(update_fields=["view_count"])
         post.refresh_from_db(fields=["view_count"])
@@ -241,15 +221,19 @@ def post_detail(request, slug):
     # Check if user can report
     can_report = is_post_reportable_by(request.user, post)
 
-    return render(request, "creator/post_detail.html", {
-        "post": post,
-        "media": media,
-        "product_tags": product_tags,
-        "outfit_tags": outfit_tags,
-        "user_liked": user_liked,
-        "user_saved": user_saved,
-        "can_report": can_report,
-    })
+    return render(
+        request,
+        "creator/post_detail.html",
+        {
+            "post": post,
+            "media": media,
+            "product_tags": product_tags,
+            "outfit_tags": outfit_tags,
+            "user_liked": user_liked,
+            "user_saved": user_saved,
+            "can_report": can_report,
+        },
+    )
 
 
 def inspiration_list(request):
@@ -265,12 +249,16 @@ def inspiration_list(request):
 
     user_can_interact = request.user.is_authenticated
 
-    return render(request, "creator/inspiration.html", {
-        "featured": featured,
-        "newest": page_obj,
-        "popular": popular,
-        "user_can_interact": user_can_interact,
-    })
+    return render(
+        request,
+        "creator/inspiration.html",
+        {
+            "featured": featured,
+            "newest": page_obj,
+            "popular": popular,
+            "user_can_interact": user_can_interact,
+        },
+    )
 
 
 # =============================================================================
@@ -283,27 +271,30 @@ def inspiration_list(request):
 @permission_classes([permissions.IsAuthenticated])
 def api_v1_root(request):
     """API v1 root endpoint showing creator endpoints."""
-    return Response({
-        "creators": {
-            "list": "/api/v1/creators/",
-            "detail": "/api/v1/creators/<slug>/",
-            "my_profile": "/api/v1/creator/me/",
-            "my_posts": "/api/v1/creator/me/posts/",
-        },
-        "posts": {
-            "detail": "/api/v1/creator-posts/<slug>/",
-            "like": "/api/v1/creator-posts/<id>/like/",
-            "save": "/api/v1/creator-posts/<id>/save/",
-            "report": "/api/v1/creator-posts/<id>/report/",
-        },
-        "applications": {
-            "submit": "/api/v1/creator-applications/",
-            "me": "/api/v1/creator/me/",
-        },
-    })
+    return Response(
+        {
+            "creators": {
+                "list": "/api/v1/creators/",
+                "detail": "/api/v1/creators/<slug>/",
+                "my_profile": "/api/v1/creator/me/",
+                "my_posts": "/api/v1/creator/me/posts/",
+            },
+            "posts": {
+                "detail": "/api/v1/creator-posts/<slug>/",
+                "like": "/api/v1/creator-posts/<id>/like/",
+                "save": "/api/v1/creator-posts/<id>/save/",
+                "report": "/api/v1/creator-posts/<id>/report/",
+            },
+            "applications": {
+                "submit": "/api/v1/creator-applications/",
+                "me": "/api/v1/creator/me/",
+            },
+        }
+    )
 
 
 # ── Creator Profile API ──────────────────────────────────────────────
+
 
 @never_cache
 @api_view(["GET"])
@@ -347,22 +338,26 @@ def api_creator_me_posts(request):
 
     # Simple pagination
     import math
+
     page = int(request.GET.get("page", 1))
     page_size = 20
     start = (page - 1) * page_size
     end = start + page_size
-    posts_page = posts[start:end]
+    _posts_page = posts[start:end]
 
     serializer = CreatorPostSerializer(posts, many=True)
-    return Response({
-        "posts": serializer.data,
-        "total": posts.count(),
-        "page": page,
-        "pages": math.ceil(posts.count() / page_size),
-    })
+    return Response(
+        {
+            "posts": serializer.data,
+            "total": posts.count(),
+            "page": page,
+            "pages": math.ceil(posts.count() / page_size),
+        }
+    )
 
 
 # ── Creator Application API ──────────────────────────────────────────
+
 
 @never_cache
 @api_view(["POST"])
@@ -392,6 +387,7 @@ def api_creator_apply(request):
 
 
 # ── Creator Post API ───────────────────────────────────────────────
+
 
 @never_cache
 @api_view(["GET"])
@@ -477,6 +473,7 @@ def api_post_report(request, post_id):
 
 # ── Creator Post Creation (admin/staff) ─────────────────────────────
 
+
 @never_cache
 @api_view(["POST"])
 @permission_classes([permissions.IsAuthenticated])
@@ -503,6 +500,7 @@ def api_post_create(request):
 
 # ── Product/Outfit tagging API ──────────────────────────────────────
 
+
 @never_cache
 @api_view(["POST"])
 @permission_classes([permissions.IsAuthenticated])
@@ -526,6 +524,7 @@ def api_post_add_product_tag(request, post_id):
 
     try:
         from catalog.models import Product as CatalogProduct
+
         product = CatalogProduct.objects.get(pk=product_id)
     except (CatalogProduct.DoesNotExist, ValueError):
         return Response(
@@ -588,6 +587,7 @@ def api_post_add_outfit_tag(request, post_id):
 
     try:
         from closet.models import Outfit as CatalogOutfit
+
         outfit = CatalogOutfit.objects.get(pk=outfit_id)
     except (CatalogOutfit.DoesNotExist, ValueError):
         return Response(

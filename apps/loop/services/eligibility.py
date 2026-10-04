@@ -97,25 +97,20 @@ def is_recyclable(product: Product) -> tuple[bool, str]:
     generic error.
     """
     recyclable_materials = {slug.lower() for slug in settings.LOOP_RECYCLABLE_MATERIALS}
-    recyclable_categories = {
-        slug.lower() for slug in settings.LOOP_RECYCLABLE_CATEGORIES
-    }
+    recyclable_categories = {slug.lower() for slug in settings.LOOP_RECYCLABLE_CATEGORIES}
 
-    material_slugs = {
-        material.slug.lower() for material in product.materials.all()
-    }
+    material_slugs = {material.slug.lower() for material in product.materials.all()}
     accepted_materials = material_slugs & recyclable_materials
     if accepted_materials:
         return True, ""
 
-    category_slug = (product.category.slug.lower() if product.category else "")
+    category_slug = product.category.slug.lower() if product.category else ""
     if category_slug in recyclable_categories:
         return True, ""
 
     return (
         False,
-        "This item's materials are not currently accepted by the FLASHWEAR "
-        "recycling programme.",
+        "This item's materials are not currently accepted by the FLASHWEAR recycling programme.",
     )
 
 

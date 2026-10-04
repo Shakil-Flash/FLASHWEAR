@@ -16,20 +16,6 @@ class CreatorPostSave(models.Model):
     - private save state must never be publicly visible
     """
 
-    class Meta:
-        verbose_name = _("creator post save")
-        verbose_name_plural = _("creator post saves")
-        constraints = [
-            models.UniqueConstraint(
-                fields=["user", "post"],
-                name="one_save_per_user_post",
-            ),
-        ]
-        indexes = [
-            models.Index(fields=["user"], name="save_user_idx"),
-            models.Index(fields=["post"], name="save_post_idx"),
-        ]
-
     user = models.ForeignKey(
         "accounts.User",
         on_delete=models.CASCADE,
@@ -43,6 +29,20 @@ class CreatorPostSave(models.Model):
         verbose_name=_("post"),
     )
     created_at = models.DateTimeField(_("created at"), auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("creator post save")
+        verbose_name_plural = _("creator post saves")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "post"],
+                name="one_save_per_user_post",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["user"], name="save_user_idx"),
+            models.Index(fields=["post"], name="save_post_idx"),
+        ]
 
     def __str__(self) -> str:
         return f"{self.user.email} saved post {self.post_id}"
