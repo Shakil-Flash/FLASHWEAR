@@ -40,6 +40,7 @@ class ApiRootView(APIView):
                     "account_password": reverse("v1:account-password", request=request),
                     "addresses": reverse("v1:address-list", request=request),
                     "orders": reverse("v1:order-list", request=request),
+                    "checkout_promotion": reverse("v1:checkout-promotion", request=request),
                 },
             }
         )

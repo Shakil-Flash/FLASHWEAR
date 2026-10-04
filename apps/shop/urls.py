@@ -25,6 +25,17 @@ urlpatterns = [
     path("checkout/address/", checkout_views.checkout_address, name="checkout-address"),
     path("checkout/shipping/", checkout_views.checkout_shipping, name="checkout-shipping"),
     path("checkout/validate/", checkout_views.checkout_validate, name="checkout-validate"),
+    # Phase 7: discounts (engine validates; nothing persists that the engine rejected)
+    path(
+        "checkout/promotion/",
+        checkout_views.checkout_promotion,
+        name="checkout-promotion",
+    ),
+    path(
+        "checkout/loyalty/",
+        checkout_views.checkout_loyalty,
+        name="checkout-loyalty",
+    ),
     path("checkout/place/", checkout_views.checkout_place, name="checkout-place"),
     path(
         "checkout/payment/<str:number>/",

@@ -32,6 +32,8 @@ urlpatterns = [
     path("shop/", include("apps.shop.urls")),
     # Phase 6: payments (webhook + development controls)
     path("payments/", include("apps.payments.urls")),
+    # Phase 7: review edit/delete (the FLASH Points dashboard mounts under /account/)
+    path("", include("apps.engagement.urls")),
 ]
 
 # Development-only convenience: Django's runserver does not serve media files.

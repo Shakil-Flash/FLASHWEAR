@@ -1,0 +1,33 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+{% block breadcrumbs %}
+  <div class="breadcrumbs">
+    <a href="{% url "admin:index" %}">{% translate "Home" %}</a>
+    › <a href="{% url "admin:app_list" app_label="engagement" %}">{% translate "Engagement" %}</a>
+    › <a href="{% url "admin:engagement_pointstransaction_changelist" %}">{% translate "Points ledger" %}</a>
+    › {% translate "Adjust" %}
+  </div>
+{% endblock breadcrumbs %}
+{% block content %}
+  <p>{% translate "Enter a signed point change. Every adjustment writes a ledger row, so the balance is always explainable." %}</p>
+  <form method="post">
+    {% csrf_token %}
+    <fieldset class="module aligned">
+      {{ form.as_p }}
+    </fieldset>
+    <h2>{% translate "Selected customers" %}</h2>
+    <ul>
+      {% for row in queryset %}
+        <li>{{ row.user.email }}</li>
+      {% endfor %}
+    </ul>
+    <input type="hidden" name="action" value="adjust_selected_users" />
+    {% for row in queryset %}
+      <input type="hidden" name="{{ action_checkbox_name }}" value="{{ row.pk }}" />
+    {% endfor %}
+    <div class="submit-row">
+      <input type="submit" name="apply" value="{% translate "Apply adjustment" %}" class="default" />
+      <a class="button cancel-link" href="{% url "admin:engagement_pointstransaction_changelist" %}">{% translate "Cancel" %}</a>
+    </div>
+  </form>
+{% endblock content %}

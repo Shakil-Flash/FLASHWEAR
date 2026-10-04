@@ -86,6 +86,10 @@ LOCAL_APPS = [
     "apps.orders",
     "apps.inventory",
     "apps.payments",
+    # Phase 7: reviews, FLASH Points and promotions. A leaf app: it reads the shop,
+    # orders and catalogue but nothing above imports it directly (the checkout reaches
+    # engagement through lazy service calls), which keeps the migration graph a tree.
+    "apps.engagement",
 ]
 
 INSTALLED_APPS = [*LOCAL_APPS, *THIRD_PARTY_APPS, *DJANGO_APPS]
@@ -227,12 +231,42 @@ CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 # the same number; hold lifetime itself is INVENTORY_RESERVATION_MINUTES below.
 INVENTORY_SWEEP_INTERVAL_SECONDS = env.int("INVENTORY_SWEEP_INTERVAL_SECONDS", default=60)
 
-# Periodic work (requires `celery beat` alongside the worker). One schedule so far:
-# give expired checkout holds back to the shop floor.
+# --------------------------------------------------------------------------------------
+# Engagement (Phase 7): FLASH Points economics and sweeper cadence
+# --------------------------------------------------------------------------------------
+
+# Earning: whole points per currency unit of (subtotal - discount) on a paid order.
+# Shipping is not merchandise and redeemed points do not earn points.
+LOYALTY_EARN_RATE = env.int("LOYALTY_EARN_RATE", default=10)
+# Redemption: points per currency unit of discount, so 100 points = 1.00 off.
+LOYALTY_REDEEM_RATE = env.int("LOYALTY_REDEEM_RATE", default=100)
+# Customers redeem in these steps (100-point grid keeps the money maths whole).
+LOYALTY_REDEEM_INCREMENT = env.int("LOYALTY_REDEEM_INCREMENT", default=100)
+# Hard ceiling: at most this share of the eligible subtotal may be paid with points.
+LOYALTY_MAX_REDEEM_PERCENT = Decimal(env("LOYALTY_MAX_REDEEM_PERCENT", default="50"))
+# Below this eligible subtotal, points redemption is refused outright.
+LOYALTY_MIN_ORDER_AMOUNT = Decimal(env("LOYALTY_MIN_ORDER_AMOUNT", default="0.00"))
+# Earned points expire this many days after the order that earned them.
+LOYALTY_EXPIRY_DAYS = env.int("LOYALTY_EXPIRY_DAYS", default=365)
+# A checkout's points hold lives this long without being re-validated.
+LOYALTY_RESERVATION_MINUTES = env.int("LOYALTY_RESERVATION_MINUTES", default=30)
+# Review pagination: the product page shows this many per page; the API has its own size.
+REVIEWS_PER_PAGE = env.int("REVIEWS_PER_PAGE", default=6)
+
+# How often (seconds) the engagement sweeper releases stale points holds and expires due
+# points. Same pattern as the inventory sweep: one named setting, one beat entry.
+LOYALTY_SWEEP_INTERVAL_SECONDS = env.int("LOYALTY_SWEEP_INTERVAL_SECONDS", default=60)
+
+# Periodic work (requires `celery beat` alongside the worker). Sweepers give expired
+# things back: stock holds, points holds, and due point balances.
 CELERY_BEAT_SCHEDULE = {
     "inventory-sweep-expired-reservations": {
         "task": "inventory.sweep_expired_reservations",
         "schedule": INVENTORY_SWEEP_INTERVAL_SECONDS,
+    },
+    "engagement-sweep-loyalty": {
+        "task": "engagement.sweep_loyalty",
+        "schedule": LOYALTY_SWEEP_INTERVAL_SECONDS,
     },
 }
 

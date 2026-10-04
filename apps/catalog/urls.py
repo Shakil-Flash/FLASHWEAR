@@ -11,6 +11,7 @@ Slugs, not primary keys, in every public URL: a URL is a promise that survives a
 from django.urls import path
 
 from apps.catalog import views
+from apps.engagement.views import review_create
 
 app_name = "catalog"
 
@@ -19,6 +20,9 @@ urlpatterns = [
     # prefix, so order here is only for readability.
     path("products/", views.product_list, name="product-list"),
     path("search/", views.product_search, name="product-search"),
+    # Phase 7: the review form lives on the product page and posts here (view in engagement,
+    # URL in the namespace the page itself belongs to -- same split as the account area).
+    path("products/<slug:slug>/review/", review_create, name="review-create"),
     path("products/<slug:slug>/", views.product_detail, name="product-detail"),
     path("categories/", views.category_list, name="category-list"),
     path("categories/<slug:slug>/", views.category_detail, name="category-detail"),

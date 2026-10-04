@@ -16,6 +16,7 @@ from django.contrib.auth.decorators import login_required
 from django.urls import path
 
 from apps.accounts import views
+from apps.engagement.views import loyalty_dashboard
 from apps.orders.views import OrderDetailView, OrderListView, order_cancel
 
 app_name = "account"
@@ -82,4 +83,6 @@ urlpatterns += [
     protected("orders/", OrderListView.as_view(), "orders"),
     protected("orders/<str:number>/", OrderDetailView.as_view(), "order-detail"),
     protected("orders/<str:number>/cancel/", order_cancel, "order-cancel"),
+    # Phase 7: FLASH Points dashboard (view lives in apps.engagement).
+    protected("loyalty/", loyalty_dashboard, "loyalty"),
 ]

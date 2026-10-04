@@ -1,0 +1,97 @@
+{% extends "account/base_account.html" %}
+{% load catalog_extras %}
+
+{% block account_title %}FLASH Points{% endblock account_title %}
+{% block account_heading %}FLASH Points{% endblock account_heading %}
+{% block account_intro %}Earn on every paid order, redeem against your next one.{{ redemption_message }}{% endblock account_intro %}
+
+{% block account_content %}
+<div class="max-w-3xl space-y-6">
+
+    {% comment %}Balance card: what the customer can spend right now.{% endcomment %}
+    <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft" aria-labelledby="balance-heading">
+        <div class="flex flex-wrap items-end justify-between gap-4">
+            <div>
+                <p id="balance-heading" class="text-sm font-medium text-slate-500">Available balance</p>
+                <p class="mt-1 text-3xl font-semibold text-slate-950">
+                    {{ balance }} <span class="text-base font-medium text-slate-500">points</span>
+                </p>
+                {% if held %}
+                <p class="mt-1 text-xs text-amber-700">{{ held }} point{{ held|pluralize }} held in an open checkout.</p>
+                {% endif %}
+            </div>
+            <div class="text-right text-sm text-slate-600">
+                <p>{{ redeem_rate }} points = 1.00 off your order.</p>
+            </div>
+        </div>
+        <p class="mt-4 border-t border-slate-100 pt-4 text-xs leading-relaxed text-slate-500">
+            You earn {{ earn_rate }} points for every unit spent after discounts, credited when your order is paid.
+            Points are redeemed in steps of {{ redeem_increment }} and never exceed half an order's subtotal.
+        </p>
+    </section>
+
+    {% if expirations %}
+    <section class="rounded-2xl border border-amber-200 bg-amber-50 p-5" aria-labelledby="exp-heading">
+        <h2 id="exp-heading" class="text-sm font-semibold text-amber-900">Expiring soon</h2>
+        <ul class="mt-2 space-y-1 text-sm text-amber-900">
+            {% for transaction in expirations %}
+            <li class="flex items-baseline justify-between gap-4">
+                <span>{{ transaction.amount }} points · {{ transaction.reference }}</span>
+                <span class="text-xs">{{ transaction.expires_at|date:"N j, Y" }}</span>
+            </li>
+            {% endfor %}
+        </ul>
+        <p class="mt-2 text-xs text-amber-800">An open checkout holding these points pauses their expiry until it resolves.</p>
+    </section>
+    {% endif %}
+
+    <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft" aria-labelledby="ledger-heading">
+        <h2 id="ledger-heading" class="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500">History</h2>
+
+        {% if not transactions.object_list %}
+        <div class="mt-4 rounded-xl border border-dashed border-slate-300 p-6 text-center">
+            <p class="text-sm font-medium text-slate-900">No point movements yet</p>
+            <p class="mt-1 text-sm text-slate-600">Your first paid order will earn {{ earn_rate }} points per unit spent.</p>
+        </div>
+        {% else %}
+        <ul class="mt-4 divide-y divide-slate-100">
+            {% for transaction in transactions %}
+            <li class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-3 text-sm">
+                <div class="min-w-0">
+                    <p class="font-medium text-slate-900">{{ transaction.get_transaction_type_display }}</p>
+                    <p class="mt-0.5 text-xs text-slate-500">
+                        {{ transaction.created_at|date:"N j, Y" }}
+                        {% if transaction.reference %} · {{ transaction.reference }}{% endif %}
+                    </p>
+                </div>
+                <div class="text-right">
+                    {% if transaction.amount > 0 %}
+                    <span class="font-semibold text-emerald-700">+{{ transaction.amount }}</span>
+                    {% else %}
+                    <span class="font-semibold text-slate-900">{{ transaction.amount }}</span>
+                    {% endif %}
+                    {% if transaction.order_id %}
+                    <p class="mt-0.5 text-xs">
+                        <a href="{% url 'account:order-detail' transaction.order.number %}" class="text-slate-600 underline-offset-4 hover:underline">{{ transaction.order.number }}</a>
+                    </p>
+                    {% endif %}
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+
+        {% if transactions.has_other_pages %}
+        <nav class="mt-4 flex items-center justify-between gap-4 text-sm" aria-label="History pages">
+            {% if transactions.has_previous %}
+            <a href="?page={{ transactions.previous_page_number }}" class="font-medium text-slate-900 underline-offset-4 hover:underline">Newer</a>
+            {% endif %}
+            <span class="text-xs text-slate-500">Page {{ transactions.number }} of {{ transactions.paginator.num_pages }}</span>
+            {% if transactions.has_next %}
+            <a href="?page={{ transactions.next_page_number }}" class="font-medium text-slate-900 underline-offset-4 hover:underline">Older</a>
+            {% endif %}
+        </nav>
+        {% endif %}
+        {% endif %}
+    </section>
+</div>
+{% endblock account_content %}

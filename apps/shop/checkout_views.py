@@ -7,6 +7,9 @@ the checkout page (PRG) so a refresh never re-submits.
 
 from __future__ import annotations
 
+from decimal import Decimal
+
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
@@ -19,7 +22,10 @@ from apps.accounts.models import Address
 from apps.orders.models import Order
 from apps.shop.checkout import (
     cart_matches_snapshot,
+    discount_breakdown,
     get_or_create_checkout,
+    set_loyalty_points,
+    set_promotion_code,
     set_shipping_address,
     set_shipping_method,
     validate_checkout,
@@ -71,7 +77,39 @@ def checkout_detail(request):
     subtotal = totals["subtotal"]
     methods = get_shipping_methods(subtotal)
     selected = next((m for m in methods if m.code == checkout.shipping_method_code), methods[0])
-    total = subtotal + selected.amount
+
+    # Phase 7: resolve the current discounts for the pre-validation estimate. An ineligible
+    # code/points combination lands in ``errors`` (which also disables the validate button)
+    # rather than silently pricing without it -- the customer sees *why* before continuing.
+    errors = [] if checkout.is_validated else _cart_errors(cart)
+    promo_discount = Decimal("0.00")
+    loyalty_discount = Decimal("0.00")
+    if not checkout.is_validated and (checkout.promotion_code or checkout.loyalty_points):
+        try:
+            breakdown = discount_breakdown(
+                checkout,
+                promotion_code=checkout.promotion_code,
+                loyalty_points=checkout.loyalty_points,
+            )
+            promo_discount = breakdown.promotion_discount
+            loyalty_discount = breakdown.loyalty_discount
+        except ValidationError as err:
+            errors.append(_message_text(err))
+
+    total = (subtotal - promo_discount - loyalty_discount + selected.amount).quantize(
+        Decimal("0.01")
+    )
+    if total < 0:  # pragma: no cover - each discount is capped at the subtotal
+        total = Decimal("0.00")
+
+    # Loyalty panel facts for the open checkout.
+    from apps.engagement.services import loyalty as loyalty_services
+
+    loyalty_balance = loyalty_services.balance_for(request.user)
+    loyalty_max = loyalty_services.max_redeemable_points(
+        request.user,
+        eligible_subtotal=max(subtotal - promo_discount, Decimal("0.00")),
+    )
 
     context = {
         "cart": cart,
@@ -82,9 +120,15 @@ def checkout_detail(request):
         "selected_method": selected,
         "shipping_amount": selected.amount,
         "total": total,
-        "errors": [] if checkout.is_validated else _cart_errors(cart),
+        "errors": errors,
         "price_changes": get_price_changes(cart),
         "snapshot": checkout.snapshot,
+        "promo_discount": promo_discount,
+        "loyalty_discount": loyalty_discount,
+        "loyalty_balance": loyalty_balance,
+        "loyalty_max": loyalty_max,
+        "redemption_message": loyalty_services.redemption_message(request.user),
+        "redeem_increment": settings.LOYALTY_REDEEM_INCREMENT,
     }
     return render(request, "shop/checkout.html", context)
 
@@ -137,6 +181,75 @@ def checkout_validate(request):
         return redirect("shop:checkout")
 
     messages.success(request, _("Everything checks out. Review below to continue."))
+    return redirect("shop:checkout")
+
+
+# =============================================================================
+# Phase 7: promotion code and FLASH Points
+# =============================================================================
+
+
+@login_required
+@require_POST
+def checkout_promotion(request):
+    """Apply (or, with an empty code, clear) the checkout's promotion code.
+
+    The engine validates against the live subtotal before anything persists, so an invalid
+    code never becomes state -- the old code simply stays and the reason flashes back.
+    """
+    cart = _require_cart(request)
+    if cart is None or cart.is_empty():
+        return redirect("shop:cart")
+
+    checkout = get_or_create_checkout(request.user, cart)
+    code = request.POST.get("code", "")
+    try:
+        set_promotion_code(checkout, code)
+    except ValidationError as err:
+        messages.error(request, _message_text(err))
+        return redirect("shop:checkout")
+
+    if code.strip():
+        messages.success(
+            request,
+            _("Promotion %(code)s applied.") % {"code": checkout.promotion_code},
+        )
+    else:
+        messages.info(request, _("Promotion removed."))
+    return redirect("shop:checkout")
+
+
+@login_required
+@require_POST
+def checkout_loyalty(request):
+    """Apply or remove FLASH Points redemption for this checkout.
+
+    Removal is explicit (a ``remove`` submit); applying validates amount, balance, caps and
+    increment through the engine and pins the hold, all before the redirect.
+    """
+    cart = _require_cart(request)
+    if cart is None or cart.is_empty():
+        return redirect("shop:cart")
+
+    checkout = get_or_create_checkout(request.user, cart)
+    if request.POST.get("remove"):
+        points = 0
+    else:
+        points = request.POST.get("points", 0) or 0
+    try:
+        set_loyalty_points(checkout, points)
+    except ValidationError as err:
+        messages.error(request, _message_text(err))
+        return redirect("shop:checkout")
+
+    if int(points or 0) > 0:
+        messages.success(
+            request,
+            _("%(points)d FLASH Points will be applied at validation.")
+            % {"points": checkout.loyalty_points},
+        )
+    else:
+        messages.info(request, _("FLASH Points removed."))
     return redirect("shop:checkout")
 
 

@@ -132,7 +132,7 @@ class Order(TimestampedModel):
         max_digits=10,
         decimal_places=2,
         default=Decimal("0.00"),
-        help_text=_("Reserved for promotions; always zero in Phase 6."),
+        help_text=_("Promotion plus FLASH Points discount, frozen at order creation (Phase 7)."),
     )
     tax_amount = models.DecimalField(
         _("tax amount"),
@@ -142,6 +142,21 @@ class Order(TimestampedModel):
         help_text=_("Reserved for tax calculation; always zero in Phase 6."),
     )
     total = models.DecimalField(_("total"), max_digits=10, decimal_places=2)
+
+    # Discount provenance (Phase 7). Plain strings/ints on purpose: engagement owns the
+    # Promotion row and orders never imports that app, which keeps the migration graph a tree.
+    promotion_code = models.CharField(
+        _("promotion code"),
+        max_length=32,
+        blank=True,
+        default="",
+        help_text=_("Normalised code the discount came from; for support and reporting."),
+    )
+    loyalty_points = models.PositiveIntegerField(
+        _("FLASH Points redeemed"),
+        default=0,
+        help_text=_("Points redeemed on this order; already folded into discount_amount."),
+    )
 
     # Shipping method snapshot (rate table, not a FK: rates are settings).
     shipping_code = models.CharField(_("shipping method"), max_length=32)

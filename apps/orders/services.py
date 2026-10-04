@@ -13,8 +13,11 @@
   units are gone, :class:`~apps.inventory.services.InsufficientStock` rolls the
   whole thing back and the customer keeps their validated checkout.
 
-Lock order in this module: checkout -> stock rows (ascending variant id). Stock
-is always last (see :mod:`apps.inventory.services`), so the graph has no cycles.
+Lock order in this module: checkout -> stock rows (ascending variant id) -> promotion
+row (consumption only). Stock is taken before the promotion is locked, and
+:func:`apps.engagement.services.promotions.consume_usage` is the *only* code that locks a
+promotion, so no path can take a promotion first and create a cycle. Validation of discounts
+never locks anything -- only consumption does.
 """
 
 from __future__ import annotations
@@ -39,6 +42,7 @@ from apps.orders.models import (
     OrderItem,
     Shipment,
 )
+from apps.orders.signals import order_cancelled
 from apps.shop.checkout import cart_matches_snapshot
 from apps.shop.models import CheckoutSession
 from apps.shop.services import validate_cart_items
@@ -118,14 +122,31 @@ def create_order_from_checkout(checkout: CheckoutSession) -> Order:
     number = generate_order_number()
     reference = f"order:{number}"
 
-    # Raises InsufficientStock -> transaction rolls back, hold state untouched.
-    reserve_stock(checkout, lines, reference=reference)
+    # Phase 7: the frozen discounts must still be true. The engine re-checks the promotion
+    # window/limits and the spendable balance against the live world; anything that moved
+    # (window closed, last use spent, hold expired) fails the whole handoff instead of
+    # charging a total the customer never agreed to.
+    promo_payload = snapshot.get("promotion") or {}
+    loyalty_payload = snapshot.get("loyalty") or {}
+    frozen_promo = Decimal(str(promo_payload.get("discount", "0") or "0"))
+    frozen_loyalty = Decimal(str(loyalty_payload.get("discount", "0") or "0"))
+    frozen_points = int(loyalty_payload.get("points", 0) or 0)
 
     subtotal = Decimal(snapshot["subtotal"])
     shipping = Decimal(snapshot["shipping"]["amount"])
     total = Decimal(snapshot["total"])
-    if total != subtotal + shipping:
+    live = _revalidate_discounts(
+        checkout, subtotal, promo_payload.get("code", ""), frozen_points
+    )
+    if live.promotion_discount != frozen_promo or live.loyalty_discount != frozen_loyalty:
+        raise StaleCheckout(
+            ["Your discounts changed since the review step. Please review your order again."]
+        )
+    if total != subtotal - live.total_discount + shipping:
         raise StaleCheckout(["Totals do not add up; please review your bag again."])
+
+    # Raises InsufficientStock -> transaction rolls back, hold state untouched.
+    reserve_stock(checkout, lines, reference=reference)
 
     order = Order.objects.create(
         number=number,
@@ -134,6 +155,9 @@ def create_order_from_checkout(checkout: CheckoutSession) -> Order:
         currency=snapshot.get("currency") or cart.currency,
         subtotal=subtotal,
         shipping_amount=shipping,
+        discount_amount=live.total_discount,
+        promotion_code=live.promotion_code,
+        loyalty_points=live.points,
         total=total,
         shipping_code=snapshot["shipping"]["code"],
         shipping_name=snapshot["shipping"]["name"],
@@ -175,10 +199,73 @@ def create_order_from_checkout(checkout: CheckoutSession) -> Order:
 
     attach_holds_to_order(checkout, order)
 
+    # Phase 7: charge the promotion (usage row + counter, under the promotion row lock) and
+    # move the points hold onto the order. Both are conditional/idempotent, so a replayed
+    # submit cannot double-count either one.
+    _consume_promotion(live, checkout, order)
+    if frozen_points:
+        from apps.engagement.models import PointsReservation
+
+        attached = PointsReservation.objects.filter(
+            checkout=checkout,
+            status=PointsReservation.Status.ACTIVE,
+            points=frozen_points,
+        ).update(order=order)
+        if not attached:
+            raise StaleCheckout(
+                ["Your FLASH Points need to be applied again. Please review your order."]
+            )
+
     checkout.status = CheckoutSession.Status.CONVERTED
     checkout.save(update_fields=["status", "updated_at"])
     _convert_cart(cart)
     return order
+
+
+def _revalidate_discounts(
+    checkout: CheckoutSession, subtotal: Decimal, promotion_code: str, points: int
+):
+    """Re-run the engagement discount engine against the live world at handoff time.
+
+    Read-only (no promotion lock, no counter change); consumption happens later in
+    :func:`_consume_promotion`. Any rule violation becomes a ``StaleCheckout`` so the
+    customer is sent back to review rather than charged on stale assumptions.
+    """
+    from apps.engagement.services.discounts import compute_discounts
+    from apps.engagement.services.errors import EngagementError
+
+    try:
+        return compute_discounts(
+            user=checkout.user,
+            subtotal=subtotal,
+            promotion_code=promotion_code,
+            loyalty_points=points,
+            excluding_checkout=checkout,
+        )
+    except EngagementError as exc:
+        raise StaleCheckout(
+            [f"{exc.message} Please review your order again."]
+        ) from exc
+
+
+def _consume_promotion(live, checkout: CheckoutSession, order: Order) -> None:
+    """Write the usage row + counter for a promotion-carrying order, exactly once."""
+    if live.promotion is None:
+        return
+    from apps.engagement.services.errors import EngagementError
+    from apps.engagement.services.promotions import consume_usage
+
+    try:
+        consume_usage(
+            live.promotion,
+            user=checkout.user,
+            order=order,
+            discount=live.promotion_discount,
+        )
+    except EngagementError as exc:
+        raise StaleCheckout(
+            [f"{exc.message} Please review your order again."]
+        ) from exc
 
 
 def _convert_cart(cart) -> None:
@@ -359,4 +446,7 @@ def cancel_order(
         note="Held stock returned to the pool.",
         metadata={"released": released},
     )
+    # Same transaction as the transition: listeners (FLASH Points release) must observe the
+    # cancellation or not at all.
+    order_cancelled.send(sender=Order, order=order)
     return order

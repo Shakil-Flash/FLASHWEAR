@@ -26,6 +26,7 @@ from apps.catalog.api import (
     ProductSearchView,
 )
 from apps.core.api import health
+from apps.engagement.api import ProductReviewsView, PromotionValidateView, ReviewDetailView
 from apps.orders.api import OrderDetailView, OrderListView
 from config.api.v1.views import ApiRootView
 
@@ -39,6 +40,18 @@ urlpatterns = [
     path("products/search/", ProductSearchView.as_view(), name="product-search"),
     path(
         "products/suggestions/", ProductSearchSuggestionsView.as_view(), name="product-suggestions"
+    ),
+    # Engagement (Phase 7): reviews live under their product; writes are session-authenticated.
+    path(
+        "products/<slug:slug>/reviews/",
+        ProductReviewsView.as_view(),
+        name="product-reviews",
+    ),
+    path("reviews/<int:pk>/", ReviewDetailView.as_view(), name="review-detail"),
+    path(
+        "checkout/promotion/",
+        PromotionValidateView.as_view(),
+        name="checkout-promotion",
     ),
     path("products/<slug:slug>/", ProductDetailView.as_view(), name="product-detail"),
     path("categories/", CategoryListView.as_view(), name="category-list"),

@@ -348,7 +348,25 @@ class CheckoutSession(TimestampedModel):
         max_digits=10,
         decimal_places=2,
         default=Decimal("0.00"),
-        help_text=_("Subtotal plus shipping at validation time."),
+        help_text=_("Subtotal minus discounts plus shipping at validation time."),
+    )
+    promotion_code = models.CharField(
+        _("promotion code"),
+        max_length=32,
+        blank=True,
+        default="",
+        help_text=_(
+            "Normalised promotion code applied to this checkout. The engine re-validates "
+            "it at every step and again at handoff; this column is the request, not the truth."
+        ),
+    )
+    loyalty_points = models.PositiveIntegerField(
+        _("FLASH Points"),
+        default=0,
+        help_text=_(
+            "Points the customer chose to redeem. A points reservation pins them while "
+            "this is set, so a second checkout cannot spend them."
+        ),
     )
     validated_at = models.DateTimeField(
         _("validated at"),

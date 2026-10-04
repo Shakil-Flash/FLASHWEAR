@@ -277,6 +277,185 @@ Three rules shape this template:
             </div>
         </div>
 
+        {% comment %} Phase 7: reviews. The summary is server-computed in one query, the list is
+        allowlist-sorted and paginated, and the form appears only when the service says the
+        current customer has earned it (verified purchase, one review per person). {% endcomment %}
+        <section class="mt-16 border-t border-slate-200 pt-10" aria-labelledby="reviews-heading" id="reviews">
+            <div class="flex flex-wrap items-baseline justify-between gap-4">
+                <h2 id="reviews-heading" class="text-xl font-semibold tracking-tight text-slate-950">
+                    Customer reviews
+                </h2>
+                {% if review_summary.count %}
+                <p class="text-sm text-slate-600">
+                    <span class="font-semibold text-slate-900">{{ review_summary.average }}</span> out of 5
+                    · {{ review_summary.count }} review{{ review_summary.count|pluralize }}
+                </p>
+                {% endif %}
+            </div>
+
+            {% if review_summary.count %}
+            <div class="mt-6 max-w-xl space-y-1.5">
+                <div class="flex items-center gap-3 text-xs">
+                    <span class="w-6 text-right font-medium text-slate-600">5★</span>
+                    <span class="h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
+                        <span class="block h-full rounded-full bg-flash-600" style="width: {{ review_summary.shares.5 }}%"></span>
+                    </span>
+                    <span class="w-8 text-right tabular-nums text-slate-500">{{ review_summary.distribution.5 }}</span>
+                </div>
+                <div class="flex items-center gap-3 text-xs">
+                    <span class="w-6 text-right font-medium text-slate-600">4★</span>
+                    <span class="h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
+                        <span class="block h-full rounded-full bg-flash-600" style="width: {{ review_summary.shares.4 }}%"></span>
+                    </span>
+                    <span class="w-8 text-right tabular-nums text-slate-500">{{ review_summary.distribution.4 }}</span>
+                </div>
+                <div class="flex items-center gap-3 text-xs">
+                    <span class="w-6 text-right font-medium text-slate-600">3★</span>
+                    <span class="h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
+                        <span class="block h-full rounded-full bg-flash-600" style="width: {{ review_summary.shares.3 }}%"></span>
+                    </span>
+                    <span class="w-8 text-right tabular-nums text-slate-500">{{ review_summary.distribution.3 }}</span>
+                </div>
+                <div class="flex items-center gap-3 text-xs">
+                    <span class="w-6 text-right font-medium text-slate-600">2★</span>
+                    <span class="h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
+                        <span class="block h-full rounded-full bg-flash-600" style="width: {{ review_summary.shares.2 }}%"></span>
+                    </span>
+                    <span class="w-8 text-right tabular-nums text-slate-500">{{ review_summary.distribution.2 }}</span>
+                </div>
+                <div class="flex items-center gap-3 text-xs">
+                    <span class="w-6 text-right font-medium text-slate-600">1★</span>
+                    <span class="h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
+                        <span class="block h-full rounded-full bg-flash-600" style="width: {{ review_summary.shares.1 }}%"></span>
+                    </span>
+                    <span class="w-8 text-right tabular-nums text-slate-500">{{ review_summary.distribution.1 }}</span>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if review_page %}
+            <nav class="mt-6 flex flex-wrap gap-4 text-sm" aria-label="Sort reviews">
+                <a href="?reviews_sort=newest#reviews" {% if review_sort == "newest" %}class="font-semibold text-slate-950" aria-current="true"{% else %}class="text-slate-600 underline-offset-4 hover:underline"{% endif %}>Newest</a>
+                <a href="?reviews_sort=highest#reviews" {% if review_sort == "highest" %}class="font-semibold text-slate-950" aria-current="true"{% else %}class="text-slate-600 underline-offset-4 hover:underline"{% endif %}>Highest</a>
+                <a href="?reviews_sort=lowest#reviews" {% if review_sort == "lowest" %}class="font-semibold text-slate-950" aria-current="true"{% else %}class="text-slate-600 underline-offset-4 hover:underline"{% endif %}>Lowest</a>
+            </nav>
+            {% endif %}
+
+            {% if own_review %}
+            <div class="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-5" data-your-review>
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <p class="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">
+                        Your review
+                        {% if own_review.status == "published" %}
+                        <span class="ml-2 rounded-full bg-emerald-100 px-2 py-0.5 text-emerald-800">Published</span>
+                        {% elif own_review.status == "pending" %}
+                        <span class="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-amber-800">In moderation</span>
+                        {% else %}
+                        <span class="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-red-700">{{ own_review.get_status_display }}</span>
+                        {% endif %}
+                    </p>
+                    <p class="text-xs text-slate-500">{{ own_review.rating }}/5 · {{ own_review.created_at|date:"N j, Y" }}</p>
+                </div>
+                {% if own_review.title %}
+                <p class="mt-3 text-sm font-semibold text-slate-900">{{ own_review.title }}</p>
+                {% endif %}
+                <p class="mt-1 text-sm leading-relaxed text-slate-700">{{ own_review.body }}</p>
+                <div class="mt-4 flex flex-wrap items-center gap-4 text-sm">
+                    <a href="{% url 'engagement:review-edit' own_review.pk %}" class="font-medium text-slate-900 underline-offset-4 hover:underline">Edit</a>
+                    <form method="post" action="{% url 'engagement:review-delete' own_review.pk %}" onsubmit="return confirm('Delete your review? This cannot be undone.');">
+                        {% csrf_token %}
+                        <button type="submit" class="font-medium text-red-600 underline-offset-4 hover:underline">Delete</button>
+                    </form>
+                </div>
+                {% if own_review.status != "published" %}
+                <p class="mt-3 text-xs text-slate-500">A moderator will publish it shortly. Editing published content sends it back to moderation.</p>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            {% if can_review %}
+            <form method="post" action="{% url 'catalog:review-create' product.slug %}" class="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
+                {% csrf_token %}
+                <h3 class="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500">Write a review</h3>
+                <p class="mt-1 text-xs text-slate-500">Verified purchase — only customers who ordered this product can review it.</p>
+
+                <div class="mt-4 grid gap-4 sm:grid-cols-[10rem_1fr]">
+                    <div>
+                        <label for="review-rating" class="block text-xs font-medium text-slate-600">Your rating</label>
+                        <select name="rating" id="review-rating" required class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-flash-500 focus:outline-none focus:ring-2 focus:ring-flash-500/20">
+                            <option value="5">5 stars</option>
+                            <option value="4">4 stars</option>
+                            <option value="3">3 stars</option>
+                            <option value="2">2 stars</option>
+                            <option value="1">1 star</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="review-title" class="block text-xs font-medium text-slate-600">Title</label>
+                        <input type="text" name="title" id="review-title" required maxlength="120" placeholder="Sums it up in a few words" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-flash-500 focus:outline-none focus:ring-2 focus:ring-flash-500/20" />
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    <label for="review-body" class="block text-xs font-medium text-slate-600">Review</label>
+                    <textarea name="body" id="review-body" required rows="5" minlength="3" maxlength="4000" placeholder="How did it fit, feel, wear?" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-flash-500 focus:outline-none focus:ring-2 focus:ring-flash-500/20"></textarea>
+                </div>
+
+                <button type="submit" class="mt-4 rounded-full bg-flash-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-flash-700 focus:outline-none focus:ring-2 focus:ring-flash-500/30 focus:ring-offset-2 focus:ring-offset-white">
+                    Submit for moderation
+                </button>
+            </form>
+            {% elif request.user.is_authenticated %}
+            <div class="mt-6 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-600">
+                {{ review_reason_message }}
+            </div>
+            {% else %}
+            <div class="mt-6 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-600">
+                <a href="{% url 'accounts:login' %}?next={{ request.path|urlencode }}" class="font-medium text-slate-900 underline-offset-4 hover:underline">Sign in</a>
+                to share how this piece worked for you.
+            </div>
+            {% endif %}
+
+            <ul class="mt-8 space-y-6">
+                {% for review in review_page %}
+                <li class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <p class="min-w-0 text-sm font-semibold text-slate-900">
+                            {{ review.author.get_full_name|default:review.author.email }}
+                            {% if review.verified_purchase %}
+                            <span class="ml-2 align-middle rounded-full bg-emerald-100 px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-emerald-800">Verified purchase</span>
+                            {% endif %}
+                        </p>
+                        <p class="text-xs text-slate-500">{{ review.rating }}/5 · {{ review.created_at|date:"N j, Y" }}</p>
+                    </div>
+                    {% if review.title %}
+                    <h3 class="mt-3 text-sm font-semibold text-slate-950">{{ review.title }}</h3>
+                    {% endif %}
+                    <p class="mt-1 text-sm leading-relaxed text-slate-700">{{ review.body }}</p>
+                    {% if review.author_id == user.pk %}
+                    <p class="mt-3 text-xs text-slate-400">Your review</p>
+                    {% endif %}
+                </li>
+                {% empty %}
+                <li class="rounded-2xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-600">
+                    No reviews yet —{% if can_review %} yours would be the first.{% else %} published reviews will appear here.{% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+
+            {% if review_page.has_other_pages %}
+            <nav class="mt-6 flex items-center justify-between gap-4 text-sm" aria-label="Review pages">
+                {% if review_page.has_previous %}
+                <a href="?reviews_sort={{ review_sort }}&amp;reviews_page={{ review_page.previous_page_number }}#reviews" class="font-medium text-slate-900 underline-offset-4 hover:underline">Newer reviews</a>
+                {% endif %}
+                <span class="text-xs text-slate-500">Page {{ review_page.number }} of {{ review_page.paginator.num_pages }}</span>
+                {% if review_page.has_next %}
+                <a href="?reviews_sort={{ review_sort }}&amp;reviews_page={{ review_page.next_page_number }}#reviews" class="font-medium text-slate-900 underline-offset-4 hover:underline">Older reviews</a>
+                {% endif %}
+            </nav>
+            {% endif %}
+        </section>
+
         {% if related_products %}
             <section class="mt-16 border-t border-slate-200 pt-10" aria-labelledby="related-heading">
                 <h2 id="related-heading" class="text-xl font-semibold tracking-tight text-slate-950">

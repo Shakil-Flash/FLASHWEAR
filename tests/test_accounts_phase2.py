@@ -1142,12 +1142,12 @@ class TestDashboard:
     def test_sections_mark_later_phases_as_unavailable(self, db):
         sections = {section["label"]: section for section in account_sections()}
 
-        # Orders went live in Phase 6; the rest of the plan still shows as planned.
+        # Orders went live in Phase 6, Loyalty in Phase 7; the rest shows as planned.
         assert sections["Orders"]["url"] == reverse("account:orders")
         assert sections["Addresses"]["url"] == reverse("account:addresses")
         assert sections["Wishlist"]["url"] is None
         assert sections["Reviews"]["url"] is None
-        assert sections["Loyalty"]["url"] is None
+        assert sections["Loyalty"]["url"] == reverse("account:loyalty")
 
     def test_dashboard_does_not_stay_active_on_other_account_pages(self, rf, db):
         """``/account/`` is a prefix of every account URL, so it must match exactly."""

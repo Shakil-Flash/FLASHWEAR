@@ -9,9 +9,11 @@ The pipeline a payment travels::
 Side effects on success and failure are decided here, in one place:
 
 * **Succeeded** -- stock holds are consumed (units actually leave the warehouse
-  counters), the order moves to ``PAID``.
+  counters), the order moves to ``PAID``, and ``order_paid`` fires so FLASH
+  Points are awarded/redemptions consumed in the same transaction.
 * **Failed / cancelled** -- the order is cancelled through
-  :func:`apps.orders.services.cancel_order`, which releases the holds.
+  :func:`apps.orders.services.cancel_order`, which releases the holds and fires
+  ``order_cancelled`` (releasing any held points).
 
 Idempotency has two independent layers: the ``(provider, event_id)`` unique
 constraint on :class:`~apps.payments.models.PaymentEvent` (so a redelivered
@@ -30,6 +32,7 @@ from django.db import IntegrityError, transaction
 from apps.inventory.services import consume_holds
 from apps.orders.models import Order, OrderEvent
 from apps.orders.services import cancel_order
+from apps.orders.signals import order_paid
 from apps.payments.models import Payment, PaymentEvent
 from apps.payments.providers import get_provider, provider_name
 from apps.payments.providers.base import ProviderEvent, ProviderIntent, WebhookError
@@ -264,6 +267,9 @@ def _on_succeeded(payment: Payment, event: ProviderEvent) -> None:
             note="Held stock sold.",
             metadata={"units": consumed},
         )
+        # FLASH Points earning/redemption runs in this same transaction (see
+        # apps.orders.signals): points must be transactional with the payment.
+        order_paid.send(sender=Order, order=order)
     elif order.status == Order.Status.CANCELLED:
         # Money arrived for an order that was already given up: never silent.
         logger.error("Payment %s succeeded for cancelled order %s", payment.pk, order.number)

@@ -66,6 +66,18 @@
                         <dt class="text-slate-600">Subtotal</dt>
                         <dd class="font-medium text-slate-900">{{ snapshot.subtotal|money }}</dd>
                     </div>
+                    {% if snapshot.promotion.discount and snapshot.promotion.discount != "0.00" %}
+                    <div class="flex items-baseline justify-between gap-4">
+                        <dt class="text-slate-600">Promotion ({{ snapshot.promotion.code }})</dt>
+                        <dd class="font-medium text-emerald-700">−{{ snapshot.promotion.discount|money }}</dd>
+                    </div>
+                    {% endif %}
+                    {% if snapshot.loyalty.discount and snapshot.loyalty.discount != "0.00" %}
+                    <div class="flex items-baseline justify-between gap-4">
+                        <dt class="text-slate-600">FLASH Points ({{ snapshot.loyalty.points }})</dt>
+                        <dd class="font-medium text-emerald-700">−{{ snapshot.loyalty.discount|money }}</dd>
+                    </div>
+                    {% endif %}
                     <div class="flex items-baseline justify-between gap-4">
                         <dt class="text-slate-600">Shipping</dt>
                         <dd class="font-medium text-slate-900">{{ snapshot.shipping.amount|money }}</dd>
@@ -206,6 +218,74 @@
                     {% endfor %}
                 </ul>
             </section>
+
+            <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft" aria-labelledby="discounts-heading">
+                <h2 id="discounts-heading" class="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500">4. Offers &amp; FLASH Points</h2>
+
+                <form method="post" action="{% url 'shop:checkout-promotion' %}" class="mt-4 flex flex-wrap items-end gap-3">
+                    {% csrf_token %}
+                    <div class="min-w-0 flex-1">
+                        <label for="promo-code" class="block text-xs font-medium text-slate-600">Promotion code</label>
+                        <input type="text"
+                               id="promo-code"
+                               name="code"
+                               value="{{ checkout.promotion_code|default:"" }}"
+                               placeholder="e.g. SUMMER10"
+                               maxlength="32"
+                               autocomplete="off"
+                               class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-flash-500 focus:outline-none focus:ring-2 focus:ring-flash-500/20" />
+                    </div>
+                    <button type="submit" class="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 transition hover:border-slate-400">
+                        {% if checkout.promotion_code %}Update{% else %}Apply{% endif %}
+                    </button>
+                    {% if checkout.promotion_code %}
+                    <button type="submit" name="code" value="" class="text-sm font-medium text-slate-600 underline-offset-4 hover:underline">Remove</button>
+                    {% endif %}
+                </form>
+
+                <div class="mt-5 border-t border-slate-100 pt-4">
+                    <div class="flex flex-wrap items-baseline justify-between gap-3">
+                        <p class="text-sm font-semibold text-slate-900">FLASH Points</p>
+                        <p class="text-xs text-slate-500">{{ redemption_message }}</p>
+                    </div>
+
+                    {% if checkout.loyalty_points %}
+                    <div class="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border-2 border-flash-600 bg-flash-50/50 p-4">
+                        <p class="text-sm text-slate-800">
+                            <span class="font-semibold text-slate-950">{{ checkout.loyalty_points }} points</span>
+                            held for this order · worth {{ loyalty_discount|money }}
+                        </p>
+                        <form method="post" action="{% url 'shop:checkout-loyalty' %}">
+                            {% csrf_token %}
+                            <button type="submit" name="remove" value="1" class="text-sm font-medium text-slate-600 underline-offset-4 hover:underline">Remove</button>
+                        </form>
+                    </div>
+                    {% elif loyalty_balance >= redeem_increment %}
+                    <form method="post" action="{% url 'shop:checkout-loyalty' %}" class="mt-3 flex flex-wrap items-end gap-3">
+                        {% csrf_token %}
+                        <div class="min-w-0 flex-1">
+                            <label for="loyalty-points" class="block text-xs font-medium text-slate-600">Points to use (you have {{ loyalty_balance }})</label>
+                            <input type="number"
+                                   id="loyalty-points"
+                                   name="points"
+                                   min="{{ redeem_increment }}"
+                                   max="{{ loyalty_max }}"
+                                   step="{{ redeem_increment }}"
+                                   placeholder="{{ redeem_increment }}"
+                                   class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-flash-500 focus:outline-none focus:ring-2 focus:ring-flash-500/20" />
+                        </div>
+                        <button type="submit" class="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 transition hover:border-slate-400">
+                            Use points
+                        </button>
+                    </form>
+                    <p class="mt-2 text-xs text-slate-500">Worth 1.00 off per 100 points. Nothing is redeemed until the order is placed.</p>
+                    {% else %}
+                    <p class="mt-3 text-sm text-slate-600">
+                        Earn 10 points per unit spent on every paid order; they land here after checkout.
+                    </p>
+                    {% endif %}
+                </div>
+            </section>
         </div>
 
         <aside class="lg:sticky lg:top-24 lg:self-start">
@@ -220,6 +300,18 @@
                         <dt class="text-slate-600">{{ selected_method.name }}</dt>
                         <dd class="font-medium text-slate-900">{% if shipping_amount %}{{ shipping_amount|money }}{% else %}Free{% endif %}</dd>
                     </div>
+                    {% if promo_discount %}
+                    <div class="flex items-baseline justify-between gap-4">
+                        <dt class="text-slate-600">Promotion ({{ checkout.promotion_code }})</dt>
+                        <dd class="font-medium text-emerald-700">−{{ promo_discount|money }}</dd>
+                    </div>
+                    {% endif %}
+                    {% if loyalty_discount %}
+                    <div class="flex items-baseline justify-between gap-4">
+                        <dt class="text-slate-600">FLASH Points ({{ checkout.loyalty_points }})</dt>
+                        <dd class="font-medium text-emerald-700">−{{ loyalty_discount|money }}</dd>
+                    </div>
+                    {% endif %}
                     <div class="flex items-baseline justify-between gap-4 border-t border-slate-200 pt-3">
                         <dt class="font-semibold text-slate-950">Total</dt>
                         <dd class="font-semibold text-slate-950">{{ total|money }}</dd>

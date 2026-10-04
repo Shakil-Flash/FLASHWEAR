@@ -124,15 +124,20 @@ def listing_metadata(
     }
 
 
-def product_schema(product: Product, *, request=None) -> dict:
+def product_schema(product: Product, *, request=None, aggregate: dict | None = None) -> dict:
     """schema.org ``Product`` JSON-LD for a product page.
 
     Kept to facts the catalogue actually holds. ``offers`` is only emitted when a purchasable
     variant with a price exists, and reports the variant price range as the specification allows:
     advertising one price the customer cannot buy at would be a lie in structured data.
 
-    Availability is deliberately absent. It is not knowable until the Phase 4 inventory app
-    exists, and an ``InStock`` claim written today would be a promise this phase cannot keep.
+    ``aggregate`` (Phase 7) is the *published* review summary from
+    ``apps.engagement.services.reviews.aggregate_for``. ``aggregateRating`` is only emitted when
+    at least one published review exists -- claiming a rating of zero reviews is worse than
+    saying nothing.
+
+    Availability is deliberately absent from ``offers``: stock comes and goes, and this payload
+    must not promise a quantity the catalogue cannot keep.
     """
     url = _absolute(request, product.get_absolute_url())
     variants = product.purchasable_variants
@@ -168,6 +173,15 @@ def product_schema(product: Product, *, request=None) -> dict:
             "highPrice": f"{(high if high is not None else low):.2f}",
             "offerCount": len(variants),
             "url": url,
+        }
+
+    if aggregate and aggregate.get("count"):
+        payload["aggregateRating"] = {
+            "@type": "AggregateRating",
+            "ratingValue": str(aggregate["average"]),
+            "reviewCount": str(aggregate["count"]),
+            "bestRating": "5",
+            "worstRating": "1",
         }
 
     return payload

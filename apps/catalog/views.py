@@ -41,6 +41,8 @@ from apps.catalog.seo import (
     taxonomy_metadata,
 )
 from apps.core.utils import storefront_open
+from apps.engagement.forms import ReviewForm
+from apps.engagement.services import reviews as review_services
 
 # How many departments to surface as filter chips above a listing. A shopper scans a shelf, not a
 # sitemap: past a dozen links the row wraps into a wall and stops being a filter.
@@ -194,6 +196,21 @@ def product_detail(request, slug: str):
         wishlist = getattr(request.user, "wishlist", None)
         in_wishlist = wishlist is not None and wishlist.has_product(product)
 
+    # Phase 7: reviews. The aggregate is one query and feeds both the visible summary and the
+    # JSON-LD block; the list is paginated with an allowlisted sort (never a raw order_by).
+    review_summary = review_services.aggregate_for(product)
+    review_sort = request.GET.get("reviews_sort", review_services.DEFAULT_SORT)
+    review_page = Paginator(
+        review_services.public_queryset(product, sort=review_sort),
+        settings.REVIEWS_PER_PAGE,
+    ).get_page(request.GET.get("reviews_page"))
+
+    own_review = None
+    can_review, review_reason = False, "anonymous"
+    if request.user.is_authenticated:
+        own_review = review_services.own_review(request.user, product)
+        can_review, review_reason = review_services.eligibility(request.user, product)
+
     context = {
         "product": product,
         "matrix": matrix,
@@ -208,9 +225,19 @@ def product_detail(request, slug: str):
         "category_trail": product.category.breadcrumb_trail(),
         "breadcrumbs": breadcrumbs["itemListElement"],
         "breadcrumb_schema": breadcrumbs,
-        "product_schema": product_schema(product, request=request),
+        "product_schema": product_schema(product, request=request, aggregate=review_summary),
         "related_products": selectors.related_products(product),
         "in_wishlist": in_wishlist,
+        "review_summary": review_summary,
+        "review_page": review_page,
+        "review_sort": review_sort,
+        "review_form": ReviewForm(),
+        "own_review": own_review,
+        "can_review": can_review,
+        "review_reason": review_reason,
+        "review_reason_message": review_services.ineligible_message(review_reason)
+        if not can_review
+        else "",
         **product_metadata(product, request=request),
     }
     return render(request, "catalog/product_detail.html", context)
