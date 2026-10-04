@@ -1,0 +1,10 @@
+{% load i18n %}{% autoescape off %}{% blocktranslate %}Hi {{ user.get_short_name }}, confirm your FLASHWEAR email address{% endblocktranslate %}
+
+{% blocktranslate %}Open the link below to verify {{ user.email }}. It stops working after {{ expiry_hours }} hours.{% endblocktranslate %}
+
+{{ verification_url }}
+
+{% blocktranslate %}If you did not create a FLASHWEAR account, ignore this email. Nobody can sign in with an unverified address.{% endblocktranslate %}
+
+{% blocktranslate %}FLASHWEAR · Fashion Beyond Ordinary{% endblocktranslate %}
+{% endautoescape %}

@@ -1,0 +1,43 @@
+{% comment %}
+Pagination that preserves the current filters.
+
+Uses ``query_transform`` so ``?sort=price_asc`` survives page three; the sort link helper clears
+``page`` instead of keeping it, because "page 3 of a different ordering" reads as a filter that did
+nothing.
+{% endcomment %}
+{% load i18n catalog_extras %}
+{% if paginator.num_pages > 1 %}
+    <nav class="mt-10 flex items-center justify-between gap-4 border-t border-slate-200 pt-6" aria-label="Pagination">
+        <p class="text-sm text-slate-600">
+            {% blocktranslate with number=page_obj.number total=paginator.num_pages %}Page {{ number }} of {{ total }}{% endblocktranslate %}
+        </p>
+
+        <div class="flex items-center gap-2">
+            {% if page_obj.has_previous %}
+                <a href="{% query_transform page=page_obj.previous_page_number %}"
+                   class="inline-flex items-center rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-900">
+                    Previous
+                </a>
+            {% else %}
+                <span class="inline-flex cursor-not-allowed items-center rounded-full border border-slate-200 px-4 py-2 text-sm text-slate-400">
+                    Previous
+                </span>
+            {% endif %}
+
+            <span class="hidden text-sm text-slate-500 sm:inline">
+                {{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ paginator.count }}
+            </span>
+
+            {% if page_obj.has_next %}
+                <a href="{% query_transform page=page_obj.next_page_number %}"
+                   class="inline-flex items-center rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-900">
+                    Next
+                </a>
+            {% else %}
+                <span class="inline-flex cursor-not-allowed items-center rounded-full border border-slate-200 px-4 py-2 text-sm text-slate-400">
+                    Next
+                </span>
+            {% endif %}
+        </div>
+    </nav>
+{% endif %}

@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% load catalog_extras %}
+
+{% comment %}
+Shared chrome for every paginated product listing: the all-products page, a category, a collection
+and a brand. Each child fills in ``heading``, ``lede``, optional ``filters`` and ``prelude``; the
+grid and the pagination live here so they cannot drift apart between pages.
+
+The count is announced to screen readers ("24 products") because a bare visual grid is meaningless
+without it.
+{% endcomment %}
+
+{% block content %}
+    <div class="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+        <nav class="text-sm text-slate-500" aria-label="Breadcrumb">
+            <ol class="flex flex-wrap items-center gap-2">
+                {% block breadcrumbs %}
+                    <li><a href="{% url 'core:home' %}" class="hover:text-slate-900">Home</a></li>
+                    <li aria-hidden="true">/</li>
+                    <li aria-current="page" class="font-medium text-slate-900">{% block crumb_label %}Shop{% endblock crumb_label %}</li>
+                {% endblock breadcrumbs %}
+            </ol>
+        </nav>
+
+        <header class="mt-6 flex flex-wrap items-end justify-between gap-4">
+            <div class="max-w-2xl">
+                <h1 class="text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
+                    {% block heading %}All products{% endblock heading %}
+                </h1>
+                {% block lede %}
+                    {% if category.description %}<p class="mt-3 text-base leading-relaxed text-slate-600">{{ category.description }}</p>{% endif %}
+                {% endblock lede %}
+            </div>
+            <p class="text-sm text-slate-500" role="status">
+                {% block count %}
+                    {{ total_count }} {% if total_count == 1 %}product{% else %}products{% endif %}
+                {% endblock count %}
+            </p>
+        </header>
+
+        {% block prelude %}{% endblock prelude %}
+        {% block filters %}{% endblock filters %}
+
+        <div class="mt-8 flex flex-wrap items-center gap-2 border-b border-slate-200 pb-4">
+            <span class="mr-2 text-sm font-medium text-slate-500">Sort</span>
+            {% for value, label in sort_choices %}{% sort_link value label %}{% endfor %}
+        </div>
+
+        {% block products %}
+            {% if products %}
+                <div class="mt-8 grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-3 xl:grid-cols-4">
+                    {% for product in products %}
+                        {% include "catalog/_product_card.html" %}
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="mt-8 rounded-2xl border border-dashed border-slate-300 bg-white/70 p-10 text-center">
+                    <p class="text-base font-semibold text-slate-900">Nothing here yet</p>
+                    <p class="mt-2 text-sm text-slate-600">
+                        This shelf is empty. Try another category, or browse everything.
+                    </p>
+                    <a href="{% url 'catalog:product-list' %}"
+                       class="mt-6 inline-flex items-center rounded-full bg-flash-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-flash-700">
+                        All products
+                    </a>
+                </div>
+            {% endif %}
+        {% endblock products %}
+
+        {% include "catalog/_pagination.html" %}
+    </div>
+{% endblock content %}

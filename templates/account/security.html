@@ -1,0 +1,51 @@
+{% extends "account/base_account.html" %}
+
+{% block account_title %}Security{% endblock account_title %}
+{% block account_heading %}Security{% endblock account_heading %}
+{% block account_intro %}Your password, your verification status and the way to leave.{% endblock account_intro %}
+
+{% block account_content %}
+<div class="space-y-6">
+
+    <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft" aria-labelledby="security-verification">
+        <h2 id="security-verification" class="text-sm font-semibold text-slate-900">Email verification</h2>
+        {% if user.is_email_verified %}
+        <p class="mt-2 text-sm text-slate-600">Your address is verified. You can request a fresh link if you stop receiving our mail.</p>
+        <form method="post" action="{% url 'account:resend-verification' %}" class="mt-4">
+            {% csrf_token %}
+            <input type="hidden" name="confirm" value="on" />
+            <button type="submit" class="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-soft transition hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-flash-500/20 focus:ring-offset-2 focus:ring-offset-white">Email me another link</button>
+        </form>
+        {% else %}
+        <p class="mt-2 text-sm text-slate-600">Your address is not verified, so we cannot reach you about orders or returns.</p>
+        <form method="post" action="{% url 'account:resend-verification' %}" class="mt-4">
+            {% csrf_token %}
+            <input type="hidden" name="confirm" value="on" />
+            <button type="submit" class="inline-flex items-center justify-center rounded-full bg-flash-600 px-4 py-2 text-sm font-semibold text-white shadow-soft transition hover:bg-flash-700 focus:outline-none focus:ring-2 focus:ring-flash-500/30 focus:ring-offset-2 focus:ring-offset-white">Verify my address</button>
+        </form>
+        {% endif %}
+    </section>
+
+    <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft" aria-labelledby="security-password">
+        <h2 id="security-password" class="text-sm font-semibold text-slate-900">Password</h2>
+        <p class="mt-2 text-sm text-slate-600">
+            {% if has_usable_password %}
+            Member since {{ member_since|date:"j F Y" }}. Changing your password signs you out everywhere else.
+            {% else %}
+            You signed in with a one-time link, so there is no password yet.
+            {% endif %}
+        </p>
+        <a href="{% url 'account:password-change' %}" class="mt-4 inline-flex items-center justify-center rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-soft transition hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-flash-500/20 focus:ring-offset-2 focus:ring-offset-white">Change password</a>
+    </section>
+
+    <section class="rounded-2xl border border-red-200 bg-red-50/60 p-6" aria-labelledby="security-close">
+        <h2 id="security-close" class="text-sm font-semibold text-red-900">Close your account</h2>
+        <p class="mt-2 text-sm text-red-800">
+            Deactivating signs you out everywhere and stops new orders. Your order history is kept for
+            the period tax law requires, then anonymised.
+        </p>
+        <a href="{% url 'account:delete' %}" class="mt-4 inline-flex items-center justify-center rounded-full border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-800 shadow-soft transition hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:ring-offset-2 focus:ring-offset-red-50">Deactivate my account</a>
+    </section>
+
+</div>
+{% endblock account_content %}

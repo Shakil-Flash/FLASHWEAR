@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block title %}Something went wrong — {{ site_name|default:'FLASHWEAR' }}{% endblock title %}
+
+{% block content %}
+<section class="mx-auto flex max-w-3xl flex-col items-center justify-center px-4 py-20 text-center sm:px-6 lg:px-8">
+    <div class="space-y-6">
+        <p class="text-sm font-semibold uppercase tracking-[0.16em] text-rose-600">500 — Internal server error</p>
+        <h1 class="text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl">
+            We're having trouble loading this page
+        </h1>
+        <p class="text-lg leading-relaxed text-slate-600">
+            An unexpected error occurred. Our engineering team has been notified via logs.
+            Please try again in a moment.
+        </p>
+        <div class="flex flex-wrap items-center justify-center gap-3">
+            <a href="{% url 'core:home' %}" class="inline-flex items-center justify-center rounded-full bg-flash-600 px-6 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-flash-700 focus:outline-none focus:ring-2 focus:ring-flash-500/30 focus:ring-offset-2 focus:ring-offset-white">
+                Back to home
+            </a>
+            <a href="mailto:{{ support_email|default:'support@flashwear.local' }}" class="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-6 py-2.5 text-sm font-medium text-slate-700 shadow-soft transition hover:border-slate-300 hover:text-slate-900">
+                Contact support
+            </a>
+        </div>
+    </div>
+</section>
+{% endblock content %}

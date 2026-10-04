@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+{% load catalog_extras %}
+
+{% block content %}
+<section class="relative isolate overflow-hidden bg-gradient-to-b from-white via-slate-50/60 to-white">
+    <div class="mx-auto grid max-w-7xl items-center gap-12 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-2 lg:px-8">
+        <div class="max-w-2xl space-y-8">
+            <div class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium uppercase tracking-[0.08em] text-slate-600 shadow-soft">
+                <span class="inline-flex h-2 w-2 rounded-full bg-emerald-500"></span>
+                The catalogue is live
+            </div>
+
+            <h1 class="text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl lg:text-6xl">
+                {{ site_name|default:'FLASHWEAR' }}
+                <span class="block bg-gradient-to-r from-flash-600 via-flash-500 to-flash-700 bg-clip-text text-transparent">
+                    {{ site_tagline|default:'Fashion Beyond Ordinary.' }}
+                </span>
+            </h1>
+
+            <p class="text-lg leading-relaxed text-slate-600 sm:text-xl">
+                Tees, hoodies, shirts, cargo pants and denim, built as real garments with real
+                colour and size variants. Ordering opens soon.
+            </p>
+
+            <div class="flex flex-wrap items-center gap-3">
+                <a href="{% url 'catalog:product-list' %}"
+                   class="inline-flex items-center justify-center rounded-full bg-flash-600 px-6 py-3 text-sm font-semibold text-white shadow-soft transition hover:bg-flash-700 focus:outline-none focus:ring-2 focus:ring-flash-500/30 focus:ring-offset-2 focus:ring-offset-white">
+                    Shop all products
+                </a>
+                <a href="{% url 'catalog:collection-list' %}"
+                   class="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-800 shadow-soft transition hover:border-slate-900">
+                    Browse collections
+                </a>
+            </div>
+
+            {% if nav_categories %}
+                <nav class="flex flex-wrap items-center gap-2" aria-label="Departments">
+                    {% for category in nav_categories %}
+                        <a href="{{ category.get_absolute_url }}"
+                           class="rounded-full border border-slate-200 bg-white px-3.5 py-1.5 text-sm text-slate-700 shadow-soft transition hover:border-slate-900">
+                            {{ category.name }}
+                        </a>
+                    {% endfor %}
+                </nav>
+            {% endif %}
+        </div>
+
+        <div class="relative mx-auto w-full max-w-lg">
+            <div class="absolute -inset-4 -z-10 rounded-3xl bg-gradient-to-br from-flash-500/20 via-white to-slate-200/40 blur-2xl"></div>
+            <div class="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-8 shadow-elevated">
+                <div class="space-y-6">
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm font-medium text-slate-500">Architecture snapshot</span>
+                        <span class="inline-flex items-center rounded-full bg-flash-50 px-2 py-0.5 text-xs font-semibold text-flash-700">Clean &amp; Modular</span>
+                    </div>
+                    <div class="space-y-4 text-sm text-slate-600">
+                        <div class="flex items-start gap-3">
+                            <span class="mt-1 h-2 w-2 rounded-full bg-flash-500"></span>
+                            <p><span class="font-medium text-slate-900">Catalogue:</span> products carry colour and size variants, each with its own SKU and price.</p>
+                        </div>
+                        <div class="flex items-start gap-3">
+                            <span class="mt-1 h-2 w-2 rounded-full bg-flash-500"></span>
+                            <p><span class="font-medium text-slate-900">Taxonomy:</span> one category per garment, plus brands, collections, materials and fit.</p>
+                        </div>
+                        <div class="flex items-start gap-3">
+                            <span class="mt-1 h-2 w-2 rounded-full bg-flash-500"></span>
+                            <p><span class="font-medium text-slate-900">Accounts:</span> email sign-in, verified email, addresses and activity history.</p>
+                        </div>
+                        <div class="flex items-start gap-3">
+                            <span class="mt-1 h-2 w-2 rounded-full bg-flash-500"></span>
+                            <p><span class="font-medium text-slate-900">API:</span> read-only catalogue endpoints under <span class="font-mono text-xs">/api/v1/</span>.</p>
+                        </div>
+                        <div class="flex items-start gap-3">
+                            <span class="mt-1 h-2 w-2 rounded-full bg-flash-500"></span>
+                            <p><span class="font-medium text-slate-900">Frontend:</span> Django Templates, Tailwind, HTMX, Alpine.js with a shared design system.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="pointer-events-none absolute inset-x-0 bottom-0 -z-10 h-24 bg-gradient-to-t from-white to-transparent"></div>
+</section>
+
+{% comment %}
+Featured products.
+
+The section renders even when nothing is featured: hiding it would leave a fresh install with a
+homepage that silently has no catalogue at all, and the operator would have no idea why. An empty
+state that names the seed command is more useful than an absence.
+{% endcomment %}
+<section class="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8" aria-labelledby="featured-heading">
+    <div class="flex flex-wrap items-end justify-between gap-4">
+        <h2 id="featured-heading" class="text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">
+            Featured
+        </h2>
+        <a href="{% url 'catalog:product-list' %}"
+           class="text-sm font-semibold text-flash-700 underline-offset-4 hover:underline">
+            All products
+        </a>
+    </div>
+
+    {% if featured_products %}
+        <div class="mt-8 grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4">
+            {% for product in featured_products %}
+                {% include "catalog/_product_card.html" %}
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="mt-8 rounded-2xl border border-dashed border-slate-300 bg-white/70 p-6 text-sm leading-relaxed text-slate-600">
+            Nothing is featured yet. Run
+            <code class="font-mono text-xs">python manage.py seed_catalog</code>
+            to load the demo catalogue, or add products through the admin.
+        </p>
+    {% endif %}
+</section>
+
+{% if new_arrivals|length > 1 %}
+    <section class="border-t border-slate-200 bg-white/60" aria-labelledby="new-heading">
+        <div class="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
+            <h2 id="new-heading" class="text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">
+                New arrivals
+            </h2>
+            <div class="mt-8 grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4">
+                {% for product in new_arrivals %}
+                    {% include "catalog/_product_card.html" %}
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+{% endif %}
+
+{% if featured_collections %}
+    <section class="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8" aria-labelledby="collections-heading">
+        <h2 id="collections-heading" class="text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">
+            Collections
+        </h2>
+        <div class="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {% for collection in featured_collections %}
+                <a href="{{ collection.get_absolute_url }}"
+                   class="group flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft transition hover:-translate-y-0.5 hover:shadow-elevated">
+                    <span class="block aspect-[16/9] overflow-hidden bg-slate-100">
+                        {% with image=collection.banner_image|default:collection.hero_image %}
+                            {% if image %}
+                                <img src="{{ image.url }}"
+                                     alt="{{ collection.name }}"
+                                     width="640"
+                                     height="360"
+                                     loading="lazy"
+                                     decoding="async"
+                                     class="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+                            {% else %}
+                                <span class="flex h-full w-full items-center justify-center bg-gradient-to-br from-flash-500/15 to-slate-100 text-sm font-medium text-slate-600">
+                                    {{ collection.name }}
+                                </span>
+                            {% endif %}
+                        {% endwith %}
+                    </span>
+                    <span class="flex flex-1 flex-col gap-1 p-5">
+                        <span class="text-base font-semibold text-slate-900">{{ collection.name }}</span>
+                        {% if collection.description %}
+                            <span class="line-clamp-2 text-sm text-slate-600">{{ collection.description }}</span>
+                        {% endif %}
+                    </span>
+                </a>
+            {% endfor %}
+        </div>
+    </section>
+{% endif %}
+
+<section class="border-t border-slate-200 bg-white/60">
+    <div class="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
+        <div class="rounded-2xl border border-dashed border-slate-300 bg-white/70 p-6 text-sm leading-relaxed text-slate-600 shadow-soft backdrop-blur">
+            <p class="font-semibold text-slate-900">Platform under development</p>
+            <p class="mt-2">
+                The catalogue is live and the storefront is public. Checkout, the FLASH closet, outfits,
+                AI stylist and resale will roll out incrementally without breaking this base.
+            </p>
+        </div>
+    </div>
+</section>
+{% endblock content %}

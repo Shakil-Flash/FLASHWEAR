@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% load catalog_extras %}
+
+{% block title %}Payment · {{ order.number }}{% endblock title %}
+{% block meta_robots %}noindex, nofollow{% endblock meta_robots %}
+
+{% block content %}
+<div class="mx-auto max-w-3xl px-4 py-10 sm:px-6 lg:px-8">
+    <p class="text-sm font-medium text-slate-500">Order {{ order.number }}</p>
+    <h1 class="mt-1 text-2xl font-semibold tracking-tight text-slate-950">Pay for your order</h1>
+
+    <div class="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
+        <h2 class="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500">Summary</h2>
+        <ul class="mt-4 divide-y divide-slate-100">
+            {% for item in items %}
+            <li class="flex items-baseline justify-between gap-4 py-3 text-sm">
+                <span class="text-slate-700">
+                    {{ item.product_name }}
+                    {% if item.option_label %}· {{ item.option_label }}{% endif %}
+                    <span class="text-slate-400">× {{ item.quantity }}</span>
+                </span>
+                <span class="font-medium text-slate-900">{{ item.line_total|money }}</span>
+            </li>
+            {% endfor %}
+        </ul>
+        <dl class="mt-4 space-y-2 border-t border-slate-200 pt-4 text-sm">
+            <div class="flex items-baseline justify-between gap-4">
+                <dt class="text-slate-600">Subtotal</dt>
+                <dd class="font-medium text-slate-900">{{ order.subtotal|money }}</dd>
+            </div>
+            <div class="flex items-baseline justify-between gap-4">
+                <dt class="text-slate-600">{{ order.shipping_name }}</dt>
+                <dd class="font-medium text-slate-900">{{ order.shipping_amount|money }}</dd>
+            </div>
+            <div class="flex items-baseline justify-between gap-4 border-t border-slate-200 pt-2">
+                <dt class="font-semibold text-slate-950">Total</dt>
+                <dd class="font-semibold text-slate-950">{{ order.total|money }}</dd>
+            </div>
+        </dl>
+    </div>
+
+    <div class="mt-6 rounded-2xl border border-sky-300 bg-sky-50 p-6" role="status">
+        <p class="text-sm font-semibold text-sky-900">
+            Payment status: {{ payment.get_status_display }}
+        </p>
+        <p class="mt-1 text-sm text-sky-800">
+            {% if payment.status == "pending" %}
+            Your items are held for you while this payment completes. The order is confirmed the
+            moment the payment succeeds.
+            {% elif payment.status == "created" %}
+            Setting up the payment with the provider…
+            {% endif %}
+        </p>
+    </div>
+
+    {% if is_development %}
+    <div class="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
+        <h2 class="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500">
+            Development provider
+        </h2>
+        <p class="mt-2 text-xs leading-relaxed text-slate-500">
+            No money moves: each button delivers a signed provider event through the same
+            pipeline a real webhook would take.
+        </p>
+        <form method="post" action="{% url 'payments:simulate' payment.pk %}" class="mt-4 flex flex-wrap gap-3">
+            {% csrf_token %}
+            <button type="submit" name="outcome" value="succeeded" class="rounded-full bg-flash-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-flash-700 focus:outline-none focus:ring-2 focus:ring-flash-500/30">
+                Simulate successful payment
+            </button>
+            <button type="submit" name="outcome" value="failed" class="rounded-full border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-400">
+                Simulate failed payment
+            </button>
+            <button type="submit" name="outcome" value="pending" class="rounded-full border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-400">
+                Leave pending
+            </button>
+        </form>
+        <form method="post" action="{% url 'payments:cancel' payment.pk %}" class="mt-3">
+            {% csrf_token %}
+            <button type="submit" class="text-sm font-medium text-slate-600 underline-offset-4 hover:text-slate-900 hover:underline">
+                Cancel this order
+            </button>
+        </form>
+    </div>
+    {% else %}
+    <div class="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
+        <p class="text-sm text-slate-700">
+            You will be handed to <span class="font-semibold">{{ payment.provider }}</span> to
+            complete payment. Nothing is charged until you confirm there.
+        </p>
+    </div>
+    {% endif %}
+
+    <p class="mt-6 text-sm text-slate-600">
+        <a href="{% url 'shop:checkout' %}" class="font-medium text-slate-900 underline-offset-4 hover:underline">Back to checkout</a>
+        · your items stay held while this page is open.
+    </p>
+</div>
+{% endblock content %}

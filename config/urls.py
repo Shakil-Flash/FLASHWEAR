@@ -1,0 +1,44 @@
+"""Root URL configuration.
+
+Five public surfaces:
+
+* ``/``             storefront pages (Django templates, Tailwind, HTMX, Alpine.js). The catalogue
+  is mounted here rather than under ``/catalog/`` because ``/products/<slug>/`` is a shopper URL,
+  not an implementation detail.
+* ``/accounts/``    Phase 1 sign in / sign out (``LOGIN_URL`` points here)
+* ``/account/``     Phase 2 customer account area (dashboard, profile, addresses, security)
+* ``/api/v1/``      versioned REST API consumed by web, mobile and future frontends
+* ``/admin/``       Django admin back office
+* ``/payments/``    Phase 6 provider webhook and local payment controls (``/shop/`` holds the
+  storefront checkout flow itself)
+"""
+
+from django.conf import settings
+from django.contrib import admin
+from django.urls import include, path
+
+# ``config.api.v1.urls`` declares ``app_name = "v1"``, so the namespace comes from
+# the module itself; adding ``namespace=`` here would produce ``v1:v1``.
+urlpatterns = [
+    # Catalogue first: it owns the site root patterns (``/products/``, ``/collections/``) and would
+    # otherwise be shadowed by ``apps.core.urls``' catch-all home page.
+    path("", include("apps.catalog.urls")),
+    path("", include("apps.core.urls")),
+    path("accounts/", include("apps.accounts.urls")),
+    path("account/", include("apps.accounts.account_urls")),
+    path("api/v1/", include("config.api.v1.urls")),
+    path("admin/", admin.site.urls),
+    # Phase 5: Shopping cart and wishlist
+    path("shop/", include("apps.shop.urls")),
+    # Phase 6: payments (webhook + development controls)
+    path("payments/", include("apps.payments.urls")),
+]
+
+# Development-only convenience: Django's runserver does not serve media files.
+if settings.DEBUG:
+    from django.conf.urls.static import static
+
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+handler404 = "apps.core.views.page_not_found"
+handler500 = "apps.core.views.server_error"

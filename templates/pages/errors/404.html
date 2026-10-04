@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block title %}Page not found — {{ site_name|default:'FLASHWEAR' }}{% endblock title %}
+
+{% block content %}
+<section class="mx-auto flex max-w-3xl flex-col items-center justify-center px-4 py-20 text-center sm:px-6 lg:px-8">
+    <div class="space-y-6">
+        <p class="text-sm font-semibold uppercase tracking-[0.16em] text-flash-600">404 — Not found</p>
+        <h1 class="text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl">
+            The page you're looking for doesn't exist
+        </h1>
+        <p class="text-lg leading-relaxed text-slate-600">
+            It may have moved, been removed, or the URL could be incorrect. Head back to the homepage
+            to continue exploring FLASHWEAR.
+        </p>
+        <div class="flex flex-wrap items-center justify-center gap-3">
+            <a href="{% url 'core:home' %}" class="inline-flex items-center justify-center rounded-full bg-flash-600 px-6 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-flash-700 focus:outline-none focus:ring-2 focus:ring-flash-500/30 focus:ring-offset-2 focus:ring-offset-white">
+                Back to home
+            </a>
+            <a href="{% url 'v1:root' %}" class="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-6 py-2.5 text-sm font-medium text-slate-700 shadow-soft transition hover:border-slate-300 hover:text-slate-900">
+                View API
+            </a>
+        </div>
+    </div>
+</section>
+{% endblock content %}

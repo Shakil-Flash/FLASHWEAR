@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-50 antialiased">
+
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0f172a" />
+    <meta name="description" content="{% block meta_description %}{{ seo_description|default:'FLASHWEAR is a fashion-tech commerce platform.' }}{% endblock meta_description %}" />
+    <meta name="robots" content="{% block meta_robots %}{{ seo_robots|default:'index, follow' }}{% endblock meta_robots %}" />
+    <!-- Canonical and social tags. Written with an explicit conditional rather than a
+         "default:" filter chain: a method call as a filter argument is resolved eagerly and
+         raises on pages whose view never supplied a value. -->
+    <link rel="canonical" href="{% block canonical_url %}{% if canonical_url %}{{ canonical_url }}{% else %}{{ request.scheme }}://{{ request.get_host }}{{ request.path }}{% endif %}{% endblock canonical_url %}" />
+
+    <meta property="og:site_name" content="{{ site_name|default:'FLASHWEAR' }}" />
+    <meta property="og:type" content="{{ og_type|default:'website' }}" />
+    <meta property="og:title" content="{{ og_title|default:seo_title|default:'FLASHWEAR | Fashion Beyond Ordinary' }}" />
+    <meta property="og:description" content="{{ og_description|default:seo_description }}" />
+    <meta property="og:url" content="{% block og_url %}{% if og_url %}{{ og_url }}{% else %}{{ request.scheme }}://{{ request.get_host }}{{ request.path }}{% endif %}{% endblock og_url %}" />
+    {% if og_image %}<meta property="og:image" content="{{ og_image }}" />{% endif %}
+    <meta property="og:locale" content="en_US" />
+
+    <title>{% block title %}{{ seo_title|default:'FLASHWEAR | Fashion Beyond Ordinary' }}{% endblock title %}</title>
+
+    {% block extra_meta %}{% endblock extra_meta %}
+
+    {% load static %}
+    <!-- Compiled by `npm run build:css` from frontend/css/tailwind.css. Served from this
+         origin so the production Content-Security-Policy can stay on script-src 'self'. -->
+    <link rel="stylesheet" href="{% static 'css/app.css' %}" />
+    {% block extra_css %}{% endblock extra_css %}
+
+    <!-- Progressive enhancement only: no client-side framework is required for the
+         storefront to render. Assets are vendored under static/vendor/. -->
+    <script src="{% static 'vendor/htmx.min.js' %}" defer></script>
+    <script src="{% static 'vendor/alpine.min.js' %}" defer></script>
+
+    {% block head_scripts %}{% endblock head_scripts %}
+</head>
+
+<body class="flex min-h-full flex-col text-slate-900 selection:bg-flash-500/20 selection:text-flash-900">
+    <a href="#content" class="skip-link">Skip to content</a>
+
+    <!-- Announcement bar -->
+    {% if site_announcement %}
+    <div class="relative bg-slate-950 py-2 text-center text-xs font-medium uppercase tracking-[0.08em] text-white sm:text-sm">
+        <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            {{ site_announcement }}
+        </div>
+    </div>
+    {% endif %}
+
+    {% include "components/navbar.html" %}
+
+    <main id="content" class="flex-1">
+        {% include "components/messages.html" %}
+
+        {% block content %}{% endblock content %}
+    </main>
+
+    {% include "components/footer.html" %}
+
+    <script src="{% static 'js/app.js' %}" defer></script>
+    {% block extra_js %}{% endblock extra_js %}
+</body>
+
+</html>

@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block title %}Account deactivated — {{ site_name|default:'FLASHWEAR' }}{% endblock title %}
+
+{% block content %}
+<section class="mx-auto flex w-full max-w-lg flex-col justify-center px-4 py-16 sm:px-6 lg:px-8">
+    <div class="rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-soft sm:p-8">
+        <h1 class="text-2xl font-semibold tracking-tight text-slate-950">Your account is deactivated</h1>
+        <p class="mt-2 text-sm text-slate-600">
+            You are signed out everywhere and no account email will be sent to that address again.
+            Sorry to see you go.
+        </p>
+        <p class="mt-6 text-sm text-slate-600">
+            If you want your records erased sooner, reply to any order email or contact
+            {% if support_email %}<a href="mailto:{{ support_email }}" class="font-medium text-slate-900 underline-offset-4 hover:underline">{{ support_email }}</a>{% else %}support{% endif %}.
+        </p>
+        <a href="{% url 'core:home' %}" class="mt-6 inline-flex items-center justify-center rounded-full bg-flash-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-flash-700 focus:outline-none focus:ring-2 focus:ring-flash-500/30 focus:ring-offset-2 focus:ring-offset-white">Back to the storefront</a>
+    </div>
+</section>
+{% endblock content %}

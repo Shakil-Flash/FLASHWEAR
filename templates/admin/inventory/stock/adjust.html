@@ -1,0 +1,36 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+{% block breadcrumbs %}
+  <div class="breadcrumbs">
+    <a href="{% url "admin:index" %}">{% translate "Home" %}</a>
+    › <a href="{% url "admin:app_list" app_label="inventory" %}">{% translate "Inventory" %}</a>
+    › <a href="{% url "admin:inventory_stock_changelist" %}">{% translate "Stock levels" %}</a>
+    › {% translate "Adjust" %}
+  </div>
+{% endblock breadcrumbs %}
+{% block content %}
+  <p>{% translate "Enter a signed quantity change. Every adjustment writes a movement row, so the ledger always explains the counter." %}</p>
+  <form method="post">
+    {% csrf_token %}
+    <fieldset class="module aligned">
+      {{ form.as_p }}
+    </fieldset>
+    <h2>{% translate "Selected stock rows" %}</h2>
+    <ul>
+      {% for stock in queryset %}
+        <li>
+          {{ stock.variant.sku }} — {% translate "on hand" %} {{ stock.on_hand }},
+          {% translate "held" %} {{ stock.reserved }}, {% translate "available" %} {{ stock.available }}
+        </li>
+      {% endfor %}
+    </ul>
+    <input type="hidden" name="action" value="adjust_stock" />
+    {% for stock in queryset %}
+      <input type="hidden" name="{{ action_checkbox_name }}" value="{{ stock.pk }}" />
+    {% endfor %}
+    <div class="submit-row">
+      <input type="submit" name="apply" value="{% translate "Apply adjustment" %}" class="default" />
+      <a class="button cancel-link" href="{% url "admin:inventory_stock_changelist" %}">{% translate "Cancel" %}</a>
+    </div>
+  </form>
+{% endblock content %}

@@ -1,0 +1,61 @@
+{% extends "account/base_account.html" %}
+{% load catalog_extras %}
+
+{% block account_title %}Orders{% endblock account_title %}
+{% block account_heading %}Orders{% endblock account_heading %}
+{% block account_intro %}Everything you have ordered, with its current status and what happens next.{% endblock account_intro %}
+
+{% block account_content %}
+<div class="max-w-3xl">
+    {% if not orders %}
+    <div class="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center">
+        <p class="text-sm font-medium text-slate-900">No orders yet</p>
+        <p class="mt-1 text-sm text-slate-600">
+            Your orders will appear here the moment you place one.
+            <a href="{% url 'shop:cart' %}" class="font-medium text-slate-900 underline-offset-4 hover:underline">Start with your bag</a>.
+        </p>
+    </div>
+    {% else %}
+    <ul class="space-y-4">
+        {% for order in orders %}
+        <li class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
+            <div class="flex flex-wrap items-start justify-between gap-4">
+                <div class="min-w-0">
+                    <a href="{% url 'account:order-detail' order.number %}" class="text-sm font-semibold text-slate-900 underline-offset-4 hover:underline">
+                        {{ order.number }}
+                    </a>
+                    <p class="mt-1 text-xs text-slate-500">
+                        Placed {{ order.created_at|date:"N j, Y" }} ·
+                        {{ order.items.all|length }} item{{ order.items.all|length|pluralize }}
+                    </p>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="rounded-full
+                        {% if order.status == 'pending_payment' %}bg-amber-50 text-amber-800
+                        {% elif order.status == 'cancelled' %}bg-slate-100 text-slate-600
+                        {% elif order.status == 'delivered' %}bg-emerald-50 text-emerald-800
+                        {% else %}bg-flash-50 text-flash-800{% endif %}
+                        px-3 py-1 text-xs font-semibold">{{ order.get_status_display }}</span>
+                    <span class="text-sm font-semibold text-slate-900">{{ order.total|money }}</span>
+                </div>
+            </div>
+        </li>
+        {% endfor %}
+    </ul>
+
+    {% if is_paginated %}
+    <nav class="mt-6 flex items-center justify-between text-sm" aria-label="Order pages">
+        {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}" class="font-medium text-slate-900 underline-offset-4 hover:underline">Newer orders</a>
+        <span class="text-slate-500">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+        {% else %}
+        <span class="text-slate-500">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+        {% endif %}
+        {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}" class="font-medium text-slate-900 underline-offset-4 hover:underline">Older orders</a>
+        {% endif %}
+    </nav>
+    {% endif %}
+    {% endif %}
+</div>
+{% endblock account_content %}

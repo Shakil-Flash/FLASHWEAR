@@ -1,0 +1,77 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.10
+    hooks:
+      - id: ruff-check
+        args: [--fix, --exit-non-zero-on-fix]
+      - id: ruff-format
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-added-large-files
+      - id: check-merge-conflict
+      - id: check-toml
+      - id: check-yaml
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: detect-private-key
+
+  - repo: https://github.com/djlint/djLint
+    rev: v1.36.4
+    hooks:
+      # Lint (not format): catches template syntax and structure errors while leaving the
+      # project's deliberate block spacing and single-line Tailwind class attributes alone.
+      # H006 (img without height/width) and H031 (meta keywords, ignored by all engines
+      # since 2009) are not enforced. H030 wants a meta description, which has no meaning in an
+      # email body -- the two transactional templates disable it inline instead.
+      - id: djlint-django
+        args: [--lint, --profile, django, --ignore, "H006,H031"]
+        files: ^templates/.*\.html$
+
+  - repo: local
+    hooks:
+      - id: ruff
+        name: ruff
+        entry: ruff check
+        language: system
+        types_or: [python, pyi]
+        require_serial: true
+
+      - id: ruff-format
+        name: ruff-format
+        entry: ruff format --check
+        language: system
+        types_or: [python, pyi]
+        require_serial: true
+
+      - id: django-check
+        name: django-check
+        entry: python manage.py check --settings=config.settings.testing
+        language: system
+        files: ^(config|apps|manage\.py)
+        pass_filenames: false
+
+      - id: makemigrations-check
+        name: makemigrations-check
+        entry: python manage.py makemigrations --check --dry-run --no-input --settings=config.settings.testing
+        language: system
+        files: ^apps/
+        pass_filenames: false
+
+      - id: pytest
+        name: pytest
+        entry: pytest -q
+        language: system
+        pass_filenames: false
+        types: [python]
+
+      - id: tailwind-build
+        name: tailwind-build
+        entry: bash -c 'npm run build:css'
+        language: system
+        files: ^(templates/.*\.html|frontend/css/.*\.css|tailwind\.config\.js)$
+        pass_filenames: false
+
+ci:
+  autoupdate_schedule: monthly

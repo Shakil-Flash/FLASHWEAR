@@ -1,0 +1,69 @@
+{% extends "account/base_account.html" %}
+
+{% block account_title %}Profile{% endblock account_title %}
+{% block account_heading %}Profile{% endblock account_heading %}
+{% block account_intro %}Your details, your photo and what we may send you.{% endblock account_intro %}
+
+{% block account_content %}
+<form method="post" enctype="multipart/form-data" novalidate class="max-w-2xl space-y-8">
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+    <div class="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700" role="alert">
+        {% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
+    </div>
+    {% endif %}
+
+    <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft" aria-labelledby="profile-photo">
+        <h2 id="profile-photo" class="text-sm font-semibold text-slate-900">Profile photo</h2>
+        <div class="mt-4 flex items-start gap-5">
+            {% if profile.avatar %}
+            <img src="{{ profile.avatar.url }}" alt="" width="72" height="72" class="h-18 w-18 shrink-0 rounded-full object-cover ring-1 ring-slate-200" />
+            {% else %}
+            <span aria-hidden="true" class="inline-flex h-[4.5rem] w-[4.5rem] shrink-0 items-center justify-center rounded-full bg-flash-600 text-2xl font-semibold text-white shadow-soft">{{ user.get_short_name|slice:":1"|upper }}</span>
+            {% endif %}
+            <div class="min-w-0 flex-1 space-y-4">
+                {% include "account/_field.html" with field=form.avatar %}
+                {% if profile.avatar %}{% include "account/_field.html" with field=form.remove_avatar %}{% endif %}
+                <p class="text-xs text-slate-500">Up to {{ avatar_limit_mb }} MB. A square image looks best.</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft" aria-labelledby="profile-details">
+        <h2 id="profile-details" class="text-sm font-semibold text-slate-900">Details</h2>
+        <div class="mt-4 space-y-5">
+            <p class="text-sm text-slate-600">Signed in as <span class="font-medium text-slate-900">{{ user.email }}</span>. Contact us to change the address on the account.</p>
+            <div class="grid gap-5 sm:grid-cols-2">
+                {% include "account/_field.html" with field=form.first_name %}
+                {% include "account/_field.html" with field=form.last_name %}
+            </div>
+            <div class="grid gap-5 sm:grid-cols-2">
+                {% include "account/_field.html" with field=form.phone %}
+                {% include "account/_field.html" with field=form.date_of_birth %}
+            </div>
+        </div>
+    </section>
+
+    <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft" aria-labelledby="profile-shopping">
+        <h2 id="profile-shopping" class="text-sm font-semibold text-slate-900">Shopping</h2>
+        <div class="mt-4 grid gap-5 sm:grid-cols-2">
+            {% include "account/_field.html" with field=form.preferred_language %}
+            {% include "account/_field.html" with field=form.preferred_currency %}
+        </div>
+    </section>
+
+    <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft" aria-labelledby="profile-consent">
+        <h2 id="profile-consent" class="text-sm font-semibold text-slate-900">What we may send you</h2>
+        <p class="mt-2 text-sm text-slate-600">Both are off unless you turn them on, and you can turn them off again at any time. Order emails are sent regardless.</p>
+        <div class="mt-4 space-y-4">
+            {% include "account/_field.html" with field=form.marketing_email_opt_in %}
+            {% include "account/_field.html" with field=form.marketing_sms_opt_in %}
+        </div>
+    </section>
+
+    <div>
+        <button type="submit" class="inline-flex items-center justify-center rounded-full bg-flash-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-flash-700 focus:outline-none focus:ring-2 focus:ring-flash-500/30 focus:ring-offset-2 focus:ring-offset-white">Save changes</button>
+    </div>
+</form>
+{% endblock account_content %}

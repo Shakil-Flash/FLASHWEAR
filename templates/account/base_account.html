@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% load account %}
+
+{% comment %}
+Shared shell for every signed-in account screen: the section rail beside the active screen.
+
+Sections that belong to a later phase render as ``aria-disabled`` text with a "Soon" badge rather
+than as links, so the account area is honest about what exists without looking broken.
+{% endcomment %}
+
+{% block title %}{% block account_title %}Account{% endblock account_title %} — {{ site_name|default:'FLASHWEAR' }}{% endblock title %}
+
+{% block content %}
+<div class="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
+    <div class="lg:grid lg:grid-cols-[16rem_minmax(0,1fr)] lg:gap-10">
+
+        <nav class="mb-8 lg:mb-0" aria-label="Account sections">
+            <div class="flex items-center gap-3">
+                {% if user.profile.avatar %}
+                    <img src="{{ user.profile.avatar.url }}" alt="" width="48" height="48" class="h-12 w-12 rounded-full object-cover ring-1 ring-slate-200" />
+                {% else %}
+                    <span aria-hidden="true" class="inline-flex h-12 w-12 items-center justify-center rounded-full bg-flash-600 text-lg font-semibold text-white shadow-soft">{{ user.get_short_name|slice:":1"|upper }}</span>
+                {% endif %}
+                <div class="min-w-0">
+                    <p class="truncate text-sm font-semibold text-slate-950">{{ user.get_full_name }}</p>
+                    <p class="truncate text-xs text-slate-500">{{ user.email }}</p>
+                </div>
+            </div>
+
+            {% account_nav as nav_items %}
+            <ul class="mt-6 flex flex-wrap gap-2 lg:flex-col lg:gap-1">
+                {% for item in nav_items %}
+                    <li>
+                        {% if item.url %}
+                            <a href="{{ item.url }}" {% if item.badge %}aria-disabled="true"{% endif %} class="{{ item.css }}">{{ item.label }}</a>
+                        {% else %}
+                            <span class="{{ item.css }}" aria-disabled="true">
+                                {{ item.label }}
+                                <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[0.65rem] uppercase tracking-wide text-slate-500">Soon</span>
+                            </span>
+                        {% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
+        </nav>
+
+        <div class="min-w-0">
+            <header class="mb-6">
+                <h1 class="text-2xl font-semibold tracking-tight text-slate-950">{% block account_heading %}{% endblock account_heading %}</h1>
+                <div class="mt-1 text-sm text-slate-600">{% block account_intro %}{% endblock account_intro %}</div>
+            </header>
+
+            {% block account_content %}{% endblock account_content %}
+        </div>
+
+    </div>
+</div>
+{% endblock content %}

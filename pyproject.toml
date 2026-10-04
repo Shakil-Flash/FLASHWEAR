@@ -1,0 +1,103 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "flashwear"
+version = "0.1.0"
+description = "FLASHWEAR - fashion-tech commerce platform."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "Proprietary" }
+authors = [{ name = "FLASHWEAR Engineering" }]
+
+dependencies = [
+    "Django>=5.2,<5.3",
+    "djangorestframework>=3.16",
+    "django-environ>=0.12",
+    "django-cors-headers>=4.6",
+    "django-redis>=5.4",
+    "django-storages>=1.14",
+    "Pillow>=11.0",
+    "celery[redis]>=5.4",
+    "psycopg[binary]>=3.2",
+    "redis>=5.2",
+    "whitenoise>=6.8",
+    "gunicorn>=23.0",
+    "uvicorn[standard]>=0.34",
+]
+
+[project.optional-dependencies]
+# Runtime-only extras for container images: the app ships its own source tree.
+prod = []
+dev = [
+    "pytest>=8.3",
+    "pytest-django>=4.9",
+    "pytest-cov>=6.0",
+    "ruff>=0.9",
+    "djlint>=1.36",
+    "pre-commit>=4.1",
+]
+
+[tool.setuptools]
+# The project is deployed as a source tree / container image, not as a wheel.
+packages = []
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+extend-exclude = ["staticfiles", "media", "node_modules"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+    "DJ",  # flake8-django
+    "RUF", # ruff specific
+]
+ignore = [
+    "RUF001", # ambiguous unicode characters in strings
+    "RUF002",
+    "RUF003",
+    "RUF012", # mutable class attrs are idiomatic for Django model/admin metadata
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Django's own migration format is verbose and generated; do not restyle it.
+"*/migrations/*.py" = ["E501", "RUF012"]
+# Settings modules intentionally use star imports to inherit from base.
+"config/settings/*.py" = ["F403", "F405"]
+"config/celery.py" = ["RUF012"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["apps", "config"]
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings.testing"
+python_files = ["test_*.py", "tests.py"]
+testpaths = ["tests", "apps"]
+pythonpath = ["."]
+addopts = "--strict-markers --strict-config -ra"
+filterwarnings = ["error::DeprecationWarning:flashwear.*"]
+
+[tool.coverage.run]
+branch = true
+source = ["apps", "config"]
+omit = ["*/migrations/*", "*/tests/*", "config/asgi.py", "config/wsgi.py"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true

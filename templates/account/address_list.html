@@ -1,0 +1,63 @@
+{% extends "account/base_account.html" %}
+
+{% block account_title %}Addresses{% endblock account_title %}
+{% block account_heading %}Addresses{% endblock account_heading %}
+{% block account_intro %}Where we deliver. One address can be your default for delivery and billing.{% endblock account_intro %}
+
+{% block account_content %}
+<div class="max-w-3xl">
+    <p class="mb-6">
+        <a href="{% url 'account:address-create' %}" class="inline-flex items-center justify-center rounded-full bg-flash-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-flash-700 focus:outline-none focus:ring-2 focus:ring-flash-500/30 focus:ring-offset-2 focus:ring-offset-white">Add an address</a>
+    </p>
+
+    {% if not addresses %}
+    <div class="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center">
+        <p class="text-sm font-medium text-slate-900">No addresses yet</p>
+        <p class="mt-1 text-sm text-slate-600">Add one now and checkout will fill it in for you.</p>
+    </div>
+    {% else %}
+    <ul class="space-y-4">
+        {% for address in addresses %}
+        <li class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft {% if address.is_default_shipping %}ring-1 ring-flash-200{% endif %}">
+            <div class="flex flex-wrap items-start justify-between gap-4">
+                <div class="min-w-0">
+                    <p class="text-sm font-semibold text-slate-900">{{ address.full_name }}</p>
+                    <address class="mt-1 text-sm not-italic text-slate-600">
+                        {{ address.line1 }}{% if address.line2 %}, {{ address.line2 }}{% endif %}<br />
+                        {{ address.city }}, {{ address.region }} {{ address.postal_code }}<br />
+                        {{ address.country }}
+                    </address>
+                    <p class="mt-2 text-xs text-slate-500">{{ address.phone }} · {{ address.get_address_type_display }}</p>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                    {% if address.is_default_shipping %}
+                    <span class="rounded-full bg-flash-50 px-3 py-1 text-xs font-semibold text-flash-800">Default delivery</span>
+                    {% endif %}
+                    {% if address.is_default_billing %}
+                    <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">Default billing</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="mt-4 flex flex-wrap items-center gap-4 border-t border-slate-100 pt-4 text-sm">
+                <a href="{% url 'account:address-update' address.pk %}" class="font-medium text-slate-900 underline-offset-4 hover:underline">Edit</a>
+                <a href="{% url 'account:address-delete' address.pk %}" class="font-medium text-red-700 underline-offset-4 hover:underline">Remove</a>
+                {% if not address.is_default_shipping and address.address_type != "billing" %}
+                <form method="post" action="{% url 'account:address-set-default' address.pk 'shipping' %}">
+                    {% csrf_token %}
+                    <button type="submit" class="font-medium text-slate-700 underline-offset-4 hover:underline">Make default delivery</button>
+                </form>
+                {% endif %}
+                {% if address.as_billing_eligible and not address.is_default_billing %}
+                <form method="post" action="{% url 'account:address-set-default' address.pk 'billing' %}">
+                    {% csrf_token %}
+                    <button type="submit" class="font-medium text-slate-700 underline-offset-4 hover:underline">Make default billing</button>
+                </form>
+                {% endif %}
+            </div>
+        </li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+</div>
+{% endblock account_content %}

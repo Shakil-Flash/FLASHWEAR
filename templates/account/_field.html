@@ -1,0 +1,31 @@
+{% comment %}
+One labelled form control, with help text and errors.
+
+Included as ``{% include "account/_field.html" with field=form.email %}``. Centralising it is what
+keeps the account forms consistent: every control gets a real <label>, help text sits where
+assistive tech expects it, and errors are both visible and announced.
+
+Input styling lives on the form's widget attrs (see ``INPUT_CLASSES`` in apps/accounts/forms.py)
+so there is exactly one definition of it. The error state is therefore expressed on the wrapper
+rather than by rewriting the input's class list from a template.
+{% endcomment %}
+<div class="{% if field.errors %}rounded-xl bg-red-50/60 p-3 ring-1 ring-red-200{% endif %}">
+    <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-slate-700">
+        {{ field.label }}
+        {% if field.field.required %}<span class="text-red-600" aria-hidden="true">*</span>{% endif %}
+    </label>
+
+    <div class="{% if field.field.widget.input_type != 'checkbox' %}mt-2{% endif %}">
+        {{ field }}
+    </div>
+
+    {% if field.help_text %}
+        <p class="{% if field.field.widget.input_type == 'checkbox' %}ml-8{% else %}mt-1.5{% endif %} text-xs text-slate-500">{{ field.help_text }}</p>
+    {% endif %}
+
+    {% if field.errors %}
+        <ul class="{% if field.field.widget.input_type == 'checkbox' %}ml-8{% else %}mt-1.5{% endif %} space-y-0.5 text-sm text-red-700" role="alert">
+            {% for error in field.errors %}<li>{{ error }}</li>{% endfor %}
+        </ul>
+    {% endif %}
+</div>

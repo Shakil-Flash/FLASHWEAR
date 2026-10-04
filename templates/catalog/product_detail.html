@@ -1,0 +1,293 @@
+{% extends "base.html" %}
+{% load catalog_extras %}
+
+{% comment %}
+The product page.
+
+Three rules shape this template:
+
+* **Variant selection is a link, not a widget.** ``?color=black&size=xl`` is resolved server-side by
+  ``services.build_variant_matrix``, so the page works with JavaScript disabled, the selection is
+  shareable, and the browser never gets to invent a combination.
+* **Nothing here claims availability.** No stock app exists, so there is no "in stock" badge and no
+  honest way to say "only 2 left". Availability is confirmed before order placement instead.
+* **Add to bag needs a variant.** Without a colour and size chosen there is no SKU to add, so the
+  control says so rather than posting something the server would reject.
+{% endcomment %}
+
+{% block extra_meta %}
+    {{ product_schema|json_script:"ld-product" }}
+    {{ breadcrumb_schema|json_script:"ld-breadcrumb" }}
+{% endblock extra_meta %}
+
+{% block content %}
+    <div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <nav class="text-sm text-slate-500" aria-label="Breadcrumb">
+            <ol class="flex flex-wrap items-center gap-2">
+                {% for crumb in breadcrumbs %}
+                    {% if forloop.last %}
+                        <li aria-hidden="true">/</li>
+                        <li aria-current="page" class="font-medium text-slate-900">{{ crumb.name }}</li>
+                    {% else %}
+                        <li aria-hidden="true">/</li>
+                        <li><a href="{{ crumb.url }}" class="hover:text-slate-900">{{ crumb.name }}</a></li>
+                    {% endif %}
+                {% endfor %}
+            </ol>
+        </nav>
+
+        <div class="mt-6 grid gap-10 lg:grid-cols-12 lg:gap-14">
+            {% comment %} Gallery {% endcomment %}
+            <div class="lg:col-span-7">
+                <div class="overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 shadow-soft">
+                    {% if hero_image %}
+                        <img src="{{ hero_image.image.url }}"
+                             alt="{{ hero_image.alt_text }}"
+                             width="1000"
+                             height="1250"
+                             fetchpriority="high"
+                             decoding="async"
+                             class="h-full w-full object-cover" />
+                    {% else %}
+                        <div class="flex aspect-[4/5] items-center justify-center text-sm text-slate-400">
+                            No image yet
+                        </div>
+                    {% endif %}
+                </div>
+
+                {% if gallery_images|length > 1 %}
+                    <ul class="mt-4 grid grid-cols-4 gap-3 sm:grid-cols-6">
+                        {% for image in gallery_images %}
+                            <li>
+                                <img src="{{ image.image.url }}"
+                                     alt="{{ image.alt_text }}"
+                                     width="200"
+                                     height="250"
+                                     loading="lazy"
+                                     decoding="async"
+                                     class="h-full w-full rounded-lg border border-slate-200 object-cover" />
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+            </div>
+
+            {% comment %} Buy column {% endcomment %}
+            <div class="lg:col-span-5">
+                {% if product.brand %}
+                    <a href="{{ product.brand.get_absolute_url }}"
+                       class="text-xs font-semibold uppercase tracking-[0.12em] text-flash-700 hover:text-flash-800">
+                        {{ product.brand.name }}
+                    </a>
+                {% endif %}
+
+                <h1 class="mt-2 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
+                    {{ product.name }}
+                </h1>
+
+                {% if product.short_description %}
+                    <p class="mt-3 text-base leading-relaxed text-slate-600">{{ product.short_description }}</p>
+                {% endif %}
+
+                {% comment %}
+                Price follows the *selected* variant when one is chosen, otherwise the range. A card
+                that quotes a range and a page that quotes a specific price are different promises,
+                and both are honest as long as the page shows the variant it means.
+                {% endcomment %}
+                <div class="mt-6 flex flex-wrap items-baseline gap-3">
+                    {% if selected_variant %}
+                        <span class="text-2xl font-semibold text-slate-950">{{ selected_variant.price|money }}</span>
+                        {% if selected_variant.compare_at_price %}
+                            <span class="text-base text-slate-400 line-through">{{ selected_variant.compare_at_price|money }}</span>
+                            <span class="rounded-full bg-flash-50 px-2 py-0.5 text-xs font-semibold text-flash-700">
+                                {{ selected_variant.discount_percent }}% off
+                            </span>
+                        {% endif %}
+                    {% else %}
+                        {% with low=product.price_range.0 high=product.price_range.1 %}
+                            <span class="text-2xl font-semibold text-slate-950">{{ low|money }}</span>
+                            {% if high and high != low %}<span class="text-base text-slate-500">– {{ high|money }}</span>{% endif %}
+                        {% endwith %}
+                    {% endif %}
+
+                    {% comment %} Wishlist heart: signed-in shoppers toggle it here; guests are sent
+                    to sign-in and returned to this page. {% endcomment %}
+                    <form method="post" action="{% url 'shop:wishlist-add' %}" class="ml-auto">
+                        {% csrf_token %}
+                        <input type="hidden" name="product_id" value="{{ product.pk }}" />
+                        {% if selected_variant %}<input type="hidden" name="variant_id" value="{{ selected_variant.pk }}" />{% endif %}
+                        <button type="submit"
+                                class="inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-flash-500/30 focus:ring-offset-2 {% if in_wishlist %}border-flash-600 bg-flash-50 text-flash-700{% else %}border-slate-300 bg-white text-slate-700 hover:border-slate-900{% endif %}"
+                                {% if in_wishlist %}aria-current="true"{% endif %}>
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="{% if in_wishlist %}currentColor{% else %}none{% endif %}" stroke="currentColor" stroke-width="1.5" class="h-4 w-4">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
+                            </svg>
+                            {% if in_wishlist %}Saved{% else %}Save{% endif %}
+                        </button>
+                    </form>
+                </div>
+
+                {% if matrix.has_variants %}
+                    {% if matrix.colors|length > 1 %}
+                        <fieldset class="mt-8">
+                            <legend class="text-sm font-semibold text-slate-900">
+                                Colour
+                                {% if selected_color %}<span class="font-normal text-slate-500">: {{ selected_color.name }}</span>{% endif %}
+                            </legend>
+                            <ul class="mt-3 flex flex-wrap items-center gap-3">
+                                {% for color in matrix.colors %}
+                                    <li>
+                                        <a href="?color={{ color.slug }}{% if selected_size %}&amp;size={{ selected_size.code|urlencode }}{% endif %}"
+                                           title="{{ color.name }}"
+                                           aria-label="{{ color.name }}"
+                                           {% if selected_color and selected_color.pk == color.pk %}aria-current="true"{% endif %}
+                                           class="flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition {% if selected_color and selected_color.pk == color.pk %}border-slate-900 bg-slate-900 text-white{% else %}border-slate-300 bg-white text-slate-700 hover:border-slate-900{% endif %}">
+                                            <span class="h-4 w-4 rounded-full ring-1 ring-slate-300" style="{{ color|swatch_style }}"></span>
+                                            {{ color.name }}
+                                        </a>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </fieldset>
+                    {% endif %}
+
+                    {% if matrix.sizes|length > 1 %}
+                        <fieldset class="mt-6">
+                            <legend class="text-sm font-semibold text-slate-900">
+                                Size
+                                {% if selected_size %}<span class="font-normal text-slate-500">: {{ selected_size.code }}</span>{% endif %}
+                            </legend>
+                            <ul class="mt-3 flex flex-wrap items-center gap-2">
+                                {% for size in matrix.sizes %}
+                                    <li>
+                                        <a href="?size={{ size.code|urlencode }}{% if selected_color %}&amp;color={{ selected_color.slug }}{% endif %}"
+                                           {% if selected_size and selected_size.pk == size.pk %}aria-current="true"{% endif %}
+                                           class="inline-flex min-w-[3.25rem] items-center justify-center rounded-lg border px-3 py-2 text-sm font-medium transition {% if selected_size and selected_size.pk == size.pk %}border-slate-900 bg-slate-900 text-white{% else %}border-slate-300 bg-white text-slate-700 hover:border-slate-900{% endif %}">
+                                            {{ size.code }}
+                                        </a>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </fieldset>
+                    {% endif %}
+                {% endif %}
+
+                <div class="mt-8 space-y-3">
+                    {% if selected_variant %}
+                    <form method="post" action="{% url 'shop:cart-add' %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="variant_id" value="{{ selected_variant.pk }}" />
+                        <label for="add-qty" class="sr-only">Quantity</label>
+                        <div class="flex items-center gap-3">
+                            <input type="number"
+                                   id="add-qty"
+                                   name="quantity"
+                                   value="1"
+                                   min="1"
+                                   max="{{ cart_max_quantity }}"
+                                   class="w-20 rounded-lg border border-slate-300 px-3 py-3 text-sm text-slate-900 focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900" />
+                            <button type="submit" class="flex-1 rounded-full bg-flash-600 px-6 py-3.5 text-sm font-semibold text-white shadow-soft transition hover:bg-flash-700 focus:outline-none focus:ring-2 focus:ring-flash-500/30 focus:ring-offset-2 focus:ring-offset-white">
+                                Add to bag
+                            </button>
+                        </div>
+                    </form>
+                    <p class="text-center text-xs text-slate-500">Availability will be confirmed before order placement.</p>
+                    {% else %}
+                    <button type="button"
+                            disabled
+                            class="w-full cursor-not-allowed rounded-full bg-slate-200 px-6 py-3.5 text-sm font-semibold text-slate-500">
+                        Choose a colour and size
+                    </button>
+                    <p class="text-center text-xs text-slate-500">Pick your options above to add this to your bag.</p>
+                    {% endif %}
+                </div>
+
+                {% if selected_variant %}
+                    <dl class="mt-6 space-y-1 border-t border-slate-200 pt-4 text-sm text-slate-600">
+                        <div class="flex justify-between gap-4">
+                            <dt>SKU</dt>
+                            <dd class="font-mono text-slate-900">{{ selected_variant.sku }}</dd>
+                        </div>
+                        {% if selected_variant.option_label %}
+                            <div class="flex justify-between gap-4">
+                                <dt>Options</dt>
+                                <dd class="text-slate-900">{{ selected_variant.option_label }}</dd>
+                            </div>
+                        {% endif %}
+                    </dl>
+                {% endif %}
+
+                {% if product.description %}
+                    <div class="mt-8 border-t border-slate-200 pt-6">
+                        <h2 class="text-sm font-semibold text-slate-900">Details</h2>
+                        <div class="mt-3 text-sm leading-relaxed text-slate-600">
+                            {{ product.description|linebreaks }}
+                        </div>
+                    </div>
+                {% endif %}
+
+                <dl class="mt-8 space-y-3 border-t border-slate-200 pt-6 text-sm">
+                    {% if product.fit %}
+                        <div class="flex justify-between gap-4">
+                            <dt class="text-slate-500">Fit</dt>
+                            <dd class="font-medium text-slate-900">{{ product.fit.name }}</dd>
+                        </div>
+                    {% endif %}
+                    {% if materials %}
+                        <div class="flex justify-between gap-4">
+                            <dt class="shrink-0 text-slate-500">Material</dt>
+                            <dd class="text-right font-medium text-slate-900">
+                                {% for material in materials %}{{ material.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+                            </dd>
+                        </div>
+                    {% endif %}
+                    {% if product.tags.exists %}
+                        <div class="flex justify-between gap-4">
+                            <dt class="shrink-0 text-slate-500">Tags</dt>
+                            <dd class="flex flex-wrap justify-end gap-1.5">
+                                {% for tag in product.tags.all %}
+                                    <span class="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700">{{ tag.name }}</span>
+                                {% endfor %}
+                            </dd>
+                        </div>
+                    {% endif %}
+                    <div class="flex justify-between gap-4">
+                        <dt class="text-slate-500">Category</dt>
+                        <dd class="text-right font-medium text-slate-900">
+                            {% for node in category_trail %}<a href="{{ node.get_absolute_url }}" class="underline underline-offset-4 hover:text-slate-600">{{ node.name }}</a>{% if not forloop.last %} <span aria-hidden="true">/</span> {% endif %}{% endfor %}
+                        </dd>
+                    </div>
+                </dl>
+
+                {% if collections %}
+                    <div class="mt-8 border-t border-slate-200 pt-6">
+                        <h2 class="text-sm font-semibold text-slate-900">In these collections</h2>
+                        <ul class="mt-3 flex flex-wrap gap-2">
+                            {% for collection in collections %}
+                                <li>
+                                    <a href="{{ collection.get_absolute_url }}"
+                                       class="inline-flex items-center rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 transition hover:border-slate-900">
+                                        {{ collection.name }}
+                                    </a>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if related_products %}
+            <section class="mt-16 border-t border-slate-200 pt-10" aria-labelledby="related-heading">
+                <h2 id="related-heading" class="text-xl font-semibold tracking-tight text-slate-950">
+                    You may also like
+                </h2>
+                <div class="mt-6 grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4">
+                    {% for product in related_products %}
+                        {% include "catalog/_product_card.html" %}
+                    {% endfor %}
+                </div>
+            </section>
+        {% endif %}
+    </div>
+{% endblock content %}

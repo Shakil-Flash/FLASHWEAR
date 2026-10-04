@@ -1,0 +1,20 @@
+{% extends "account/base_account.html" %}
+
+{% block account_title %}Remove address{% endblock account_title %}
+{% block account_heading %}Remove this address?{% endblock account_heading %}
+{% block account_intro %}It is removed from your account straight away. Orders already placed keep the address they were placed with.{% endblock account_intro %}
+
+{% block account_content %}
+<div class="max-w-xl">
+    <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
+        <p class="text-sm font-semibold text-slate-900">{{ address.full_name }}</p>
+        <address class="mt-1 text-sm not-italic text-slate-600">{{ address.single_line }}</address>
+    </div>
+
+    <form method="post" class="mt-6 flex items-center gap-4">
+        {% csrf_token %}
+        <button type="submit" class="inline-flex items-center justify-center rounded-full bg-red-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:ring-offset-2 focus:ring-offset-white">Remove address</button>
+        <a href="{% url 'account:addresses' %}" class="text-sm font-medium text-slate-700 underline-offset-4 hover:underline">Keep it</a>
+    </form>
+</div>
+{% endblock account_content %}

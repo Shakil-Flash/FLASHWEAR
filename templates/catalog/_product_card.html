@@ -1,0 +1,79 @@
+{% comment %}
+One product card.
+
+Included by every grid, so it must survive being rendered from a queryset that was NOT built by
+apps.catalog.selectors: each attribute degrades to a sane default rather than raising. The card
+never claims availability -- that is Phase 4's job once quantities exist.
+{% endcomment %}
+{% load catalog_extras %}
+<article class="group relative flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft transition hover:-translate-y-0.5 hover:shadow-elevated">
+    <a href="{{ product.get_absolute_url }}" class="block aspect-[4/5] overflow-hidden bg-slate-100">
+        {% with image=product.primary_image %}
+            {% if image %}
+                <img src="{{ image.image.url }}"
+                     alt="{{ image.alt_text }}"
+                     width="640"
+                     height="800"
+                     loading="lazy"
+                     decoding="async"
+                     class="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+            {% else %}
+                <span class="flex h-full w-full items-center justify-center text-sm text-slate-400">
+                    No image yet
+                </span>
+            {% endif %}
+        {% endwith %}
+    </a>
+
+    {% if product.is_on_sale %}
+        <span class="absolute left-3 top-3 rounded-full bg-flash-600 px-2.5 py-1 text-xs font-semibold text-white">
+            Sale
+        </span>
+    {% endif %}
+    {% if product.is_new %}
+        <span class="absolute right-3 top-3 rounded-full bg-slate-900 px-2.5 py-1 text-xs font-semibold text-white">
+            New
+        </span>
+    {% endif %}
+
+    <div class="flex flex-1 flex-col gap-1 p-4">
+        {% if product.brand %}
+            <p class="text-xs font-medium uppercase tracking-[0.08em] text-slate-500">{{ product.brand.name }}</p>
+        {% endif %}
+        <h3 class="text-sm font-semibold text-slate-900">
+            <a href="{{ product.get_absolute_url }}" class="after:absolute after:inset-0 focus:outline-none">
+                {{ product.name }}
+            </a>
+        </h3>
+
+        {% with low=product.price_range.0 high=product.price_range.1 %}
+            <p class="mt-1 text-sm text-slate-700">
+                {% if low is None %}
+                    <span class="text-slate-400">Price on request</span>
+                {% else %}
+                    <span class="font-semibold">{{ low|money }}</span>
+                    {% if high and high != low %}
+                        <span class="text-slate-500">– {{ high|money }}</span>
+                    {% endif %}
+                {% endif %}
+            </p>
+        {% endwith %}
+
+        {% with colors=product.available_colors %}
+            {% if colors %}
+                <ul class="mt-2 flex flex-wrap items-center gap-1.5" aria-label="Colours">
+                    {% for color in colors %}
+                        <li>
+                            <a href="{{ product.get_absolute_url }}?color={{ color.slug }}"
+                               title="{{ color.name }}"
+                               class="block h-4 w-4 rounded-full ring-1 ring-slate-300 ring-offset-1 hover:ring-slate-900"
+                               style="{{ color|swatch_style }}">
+                                <span class="sr-only">{{ color.name }}</span>
+                            </a>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        {% endwith %}
+    </div>
+</article>

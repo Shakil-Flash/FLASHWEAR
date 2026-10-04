@@ -1,0 +1,73 @@
+/*
+ * FLASHWEAR Design System source stylesheet.
+ *
+ * This is the Tailwind entry point. `npm run build:css` compiles it to
+ * static/css/app.css, which is the file Django serves via {% static %}.
+ *
+ * Design tokens (colour, typography, elevation) live in tailwind.config.js so that
+ * utility classes such as `bg-flash-600` and `shadow-soft` are generated on demand.
+ */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    :root {
+        --flash-ring: 94 123 255;
+    }
+
+    html {
+        -webkit-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+    }
+
+    *:focus-visible {
+        outline: 2px solid rgb(var(--flash-ring) / 0.45);
+        outline-offset: 2px;
+        border-radius: 0.75rem;
+    }
+
+    /* Alpine.js hides x-cloak elements only once it has initialised. */
+    [x-cloak] {
+        display: none !important;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+
+        *,
+        *::before,
+        *::after {
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.01ms !important;
+            scroll-behavior: auto !important;
+        }
+    }
+}
+
+@layer components {
+    /* Skip link: visually hidden until focused. */
+    .skip-link {
+        @apply sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50
+        focus:rounded-xl focus:bg-white focus:px-4 focus:py-2 focus:text-sm focus:font-semibold
+        focus:text-flash-700 focus:shadow-elevated;
+    }
+}
+
+@layer utilities {
+    .text-balance {
+        text-wrap: balance;
+    }
+
+    /* HTMX request lifecycle indicator. */
+    .htmx-indicator {
+        opacity: 0;
+        transition: opacity 150ms ease-in;
+    }
+
+    .htmx-request .htmx-indicator,
+    .htmx-request.htmx-indicator {
+        opacity: 1;
+    }
+}
