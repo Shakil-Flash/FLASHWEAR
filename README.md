@@ -1,8 +1,10 @@
 # FLASHWEAR
 
 FLASHWEAR is a fashion-tech commerce platform. This repository contains the production-quality
-technical foundation built across **Phases 1–6**: foundation, accounts, catalogue, storefront, the
-cart/wishlist/checkout bag, and orders, payments, inventory and delivery.
+codebase built through **Phase 18**: the storefront and account areas (Phases 1–7), the domain
+apps alongside them (styling, closet, drops, recommendations, Loop resale, quests, the support
+desk), the operations back office (Phase 16), the notification system (Phase 17), and the
+production hardening, observability and deployment work of Phase 18.
 
 ## Vision
 
@@ -24,14 +26,22 @@ support that expansion without compromising maintainability.
 
 ## Architecture
 
-- Modular Django apps under `apps/` (`core`, `accounts`, `catalog`, `shop`)
-- Settings split: `config/settings/{base,development,production,testing}.py`
+- Modular Django apps under `apps/` (`core`, `accounts`, `catalog`, `shop`, `inventory`,
+  `orders`, `payments`, `engagement`, `styling`, `closet`, `drops`, `recommendations`, `loop`,
+  `quests`, `support`, `notifications`, `backoffice`)
+- Settings split: `config/settings/{base,development,staging,testing,production}.py`, with
+  production and staging refusing to boot when misconfigured (see `.env.example`)
 - Custom `User` model with email as the login identifier and a dedicated auth backend
 - Sign-in / sign-out at `/accounts/login/` and `/accounts/logout/` (logout is POST-only)
 - API-first foundation under `/api/v1/` with a versioned namespace and health endpoints
+- Operations back office at `/operations/` (dashboard, queues, audit, delivery inspection)
+- Notification centre at `/notifications/` (in-app + email, preferences, unsubscribe)
 - Global design system compiled by Tailwind; all front-end assets are self-hosted
-- Celery application (`config/celery.py`) ready for asynchronous work
-- Structured logging with credential redaction and separated security stream
+- Celery application (`config/celery.py`) with retries, bounded backoff and 11 beat sweeps
+- Structured logging with credential redaction, `X-Request-ID` correlation and a separate
+  security log stream
+- Health probes: `/health/` (smoke), `/health/live/` (process), `/health/ready/`
+  (database + cache)
 - Production security defaults: strict CSP, secure cookies, HSTS, no SQLite, no dev secret
 
 ## Prerequisites
@@ -93,7 +103,10 @@ support that expansion without compromising maintainability.
    | Storefront | http://localhost:8000/ |
    | Admin | http://localhost:8000/admin/ |
    | API root | http://localhost:8000/api/v1/ |
-   | Health (Django) | http://localhost:8000/health/ |
+   | Back office | http://localhost:8000/operations/ |
+   | Health (smoke) | http://localhost:8000/health/ |
+   | Health (live) | http://localhost:8000/health/live/ |
+   | Health (ready) | http://localhost:8000/health/ready/ |
    | Health (API) | http://localhost:8000/api/v1/health/ |
 
    Without PostgreSQL or Redis running, development falls back to SQLite and an in-process cache
@@ -116,12 +129,18 @@ asset is loaded from a third-party CDN, which is what lets production run `scrip
 ## Docker Setup (Recommended)
 
 > Docker was not available in the environment where this project was scaffolded, so the Compose
-> stack is prepared but unverified. Install Docker Desktop to run it.
+> stacks are prepared but unverified (the CI pipeline builds the image instead). Install Docker
+> Desktop to run them.
 
 ```bash
 cp .env.example .env      # values already point at the compose services
 docker compose up --build
 ```
+
+For production-shaped runs use `docker-compose.prod.yml` instead — it adds nginx, the gunicorn
+web image, separate worker and beat services, healthchecks and non-default database ports. The
+deploy sequence, migration-window guidance and every operational procedure live in
+[`docs/production-runbook.md`](docs/production-runbook.md).
 
 The `web` service applies migrations before starting the server, and the `frontend` service keeps
 the stylesheet in sync. Create a superuser once the stack is up:
@@ -144,11 +163,30 @@ against `config.settings.production`.
 
 ## Environment Variables
 
-See `.env.example` for every supported variable (DEBUG, SECRET_KEY, ALLOWED_HOSTS, CSRF,
-DATABASE_URL, REDIS_URL, CELERY_BROKER_URL, CELERY_RESULT_BACKEND, CORS, email, storage, the
-Phase 3 `CATALOG_*` settings, the Phase 5 cart/checkout settings, the Phase 6 `INVENTORY_*`
-and `PAYMENT_*` settings, and the Phase 7 `LOYALTY_*`/`REVIEWS_PER_PAGE` settings). Never
-commit `.env`.
+See `.env.example` for every supported variable and why it exists — core settings (DEBUG,
+SECRET_KEY, ALLOWED_HOSTS, CSRF, DATABASE_URL, REDIS_URL, Celery), per-phase knobs
+(`CATALOG_*`, cart/checkout, `INVENTORY_*`, `PAYMENT_*`, `LOYALTY_*`, `SUPPORT_*`, `LOOP_*`,
+`QUESTS_SWEEP_INTERVAL_SECONDS`, `NOTIFICATIONS_*`, `BACKOFFICE_*`), observability
+(`LOG_FORMAT`, `SENTRY_DSN`), TLS/CSP hardening, and the Gunicorn sizing variables
+(`WEB_CONCURRENCY`, `GUNICORN_*`). Never commit `.env`.
+
+## Operations
+
+Day-two operations — deploys, the migration window (including the write-lock cost of the
+Phase 18 index migrations), health probes, Celery sweeps, log streams and request-id
+correlation, backups, rollbacks, incident playbooks, the measured performance baseline and
+security rotations — are documented in [`docs/production-runbook.md`](docs/production-runbook.md).
+
+Quick reference:
+
+```powershell
+/health/         # smoke test, fixed payload
+/health/live/    # process up (container HEALTHCHECK uses this)
+/health/ready/   # database + cache answer; 503 means "stop routing", not "restart"
+```
+
+Every response carries an `X-Request-ID`; quote it from the response header on a bug report
+and it selects the exact request in the logs.
 
 ## Running Tests
 
@@ -159,7 +197,9 @@ pytest --cov=apps --cov=config --cov-report=term-missing
 
 The suite runs against in-memory SQLite, locmem cache, in-memory storage and eager Celery, so no
 external services are required. Point `TEST_DATABASE_URL` at a throwaway PostgreSQL database to
-exercise PostgreSQL-specific behaviour.
+exercise PostgreSQL-specific behaviour. It is roughly 1,800 tests, including query-count budgets
+for the hot pages (`tests/test_performance_baseline.py`) and an `EXPLAIN`-backed index review
+(`tests/test_phase18_infrastructure.py`).
 
 ## Linting, Formatting & Pre-commit
 
@@ -690,29 +730,44 @@ flashwear/
 ├── manage.py
 ├── config/                     # urls, asgi/wsgi, celery, settings split, api/v1
 │   ├── api/v1/                 # versioned API routing + root view
-│   └── settings/               # base, development, production, testing
+│   └── settings/               # base, development, staging, production, testing
 ├── apps/
-│   ├── core/                   # health, SiteConfiguration, context processor, tags, redaction
-│   ├── accounts/               # custom User, manager, email auth backend, login/logout, admin
+│   ├── core/                   # health probes, SiteConfiguration, middleware (request-id,
+│   │                           #   CSP), context processors, logging filters, redaction
+│   ├── accounts/               # custom User, manager, email auth backend, throttles, admin
 │   ├── catalog/                # products, variants, images, taxonomy, selectors, services, API
 │   ├── shop/                   # cart, wishlist, shipping, checkout session, merge signals
 │   ├── inventory/              # stock counters, holds, movement ledger, sweeper task
 │   ├── orders/                 # order, items, address snapshot, events, shipments, admin, API
 │   ├── payments/               # attempts, events, provider registry, signed webhooks
-│   └── engagement/             # reviews, FLASH Points ledger, promotion engine, sweep task
+│   ├── engagement/             # reviews, FLASH Points ledger, promotion engine, sweep task
+│   ├── styling/                # FLASH DNA / style profile
+│   ├── closet/                 # wardrobe and outfits
+│   ├── drops/                  # Flash Drops (scheduled/live/end states, interest, API)
+│   ├── recommendations/        # recommendation rules and surfaces
+│   ├── loop/                   # resale listings, trade-in, credits, sweeps
+│   ├── quests/                 # gamification: quests, progress, badges, rewards
+│   ├── support/                # help desk: tickets, messages, attachments, permissions
+│   ├── notifications/          # Phase 17: in-app + email delivery, preferences, sweeps
+│   └── backoffice/             # /operations/ desk: dashboard, queues, audit, health, API
 ├── frontend/css/tailwind.css   # Tailwind entry point (design tokens live in tailwind.config.js)
 ├── templates/                  # base, components, pages, accounts, catalog, shop, error pages
 ├── static/                     # built css, vendored js, app js
 ├── media/                      # user uploads (development)
-├── logs/                       # rotating application logs
+├── logs/                       # rotating application logs (flashwear/django/security)
+├── docs/                       # production runbook
+├── deploy/                     # nginx configuration for the production stack
 ├── tests/                      # project-level test suite
 ├── conftest.py                 # registers the catalogue fixture plugin
 ├── .env.example
+├── .github/workflows/ci.yml    # lint, tests, assets, Docker build, dependency audit
 ├── .djlintrc
 ├── .pre-commit-config.yaml
 ├── .gitignore
-├── docker-compose.yml
-├── Dockerfile
+├── docker-compose.yml          # development stack
+├── docker-compose.prod.yml     # production stack (nginx, gunicorn, worker, beat)
+├── Dockerfile                  # multi-stage: Tailwind build -> Python runtime + gunicorn
+├── gunicorn.conf.py            # worker count/timeouts from the environment
 ├── package.json
 ├── pyproject.toml
 ├── tailwind.config.js
@@ -735,19 +790,30 @@ templatetags/    # money formatting, sort controls, query-preserving links
 management/commands/seed_catalog.py
 ```
 
-## Future Phases
-
-- **Phase 8+:** FLASH DNA, closet, outfits, AI stylist, drops, creators, resale, gamification —
-  plus the Phase 6 follow-ons the state graphs already reserve room for: refunds/returns and
-  real payment providers.
+## Later phases & current surface
 
 Phases 1 (foundation), 2 (accounts), 3 (catalogue), 4 (storefront, discovery, API, SEO), 5
 (cart, wishlist, checkout), 6 (orders, payments, inventory, delivery) and 7 (reviews, FLASH
-Points, promotions) are built. Phase 7 picks up exactly where Phase 6 stops: the order
-placement transaction gains two handoff checks — the promotion discount is re-validated and
-the frozen points reservation is re-attached — so a stale review step can never produce a
-wrong total, and the navigation's Loyalty entry is live while the remaining not-yet-built
-surfaces are still listed as "coming soon".
+Points, promotions) are built, and the sections above document them phase by phase.
+
+The phases after 7 are built as well — their surfaces are live even though this document does
+not yet give each one a chapter:
+
+| Surface | Where | Notes |
+| --- | --- | --- |
+| Styling / closet | `/styling/`, `/closet/` | FLASH DNA profile, wardrobe, outfits |
+| Flash Drops | `/drops/` | Scheduled/live/ended state machine, interest registration, API |
+| Recommendations | product pages | Rule-based "you may also like" and related surfaces |
+| Loop (resale) | `/loop/` | Listings, trade-in quotes, credits, expiry sweeps |
+| Quests | `/quests/` | Gamification: quests, progress sweeps, badges, rewards |
+| Support desk | `/support/` | Tickets, threaded messages, attachment validation, rate limits |
+| Operations back office | `/operations/` | Dashboard, order/payment/inventory queues, alerts, health, audit log, delivery inspection |
+| Notifications | `/notifications/` | In-app + email delivery with preferences, unsubscribe, idempotency, retries and retention sweeps |
+| Phase 18 hardening | — | Production/staging settings guards, structured logging with `X-Request-ID`, health probes, CSP middleware, throttles, database index review, Docker/gunicorn/nginx/CI, and [`docs/production-runbook.md`](docs/production-runbook.md) |
+
+Still to come: depth on the AI stylist, the creator marketplace (`apps/creator` exists but is
+deliberately **not** in `INSTALLED_APPS` yet), refunds/returns, and payment providers beyond
+the development simulator — the state graphs those need already exist.
 
 The catalogue deliberately stops at the edge of selling. `ProductVariant` has a price but no
 quantity — inventory is the `inventory` app's job (Phase 6), and the API, templates and admin were
@@ -765,7 +831,12 @@ before order placement.
 - CSP is `script-src 'self'` with no third-party origins; `'unsafe-inline'` remains only for
   `style-src` and can be dropped once inline styles are eliminated.
 - Logout is POST-only and CSRF-protected; storefront sign-in is throttled per account and per client
-  address (see [Sign-in throttling](#sign-in-throttling)).
+  address (see [Sign-in throttling](#sign-in-throttling)), and registration, verification resend and
+  password reset carry their own attempt throttle (429 + `Retry-After`).
+- Payment webhooks are rejected unless the HMAC signature and timestamp are valid and fresh;
+  idempotency is a unique `(provider, event_id)` insert, so a redelivery cannot double-apply.
+- Back-office screens answer **404, never 403**, to a caller without the capability — a 403 would
+  confirm that a resource exists.
 - Passwords, reset tokens and verification tokens are never logged or stored in plaintext; account
   audit records keep digests rather than the values they describe.
 - Avatar uploads are validated by content with Pillow and served from a non-executable path; SVG is

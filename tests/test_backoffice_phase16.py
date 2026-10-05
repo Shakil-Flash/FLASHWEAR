@@ -115,6 +115,9 @@ READ_SCREENS = [
     ("points", FINANCE_GROUP, MODERATOR_GROUP),
     ("audit", ORDERS_GROUP, OPERATOR_GROUP),
     ("staff", ADMIN_GROUP, ORDERS_GROUP),
+    # Delivery inspection (Phase 17): the ops floor/orders desk read the queue; finance
+    # holds no notifications.view capability and must get a 404.
+    ("notifications", ORDERS_GROUP, FINANCE_GROUP),
 ]
 
 ALL_SCREEN_NAMES = [name for name, _allowed, _denied in READ_SCREENS] + [
@@ -1132,3 +1135,82 @@ class TestBackOfficeApi:
         from apps.backoffice.permissions import CAPABILITY_GROUPS
 
         assert set(CAPABILITY_BY_ENDPOINT.values()) <= set(CAPABILITY_GROUPS)
+
+
+# --------------------------------------------------------------------------------------
+# Delivery inspection (Phase 17 §22) -- access is a Phase 16 concern, so it lives here
+# --------------------------------------------------------------------------------------
+
+
+class TestNotificationDeliveryScreens:
+    def _delivery(
+        self,
+        user,
+        *,
+        title="Payment received",
+        body="Provider reference xyz",
+        status="sent",
+        attempts=0,
+    ):
+        from apps.notifications.models import (
+            Channel,
+            Notification,
+            NotificationCategory,
+            NotificationType,
+        )
+
+        return Notification.objects.create(
+            user=user,
+            notification_type=NotificationType.PAYMENT_SUCCESS,
+            category=NotificationCategory.PAYMENTS,
+            channel=Channel.EMAIL,
+            title=title,
+            body=body,
+            status=status,
+            attempts=attempts,
+            idempotency_key="bo:delivery:1",
+        )
+
+    def test_bodies_appear_only_on_the_detail_route(self, client, user):
+        row = self._delivery(user)
+        sign_in(client, ORDERS_GROUP, email="bo-notif-view@flashwear.test")
+
+        listing = client.get(bo("notifications"))
+        assert listing.status_code == 200
+        assert b"Provider reference xyz" not in listing.content
+
+        detail = client.get(bo("notification_detail", row.pk))
+        assert detail.status_code == 200
+        assert b"Provider reference xyz" in detail.content
+
+    def test_a_group_without_the_capability_sees_nothing_not_even_the_detail(self, client, user):
+        row = self._delivery(user)
+        sign_in(client, FINANCE_GROUP, email="bo-notif-finance@flashwear.test")
+        assert client.get(bo("notifications")).status_code == 404
+        assert client.get(bo("notification_detail", row.pk)).status_code == 404
+
+    def test_an_unknown_detail_is_404(self, client):
+        sign_in(client, ORDERS_GROUP, email="bo-notif-unknown@flashwear.test")
+        assert client.get(bo("notification_detail", 999_999)).status_code == 404
+
+    def test_a_viewer_without_manage_cannot_retry(self, client, user):
+        row = self._delivery(user, status="failed")
+        sign_in(client, ORDERS_GROUP, email="bo-notif-retry-denied@flashwear.test")
+        response = client.post(bo("notification_retry", row.pk))
+        assert response.status_code == 404
+        row.refresh_from_db()
+        assert row.status == "failed"
+
+    def test_an_operator_retry_requeues_a_failed_row(self, client, user):
+        row = self._delivery(user, status="failed", attempts=3)
+        sign_in(client, OPERATOR_GROUP, email="bo-notif-retry-ok@flashwear.test")
+        response = client.post(bo("notification_retry", row.pk))
+        assert response.status_code == 302
+        row.refresh_from_db()
+        assert row.status == "queued"
+        assert row.attempts == 0
+
+    def test_retry_is_post_only(self, client, user):
+        row = self._delivery(user)
+        sign_in(client, OPERATOR_GROUP, email="bo-notif-retry-get@flashwear.test")
+        assert client.get(bo("notification_retry", row.pk)).status_code == 405

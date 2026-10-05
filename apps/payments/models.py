@@ -83,6 +83,8 @@ class Payment(TimestampedModel):
         verbose_name = _("payment")
         verbose_name_plural = _("payments")
         ordering = ("-created_at",)
+        # Every payments screen sorts by created_at; status is already indexed above.
+        indexes = [models.Index(fields=["-created_at"], name="payments_payment_created_idx")]
 
     def __str__(self) -> str:
         return f"{self.order.number} {self.amount} {self.currency} ({self.status})"

@@ -349,6 +349,9 @@ class UserQuest(TimestampedModel):
         indexes = [
             models.Index(fields=["quest", "status"], name="userquest_quest_status_idx"),
             models.Index(fields=["user", "status"], name="userquest_user_status_idx"),
+            # The rewards dashboard counts by status across all users, newest activity
+            # first -- neither existing index leads with status alone.
+            models.Index(fields=["status", "-updated_at"], name="userquest_status_updated_idx"),
         ]
 
     def __str__(self) -> str:

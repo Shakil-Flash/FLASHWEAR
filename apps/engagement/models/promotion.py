@@ -141,6 +141,13 @@ class Promotion(TimestampedModel):
                 name="engagement_promotion_min_order_nonnegative",
             ),
         ]
+        indexes = [
+            # The promotions screen, the dashboard tiles and the alert rules all filter
+            # is_active and read newest-first; the model previously had no index beyond
+            # the unique code. Equality on the prefix also delivers the "-starts_at"
+            # ordering, so one index serves the filter, the range and the sort.
+            models.Index(fields=["is_active", "-starts_at"], name="engagement_promo_active_idx"),
+        ]
 
     def __str__(self) -> str:
         return f"{self.code} ({self.discount_label})"

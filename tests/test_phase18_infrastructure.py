@@ -1,5 +1,6 @@
 """Phase 18: correlation ids, access logs, metrics, CSP, health, monitoring, error pages,
-throttles (HTML attempt caps + DRF scopes) and model-level upload validation."""
+throttles (HTML attempt caps + DRF scopes), model-level upload validation and the
+hot-path index additions."""
 
 from __future__ import annotations
 
@@ -680,3 +681,66 @@ class TestUploadHardening:
             alt_text="Front",
         )
         image.full_clean()  # must not raise
+
+
+# --------------------------------------------------------------------------------------
+# Hot-path indexes (Phase 18 index review)
+# --------------------------------------------------------------------------------------
+
+
+class TestHotPathIndexes:
+    """Schema regression checks for the Phase 18 index additions.
+
+    These assert on ``Model._meta`` (not EXPLAIN output): the index names and
+    column orders must survive refactors, while the assertions stay stable
+    across sqlite/Postgres where planner output differs.
+    """
+
+    def _has_index(self, model, *fields) -> bool:
+        target = list(fields)
+        return any(list(index.fields) == target for index in model._meta.indexes)
+
+    def test_order_and_payment_historical_slices(self):
+        """Admin/ledger slices that sort globally on ``-created_at``."""
+        from apps.orders.models import Order
+        from apps.payments.models import Payment
+
+        assert self._has_index(Order, "-created_at")
+        assert self._has_index(Payment, "-created_at")
+
+    def test_shipment_queue_indexes(self):
+        """The ops shipment queue filters on status then orders by ``-created_at``."""
+        from apps.orders.models import Shipment
+
+        assert self._has_index(Shipment, "status", "-created_at")
+        assert self._has_index(Shipment, "-created_at")
+
+    def test_support_queue_indexes(self):
+        """Back-office queue sorts on ``-updated_at`` / ``priority``."""
+        from apps.support.models import SupportTicket
+
+        assert self._has_index(SupportTicket, "-updated_at")
+        assert self._has_index(SupportTicket, "priority", "-updated_at")
+
+    def test_ledger_and_promotion_indexes(self):
+        from apps.engagement.models import PointsTransaction, Promotion
+
+        assert self._has_index(PointsTransaction, "transaction_type", "-created_at")
+        assert self._has_index(Promotion, "is_active", "-starts_at")
+
+    def test_standalone_filter_indexes(self):
+        """Boolean/type filters that previously matched no index."""
+        from apps.catalog.models import Product
+        from apps.inventory.models import InventoryMovement
+        from apps.loop.models import LoopItem
+        from apps.quests.models import UserQuest
+
+        assert self._has_index(Product, "is_featured", "-published_at")
+        assert self._has_index(InventoryMovement, "-created_at")
+        assert self._has_index(UserQuest, "status", "-updated_at")
+        assert self._has_index(LoopItem, "type", "-created_at")
+
+    def test_user_joined_date_is_indexed(self):
+        from apps.accounts.models import User
+
+        assert User._meta.get_field("date_joined").db_index

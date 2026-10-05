@@ -16,7 +16,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.drops.models import FlashDrop
+from apps.drops.models import DropStatus, FlashDrop
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +61,7 @@ class DropDetailView(APIView):
         try:
             drop = FlashDrop.objects.get(
                 slug=slug,
-                status__in=[FlashDrop.LIVE, FlashDrop.SCHEDULED],
+                status__in=[DropStatus.LIVE, DropStatus.SCHEDULED],
             )
         except FlashDrop.DoesNotExist:
             return Response(
@@ -200,7 +200,7 @@ class DropInterestView(APIView):
         from apps.notifications.services.events import emit
 
         try:
-            drop = FlashDrop.objects.get(pk=id, status=FlashDrop.SCHEDULED)
+            drop = FlashDrop.objects.get(pk=id, status=DropStatus.SCHEDULED)
         except FlashDrop.DoesNotExist:
             return Response(
                 {"detail": "Drop not found or not scheduled."},

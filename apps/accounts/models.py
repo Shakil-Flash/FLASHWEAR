@@ -83,7 +83,9 @@ class User(AbstractUser):
         help_text=_("Designates whether the user can log into this admin site."),
     )
 
-    date_joined = models.DateTimeField(_("date joined"), default=timezone.now)
+    # Indexed for the customers screen: a date_joined window plus "-date_joined"
+    # ordering (email stays unique-and-indexed above).
+    date_joined = models.DateTimeField(_("date joined"), default=timezone.now, db_index=True)
     updated_at = models.DateTimeField(_("updated at"), auto_now=True)
 
     email_verified_at = models.DateTimeField(

@@ -133,6 +133,14 @@ class PointsTransaction(TimestampedModel):
             models.Index(fields=["user", "-created_at"], name="engagement_points_user_idx"),
             models.Index(fields=["expires_at"], name="engagement_points_expiry_idx"),
             models.Index(fields=["order"], name="engagement_points_order_idx"),
+            # The all-users points ledger: equality on transaction_type, a date window
+            # and "-created_at" ordering, with no user in the predicate (so the
+            # user-prefixed index cannot serve it). Equality-first also orders the
+            # unfiltered view for free -- both readings use the same index.
+            models.Index(
+                fields=["transaction_type", "-created_at"],
+                name="engagement_points_type_idx",
+            ),
         ]
 
     def __str__(self) -> str:

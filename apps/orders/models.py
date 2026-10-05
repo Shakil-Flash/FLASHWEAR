@@ -173,7 +173,12 @@ class Order(TimestampedModel):
         verbose_name = _("order")
         verbose_name_plural = _("orders")
         ordering = ("-created_at",)
-        indexes = [models.Index(fields=["user", "-created_at"])]
+        indexes = [
+            models.Index(fields=["user", "-created_at"]),
+            # The desk's order queue: a date window plus "-created_at" ordering with no
+            # user in the predicate, so the user-prefixed index above cannot serve it.
+            models.Index(fields=["-created_at"], name="orders_order_created_idx"),
+        ]
 
     def __str__(self) -> str:
         return self.number
@@ -403,6 +408,12 @@ class Shipment(TimestampedModel):
         verbose_name = _("shipment")
         verbose_name_plural = _("shipments")
         ordering = ("-created_at",)
+        # The fulfilment queue filters on status and a date window, newest first, and
+        # this model previously carried no index at all.
+        indexes = [
+            models.Index(fields=["-created_at"], name="orders_shipment_created_idx"),
+            models.Index(fields=["status", "-created_at"], name="orders_shipment_status_idx"),
+        ]
 
     def __str__(self) -> str:
         return f"{self.order.number} ({self.status})"

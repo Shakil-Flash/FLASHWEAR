@@ -276,6 +276,8 @@ class LoopItem(TimestampedModel):
             models.Index(fields=["user", "type"], name="loop_item_user_type_idx"),
             models.Index(fields=["product", "status"], name="loop_item_product_status_idx"),
             models.Index(fields=["-created_at"], name="loop_item_created_idx"),
+            # The back-office Loop queue tabs on type alone, no user in the predicate.
+            models.Index(fields=["type", "-created_at"], name="loop_item_type_created_idx"),
         ]
 
     def __str__(self) -> str:

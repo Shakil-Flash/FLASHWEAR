@@ -242,6 +242,9 @@ class Product(TimestampedModel, SEOMixin):
             models.Index(fields=["brand", "status"], name="cat_prod_brand_status_idx"),
             models.Index(fields=["is_new", "-created_at"], name="cat_prod_new_created_idx"),
             models.Index(fields=["-created_at"], name="cat_prod_created_idx"),
+            # The homepage's featured shelf: equality on is_featured, published newest
+            # first. Without it the featured filter was a scan of the listing index.
+            models.Index(fields=["is_featured", "-published_at"], name="cat_prod_featured_idx"),
         ]
 
     def __str__(self) -> str:

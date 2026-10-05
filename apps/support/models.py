@@ -299,6 +299,9 @@ class SupportTicket(TimestampedModel):
             models.Index(fields=["status", "-created_at"], name="support_ticket_status_idx"),
             models.Index(fields=["assigned_to", "status"], name="support_ticket_assign_idx"),
             models.Index(fields=["category", "status"], name="support_ticket_cat_idx"),
+            # The support queue's default sort and its priority filter -- both were bare.
+            models.Index(fields=["-updated_at"], name="support_ticket_updated_idx"),
+            models.Index(fields=["priority", "-updated_at"], name="support_ticket_prio_idx"),
         ]
 
     def __str__(self) -> str:

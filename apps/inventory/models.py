@@ -132,7 +132,11 @@ class InventoryMovement(models.Model):
         verbose_name = _("inventory movement")
         verbose_name_plural = _("inventory movements")
         ordering = ("-created_at", "-pk")
-        indexes = [models.Index(fields=["variant", "created_at"])]
+        indexes = [
+            models.Index(fields=["variant", "created_at"]),
+            # The ledger's default view is global (no variant), newest first.
+            models.Index(fields=["-created_at"], name="inventory_movement_created_idx"),
+        ]
 
     def __str__(self) -> str:
         return f"{self.variant.sku} {self.kind} {self.on_hand_delta:+d}/{self.reserved_delta:+d}"
