@@ -1,0 +1,15 @@
+{# djlint:off H021 #}
+{% extends "emails/base.html" %}
+{% load i18n %}
+
+{% block eyebrow %}{% translate "Order update" %}{% endblock eyebrow %}
+
+{% block heading %}{% if order_number %}Order {{ order_number }} is being prepared{% else %}{{ notification_title }}{% endif %}{% endblock heading %}
+
+{% block content %}
+<p style="margin:0 0 12px 0;font-size:15px;line-height:1.6;color:#334155;">{% translate "We are packing your items and will let you know as soon as they ship." %}</p>
+{% endblock content %}
+
+{% block cta_label %}{% translate "View your order" %}{% endblock cta_label %}
+
+{# djlint:on #}

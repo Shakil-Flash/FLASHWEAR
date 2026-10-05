@@ -1,0 +1,8 @@
+{% load i18n %}{% if drop_name %}{{ drop_name }} — {% endif %}{% translate "is live" %}
+
+{% translate "The drop you asked about is open. Limited pieces, first come first served." %}
+
+{% if action_url %}{{ action_url }}
+{% endif %}
+Manage preferences: {{ preferences_url }}
+FLASHWEAR — Fashion Beyond Ordinary

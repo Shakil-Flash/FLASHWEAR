@@ -13,6 +13,8 @@ Six public surfaces:
   storefront checkout flow itself)
 * ``/operations/``  Phase 16 FLASH Operations -- the staff back office (capability-gated;
   every route answers 404 to anyone without one)
+* ``/notifications/`` Phase 17 notification center, read-state endpoints and the
+  opaque-token one-click unsubscribe landing page
 """
 
 from django.conf import settings
@@ -42,6 +44,8 @@ urlpatterns = [
     path("support/", include("apps.support.urls")),
     # Phase 16: FLASH Operations back office (/operations/, /operations/orders/ ...)
     path("operations/", include("apps.backoffice.urls")),
+    # Phase 17: notification center (/notifications/, /notifications/unsubscribe/<token>/)
+    path("notifications/", include("apps.notifications.urls")),
 ]
 
 # Development-only convenience: Django's runserver does not serve media files.
@@ -50,5 +54,7 @@ if settings.DEBUG:
 
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
+handler400 = "apps.core.views.bad_request"
+handler403 = "apps.core.views.permission_denied"
 handler404 = "apps.core.views.page_not_found"
 handler500 = "apps.core.views.server_error"

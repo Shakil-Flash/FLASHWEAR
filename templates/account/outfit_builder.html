@@ -37,7 +37,7 @@
                 <p class="mt-0.5 text-xs text-slate-500">{{ link.get_role_display }}</p>
             </div>
             <div class="flex gap-2">
-                <form method="post" action="{% url 'account:outfit-item-remove' outfit.pk link.pk %}" class="flex-1" onsubmit="return confirm('Remove {{ link.closet_item.name|escapejs }} from this outfit?');">
+                <form method="post" action="{% url 'account:outfit-item-remove' outfit.pk link.pk %}" class="flex-1" data-confirm="Remove {{ link.closet_item.name|escapejs }} from this outfit?">
                     {% csrf_token %}
                     <button type="submit" class="text-xs font-medium text-slate-500 rounded px-2 py-1">Remove</button>
                 </form>

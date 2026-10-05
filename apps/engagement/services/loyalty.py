@@ -79,6 +79,27 @@ def held_for(user) -> int:
 # ---------------------------------------------------------------------------
 
 
+def _notify_points(user, notification_type: str, entry, *, key: str, context: dict) -> None:
+    """A FLASH Points ledger row -> customer notification (Phase 17).
+
+    Never raises; runs in the caller's transaction so the notice rolls back with the
+    ledger change. Email delivery is deferred to on_commit by the dispatcher.
+    """
+    from django.urls import reverse
+
+    from apps.notifications.services.events import emit
+
+    emit(
+        notification_type=notification_type,
+        user=user,
+        idempotency_key=key,
+        context={"points": abs(entry.amount), **context},
+        action_url=reverse("account:loyalty"),
+        related_object_type="points_transaction",
+        related_object_id=entry.pk,
+    )
+
+
 def earn_points_for_order(order) -> PointsTransaction | None:
     """Award ``subtotal - discount`` worth of points for a paid order. Idempotent."""
     base = order.subtotal - order.discount_amount
@@ -88,7 +109,7 @@ def earn_points_for_order(order) -> PointsTransaction | None:
     if points <= 0:
         return None
 
-    entry, _ = PointsTransaction.objects.get_or_create(
+    entry, created = PointsTransaction.objects.get_or_create(
         reference=f"order:{order.number}",
         transaction_type=PointsTransaction.TransactionType.PURCHASE_EARN,
         defaults={
@@ -99,6 +120,17 @@ def earn_points_for_order(order) -> PointsTransaction | None:
             "note": "Earned on purchase.",
         },
     )
+    if created:
+        _notify_points(
+            order.user,
+            "points_earned",
+            entry,
+            key=f"order:{order.pk}:points_earned",
+            context={
+                "order_number": order.number,
+                "balance": balance_for(order.user),
+            },
+        )
     return entry
 
 
@@ -248,7 +280,7 @@ def consume_points_for_order(order) -> PointsTransaction | None:
         ).update(status=PointsReservation.Status.CONSUMED)
         if not transitioned:
             return None
-        entry, _ = PointsTransaction.objects.get_or_create(
+        entry, created = PointsTransaction.objects.get_or_create(
             reference=f"order:{order.number}",
             transaction_type=PointsTransaction.TransactionType.REDEMPTION,
             defaults={
@@ -258,6 +290,14 @@ def consume_points_for_order(order) -> PointsTransaction | None:
                 "note": "Redeemed at checkout.",
             },
         )
+        if created:
+            _notify_points(
+                order.user,
+                "points_redeemed",
+                entry,
+                key=f"order:{order.pk}:points_redeemed",
+                context={"balance": balance_for(order.user)},
+            )
         return entry
 
 

@@ -189,7 +189,16 @@ class DropInterestView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, id: int) -> Response:
-        """Record that a user is interested in this upcoming drop."""
+        """Record that a user is interested in this upcoming drop.
+
+        Interest becomes a set of notification subscriptions: the immediate DROP_UPCOMING
+        entry confirms the reminder, and the DROP_LIVE/DROP_ENDED topics are what the
+        beat sweep (``sweep_drop_events``) reads when the clock reaches the drop. Both
+        halves are idempotent -- registering twice must not double-book anything.
+        """
+        from apps.notifications.models import NotificationSubscription, NotificationType
+        from apps.notifications.services.events import emit
+
         try:
             drop = FlashDrop.objects.get(pk=id, status=FlashDrop.SCHEDULED)
         except FlashDrop.DoesNotExist:
@@ -198,8 +207,27 @@ class DropInterestView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        # Simple interest record - just log it; notification system deferred
-        # In a full implementation, this would create a DropReminder record
+        for topic in (
+            NotificationType.DROP_UPCOMING,
+            NotificationType.DROP_LIVE,
+            NotificationType.DROP_ENDED,
+        ):
+            NotificationSubscription.objects.get_or_create(
+                user=request.user,
+                notification_type=topic,
+                related_object_type="drop",
+                related_object_id=drop.pk,
+            )
+
+        emit(
+            notification_type=NotificationType.DROP_UPCOMING,
+            user=request.user,
+            idempotency_key=f"drop:{drop.pk}:upcoming:{request.user.pk}",
+            context={"drop_name": drop.name, "starts_at": drop.starts_at},
+            action_url=f"/drops/{drop.slug}/",
+            related_object_type="drop",
+            related_object_id=drop.pk,
+        )
 
         return Response(
             {

@@ -33,6 +33,7 @@ from apps.loop.models import LoopCredit, LoopItem, RecycleRequest, ResaleListing
 from apps.loop.services.eligibility import check_recycling_eligibility, verify_loop_eligibility
 from apps.loop.services.errors import LoopError, OwnershipError, TransitionError
 from apps.loop.services.valuation import estimate_trade_in_credit
+from apps.notifications.models import NotificationType
 
 __all__ = [
     "accept_recycling",
@@ -68,6 +69,23 @@ def _require_owner(item: LoopItem, actor) -> None:
     """The acting user must own the item."""
     if actor is None or item.user_id != actor.id:
         raise OwnershipError("That loop item is not yours.", code="loop_not_owner")
+
+
+def _notify(item: LoopItem, notification_type: str, key: str, *, context=None, action_url=""):
+    """Phase 17: notify the item's owner about a status change. Never raises; runs in the
+    caller's transaction so the row rolls back with the transition that caused it.
+    """
+    from apps.notifications.services.events import emit
+
+    emit(
+        notification_type=notification_type,
+        user=item.user,
+        idempotency_key=key,
+        context=context or {},
+        action_url=action_url,
+        related_object_type="loop_item",
+        related_object_id=item.pk,
+    )
 
 
 def _transition(item: LoopItem, target: str, *, actor=None, note: str = "") -> LoopItem:
@@ -277,7 +295,19 @@ def approve_resale(item: LoopItem, *, actor, note: str = "") -> LoopItem:
     if item.status == LoopItem.Status.APPROVED:
         return item
     _ensure_listing(item)
-    return _transition(item, LoopItem.Status.APPROVED, actor=actor, note=note)
+    item = _transition(item, LoopItem.Status.APPROVED, actor=actor, note=note)
+    from django.urls import reverse
+
+    listing = getattr(item, "resale_listing", None)
+    listing_url = reverse("loop:resale-detail", args=[listing.slug]) if listing else ""
+    _notify(
+        item,
+        NotificationType.LOOP_LISTING_APPROVED,
+        f"loop:{item.pk}:listing_approved",
+        context={"item_name": item.title or str(item)},
+        action_url=listing_url,
+    )
+    return item
 
 
 @transaction.atomic
@@ -310,7 +340,29 @@ def reject_item(item: LoopItem, *, actor, note: str = "") -> LoopItem:
         if request.can_transition_to(RecycleRequest.Status.REJECTED):
             request.status = RecycleRequest.Status.REJECTED
             request.save(update_fields=["status", "updated_at"])
-    return _transition(item, LoopItem.Status.REJECTED, actor=actor, note=note)
+    item = _transition(item, LoopItem.Status.REJECTED, actor=actor, note=note)
+    if item.type == LoopItem.Type.RESALE:
+        _notify(
+            item,
+            NotificationType.LOOP_LISTING_REJECTED,
+            f"loop:{item.pk}:listing_rejected",
+            context={"rejection_reason": note},
+        )
+    elif item.type == LoopItem.Type.TRADE_IN:
+        _notify(
+            item,
+            NotificationType.TRADE_IN_UPDATED,
+            f"loop:{item.pk}:rejected",
+            context={"new_status": "Rejected"},
+        )
+    else:
+        _notify(
+            item,
+            NotificationType.RECYCLING_UPDATED,
+            f"loop:{item.pk}:rejected",
+            context={"new_status": "Rejected"},
+        )
+    return item
 
 
 @transaction.atomic
@@ -475,6 +527,12 @@ def accept_trade_in(item: LoopItem, *, actor) -> TradeInRequest:
     request.save(update_fields=["status", "updated_at"])
     if item.status == LoopItem.Status.UNDER_REVIEW:
         _transition(item, LoopItem.Status.TRADE_IN_ACCEPTED, actor=actor)
+    _notify(
+        item,
+        NotificationType.TRADE_IN_UPDATED,
+        f"trade_in:{request.pk}:accepted",
+        context={"new_status": request.get_status_display()},
+    )
     return request
 
 
@@ -532,6 +590,12 @@ def complete_trade_in(item: LoopItem, *, actor) -> LoopCredit:
             "trade_in_request": request,
         },
     )
+    _notify(
+        item,
+        NotificationType.TRADE_IN_UPDATED,
+        f"trade_in:{request.pk}:completed",
+        context={"new_status": request.get_status_display()},
+    )
     return credit
 
 
@@ -570,6 +634,12 @@ def accept_recycling(item: LoopItem, *, actor) -> RecycleRequest:
     request.status = RecycleRequest.Status.ACCEPTED
     request.save(update_fields=["status", "updated_at"])
     _transition(item, LoopItem.Status.RECYCLE_ACCEPTED, actor=actor)
+    _notify(
+        item,
+        NotificationType.RECYCLING_UPDATED,
+        f"recycle:{request.pk}:accepted",
+        context={"new_status": request.get_status_display()},
+    )
     return request
 
 
@@ -590,6 +660,12 @@ def reject_recycling(item: LoopItem, *, actor, note: str = "") -> RecycleRequest
     request.save(update_fields=["status", "updated_at"])
     if item.is_active:
         _transition(item, LoopItem.Status.REJECTED, actor=actor, note=note)
+    _notify(
+        item,
+        NotificationType.RECYCLING_UPDATED,
+        f"recycle:{request.pk}:rejected",
+        context={"new_status": request.get_status_display()},
+    )
     return request
 
 
@@ -616,4 +692,10 @@ def complete_recycling(item: LoopItem, *, actor) -> RecycleRequest:
         request.processed_at = timezone.now()
     request.save()
     _transition(item, LoopItem.Status.RECYCLE_COMPLETED, actor=actor)
+    _notify(
+        item,
+        NotificationType.RECYCLING_UPDATED,
+        f"recycle:{request.pk}:completed",
+        context={"new_status": "Completed"},
+    )
     return request

@@ -1,0 +1,17 @@
+{# djlint:off H021 #}
+{% extends "emails/base.html" %}
+{% load i18n %}
+
+{% block eyebrow %}{% translate "FLASH Points" %}{% endblock eyebrow %}
+
+{% block heading %}{% if points %}{% blocktranslate %}You earned {{ points }} FLASH Points{% endblocktranslate %}{% else %}{{ notification_title }}{% endif %}{% endblock heading %}
+
+{% block content %}
+<p style="margin:0 0 12px 0;font-size:15px;line-height:1.6;color:#334155;">
+    {% if order_number %}{% blocktranslate %}Order {{ order_number }} added points to your balance.{% endblocktranslate %} {% endif %}{% if balance %}{% blocktranslate %}You now have {{ balance }}.{% endblocktranslate %}{% endif %}
+</p>
+{% endblock content %}
+
+{% block cta_label %}{% translate "View your points" %}{% endblock cta_label %}
+
+{# djlint:on #}

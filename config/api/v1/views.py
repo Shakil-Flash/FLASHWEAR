@@ -40,6 +40,11 @@ class ApiRootView(APIView):
                     "account_password": reverse("v1:account-password", request=request),
                     "addresses": reverse("v1:address-list", request=request),
                     "orders": reverse("v1:order-list", request=request),
+                    "notifications": reverse("v1:notification-list", request=request),
+                    "notifications_read_all": reverse("v1:notification-read-all", request=request),
+                    "notifications_preferences": reverse(
+                        "v1:notification-preferences", request=request
+                    ),
                     "closet_items": reverse("v1:closet-item-list", request=request),
                     "outfits": reverse("v1:outfit-list", request=request),
                     "checkout_promotion": reverse("v1:checkout-promotion", request=request),

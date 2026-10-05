@@ -1,0 +1,15 @@
+{# djlint:off H021 #}
+{% extends "emails/base.html" %}
+{% load i18n %}
+
+{% block eyebrow %}{% translate "Delivered" %}{% endblock eyebrow %}
+
+{% block heading %}{% if order_number %}Order {{ order_number }} was delivered{% else %}{{ notification_title }}{% endif %}{% endblock heading %}
+
+{% block content %}
+<p style="margin:0 0 12px 0;font-size:15px;line-height:1.6;color:#334155;">{% translate "Your order arrived. You have 30 days to return anything that is not quite right." %}</p>
+{% endblock content %}
+
+{% block cta_label %}{% translate "View your order" %}{% endblock cta_label %}
+
+{# djlint:on #}

@@ -106,9 +106,7 @@ def _evaluate() -> list[Alert]:
         capability=INVENTORY_VIEW,
     )
     add(
-        Reservation.objects.filter(
-            status=Reservation.Status.ACTIVE, expires_at__lt=now
-        ).count(),
+        Reservation.objects.filter(status=Reservation.Status.ACTIVE, expires_at__lt=now).count(),
         key="stale_holds",
         severity=WARNING,
         title="Stock holds past their expiry",
@@ -133,15 +131,12 @@ def _evaluate() -> list[Alert]:
     add(
         Payment.objects.filter(
             status__in=(Payment.Status.CREATED, Payment.Status.PENDING),
-            updated_at__lt=now
-            - timedelta(minutes=settings.BACKOFFICE_STALE_PAYMENT_MINUTES),
+            updated_at__lt=now - timedelta(minutes=settings.BACKOFFICE_STALE_PAYMENT_MINUTES),
         ).count(),
         key="stale_payments",
         severity=WARNING,
         title="Payments stuck in progress",
-        detail=(
-            f"not moved for {settings.BACKOFFICE_STALE_PAYMENT_MINUTES} minutes."
-        ),
+        detail=(f"not moved for {settings.BACKOFFICE_STALE_PAYMENT_MINUTES} minutes."),
         url_name="backoffice:payments",
         capability=PAYMENTS_VIEW,
     )
@@ -160,9 +155,7 @@ def _evaluate() -> list[Alert]:
         capability=ORDERS_VIEW,
     )
     add(
-        Order.objects.filter(
-            status=Order.Status.CANCELLED, cancelled_at__gte=today
-        ).count(),
+        Order.objects.filter(status=Order.Status.CANCELLED, cancelled_at__gte=today).count(),
         key="cancelled_orders",
         severity=WARNING,
         title="Cancellations today",
@@ -189,9 +182,7 @@ def _evaluate() -> list[Alert]:
         if status not in (SupportTicket.Status.RESOLVED, SupportTicket.Status.CLOSED)
     )
     add(
-        SupportTicket.objects.filter(
-            status__in=open_statuses, escalated_at__isnull=False
-        ).count(),
+        SupportTicket.objects.filter(status__in=open_statuses, escalated_at__isnull=False).count(),
         key="escalated_tickets",
         severity=CRITICAL,
         title="Escalated tickets open",
@@ -203,16 +194,13 @@ def _evaluate() -> list[Alert]:
         SupportTicket.objects.filter(
             status__in=open_statuses,
             last_customer_message_at__isnull=False,
-            last_customer_message_at__lt=now
-            - timedelta(days=settings.BACKOFFICE_SLA_WAITING_DAYS),
+            last_customer_message_at__lt=now - timedelta(days=settings.BACKOFFICE_SLA_WAITING_DAYS),
             last_agent_message_at__isnull=True,
         ).count(),
         key="stale_tickets",
         severity=WARNING,
         title="Tickets past their first-response window",
-        detail=(
-            f"waiting over {settings.BACKOFFICE_SLA_WAITING_DAYS} days for a first reply."
-        ),
+        detail=(f"waiting over {settings.BACKOFFICE_SLA_WAITING_DAYS} days for a first reply."),
         url_name="backoffice:support",
         capability=SUPPORT_VIEW,
     )
@@ -243,18 +231,14 @@ def _evaluate() -> list[Alert]:
         capability=MARKETING_VIEW,
     )
     add(
-        Promotion.objects.filter(
-            is_active=True, usage_limit__isnull=False, ends_at__gt=now
-        )
+        Promotion.objects.filter(is_active=True, usage_limit__isnull=False, ends_at__gt=now)
         .annotate(used_fraction=Cast("used_count", FloatField()) / F("usage_limit"))
         .filter(used_fraction__gte=settings.BACKOFFICE_PROMOTION_LIMIT_FRACTION)
         .count(),
         key="promotion_limit",
         severity=WARNING,
         title="Promotions near their usage limit",
-        detail=(
-            f"{int(settings.BACKOFFICE_PROMOTION_LIMIT_FRACTION * 100)}% of the limit used."
-        ),
+        detail=(f"{int(settings.BACKOFFICE_PROMOTION_LIMIT_FRACTION * 100)}% of the limit used."),
         url_name="backoffice:promotions",
         capability=MARKETING_VIEW,
     )

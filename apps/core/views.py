@@ -26,6 +26,39 @@ def health_view(request: HttpRequest) -> JsonResponse:
     return JsonResponse({"status": "ok"})
 
 
+@never_cache
+@require_GET
+def live_view(request: HttpRequest) -> JsonResponse:
+    """Process liveness: answers as long as the worker can serve a request at all.
+
+    Distinct from ``health_view``/``ready_view`` in intent: an orchestrator should
+    restart on this one and route traffic on the readiness one.
+    """
+    return JsonResponse({"status": "alive"})
+
+
+@never_cache
+@require_GET
+def ready_view(request: HttpRequest) -> JsonResponse:
+    """Readiness: database and cache must answer; the broker is advisory.
+
+    503 tells the load balancer to pull this instance out of rotation while a
+    dependency is down, without restarting a perfectly healthy process.
+    """
+    from apps.core import health
+
+    checks = {
+        "database": health.check_database(),
+        "cache": health.check_cache(),
+        "broker": health.check_broker(),
+    }
+    ready = checks["database"] == "ok" and checks["cache"] == "ok"
+    return JsonResponse(
+        {"status": "ready" if ready else "not_ready", "checks": checks},
+        status=200 if ready else 503,
+    )
+
+
 def home(request: HttpRequest) -> HttpResponse:
     """Homepage: catalogue highlights above the fold, platform status below.
 
@@ -62,3 +95,33 @@ def page_not_found(request: HttpRequest, exception) -> HttpResponse:
 def server_error(request: HttpRequest) -> HttpResponse:
     """500 handler that uses the global error template."""
     return render(request, "pages/errors/500.html", status=500)
+
+
+def bad_request(request: HttpRequest, exception=None) -> HttpResponse:
+    """400 handler (malformed requests, disallowed hosts, oversized payloads).
+
+    Rendered *without* the request: the common cause of a 400 is an unusable
+    ``Host`` header, and passing the request into template rendering would raise
+    ``DisallowedHost`` a second time while building the error page itself.
+    """
+    from django.template.loader import render_to_string
+
+    return HttpResponse(
+        render_to_string("pages/errors/400.html", {"exception": exception}), status=400
+    )
+
+
+def permission_denied(request: HttpRequest, exception=None) -> HttpResponse:
+    """403 handler (denied permissions) using the global template."""
+    return render(request, "pages/errors/403.html", {"exception": exception}, status=403)
+
+
+def csrf_failure(request: HttpRequest, reason: str = "") -> HttpResponse:
+    """Custom CSRF failure page (``settings.CSRF_FAILURE_VIEW``).
+
+    Django routes CSRF rejections straight to this view instead of
+    ``handler403``, so without it a failed CSRF check would show Django's
+    technical page. The reason is already logged by the middleware; the page
+    stays generic on purpose.
+    """
+    return render(request, "pages/errors/403.html", {"reason": reason}, status=403)

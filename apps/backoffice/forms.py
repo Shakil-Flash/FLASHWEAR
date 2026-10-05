@@ -34,8 +34,7 @@ _INPUT = (
     "focus:border-slate-900 focus:outline-none"
 )
 _SELECT = (
-    "rounded-lg border border-slate-300 px-3 py-2 text-sm "
-    "focus:border-slate-900 focus:outline-none"
+    "rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none"
 )
 _TEXTAREA = _INPUT
 
@@ -81,9 +80,7 @@ class InventoryAdjustForm(StyledForm):
         ],
         initial=InventoryMovement.Kind.ADJUSTMENT,
     )
-    note = forms.CharField(
-        label=_("Note"), max_length=200, required=False, widget=forms.TextInput
-    )
+    note = forms.CharField(label=_("Note"), max_length=200, required=False, widget=forms.TextInput)
     reason = forms.CharField(label=_("Reason"), max_length=255)
 
 
@@ -118,9 +115,7 @@ class OrderActionForm(StyledForm):
     carrier = forms.CharField(
         label=_("Carrier"), max_length=64, required=False, widget=forms.TextInput
     )
-    tracking_number = forms.CharField(
-        label=_("Tracking number"), max_length=64, required=False
-    )
+    tracking_number = forms.CharField(label=_("Tracking number"), max_length=64, required=False)
     note = forms.CharField(label=_("Note"), max_length=255, required=False)
 
 
@@ -140,9 +135,7 @@ class ReviewModerationForm(StyledForm):
         from apps.engagement.models import Review
 
         super().__init__(*args, **kwargs)
-        self.fields["status"].choices = [
-            (value, label) for value, label in Review.Status.choices
-        ]
+        self.fields["status"].choices = [(value, label) for value, label in Review.Status.choices]
 
 
 class CatalogBulkForm(StyledForm):
@@ -187,9 +180,7 @@ class SupportAssignForm(StyledForm):
     """Hand a ticket to a member of the desk (or release it with an empty agent)."""
 
     agent = _LabelledModelChoiceField(
-        queryset=get_user_model()
-        .objects.filter(is_active=True, is_staff=True)
-        .order_by("email"),
+        queryset=get_user_model().objects.filter(is_active=True, is_staff=True).order_by("email"),
         label=_("Assign to"),
         required=False,
         empty_label=_("Unassigned"),

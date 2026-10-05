@@ -908,6 +908,43 @@ class TestAttachments:
         assert SupportTicket.objects.count() == 0
         assert SupportAttachment.objects.count() == 0
 
+    # -- per-message file cap (Phase 18) -----------------------------------
+
+    @override_settings(SUPPORT_MAX_ATTACHMENTS_PER_MESSAGE=2)
+    def test_more_files_than_the_cap_is_rejected_before_any_write(self, user):
+        """The count check runs first: a file flood is its own abuse."""
+        files = [png_upload(f"evidence-{i}.png") for i in range(3)]
+
+        with pytest.raises(AttachmentError) as exc:
+            open_ticket(user, uploads=files)
+
+        assert exc.value.code == "support_too_many_attachments"
+        assert SupportTicket.objects.count() == 0
+        assert SupportAttachment.objects.count() == 0
+
+    @override_settings(SUPPORT_MAX_ATTACHMENTS_PER_MESSAGE=1)
+    def test_a_reply_cannot_exceed_the_cap(self, user):
+        ticket = ticket_for(user)
+        files = [png_upload("one.png"), png_upload("two.png")]
+
+        with pytest.raises(AttachmentError) as exc:
+            message_service.post_customer_message(
+                ticket, customer=user, body="Any update?", uploads=files
+            )
+
+        assert exc.value.code == "support_too_many_attachments"
+        assert not SupportMessage.objects.filter(ticket=ticket).exists()
+        assert SupportAttachment.objects.count() == 0
+
+    @override_settings(SUPPORT_MAX_ATTACHMENTS_PER_MESSAGE=2)
+    def test_exactly_at_the_cap_is_accepted(self, user):
+        files = [png_upload("one.png"), png_upload("two.png")]
+
+        ticket = open_ticket(user, uploads=files)
+
+        attached = SupportAttachment.objects.filter(message__ticket=ticket)
+        assert attached.count() == 2
+
 
 def upload_for(client, customer) -> SupportAttachment:
     """A ticket with one customer message and one real stored file."""

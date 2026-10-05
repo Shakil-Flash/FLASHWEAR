@@ -6,7 +6,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = [
@@ -15,25 +14,74 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name='AuditEvent',
+            name="AuditEvent",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('actor_label', models.CharField(max_length=255, verbose_name='actor email')),
-                ('domain', models.CharField(choices=[('orders', 'Orders'), ('payments', 'Payments'), ('inventory', 'Inventory'), ('catalog', 'Catalogue'), ('marketing', 'Marketing'), ('loyalty', 'FLASH Points'), ('moderation', 'Moderation'), ('loop', 'FLASH Loop'), ('support', 'Support'), ('staff', 'Staff')], db_index=True, max_length=32, verbose_name='domain')),
-                ('action', models.CharField(db_index=True, max_length=64, verbose_name='action')),
-                ('object_type', models.CharField(max_length=64, verbose_name='object type')),
-                ('object_id', models.CharField(blank=True, max_length=64, verbose_name='object identifier')),
-                ('object_repr', models.CharField(blank=True, max_length=255, verbose_name='object label')),
-                ('reason', models.CharField(blank=True, max_length=255, verbose_name='reason')),
-                ('metadata', models.JSONField(blank=True, default=dict, verbose_name='metadata')),
-                ('created_at', models.DateTimeField(auto_now_add=True, db_index=True, verbose_name='created')),
-                ('actor', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='backoffice_audit_events', to=settings.AUTH_USER_MODEL, verbose_name='actor')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
+                ("actor_label", models.CharField(max_length=255, verbose_name="actor email")),
+                (
+                    "domain",
+                    models.CharField(
+                        choices=[
+                            ("orders", "Orders"),
+                            ("payments", "Payments"),
+                            ("inventory", "Inventory"),
+                            ("catalog", "Catalogue"),
+                            ("marketing", "Marketing"),
+                            ("loyalty", "FLASH Points"),
+                            ("moderation", "Moderation"),
+                            ("loop", "FLASH Loop"),
+                            ("support", "Support"),
+                            ("staff", "Staff"),
+                        ],
+                        db_index=True,
+                        max_length=32,
+                        verbose_name="domain",
+                    ),
+                ),
+                ("action", models.CharField(db_index=True, max_length=64, verbose_name="action")),
+                ("object_type", models.CharField(max_length=64, verbose_name="object type")),
+                (
+                    "object_id",
+                    models.CharField(blank=True, max_length=64, verbose_name="object identifier"),
+                ),
+                (
+                    "object_repr",
+                    models.CharField(blank=True, max_length=255, verbose_name="object label"),
+                ),
+                ("reason", models.CharField(blank=True, max_length=255, verbose_name="reason")),
+                ("metadata", models.JSONField(blank=True, default=dict, verbose_name="metadata")),
+                (
+                    "created_at",
+                    models.DateTimeField(auto_now_add=True, db_index=True, verbose_name="created"),
+                ),
+                (
+                    "actor",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="backoffice_audit_events",
+                        to=settings.AUTH_USER_MODEL,
+                        verbose_name="actor",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'audit event',
-                'verbose_name_plural': 'audit events',
-                'ordering': ('-created_at', '-pk'),
-                'indexes': [models.Index(fields=['-created_at'], name='bo_audit_created_idx'), models.Index(fields=['domain', '-created_at'], name='bo_audit_domain_idx'), models.Index(fields=['object_type', 'object_id'], name='bo_audit_object_idx'), models.Index(fields=['actor', '-created_at'], name='bo_audit_actor_idx'), models.Index(fields=['action', '-created_at'], name='bo_audit_action_idx')],
+                "verbose_name": "audit event",
+                "verbose_name_plural": "audit events",
+                "ordering": ("-created_at", "-pk"),
+                "indexes": [
+                    models.Index(fields=["-created_at"], name="bo_audit_created_idx"),
+                    models.Index(fields=["domain", "-created_at"], name="bo_audit_domain_idx"),
+                    models.Index(fields=["object_type", "object_id"], name="bo_audit_object_idx"),
+                    models.Index(fields=["actor", "-created_at"], name="bo_audit_actor_idx"),
+                    models.Index(fields=["action", "-created_at"], name="bo_audit_action_idx"),
+                ],
             },
         ),
     ]

@@ -1,0 +1,50 @@
+# Keep the build context small and free of secrets, environments and artefacts.
+# Anything listed here is absent from `COPY . .`, so a stray .env or a gigabyte-scale
+# virtualenv can never be baked into an image.
+
+# Version control / CI -- not needed inside the runtime image.
+.git
+.github
+.gitignore
+
+# Python environments and caches.
+.venv
+venv
+env
+__pycache__
+*.py[cod]
+.pytest_cache
+.ruff_cache
+.coverage
+.coverage.*
+htmlcov
+coverage.xml
+*.egg-info
+
+# Node.
+node_modules
+npm-debug.log*
+
+# Runtime artefacts: staticfiles are rebuilt by collectstatic, media and logs are
+# written by the running application.
+staticfiles
+media
+logs
+test-media
+*.sqlite3
+*.db
+
+# Secrets and local configuration. .env.example is documentation, not configuration,
+# but it is excluded too -- the image needs no env file at all.
+.env
+.env.*
+!.env.example
+
+# Not needed at runtime. CI runs these from the checkout, never from the image.
+tests
+docs
+*.md
+!README.md
+Dockerfile
+docker-compose*.yml
+deploy

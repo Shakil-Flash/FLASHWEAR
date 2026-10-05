@@ -27,7 +27,9 @@ ACCOUNT_SECTIONS: list[tuple[str, str | None, bool]] = [
     (_("Quests"), "account:quests", True),
     (_("Rewards"), "account:rewards", True),
     (_("Support"), "support:home", True),
-    (_("Notifications"), None, False),
+    # Phase 17: the notification center itself (/notifications/); the preference screen
+    # it links to lives at /account/notifications/.
+    (_("Notifications"), "notifications:center", True),
     (_("Security"), "account:security", True),
 ]
 

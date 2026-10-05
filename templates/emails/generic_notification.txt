@@ -1,0 +1,10 @@
+{{ notification_title }}
+
+{{ notification_body }}
+
+{% if action_url %}{{ action_url }}
+{% endif %}
+Manage preferences: {{ preferences_url }}
+{% if unsubscribe_url %}Unsubscribe: {{ unsubscribe_url }}
+{% endif %}
+FLASHWEAR — Fashion Beyond Ordinary

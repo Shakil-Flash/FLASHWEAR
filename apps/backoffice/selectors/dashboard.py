@@ -17,17 +17,22 @@ Two conventions worth knowing:
 
 from __future__ import annotations
 
+import os
 from datetime import timedelta
 from decimal import Decimal
+from urllib.parse import urlsplit
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.db import connection
 from django.db.models import Count, F, FloatField, Q, Sum
 from django.db.models.functions import Cast, Coalesce
 from django.utils import timezone
 
 from apps.backoffice.selectors.common import DateRange
 from apps.backoffice.selectors.queues import open_support_statuses, pending_loop_count
+from apps.core import health as health_checks
+from apps.core import metrics as telemetry
 from apps.drops.models import DropStatus, FlashDrop
 from apps.engagement.models import PointsTransaction, Promotion, Review
 from apps.inventory.models import Reservation, Stock
@@ -36,7 +41,7 @@ from apps.payments.models import Payment
 from apps.quests.models import Quest
 from apps.support.models import SupportTicket
 
-__all__ = ["REVENUE_STATUSES", "dashboard_summary"]
+__all__ = ["REVENUE_STATUSES", "dashboard_summary", "health_report"]
 
 #: Order states whose money is still the shop's: paid and moving through fulfilment.
 REVENUE_STATUSES = (
@@ -158,9 +163,7 @@ def dashboard_summary(*, date_range: DateRange) -> dict:
         scheduled=Count("pk", filter=Q(starts_at__gt=now)),
     )
     promotions["near_limit"] = (
-        Promotion.objects.filter(
-            is_active=True, usage_limit__isnull=False, ends_at__gt=now
-        )
+        Promotion.objects.filter(is_active=True, usage_limit__isnull=False, ends_at__gt=now)
         .annotate(used_fraction=Cast("used_count", FloatField()) / F("usage_limit"))
         .filter(used_fraction__gte=fraction)
         .count()
@@ -192,4 +195,49 @@ def dashboard_summary(*, date_range: DateRange) -> dict:
         "quests": quests,
         "promotions": promotions,
         "points": {"issued": points["issued"], "redeemed": -points["redeemed"]},
+    }
+
+
+def _broker_kind() -> str:
+    """A credential-free label for the configured broker ("redis", "eager", ...)."""
+    if getattr(settings, "CELERY_TASK_ALWAYS_EAGER", False):
+        return "eager (in-process)"
+    # The scheme only: the URL itself may carry a password, and this dict is rendered.
+    return urlsplit(settings.CELERY_BROKER_URL).scheme or "unknown"
+
+
+def health_report() -> dict:
+    """The system-health screen: live probes, today's telemetry, safe labels.
+
+    Everything here is computed on the page load -- no aggregation over history, and no
+    invented numbers: an unavailable measurement reports as unavailable. The environment
+    block is deliberately labels only (settings module, DB vendor, cache backend class,
+    broker URL scheme), because this screen is projected in ops rooms and must never
+    render a hostname or a credential. ``healthy`` collapses the probe results into one
+    word the template can lead with instead of re-deriving the rule.
+    """
+    checks = [
+        {"label": label, "status": probe()}
+        for label, probe in (
+            ("Database", health_checks.check_database),
+            ("Cache", health_checks.check_cache),
+            ("Celery broker", health_checks.check_broker),
+        )
+    ]
+    snapshot = telemetry.snapshot()
+    return {
+        "checks": checks,
+        "healthy": all(row["status"] != "down" for row in checks),
+        "metrics": {
+            **snapshot,
+            # Templates render ``None`` as the word "None"; carry the question as a bool.
+            "queue_depth_measured": snapshot["queue_depth"] is not None,
+        },
+        "environment": {
+            "settings_module": os.environ.get("DJANGO_SETTINGS_MODULE", ""),
+            "debug": settings.DEBUG,
+            "database_vendor": connection.vendor,
+            "cache_backend": settings.CACHES["default"]["BACKEND"].rsplit(".", 1)[-1],
+            "broker": _broker_kind(),
+        },
     }

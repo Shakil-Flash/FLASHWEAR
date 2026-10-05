@@ -46,9 +46,7 @@ PENDING_LOOP_STATUSES = (
 )
 
 
-def review_queue(
-    *, q: str = "", status: str = "", rating: str = "", sort: str = ""
-) -> QuerySet:
+def review_queue(*, q: str = "", status: str = "", rating: str = "", sort: str = "") -> QuerySet:
     """Reviews for moderation, newest first, with author and product joined once."""
     qs = Review.objects.select_related("author", "product", "order")
     needle = (q or "").strip()
@@ -155,7 +153,5 @@ def pending_loop_count() -> dict[str, int]:
         "trade_ins": TradeInRequest.objects.filter(
             status__in=(TradeInRequest.Status.SUBMITTED, TradeInRequest.Status.UNDER_REVIEW)
         ).count(),
-        "recycling": RecycleRequest.objects.filter(
-            status=RecycleRequest.Status.SUBMITTED
-        ).count(),
+        "recycling": RecycleRequest.objects.filter(status=RecycleRequest.Status.SUBMITTED).count(),
     }

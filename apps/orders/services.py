@@ -217,6 +217,9 @@ def create_order_from_checkout(checkout: CheckoutSession) -> Order:
     checkout.status = CheckoutSession.Status.CONVERTED
     checkout.save(update_fields=["status", "updated_at"])
     _convert_cart(cart)
+    from apps.notifications.models import NotificationType
+
+    _notify(order, NotificationType.ORDER_PLACED, "placed")
     return order
 
 
@@ -328,6 +331,53 @@ def _address_values(checkout: CheckoutSession, snapshot: dict) -> dict:
 
 
 # =============================================================================
+# Customer notifications (Phase 17)
+# =============================================================================
+
+
+def _notify(order: Order, notification_type: str, key_suffix: str, *, context=None) -> None:
+    """Emit a customer notification tied to this order. Never raises: a broken
+    notification must not fail checkout, shipping or cancellation (Phase 17 §19).
+    Rows are created in the caller's transaction, so they roll back with the state
+    change that caused them; email delivery is deferred to on_commit by the dispatcher.
+    """
+    from django.urls import reverse
+
+    from apps.notifications.services.events import emit
+
+    emit(
+        notification_type=notification_type,
+        user=order.user,
+        idempotency_key=f"order:{order.pk}:{key_suffix}",
+        context={
+            "order_number": order.number,
+            "total": f"{order.total} {order.currency}",
+            **(context or {}),
+        },
+        action_url=reverse("account:order-detail", args=[order.number]),
+        related_object_type="order",
+        related_object_id=order.pk,
+    )
+
+
+def _notify_shipped(order: Order, shipment, *, tracking_number: str = "") -> None:
+    """Shipped notifications carry whatever carrier/tracking we actually hold: on the
+    paid-order shortcut the tracking number only exists as an argument, not on the row.
+    """
+    from apps.notifications.models import NotificationType
+
+    _notify(
+        order,
+        NotificationType.ORDER_SHIPPED,
+        "shipped",
+        context={
+            "carrier": shipment.carrier or "",
+            "tracking_number": tracking_number or shipment.tracking_number or "",
+        },
+    )
+
+
+# =============================================================================
 # Fulfilment
 # =============================================================================
 
@@ -356,6 +406,9 @@ def mark_processing(order: Order, *, actor=None, carrier: str = "") -> Shipment:
         metadata={"shipment": shipment.pk},
     )
     shipment.transition_to(Shipment.Status.PROCESSING, actor=actor, note="Picking started.")
+    from apps.notifications.models import NotificationType
+
+    _notify(order, NotificationType.ORDER_PROCESSING, "processing")
     return shipment
 
 
@@ -376,12 +429,14 @@ def ship_order(
     order = Order.objects.select_for_update().get(pk=order.pk)
     if order.status == Order.Status.PAID:
         # Convenience: shipping a paid order starts processing first.
-        return mark_processing(order, actor=actor, carrier=carrier).transition_to(
+        shipment = mark_processing(order, actor=actor, carrier=carrier).transition_to(
             Shipment.Status.SHIPPED,
             actor=actor,
             note="Handed to the carrier.",
             metadata={"tracking_number": tracking_number} if tracking_number else None,
         )
+        _notify_shipped(order, shipment, tracking_number=tracking_number)
+        return shipment
     if order.status != Order.Status.PROCESSING:
         raise InvalidTransition("order", order.status, Order.Status.SHIPPED)
 
@@ -391,12 +446,14 @@ def ship_order(
     if carrier:
         shipment.carrier = carrier
     shipment.save()
-    return shipment.transition_to(
+    shipment = shipment.transition_to(
         Shipment.Status.SHIPPED,
         actor=actor,
         note="Handed to the carrier.",
         metadata={"tracking_number": tracking_number} if tracking_number else None,
     )
+    _notify_shipped(order, shipment, tracking_number=tracking_number)
+    return shipment
 
 
 @transaction.atomic
@@ -406,7 +463,11 @@ def deliver_order(order: Order, *, actor=None) -> Shipment:
     if order.status != Order.Status.SHIPPED:
         raise InvalidTransition("order", order.status, Order.Status.DELIVERED)
     shipment = _current_shipment(order)
-    return shipment.transition_to(Shipment.Status.DELIVERED, actor=actor, note="Delivered.")
+    shipment = shipment.transition_to(Shipment.Status.DELIVERED, actor=actor, note="Delivered.")
+    from apps.notifications.models import NotificationType
+
+    _notify(order, NotificationType.ORDER_DELIVERED, "delivered")
+    return shipment
 
 
 @transaction.atomic
@@ -443,4 +504,15 @@ def cancel_order(
     # Same transaction as the transition: listeners (FLASH Points release) must observe the
     # cancellation or not at all.
     order_cancelled.send(sender=Order, order=order)
+    if event_type != OrderEvent.Type.PAYMENT_FAILED:
+        # A failed payment already told the customer (PAYMENT_FAILED); every other
+        # cancellation -- customer, admin, provider-cancelled -- gets ORDER_CANCELLED.
+        from apps.notifications.models import NotificationType
+
+        _notify(
+            order,
+            NotificationType.ORDER_CANCELLED,
+            "cancelled",
+            context={"cancellation_reason": note or "Your order was cancelled"},
+        )
     return order

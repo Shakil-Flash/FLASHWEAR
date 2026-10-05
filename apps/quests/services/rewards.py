@@ -24,11 +24,29 @@ from django.conf import settings
 from django.utils import timezone
 
 from apps.engagement.models import PointsTransaction
+from apps.notifications.models import NotificationType
 from apps.quests.models import UserBadge, UserQuest
 from apps.quests.services import badges as badge_service
 from apps.quests.services.errors import QuestConfigurationError
 
 __all__ = ["issue_badge", "issue_points", "issue_rewards", "reward_reference"]
+
+
+def _notify(user, notification_type: str, key: str, *, context, action_url, related_id):
+    """Phase 17: a customer-facing notice for a quest event. Never raises; runs in the
+    completion transaction so the notification rolls back with the state change.
+    """
+    from apps.notifications.services.events import emit
+
+    emit(
+        notification_type=notification_type,
+        user=user,
+        idempotency_key=key,
+        context=context,
+        action_url=action_url,
+        related_object_type="quest",
+        related_object_id=related_id,
+    )
 
 
 def reward_reference(quest, user, period_key: str) -> str:
@@ -50,7 +68,7 @@ def issue_points(user, quest, period_key: str) -> PointsTransaction | None:
     """Credit the quest's FLASH Points through the Phase 7 ledger. Idempotent."""
     if quest.points_reward <= 0:
         return None
-    entry, _created = PointsTransaction.objects.get_or_create(
+    entry, created = PointsTransaction.objects.get_or_create(
         reference=reward_reference(quest, user, period_key),
         transaction_type=PointsTransaction.TransactionType.BONUS,
         defaults={
@@ -60,6 +78,20 @@ def issue_points(user, quest, period_key: str) -> PointsTransaction | None:
             "note": f"Quest reward: {quest.name}",
         },
     )
+    if created:
+        from django.urls import reverse
+
+        _notify(
+            user,
+            NotificationType.QUEST_REWARD_GRANTED,
+            f"quest:{quest.pk}:reward_granted:{user.pk}:{period_key or '-'}",
+            context={
+                "reward_name": quest.name,
+                "reward_description": getattr(quest, "description", "") or "",
+            },
+            action_url=reverse("account:quests"),
+            related_id=quest.pk,
+        )
     return entry
 
 
@@ -80,6 +112,16 @@ def issue_rewards(user_quest: UserQuest) -> dict:
     """
     user = user_quest.user
     quest = user_quest.quest
+    from django.urls import reverse
+
+    _notify(
+        user,
+        NotificationType.QUEST_COMPLETED,
+        f"quest:{quest.pk}:completed:{user_quest.pk}",
+        context={"quest_name": quest.name},
+        action_url=reverse("account:quest-detail", args=[quest.slug]),
+        related_id=quest.pk,
+    )
     return {
         "points": issue_points(user, quest, user_quest.period_key),
         "badge": issue_badge(user, quest),

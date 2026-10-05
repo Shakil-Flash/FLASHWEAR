@@ -22,10 +22,11 @@ from django.db.models import Q
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
+from apps.notifications.models import NotificationType
 from apps.support.models import SupportMessage, SupportTicket, SupportTicketEvent
 from apps.support.permissions import SUPPORT_AGENT, SUPPORT_MANAGER, has_capability
 from apps.support.services import events, notifications, references
-from apps.support.services.attachments import attach, validate_attachment
+from apps.support.services.attachments import attach, validate_uploads
 from apps.support.services.errors import (
     DuplicateTicketError,
     ForbiddenError,
@@ -64,6 +65,28 @@ def clean_text(value: str, *, field: str, max_length: int) -> str:
             code="support_invalid",
         )
     return text
+
+
+def notify_ticket(ticket, notification_type: str, key: str) -> None:
+    """Phase 17: in-app center entry for the ticket's customer. Never raises; runs in the
+    caller's transaction so the row rolls back with the change that caused it.
+
+    The Phase 15 mailer (``notifications.notify_*``) is deliberately untouched: these
+    registry types are in-app only, the email side of support already has its own tests.
+    """
+    from django.urls import reverse
+
+    from apps.notifications.services.events import emit
+
+    emit(
+        notification_type=notification_type,
+        user=ticket.customer,
+        idempotency_key=f"support:{ticket.pk}:{key}",
+        context={"ticket_number": ticket.number},
+        action_url=reverse("support:ticket-detail", args=[ticket.number]),
+        related_object_type="support_ticket",
+        related_object_id=ticket.pk,
+    )
 
 
 # =============================================================================
@@ -139,9 +162,7 @@ def open_ticket(
 
     resolved = references.resolve_for_customer(customer, **(refs or {}))
 
-    upload_list = list(uploads or [])
-    for upload in upload_list:
-        validate_attachment(upload)
+    upload_list = validate_uploads(uploads)
 
     duplicate = find_duplicate(customer, category, resolved)
     if duplicate is not None:
@@ -193,6 +214,7 @@ def open_ticket(
         actor=customer,
         request=request,
     )
+    notify_ticket(ticket, NotificationType.SUPPORT_TICKET_CREATED, "created")
     return ticket
 
 
@@ -286,6 +308,10 @@ def _notify_status_change(ticket, to_status: str, *, actor=None, request=None) -
             request=request,
             actor=actor,
         )
+        if to_status == SupportTicket.Status.RESOLVED:
+            notify_ticket(ticket, NotificationType.SUPPORT_TICKET_RESOLVED, f"status:{to_status}")
+        else:
+            notify_ticket(ticket, NotificationType.SUPPORT_TICKET_UPDATED, f"status:{to_status}")
     if to_status == SupportTicket.Status.ESCALATED:
         notifications.notify_managers(
             ticket,
@@ -370,6 +396,7 @@ def assign_ticket(ticket: SupportTicket, *, actor, agent=None, request=None) -> 
             request=request,
             actor=actor,
         )
+        notify_ticket(ticket, NotificationType.SUPPORT_TICKET_UPDATED, f"assigned:{agent.pk}")
     return ticket
 
 

@@ -118,9 +118,7 @@ def orders(
         qs = qs.filter(items__variant__product__name__icontains=product.strip()).distinct()
     if drop:
         # Orders carry no drop column; a drop is known through the products it featured.
-        qs = qs.filter(
-            items__variant__product__drop_products__drop__slug=drop.strip()
-        ).distinct()
+        qs = qs.filter(items__variant__product__drop_products__drop__slug=drop.strip()).distinct()
     if promotion:
         qs = qs.filter(promotion_code__icontains=promotion.strip())
     return sort_queryset(qs, sort, ORDER_SORTS, "-created_at")[0]
@@ -213,9 +211,7 @@ def payments(
     qs = Payment.objects.select_related("order", "order__user")
     needle = (q or "").strip()
     if needle:
-        qs = qs.filter(
-            Q(order__number__icontains=needle) | Q(provider_reference__icontains=needle)
-        )
+        qs = qs.filter(Q(order__number__icontains=needle) | Q(provider_reference__icontains=needle))
     status = _clean_choice(status, Payment.Status.values)
     if status:
         qs = qs.filter(status=status)
@@ -247,9 +243,7 @@ def shipments(
     qs = Shipment.objects.select_related("order", "order__user")
     needle = (q or "").strip()
     if needle:
-        qs = qs.filter(
-            Q(tracking_number__icontains=needle) | Q(order__number__icontains=needle)
-        )
+        qs = qs.filter(Q(tracking_number__icontains=needle) | Q(order__number__icontains=needle))
     status = _clean_choice(status, Shipment.Status.values)
     if status:
         qs = qs.filter(status=status)

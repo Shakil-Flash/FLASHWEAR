@@ -1,0 +1,8 @@
+{% load i18n %}{% if points %}{% blocktranslate %}You earned {{ points }} FLASH Points{% endblocktranslate %}{% else %}{{ notification_title }}{% endif %}
+
+{% if order_number %}{% blocktranslate %}Order {{ order_number }} added points to your balance.{% endblocktranslate %} {% endif %}{% if balance %}{% blocktranslate %}You now have {{ balance }}.{% endblocktranslate %}{% endif %}
+
+{% if action_url %}{{ action_url }}
+{% endif %}
+Manage preferences: {{ preferences_url }}
+FLASHWEAR — Fashion Beyond Ordinary

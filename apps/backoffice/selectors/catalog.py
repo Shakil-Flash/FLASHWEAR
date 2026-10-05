@@ -123,9 +123,7 @@ def _low_stock_threshold() -> int:
     return settings.BACKOFFICE_LOW_STOCK_THRESHOLD
 
 
-def products(
-    *, q: str = "", status: str = "", issue: str = "", sort: str = ""
-) -> QuerySet:
+def products(*, q: str = "", status: str = "", issue: str = "", sort: str = "") -> QuerySet:
     """Products with the counters the quality flags need, computed in the query.
 
     ``image_count`` and ``active_variant_count`` are annotations rather than per-row
@@ -178,9 +176,9 @@ def catalog_health() -> dict[str, int]:
 
 def drops(*, status: str = "", q: str = "") -> QuerySet:
     """Drops with their product rows and allocations eager-loaded."""
-    qs = FlashDrop.objects.prefetch_related(
-        "products__product", "allocations"
-    ).order_by("-starts_at", "-pk")
+    qs = FlashDrop.objects.prefetch_related("products__product", "allocations").order_by(
+        "-starts_at", "-pk"
+    )
     if status in DropStatus.values:
         qs = qs.filter(status=status)
     needle = (q or "").strip()
@@ -207,9 +205,9 @@ def promotions(*, scope: str = "", q: str = "") -> QuerySet:
     if scope:
         now = timezone.localtime()
         if scope == "active":
-            qs = qs.filter(
-                is_active=True, starts_at__lte=now
-            ).filter(Q(ends_at__isnull=True) | Q(ends_at__gt=now))
+            qs = qs.filter(is_active=True, starts_at__lte=now).filter(
+                Q(ends_at__isnull=True) | Q(ends_at__gt=now)
+            )
         elif scope == "scheduled":
             qs = qs.filter(is_active=True, starts_at__gt=now)
         elif scope == "expired":
@@ -235,9 +233,7 @@ def quests(*, q: str = "", publish_state: str = "", sort: str = "") -> QuerySet:
     """Quest definitions with participation counts (one aggregate, not per row)."""
     qs = Quest.objects.annotate(
         participant_count=Count("progress", distinct=True),
-        completed_count=Count(
-            "progress", filter=Q(progress__status="completed"), distinct=True
-        ),
+        completed_count=Count("progress", filter=Q(progress__status="completed"), distinct=True),
     ).order_by("sort_order", "-pk")
     if publish_state in Quest.PublishState.values:
         qs = qs.filter(publish_state=publish_state)

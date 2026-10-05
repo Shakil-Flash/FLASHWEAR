@@ -13,8 +13,19 @@ Usage::
 
 from __future__ import annotations
 
+import contextvars
+import json
 import logging
 import re
+from datetime import UTC, datetime
+
+# Correlation id for one request (or one Celery task). Set by
+# ``apps.core.middleware.RequestContextMiddleware``; the default "-" keeps log
+# lines well-formed outside a request. Lives here rather than in the middleware
+# module so formatters can read it without importing Django view machinery.
+request_id_var: contextvars.ContextVar[str] = contextvars.ContextVar(
+    "flashwear_request_id", default="-"
+)
 
 # Ordered, non-overlapping patterns. Each pattern must consume the sensitive value so
 # nothing leaks into the output. The last capture group is always the secret itself.
@@ -69,3 +80,76 @@ class RedactingFormatter(logging.Formatter):
 
     def format(self, record: logging.LogRecord) -> str:
         return redact(super().format(record))
+
+
+# Field names whose values are credentials no matter what they look like. A short
+# password would never trip the value patterns above, so the key decides here.
+_SENSITIVE_KEY = re.compile(
+    r"(?i)(password|passwd|pwd|token|secret|api[_-]?key|authorization|cookie"
+    r"|credential|signature|otp\b|salt)"
+)
+
+# Correlation ids are 32+ character hex by construction, which the "opaque blob"
+# pattern would happily redact -- and they are exactly what must survive intact.
+_CORRELATION_KEYS = frozenset({"request_id", "task_id", "correlation_id"})
+
+# Attributes present on every LogRecord; anything else was attached via ``extra=``.
+_STANDARD_ATTRS = frozenset(
+    {
+        "args",
+        "asctime",
+        "created",
+        "exc_info",
+        "exc_text",
+        "filename",
+        "funcName",
+        "levelname",
+        "levelno",
+        "lineno",
+        "module",
+        "msecs",
+        "message",
+        "msg",
+        "name",
+        "pathname",
+        "process",
+        "processName",
+        "relativeCreated",
+        "stack_info",
+        "taskName",
+        "thread",
+        "threadName",
+    }
+)
+
+
+class JsonFormatter(RedactingFormatter):
+    """One JSON object per line, redacted field by field.
+
+    Structured logs are what a log shipper (Loki, CloudWatch, ELK) wants; the plain
+    formatters above stay the default for local reading. Subclassing
+    ``RedactingFormatter`` is a contract: every formatter in the project must redact,
+    and ``tests/test_infrastructure.py`` asserts exactly that.
+    """
+
+    def format(self, record: logging.LogRecord) -> str:
+        payload: dict[str, object] = {
+            "ts": datetime.fromtimestamp(record.created, tz=UTC).isoformat(timespec="milliseconds"),
+            "level": record.levelname,
+            "logger": record.name,
+            "message": redact(record.getMessage()),
+            "source": f"{record.module}:{record.lineno}",
+            "request_id": request_id_var.get(),
+        }
+        if record.exc_info:
+            payload["exception"] = redact(self.formatException(record.exc_info))
+        for key, value in record.__dict__.items():
+            if key in _STANDARD_ATTRS or key.startswith("_"):
+                continue
+            if _SENSITIVE_KEY.search(key):
+                payload[key] = "[REDACTED]"
+            elif isinstance(value, str) and key not in _CORRELATION_KEYS:
+                payload[key] = redact(value)
+            else:
+                payload[key] = value
+        return json.dumps(payload, default=str)

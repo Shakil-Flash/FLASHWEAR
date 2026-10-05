@@ -79,6 +79,10 @@ THIRD_PARTY_APPS = [
 LOCAL_APPS = [
     "apps.core",
     "apps.accounts",
+    # Phase 17: notifications & customer communications -- a cross-cutting layer whose
+    # only model dependency is the user; domains import its services when emitting, and
+    # nothing below imports it back.
+    "apps.notifications",
     "apps.catalog",
     "apps.shop",
     # Phase 6: orders, inventory and payments. Orders sits between the shop
@@ -123,7 +127,14 @@ SITE_ID = 1
 # --------------------------------------------------------------------------------------
 
 MIDDLEWARE = [
+    # Outermost on purpose: every log line (including exceptions raised further in)
+    # carries the correlation id this middleware mints, and it is the last middleware
+    # to touch the response, so ``X-Request-ID`` is always present.
+    "apps.core.middleware.RequestContextMiddleware",
     "django.middleware.security.SecurityMiddleware",
+    # After SecurityMiddleware (so a TLS redirect never needs the header) and before
+    # WhiteNoise (which short-circuits static files below this point).
+    "apps.core.middleware.ContentSecurityPolicyMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -134,6 +145,39 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
+
+# --------------------------------------------------------------------------------------
+# Content Security Policy
+# --------------------------------------------------------------------------------------
+
+# Baseline CSP: all first-party code (Tailwind build, vendored HTMX/Alpine, app.js) is
+# served from this origin, so no third-party script or style source is required. The
+# policy is attached by ``apps.core.middleware.ContentSecurityPolicyMiddleware``.
+#
+# Report-only everywhere except production: development must never block the Django
+# debug page (which uses inline script), and staging rehearses templates against the
+# policy before production enforces it (``config.settings.production`` flips the default).
+CSP_REPORT_ONLY = env.bool("CSP_REPORT_ONLY", default=True)
+CONTENT_SECURITY_POLICY = {
+    "DIRECTIVES": {
+        "default-src": ["'self'"],
+        "base-uri": ["'self'"],
+        "object-src": ["'none'"],
+        "frame-ancestors": ["'none'"],
+        "form-action": ["'self'"],
+        # Product and editorial imagery may be served from a CDN over HTTPS.
+        "img-src": ["'self'", "data:", "https:"],
+        "font-src": ["'self'", "data:"],
+        # 'unsafe-inline' is required by Django form/error widgets; drop it if avoidable.
+        "style-src": ["'self'", "'unsafe-inline'"],
+        "script-src": ["'self'"],
+        "connect-src": ["'self'"],
+        "worker-src": ["'self'", "blob:"],
+        "frame-src": ["'self'"],
+        "manifest-src": ["'self'"],
+        "upgrade-insecure-requests": [],
+    }
+}
 
 # --------------------------------------------------------------------------------------
 # Templates
@@ -152,6 +196,7 @@ TEMPLATES = [
                 "django.contrib.messages.context_processors.messages",
                 "apps.core.context_processors.site",
                 "apps.shop.context_processors.cart_summary",
+                "apps.notifications.context_processors.unread_count",
             ],
             "builtins": ["apps.core.templatetags.flashwear"],
         },
@@ -248,6 +293,19 @@ CELERY_TASK_SOFT_TIME_LIMIT = env.int("CELERY_TASK_SOFT_TIME_LIMIT", default=240
 CELERY_WORKER_HIJACK_ROOT_LOGGER = False
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 
+# Retry policy for anything that asks for a retry (``task.retry`` / ``autoretry_for``):
+# bounded exponential backoff, so a transient Redis or SMTP blip does not burn the queue
+# while a poison task cannot loop forever. Sweepers do not rely on this -- beat fires them
+# again on the next interval regardless of how the previous run ended.
+CELERY_TASK_DEFAULT_RETRY_DELAY = env.int("CELERY_TASK_DEFAULT_RETRY_DELAY", default=30)
+CELERY_TASK_RETRY_BACKOFF = env.int("CELERY_TASK_RETRY_BACKOFF", default=2)
+CELERY_TASK_RETRY_BACKOFF_MAX = env.int("CELERY_TASK_RETRY_BACKOFF_MAX", default=600)
+CELERY_TASK_MAX_RETRIES = env.int("CELERY_TASK_MAX_RETRIES", default=3)
+# Results are short-lived on purpose: nothing in the codebase polls the result backend
+# (callers read database state or wait on ``transaction.on_commit``), so an hour of
+# history is purely hygiene against unbounded Redis growth.
+CELERY_RESULT_EXPIRES = env.int("CELERY_RESULT_EXPIRES", default=3600)
+
 # How often (seconds) the sweeper returns abandoned holds to the shop floor.
 # Kept as a named setting so operators, the beat schedule and the tests all read
 # the same number; hold lifetime itself is INVENTORY_RESERVATION_MINUTES below.
@@ -283,9 +341,62 @@ LOYALTY_SWEEP_INTERVAL_SECONDS = env.int("LOYALTY_SWEEP_INTERVAL_SECONDS", defau
 # participation row -- the no-signal half of quest progress (see apps.quests.tasks).
 QUESTS_SWEEP_INTERVAL_SECONDS = env.int("QUESTS_SWEEP_INTERVAL_SECONDS", default=300)
 
-# Periodic work (requires `celery beat` alongside the worker). Sweepers give expired
-# things back: stock holds, points holds, due point balances -- and re-derive quest
-# progress that arrived without an event.
+# --------------------------------------------------------------------------------------
+# Notifications (Phase 17)
+# --------------------------------------------------------------------------------------
+
+# Delivery attempts for one email row before it fails permanently (back office can retry
+# by hand after that). Transient failures back off exponentially from the base below.
+NOTIFICATIONS_MAX_EMAIL_ATTEMPTS = env.int("NOTIFICATIONS_MAX_EMAIL_ATTEMPTS", default=3)
+NOTIFICATIONS_RETRY_BACKOFF_SECONDS = env.int("NOTIFICATIONS_RETRY_BACKOFF_SECONDS", default=60)
+NOTIFICATIONS_RETRY_MAX_SECONDS = env.int("NOTIFICATIONS_RETRY_MAX_SECONDS", default=3600)
+# A queued row older than this with no outcome is presumed orphaned (worker died mid-send)
+# and gets re-queued; the age gate is what stops a double-send while a task still runs.
+NOTIFICATIONS_STUCK_SECONDS = env.int("NOTIFICATIONS_STUCK_SECONDS", default=600)
+
+# Retention: read in-app rows age out (unread ones never do); terminal email rows outlive
+# them so a year-old "was this sent?" audit question still has an answer.
+NOTIFICATIONS_RETENTION_DAYS = env.int("NOTIFICATIONS_RETENTION_DAYS", default=90)
+NOTIFICATIONS_EMAIL_RETENTION_DAYS = env.int("NOTIFICATIONS_EMAIL_RETENTION_DAYS", default=365)
+
+# How far ahead the points-expiring sweeper warns before FLASH Points vanish.
+NOTIFICATIONS_EXPIRING_WARNING_DAYS = env.int("NOTIFICATIONS_EXPIRING_WARNING_DAYS", default=7)
+# Slice size for a broadcast fan-out (one task argument list per slice).
+NOTIFICATIONS_BROADCAST_BATCH_SIZE = env.int("NOTIFICATIONS_BROADCAST_BATCH_SIZE", default=500)
+
+# The delivery seam: "django" uses django.core.mail (console/locmem/SMTP); a hosted
+# provider arrives as a second EmailProvider plus a value here.
+NOTIFICATIONS_EMAIL_PROVIDER = env("NOTIFICATIONS_EMAIL_PROVIDER", default="django")
+
+# Write limits for the notification endpoints (see apps.notifications.throttling).
+NOTIFICATIONS_READ_ALL_MAX = env.int("NOTIFICATIONS_READ_ALL_MAX", default=10)
+NOTIFICATIONS_PREFERENCES_MAX = env.int("NOTIFICATIONS_PREFERENCES_MAX", default=20)
+NOTIFICATIONS_UNSUBSCRIBE_MAX = env.int("NOTIFICATIONS_UNSUBSCRIBE_MAX", default=10)
+NOTIFICATIONS_THROTTLE_WINDOW_SECONDS = env.int(
+    "NOTIFICATIONS_THROTTLE_WINDOW_SECONDS", default=300
+)
+
+# Sweep cadences (seconds): queue recovery/promotion, retention, drop announcements,
+# points-expiry warnings.
+NOTIFICATIONS_QUEUE_SWEEP_INTERVAL_SECONDS = env.int(
+    "NOTIFICATIONS_QUEUE_SWEEP_INTERVAL_SECONDS", default=300
+)
+NOTIFICATIONS_RETENTION_SWEEP_INTERVAL_SECONDS = env.int(
+    "NOTIFICATIONS_RETENTION_SWEEP_INTERVAL_SECONDS", default=21600
+)
+NOTIFICATIONS_DROP_SWEEP_INTERVAL_SECONDS = env.int(
+    "NOTIFICATIONS_DROP_SWEEP_INTERVAL_SECONDS", default=300
+)
+NOTIFICATIONS_POINTS_SWEEP_INTERVAL_SECONDS = env.int(
+    "NOTIFICATIONS_POINTS_SWEEP_INTERVAL_SECONDS", default=86400
+)
+
+# Cadences for the housekeeping tasks whose own sections sit further down the file
+# (support, Loop) -- declared here so every beat interval exists before the schedule
+# that reads it.
+SUPPORT_SWEEP_INTERVAL_SECONDS = env.int("SUPPORT_SWEEP_INTERVAL_SECONDS", default=3600)
+LOOP_SWEEP_INTERVAL_SECONDS = env.int("LOOP_SWEEP_INTERVAL_SECONDS", default=3600)
+
 CELERY_BEAT_SCHEDULE = {
     "inventory-sweep-expired-reservations": {
         "task": "inventory.sweep_expired_reservations",
@@ -298,6 +409,41 @@ CELERY_BEAT_SCHEDULE = {
     "quests-sweep-progress": {
         "task": "quests.sweep_progress",
         "schedule": QUESTS_SWEEP_INTERVAL_SECONDS,
+    },
+    "notifications-sweep-queue": {
+        "task": "notifications.sweep_queue",
+        "schedule": NOTIFICATIONS_QUEUE_SWEEP_INTERVAL_SECONDS,
+    },
+    "notifications-sweep-retention": {
+        "task": "notifications.sweep_retention",
+        "schedule": NOTIFICATIONS_RETENTION_SWEEP_INTERVAL_SECONDS,
+    },
+    "notifications-sweep-drop-events": {
+        "task": "notifications.sweep_drop_events",
+        "schedule": NOTIFICATIONS_DROP_SWEEP_INTERVAL_SECONDS,
+    },
+    "notifications-sweep-points-expiring": {
+        "task": "notifications.sweep_points_expiring",
+        "schedule": NOTIFICATIONS_POINTS_SWEEP_INTERVAL_SECONDS,
+    },
+    # (when SUPPORT_SEND_REMINDERS is on) re-nudge tickets parked on the customer.
+    "support-close-abandoned": {
+        "task": "support.close_abandoned_tickets",
+        "schedule": SUPPORT_SWEEP_INTERVAL_SECONDS,
+    },
+    "support-remind-pending": {
+        "task": "support.remind_pending_tickets",
+        "schedule": SUPPORT_SWEEP_INTERVAL_SECONDS,
+    },
+    # Loop housekeeping (Phase 13): expired listings and past-due credits. Without these
+    # entries the tasks existed but nothing ever fired them.
+    "loop-expire-stale-listings": {
+        "task": "loop.expire_stale_listings",
+        "schedule": LOOP_SWEEP_INTERVAL_SECONDS,
+    },
+    "loop-expire-credits": {
+        "task": "loop.expire_loop_credits",
+        "schedule": LOOP_SWEEP_INTERVAL_SECONDS,
     },
 }
 
@@ -319,6 +465,16 @@ AUTHENTICATION_BACKENDS = ["apps.accounts.backends.EmailBackend"]
 LOGIN_URL = env("LOGIN_URL", default="/accounts/login/")
 LOGIN_REDIRECT_URL = "core:home"
 LOGOUT_REDIRECT_URL = "core:home"
+
+# Django sends CSRF rejections straight to this view (not through handler403),
+# so it must point at our branded 403 page instead of the technical default.
+CSRF_FAILURE_VIEW = "apps.core.views.csrf_failure"
+
+# Per-address attempt caps for mail-sending / sign-up endpoints
+# (apps.accounts.throttling.AttemptThrottle). Counted regardless of outcome --
+# the abuse is the volume itself (mailbox bombing, mass sign-ups).
+ACCOUNT_ATTEMPT_MAX = env.int("ACCOUNT_ATTEMPT_MAX", default=10)
+ACCOUNT_ATTEMPT_WINDOW_SECONDS = env.int("ACCOUNT_ATTEMPT_WINDOW_SECONDS", default=3600)
 
 # Failed sign-in limiting for the storefront login form. The API surface is throttled by DRF;
 # the HTML form needs its own guard so /accounts/login/ is not a password-guessing oracle.
@@ -486,6 +642,7 @@ SUPPORT_ATTACHMENT_ROOT = env(
 # minutes between sends).
 SUPPORT_MAX_TICKETS_PER_WINDOW = env.int("SUPPORT_MAX_TICKETS_PER_WINDOW", default=5)
 SUPPORT_MAX_MESSAGES_PER_WINDOW = env.int("SUPPORT_MAX_MESSAGES_PER_WINDOW", default=30)
+SUPPORT_MAX_ATTACHMENTS_PER_MESSAGE = env.int("SUPPORT_MAX_ATTACHMENTS_PER_MESSAGE", default=5)
 SUPPORT_MESSAGE_WINDOW_SECONDS = env.int("SUPPORT_MESSAGE_WINDOW_SECONDS", default=300)
 SUPPORT_TICKETS_PER_PAGE = env.int("SUPPORT_TICKETS_PER_PAGE", default=20)
 
@@ -513,9 +670,7 @@ BACKOFFICE_REVIEW_BACKLOG = env.int("BACKOFFICE_REVIEW_BACKLOG", default=20)
 BACKOFFICE_SLA_WAITING_DAYS = env.int("BACKOFFICE_SLA_WAITING_DAYS", default=3)
 BACKOFFICE_DROP_ENDING_HOURS = env.int("BACKOFFICE_DROP_ENDING_HOURS", default=24)
 # A promotion is "approaching its limit" at this fraction of ``usage_limit``.
-BACKOFFICE_PROMOTION_LIMIT_FRACTION = env.float(
-    "BACKOFFICE_PROMOTION_LIMIT_FRACTION", default=0.9
-)
+BACKOFFICE_PROMOTION_LIMIT_FRACTION = env.float("BACKOFFICE_PROMOTION_LIMIT_FRACTION", default=0.9)
 
 
 # --------------------------------------------------------------------------------------
@@ -592,8 +747,25 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.AllowAny",
     ],
+    # Every API response must pass the anonymous/member budget, and any view that
+    # declares a ``throttle_scope`` is additionally bounded by that scope's rate.
+    # Views without a scope are still covered by the anon/user budgets.
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+        "rest_framework.throttling.ScopedRateThrottle",
+    ],
     "DEFAULT_THROTTLE_RATES": {
         "anon": env("API_ANON_THROTTLE_RATE", default="60/min"),
+        "user": env("API_USER_THROTTLE_RATE", default="120/min"),
+        # Reserved scopes for sensitive (credential) and expensive (AI/search) endpoints;
+        # views opt in with ``throttle_scope = "sensitive"`` / ``"expensive"``.
+        "sensitive": env("API_SENSITIVE_THROTTLE_RATE", default="10/min"),
+        "expensive": env("API_EXPENSIVE_THROTTLE_RATE", default="30/min"),
+        # Phase 17: notification reads vs. notification writes get separate budgets so a
+        # write-heavy client cannot exhaust its own read allowance (and vice versa).
+        "notifications": env("API_NOTIFICATIONS_THROTTLE_RATE", default="120/min"),
+        "notifications_write": env("API_NOTIFICATIONS_WRITE_THROTTLE_RATE", default="60/min"),
     },
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": env.int("API_PAGE_SIZE", default=24),
@@ -664,11 +836,24 @@ AI_API_KEY = env("AI_API_KEY", default="")
 AI_EMBEDDING_MODEL = env("AI_EMBEDDING_MODEL", default="")
 
 # --------------------------------------------------------------------------------------
+# Monitoring (Phase 18)
+# --------------------------------------------------------------------------------------
+
+# Set SENTRY_DSN (and install the optional ``sentry-sdk``) to forward captured errors
+# to Sentry; empty keeps the built-in logging fallback. See apps.core.monitoring.
+SENTRY_DSN = env("SENTRY_DSN", default="")
+SENTRY_TRACES_SAMPLE_RATE = env.float("SENTRY_TRACES_SAMPLE_RATE", default=0.0)
+
+# --------------------------------------------------------------------------------------
 # Logging
 # --------------------------------------------------------------------------------------
 
 LOG_DIR = Path(env("LOG_DIR", default=str(BASE_DIR / "logs")))
 LOG_LEVEL = env("LOG_LEVEL", default="INFO")
+
+# "plain" is one human-readable line; "json" is one JSON object per line for a log
+# shipper. Production settings default to json (config.settings.production).
+LOG_FORMAT = env("LOG_FORMAT", default="plain")
 
 # Retention is configurable so a deployment can trade disk usage against history depth.
 LOG_MAX_BYTES = env.int("LOG_MAX_BYTES", default=5 * 1024 * 1024)
@@ -696,6 +881,9 @@ LOGGING = {
             "()": "apps.core.logging_filters.RedactingFormatter",
             "format": "[{asctime}] SECURITY {levelname} {name}: {message}",
             "style": "{",
+        },
+        "json": {
+            "()": "apps.core.logging_filters.JsonFormatter",
         },
     },
     "handlers": {
@@ -759,6 +947,12 @@ LOGGING = {
         },
     },
 }
+
+if LOG_FORMAT == "json":
+    # Machine-readable lines on every stream that leaves the process. ``mail_admins``
+    # keeps the plain formatter: an alert email rendered as JSON helps nobody.
+    for _handler in ("console", "app_file", "django_file", "security_file"):
+        LOGGING["handlers"][_handler]["formatter"] = "json"
 
 if not LOG_DIR.exists() and not env.bool("DISABLE_FILE_LOGGING", default=False):
     try:

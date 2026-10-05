@@ -48,6 +48,7 @@ class RegisterView(APIView):
     # Explicit rather than inherited: an empty list would fall back to whatever
     # ``DEFAULT_PERMISSION_CLASSES`` says, and "is registration open?" must never depend on that.
     permission_classes = [AllowAny]
+    throttle_scope = "sensitive"
 
     def post(self, request) -> Response:
         serializer = RegisterSerializer(data=request.data)
@@ -62,6 +63,7 @@ class ChangePasswordView(APIView):
     """Change the signed-in customer's password."""
 
     permission_classes = [IsAuthenticated]
+    throttle_scope = "sensitive"
 
     def post(self, request) -> Response:
         serializer = ChangePasswordSerializer(data=request.data, context={"request": request})

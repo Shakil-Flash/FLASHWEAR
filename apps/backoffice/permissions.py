@@ -59,6 +59,8 @@ __all__ = [
     "MODERATION_VIEW",
     "MODERATOR_GROUP",
     "NAVIGATION",
+    "NOTIFICATIONS_MANAGE",
+    "NOTIFICATIONS_VIEW",
     "OPERATOR_GROUP",
     "OPS_VIEW",
     "ORDERS_GROUP",
@@ -98,6 +100,8 @@ LOYALTY_VIEW = "loyalty.view"
 LOYALTY_MANAGE = "loyalty.manage"
 SUPPORT_VIEW = "support.view"
 SUPPORT_MANAGE = "support.manage"
+NOTIFICATIONS_VIEW = "notifications.view"
+NOTIFICATIONS_MANAGE = "notifications.manage"
 AUDIT_VIEW = "audit.view"
 STAFF_MANAGE = "staff.manage"
 
@@ -119,6 +123,8 @@ CAPABILITIES = (
     LOYALTY_MANAGE,
     SUPPORT_VIEW,
     SUPPORT_MANAGE,
+    NOTIFICATIONS_VIEW,
+    NOTIFICATIONS_MANAGE,
     AUDIT_VIEW,
     STAFF_MANAGE,
 )
@@ -204,6 +210,19 @@ CAPABILITY_GROUPS: dict[str, frozenset[str]] = {
     LOYALTY_MANAGE: frozenset({FINANCE_GROUP, ADMIN_GROUP}),
     SUPPORT_VIEW: _SUPPORT_GROUPS | {ADMIN_GROUP},
     SUPPORT_MANAGE: _SUPPORT_GROUPS | {ADMIN_GROUP},
+    # Delivery inspection: the desk that sends them (support), the ops floor, the campaign
+    # owner and the administrator -- bodies appear only on the detail route (Phase 17 §22).
+    NOTIFICATIONS_VIEW: frozenset(
+        {
+            OPERATOR_GROUP,
+            ORDERS_GROUP,
+            MARKETING_GROUP,
+            ADMIN_GROUP,
+            SUPPORT_AGENT_GROUP,
+            SUPPORT_MANAGER_GROUP,
+        }
+    ),
+    NOTIFICATIONS_MANAGE: frozenset({OPERATOR_GROUP, ADMIN_GROUP}),
     AUDIT_VIEW: MANAGER_GROUPS,
     STAFF_MANAGE: frozenset({ADMIN_GROUP}),
 }
@@ -306,6 +325,8 @@ NAVIGATION = (
         (
             ("dashboard", "Dashboard", "backoffice:dashboard", OPS_VIEW),
             ("alerts", "Alerts", "backoffice:alerts", OPS_VIEW),
+            ("health", "System health", "backoffice:health", OPS_VIEW),
+            ("notifications", "Notifications", "backoffice:notifications", NOTIFICATIONS_VIEW),
         ),
     ),
     (

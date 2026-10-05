@@ -1,0 +1,19 @@
+{# djlint:off H021 #}
+{% extends "emails/base.html" %}
+{% load i18n %}
+
+{% block eyebrow %}{% translate "Payment problem" %}{% endblock eyebrow %}
+
+{% block heading %}{% if order_number %}{% blocktranslate %}Payment failed — order {{ order_number }}{% endblocktranslate %}{% else %}{{ notification_title }}{% endif %}{% endblock heading %}
+
+{% block content %}
+<p style="margin:0 0 12px 0;font-size:15px;line-height:1.6;color:#334155;">
+    {% translate "We could not process your payment." %}
+    {% if payment_error %}{{ payment_error }}{% endif %}
+    {% translate "Please try again or use a different method." %}
+</p>
+{% endblock content %}
+
+{% block cta_label %}{% translate "Try again" %}{% endblock cta_label %}
+
+{# djlint:on #}

@@ -1,0 +1,15 @@
+{# djlint:off H021 #}
+{% extends "emails/base.html" %}
+{% load i18n %}
+
+{% block eyebrow %}{% translate "FLASH Drop" %}{% endblock eyebrow %}
+
+{% block heading %}{% if drop_name %}{{ drop_name }} is live{% else %}{{ notification_title }}{% endif %}{% endblock heading %}
+
+{% block content %}
+<p style="margin:0 0 12px 0;font-size:15px;line-height:1.6;color:#334155;">{% translate "The drop you asked about is open. Limited pieces, first come first served." %}</p>
+{% endblock content %}
+
+{% block cta_label %}{% translate "Shop the drop" %}{% endblock cta_label %}
+
+{# djlint:on #}

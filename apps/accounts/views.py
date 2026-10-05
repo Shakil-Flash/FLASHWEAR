@@ -45,7 +45,7 @@ from apps.accounts.forms import (
     RegistrationForm,
 )
 from apps.accounts.models import Address
-from apps.accounts.throttling import LoginThrottle
+from apps.accounts.throttling import AttemptThrottle, LoginThrottle
 
 User = get_user_model()
 
@@ -127,6 +127,44 @@ class LoginView(auth_views.LoginView):
         return super().dispatch(request, *args, **kwargs)
 
 
+class AttemptThrottleMixin:
+    """429 gate in front of POST for endpoints whose abuse is volume itself.
+
+    Password reset, verification resend and registration all send mail or write
+    rows even when each individual request looks legitimate, so the throttle
+    counts *every* attempt from a client address rather than waiting for
+    failures. The blocked response re-renders the view's own form with a
+    non-field error and a ``Retry-After`` header, mirroring the sign-in
+    throttle; attempts are recorded only when the request is allowed through,
+    so blocked traffic cannot extend its own window.
+    """
+
+    throttle_action: str
+
+    def get_throttle(self) -> AttemptThrottle:
+        if not hasattr(self, "_attempt_throttle"):
+            self._attempt_throttle = AttemptThrottle(self.throttle_action)
+        return self._attempt_throttle
+
+    def dispatch(self, request, *args, **kwargs):
+        if request.method == "POST":
+            decision = self.get_throttle().check(request)
+            if decision.blocked:
+                form = self.get_form()
+                form.add_error(
+                    None,
+                    _("Too many attempts. Please wait %(seconds)s seconds and try again.")
+                    % {"seconds": decision.retry_after},
+                )
+                response = self.form_invalid(form)
+                response.status_code = 429
+                # Tell the client when it is worth trying again.
+                response["Retry-After"] = str(decision.retry_after)
+                return response
+            self.get_throttle().record(request)
+        return super().dispatch(request, *args, **kwargs)
+
+
 class LogoutView(auth_views.LogoutView):
     """Sign out.
 
@@ -137,7 +175,7 @@ class LogoutView(auth_views.LogoutView):
     http_method_names = ["post", "options"]
 
 
-class RegisterView(FormView):
+class RegisterView(AttemptThrottleMixin, FormView):
     """Create an account and start the verification flow.
 
     A successful registration signs the customer in -- the account is usable straight away -- but
@@ -147,6 +185,7 @@ class RegisterView(FormView):
 
     template_name = "account/register.html"
     form_class = RegistrationForm
+    throttle_action = "register"
 
     @method_decorator(sensitive_post_parameters("password1", "password2"))
     @method_decorator(never_cache)
@@ -243,7 +282,7 @@ def _user_from_uid(uidb64: str):
         return None
 
 
-class ResendVerificationEmailView(FormView):
+class ResendVerificationEmailView(AttemptThrottleMixin, FormView):
     """Send another verification link.
 
     POST-only with an explicit checkbox, so a stray reload cannot mail the customer in a loop and
@@ -253,6 +292,7 @@ class ResendVerificationEmailView(FormView):
     template_name = "account/verify_email_resend.html"
     form_class = EmailVerificationResendForm
     success_url = reverse_lazy("account:dashboard")
+    throttle_action = "resend_verification"
 
     @method_decorator(never_cache)
     def dispatch(self, request, *args, **kwargs):
@@ -273,7 +313,7 @@ class ResendVerificationEmailView(FormView):
         return super().form_valid(form)
 
 
-class PasswordResetView(auth_views.PasswordResetView):
+class PasswordResetView(AttemptThrottleMixin, auth_views.PasswordResetView):
     """Ask for a reset link.
 
     Django's ``PasswordResetForm`` sends nothing for an unknown address and its confirmation page
@@ -281,6 +321,7 @@ class PasswordResetView(auth_views.PasswordResetView):
     inherited rather than re-implemented.
     """
 
+    throttle_action = "password_reset"
     template_name = "account/password_reset_form.html"
     email_template_name = "registration/password_reset_email.txt"
     html_email_template_name = "registration/password_reset_email.html"
@@ -305,6 +346,34 @@ class PasswordResetDoneView(auth_views.PasswordResetDoneView):
     template_name = "account/password_reset_done.html"
 
 
+def _notify_password_changed(user, event) -> None:
+    """Phase 17: security notice after a password change.
+
+    Keyed to the audit row so a replayed form_valid cannot double-notify; if the audit
+    write itself failed, fall back to a minute-granularity key -- the customer must still
+    hear about a change to their password.
+    """
+    import time
+
+    from apps.notifications.models import NotificationType
+    from apps.notifications.services.events import emit
+
+    key = (
+        f"account_event:{event.pk}"
+        if event is not None
+        else f"user:{user.pk}:password_changed:{int(time.time()) // 60}"
+    )
+    emit(
+        notification_type=NotificationType.PASSWORD_CHANGED,
+        user=user,
+        idempotency_key=key,
+        context={},
+        action_url="/account/security/",
+        related_object_type="account_event",
+        related_object_id=getattr(event, "pk", None),
+    )
+
+
 class PasswordResetConfirmView(auth_views.PasswordResetConfirmView):
     """Set a new password from a reset link."""
 
@@ -316,7 +385,10 @@ class PasswordResetConfirmView(auth_views.PasswordResetConfirmView):
         response = super().form_valid(form)
         # Django rotates the session on success, then we sign the customer in on the fresh one.
         # A pre-reset session is never reused: the reset may have been triggered by someone else.
-        services.record_account_event(form.user, "password_changed", metadata={"via": "reset"})
+        event = services.record_account_event(
+            form.user, "password_changed", metadata={"via": "reset"}
+        )
+        _notify_password_changed(form.user, event)
         login(self.request, form.user)
         messages.success(self.request, _("Your password has been changed."))
         return response
@@ -339,12 +411,13 @@ class PasswordChangeView(auth_views.PasswordChangeView):
 
     def form_valid(self, form):
         response = super().form_valid(form)
-        services.record_account_event(
+        event = services.record_account_event(
             self.request.user,
             "password_changed",
             request=self.request,
             metadata={"via": "account"},
         )
+        _notify_password_changed(self.request.user, event)
         messages.success(self.request, _("Your password has been changed."))
         return response
 

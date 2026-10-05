@@ -109,3 +109,61 @@ class LoginThrottle:
         """Clear both counters after a successful sign-in."""
         self._cache.delete(self._ip_key(request))
         self._cache.delete(self._account_key(username))
+
+
+class AttemptThrottle:
+    """Counts *every* attempt from one client address for a named action.
+
+    A different purpose from :class:`LoginThrottle`:
+
+    * Sign-in cares about **failures**, so a customer who fumbles a password is
+      counted while a normal sign-in is not.
+    * Password reset, verification resend and registration trigger side effects
+      -- mail delivery, storage writes -- on *success*, so the abuse is the
+      volume itself. Each attempt counts regardless of outcome.
+
+    Only the client address is keyed: the caller has not proven control of an
+    account yet, so there is no per-account dimension to count. Keys are hashed
+    (via :func:`_fingerprint`) so raw addresses never land in Redis.
+    """
+
+    def __init__(
+        self,
+        action: str,
+        *,
+        max_attempts: int | None = None,
+        window: int | None = None,
+    ) -> None:
+        self.action = action
+        self.max_attempts = (
+            max_attempts
+            if max_attempts is not None
+            else getattr(settings, "ACCOUNT_ATTEMPT_MAX", 10)
+        )
+        self.window = (
+            window
+            if window is not None
+            else getattr(settings, "ACCOUNT_ATTEMPT_WINDOW_SECONDS", 3600)
+        )
+        self._cache = cache
+
+    def _key(self, request) -> str:
+        return f"attempt:{self.action}:{_fingerprint(_client_ip(request))}"
+
+    def check(self, request) -> ThrottleDecision:
+        """Return whether this attempt may proceed, without recording anything."""
+        count = int(self._cache.get(self._key(request)) or 0)
+        if count < self.max_attempts:
+            return ThrottleDecision(blocked=False)
+        return ThrottleDecision(blocked=True, retry_after=self.window)
+
+    def record(self, request) -> int:
+        """Count this attempt and return the new total."""
+        key = self._key(request)
+        # Same add-then-incr dance as LoginThrottle: seed atomically, then count.
+        self._cache.add(key, 0, self.window)
+        try:
+            return int(self._cache.incr(key))
+        except ValueError:  # key evicted between add and incr
+            self._cache.set(key, 1, self.window)
+            return 1

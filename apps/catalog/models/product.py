@@ -25,6 +25,7 @@ from django.utils.translation import gettext_lazy as _
 from apps.catalog.models.attributes import Color, Fit, Material, ProductTag, Size
 from apps.catalog.models.base import SEOMixin, TimestampedModel
 from apps.catalog.models.taxonomy import Brand, Category, Collection
+from apps.catalog.validators import validate_catalog_image
 
 ZERO = Decimal("0.00")
 
@@ -614,7 +615,13 @@ class ProductImage(TimestampedModel):
         verbose_name=_("variant"),
         help_text=_("Set for colour-specific photography. Leave empty for shared images."),
     )
-    image = models.ImageField(_("image"), upload_to=catalog_image_upload_to)
+    image = models.ImageField(
+        _("image"),
+        upload_to=catalog_image_upload_to,
+        # Model-level so every surface -- admin inlines, operations forms, imports --
+        # runs the same content-first check rather than trusting its own form.
+        validators=[validate_catalog_image],
+    )
     alt_text = models.CharField(
         _("alt text"),
         max_length=200,

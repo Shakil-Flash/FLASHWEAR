@@ -62,11 +62,18 @@ def validate_catalog_image(upload):
     allowed_formats = set(settings.CATALOG_IMAGE_ALLOWED_FORMATS)
 
     max_bytes = settings.CATALOG_IMAGE_MAX_BYTES
-    if upload.size > max_bytes:
+    try:
+        size = upload.size
+    except (OSError, ValueError) as error:
+        # A FieldFile whose backing file is gone (dangling fixture path, deleted
+        # storage object) must surface as a validation error -- ``full_clean``
+        # only collects ValidationError, so anything else escapes as a 500.
+        raise ValidationError(_("That file is not a readable image."), code="unreadable") from error
+    if size > max_bytes:
         raise ValidationError(
             _("That image is %(size).1f MB. Keep it under %(limit)d MB."),
             code="too_large",
-            params={"size": upload.size / 1024 / 1024, "limit": max_bytes // (1024 * 1024)},
+            params={"size": size / 1024 / 1024, "limit": max_bytes // (1024 * 1024)},
         )
 
     if _extension(upload.name) not in _allowed_extensions():

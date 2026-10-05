@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}{% if valid %}Unsubscribed{% else %}Unsubscribe{% endif %} — {{ site_name|default:'FLASHWEAR' }}{% endblock title %}
+
+{% block content %}
+<div class="mx-auto w-full max-w-lg px-4 py-16 sm:px-6">
+    <div class="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-soft">
+        {% if valid %}
+        <span class="inline-flex h-12 w-12 items-center justify-center rounded-full bg-flash-100 text-flash-600" aria-hidden="true">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-6 w-6">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+            </svg>
+        </span>
+        <h1 class="mt-4 text-xl font-semibold text-slate-950">You are unsubscribed</h1>
+        <p class="mt-2 text-sm leading-6 text-slate-600">
+            Promotional emails will stop. Order, payment, delivery and support messages continue --
+            those carry information about things you asked us for.
+        </p>
+        <div class="mt-6 flex flex-col items-center gap-3">
+            <a href="{% url 'account:notifications' %}" class="inline-flex w-full items-center justify-center rounded-full bg-flash-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-flash-700">Review notification preferences</a>
+            <a href="{% url 'core:home' %}" class="text-sm font-medium text-slate-700 underline-offset-4 hover:underline">Back to the store</a>
+        </div>
+        {% else %}
+        <span class="inline-flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-500" aria-hidden="true">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-6 w-6">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+        </span>
+        <h1 class="mt-4 text-xl font-semibold text-slate-950">That link is not valid</h1>
+        <p class="mt-2 text-sm leading-6 text-slate-600">
+            This unsubscribe link is invalid or has already been used. Nothing was changed.
+        </p>
+        <div class="mt-6">
+            <a href="{% url 'core:home' %}" class="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">Back to the store</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock content %}

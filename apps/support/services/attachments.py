@@ -27,7 +27,13 @@ from django.utils.translation import gettext_lazy as _
 from apps.support.models import SupportAttachment, SupportMessage
 from apps.support.services.errors import AttachmentError
 
-__all__ = ["attach", "extension_for", "validate_attachment"]
+__all__ = [
+    "attach",
+    "extension_for",
+    "sanitize_filename",
+    "validate_attachment",
+    "validate_uploads",
+]
 
 # Extension -> the content check that must pass for it.
 ALLOWED_EXTENSIONS = {
@@ -163,6 +169,26 @@ def _validate_image(upload) -> str:
             code="support_attachment_dimensions",
         )
     return f"image/{'jpeg' if detected == 'JPEG' else detected.lower()}"
+
+
+def validate_uploads(uploads) -> list:
+    """Apply the per-message file cap, then content-check every file.
+
+    The count check runs first because it is the cheapest and because a flood of
+    files is its own abuse: without a cap each message could stream an unbounded
+    amount of data straight to disk. Returns the materialised list so callers can
+    iterate it twice (validate, then attach) without re-consuming a generator.
+    """
+    upload_list = list(uploads or [])
+    max_files = getattr(settings, "SUPPORT_MAX_ATTACHMENTS_PER_MESSAGE", 5)
+    if len(upload_list) > max_files:
+        raise AttachmentError(
+            _("You can attach up to %(limit)d files to one message.") % {"limit": max_files},
+            code="support_too_many_attachments",
+        )
+    for upload in upload_list:
+        validate_attachment(upload)
+    return upload_list
 
 
 def attach(message: SupportMessage, *, uploaded_by, upload) -> SupportAttachment:

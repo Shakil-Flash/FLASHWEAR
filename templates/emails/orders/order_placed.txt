@@ -1,0 +1,10 @@
+{% load i18n %}{% if order_number %}{% blocktranslate %}Order {{ order_number }} confirmed{% endblocktranslate %}{% else %}{{ notification_title }}{% endif %}
+
+{% translate "Thanks for your order" %}{% if recipient_name %} {{ recipient_name }}{% endif %}. {% if total %}{% translate "Total" %}: {{ total }}. {% endif %}{% translate "We are getting it ready and will email you again the moment it ships." %}
+
+{% if action_url %}{{ action_url }}
+{% endif %}
+Manage preferences: {{ preferences_url }}
+{% if unsubscribe_url %}Unsubscribe: {{ unsubscribe_url }}
+{% endif %}
+FLASHWEAR — Fashion Beyond Ordinary

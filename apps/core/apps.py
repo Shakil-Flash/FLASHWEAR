@@ -12,3 +12,9 @@ class CoreConfig(AppConfig):
     name = "apps.core"
     label = "core"
     verbose_name = "Core"
+
+    def ready(self) -> None:  # pragma: no cover - exercised at import time
+        from apps.core import monitoring
+
+        monitoring.configure()
+        monitoring.connect_signals()

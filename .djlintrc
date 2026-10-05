@@ -12,5 +12,6 @@
     "format_js": true,
     "close_void_tags": true,
     "use_editorconfig": false,
-    "ignore": "staticfiles,node_modules"
+    "ignore": "H006,H031,staticfiles,node_modules",
+    "extend_exclude": ".kilo,.venv,staticfiles,node_modules,media,logs"
 }

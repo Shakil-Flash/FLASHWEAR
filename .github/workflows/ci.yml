@@ -1,0 +1,131 @@
+# FLASHWEAR continuous integration -- the §60 quality gates, every push and PR.
+#
+# Four jobs, deliberately separate so one failing gate never hides the rest:
+#   python      ruff + djlint + django checks + the test suite (incl. coverage)
+#   assets      the Tailwind build (the stylesheet the image bakes in)
+#   docker      the image build itself, including its collectstatic step
+#   audit       pip-audit against the installed environment
+#
+# Local parity: every command below is one you can run from the repo root with the
+# project's virtualenv (see README "Running tests" and docs/production-runbook.md).
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python:
+    name: Python gates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install project with dev tools
+        run: pip install -e ".[dev]"
+
+      - name: ruff check
+        run: ruff check .
+
+      - name: ruff format
+        run: ruff format --check .
+
+      - name: djlint (templates)
+        run: djlint --lint .
+
+      - name: django check
+        run: python manage.py check
+
+      - name: makemigrations --check
+        run: python manage.py makemigrations --check --dry-run --settings=config.settings.testing
+
+      # Satisfies production's fail-fast guards. Every value is a placeholder: the
+      # check imports settings and never connects to PostgreSQL, Redis, Stripe or SMTP.
+      - name: check --deploy (production settings guards)
+        run: python manage.py check --deploy --settings=config.settings.production
+        env:
+          SECRET_KEY: ci-dummy-secret-key-not-a-real-secret-0000000000000000
+          ALLOWED_HOSTS: ci.example.invalid
+          CSRF_TRUSTED_ORIGINS: https://ci.example.invalid
+          DATABASE_URL: postgres://flashwear:flashwear@db:5432/flashwear
+          REDIS_URL: redis://redis:6379/0
+          PAYMENT_PROVIDER: stripe
+          PAYMENT_WEBHOOK_SECRET: ci-dummy-webhook-secret-not-a-real-secret
+          EMAIL_HOST: smtp.example.invalid
+
+      # WhiteNoise manifest storage refuses to serve until this has produced a manifest.
+      - name: collectstatic (WhiteNoise manifest storage)
+        run: python manage.py collectstatic --noinput
+        env:
+          SECRET_KEY: ci-dummy-secret-key-not-a-real-secret-0000000000000000
+          ALLOWED_HOSTS: ci.example.invalid
+          CSRF_TRUSTED_ORIGINS: https://ci.example.invalid
+          DATABASE_URL: postgres://flashwear:flashwear@db:5432/flashwear
+          REDIS_URL: redis://redis:6379/0
+          PAYMENT_PROVIDER: stripe
+          PAYMENT_WEBHOOK_SECRET: ci-dummy-webhook-secret-not-a-real-secret
+          EMAIL_HOST: smtp.example.invalid
+
+      - name: pytest with coverage
+        run: pytest --cov --cov-report=term-missing:skip-covered
+
+  assets:
+    name: Tailwind build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install node dependencies
+        run: npm ci
+
+      - name: Build the stylesheet
+        run: npm run build:css
+
+      - name: The built stylesheet exists and is not empty
+        run: test -s static/css/app.css
+
+  docker:
+    name: Image build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Builds both stages (Tailwind asset build + Python runtime, including the
+      # collectstatic step under production settings).
+      - name: docker build
+        run: docker build -t flashwear:ci .
+
+  audit:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install project with dev tools
+        run: pip install -e ".[dev]"
+
+      - name: pip-audit
+        run: |
+          pip install pip-audit
+          python -m pip_audit

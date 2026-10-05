@@ -13,6 +13,7 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from apps.catalog.models import Product
+from apps.catalog.validators import validate_catalog_image
 
 
 class DropStatus(models.TextChoices):
@@ -77,6 +78,9 @@ class FlashDrop(models.Model):
         upload_to="drops/heroes/",
         blank=True,
         null=True,
+        # Model-level: the Django admin exposes this field, and its default form would
+        # only run Django's built-in extension check, not the content-first rules.
+        validators=[validate_catalog_image],
         help_text=_("Featured image for the drop landing page."),
     )
     status = models.CharField(

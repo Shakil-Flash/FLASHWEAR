@@ -103,8 +103,8 @@ class TestProductionSettingsGuards:
     """
 
     @staticmethod
-    def _run_production_check(**env_overrides) -> subprocess.CompletedProcess:
-        env = {**os.environ, "DJANGO_SETTINGS_MODULE": "config.settings.production"}
+    def _run_production_check(settings_module: str = "config.settings.production", **env_overrides):
+        env = {**os.environ, "DJANGO_SETTINGS_MODULE": settings_module}
         # Assigned rather than defaulted: a developer's own DATABASE_URL (often SQLite for
         # local work) must not leak into the subprocess and change the expected outcome.
         env.update(
@@ -116,6 +116,7 @@ class TestProductionSettingsGuards:
                 "REDIS_URL": "redis://redis:6379/0",
                 "PAYMENT_PROVIDER": "stripe",
                 "PAYMENT_WEBHOOK_SECRET": "a-real-provider-webhook-secret",
+                "EMAIL_HOST": "smtp.example",
             }
         )
         env.update(env_overrides)
@@ -149,6 +150,7 @@ class TestProductionSettingsGuards:
             "REDIS_URL": "redis://redis:6379/0",
             "PAYMENT_PROVIDER": "stripe",
             "PAYMENT_WEBHOOK_SECRET": "a-real-provider-webhook-secret",
+            "EMAIL_HOST": "smtp.example",
         }
         result = subprocess.run(
             [sys.executable, "manage.py", "check", "--deploy"],
@@ -201,3 +203,134 @@ class TestProductionSettingsGuards:
         result = self._run_production_check(PAYMENT_WEBHOOK_SECRET="")
         assert result.returncode != 0
         assert "PAYMENT_WEBHOOK_SECRET" in result.stderr
+
+    # Phase 18: environment validation
+
+    def test_production_refuses_missing_email_host_with_smtp(self):
+        """SMTP without a host would fail silently at the first order confirmation."""
+        result = self._run_production_check(EMAIL_HOST="")
+        assert result.returncode != 0
+        assert "EMAIL_HOST" in result.stderr
+
+    def test_production_accepts_alternative_email_backend_without_smtp_host(self):
+        """A transactional-mail provider over HTTP needs no EMAIL_HOST."""
+        result = self._run_production_check(
+            EMAIL_BACKEND="django.core.mail.backends.console.EmailBackend",
+            EMAIL_HOST="",
+        )
+        assert result.returncode == 0, result.stderr
+
+
+STAGING_SNIPPET = (
+    "from django.conf import settings;"
+    "import django;"
+    "django.setup();"
+    "print('OK', settings.CSP_REPORT_ONLY, settings.SECURE_HSTS_PRELOAD,"
+    " settings.SECURE_HSTS_SECONDS, settings.CACHES['default']['KEY_PREFIX'],"
+    " settings.SECURE_HSTS_INCLUDE_SUBDOMAINS)"
+)
+
+
+class TestStagingSettings:
+    """Staging must load like production, with only the documented relaxations."""
+
+    def test_staging_loads_with_production_environment(self):
+        result = TestProductionSettingsGuards._run_production_check(
+            settings_module="config.settings.staging"
+        )
+        assert result.returncode == 0, result.stderr
+
+    def test_staging_inherits_production_guards(self):
+        """A missing webhook secret must break staging too: it rehearses production."""
+        result = TestProductionSettingsGuards._run_production_check(
+            settings_module="config.settings.staging",
+            PAYMENT_WEBHOOK_SECRET="",
+        )
+        assert result.returncode != 0
+        assert "PAYMENT_WEBHOOK_SECRET" in result.stderr
+
+    @staticmethod
+    def _staging_values(**env_overrides) -> list[str]:
+        env = {
+            **os.environ,
+            "DJANGO_SETTINGS_MODULE": "config.settings.staging",
+            "SECRET_KEY": "a-strong-non-insecure-production-secret-key",
+            "ALLOWED_HOSTS": "staging.example",
+            "CSRF_TRUSTED_ORIGINS": "https://staging.example",
+            "DATABASE_URL": "postgres://flashwear:flashwear@db:5432/flashwear",
+            "REDIS_URL": "redis://redis:6379/0",
+            "PAYMENT_PROVIDER": "stripe",
+            "PAYMENT_WEBHOOK_SECRET": "a-real-provider-webhook-secret",
+            "EMAIL_HOST": "smtp.example",
+        }
+        env.update(env_overrides)
+        result = subprocess.run(
+            [sys.executable, "-c", STAGING_SNIPPET],
+            capture_output=True,
+            text=True,
+            cwd=settings.BASE_DIR,
+            env=env,
+            check=False,
+        )
+        assert result.returncode == 0, result.stderr
+        return result.stdout.split()
+
+    def test_staging_defaults_to_report_only_csp_without_hsts_preload(self):
+        values = self._staging_values()
+        # print order: OK, CSP_REPORT_ONLY, HSTS_PRELOAD, HSTS_SECONDS, prefix, subdomains.
+        assert values[1] == "True"  # CSP reports instead of blocking
+        assert values[2] == "False"  # never preload on staging
+        assert values[3] == "604800"  # 7 days, not 365
+        assert values[5] == "False"  # do not extend HSTS to subdomains
+
+    def test_staging_uses_distinct_cache_key_prefix(self):
+        values = self._staging_values()
+        assert "flashwear-staging" in values
+
+    def test_staging_can_be_forced_to_production_behaviour(self):
+        values = self._staging_values(
+            CSP_REPORT_ONLY="False",
+            SECURE_HSTS_PRELOAD="True",
+            CACHE_KEY_PREFIX="flashwear-prod",
+        )
+        assert values[1] == "False"
+        assert values[2] == "True"
+        assert "flashwear-prod" in values
+
+
+class TestCeleryConfiguration:
+    """Beat schedule completeness (Phase 18) and the retry/result policy."""
+
+    # Every *housekeeping* task the project defines. Event-driven tasks (send_email,
+    # broadcast_batch) are deliberately absent: they fire from transaction.on_commit.
+    # A new housekeeping task without a beat entry is an orphan nobody notices, so the
+    # set is asserted exactly rather than by membership.
+    HOUSEKEEPING_TASKS = {
+        "inventory.sweep_expired_reservations",
+        "engagement.sweep_loyalty",
+        "quests.sweep_progress",
+        "notifications.sweep_queue",
+        "notifications.sweep_retention",
+        "notifications.sweep_drop_events",
+        "notifications.sweep_points_expiring",
+        "support.close_abandoned_tickets",
+        "support.remind_pending_tickets",
+        "loop.expire_stale_listings",
+        "loop.expire_loop_credits",
+    }
+
+    def test_every_housekeeping_task_is_scheduled(self):
+        scheduled = {entry["task"] for entry in settings.CELERY_BEAT_SCHEDULE.values()}
+        assert scheduled == self.HOUSEKEEPING_TASKS
+
+    def test_every_schedule_entry_has_a_positive_interval(self):
+        for name, entry in settings.CELERY_BEAT_SCHEDULE.items():
+            assert entry["schedule"] > 0, name
+
+    def test_retry_policy_is_bounded_exponential(self):
+        assert settings.CELERY_TASK_MAX_RETRIES >= 1
+        assert settings.CELERY_TASK_RETRY_BACKOFF >= 1
+        assert settings.CELERY_TASK_RETRY_BACKOFF_MAX >= settings.CELERY_TASK_DEFAULT_RETRY_DELAY
+
+    def test_results_expire_so_the_backend_cannot_grow_without_bound(self):
+        assert settings.CELERY_RESULT_EXPIRES > 0

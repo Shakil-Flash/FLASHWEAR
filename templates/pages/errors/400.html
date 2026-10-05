@@ -1,0 +1,31 @@
+{% load static %}
+{# djlint:off H030,H031,D018 #}
+{# Deliberate for a standalone error page: #}
+{#   H030/H031 -- a 400 response carries no meaningful meta description or keywords. #}
+{#   D018 -- href="/" is intentional: this page must render even when URL resolution #}
+{#   is the thing that failed, so it may not depend on {% url %}. #}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bad request — FLASHWEAR</title>
+  {# Standalone on purpose: a 400 often means the Host header is unusable, so this #}
+  {# page must not run request-dependent context processors or request.get_host(). #}
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+</head>
+<body class="flex min-h-screen items-center justify-center bg-white px-4">
+  <div class="mx-auto max-w-xl text-center">
+    <p class="text-sm font-semibold uppercase tracking-[0.16em] text-flash-600">400 — Bad request</p>
+    <h1 class="mt-4 text-4xl font-semibold tracking-tight text-slate-950">We couldn't read that request</h1>
+    <p class="mt-4 text-lg leading-relaxed text-slate-600">
+      The request was malformed or came from an address we don't serve. Nothing was changed.
+      Head back to the homepage and try again.
+    </p>
+    <a href="/" class="mt-8 inline-flex items-center justify-center rounded-full bg-flash-600 px-6 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-flash-700 focus:outline-none focus:ring-2 focus:ring-flash-500/30 focus:ring-offset-2 focus:ring-offset-white">
+      Back to home
+    </a>
+  </div>
+</body>
+</html>
+{# djlint:on #}

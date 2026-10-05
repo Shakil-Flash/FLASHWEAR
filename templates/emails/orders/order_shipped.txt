@@ -1,0 +1,8 @@
+{% load i18n %}{% if order_number %}{% blocktranslate %}Order {{ order_number }} has shipped{% endblocktranslate %}{% else %}{{ notification_title }}{% endif %}
+
+{% translate "Your order has left our warehouse." %}{% if carrier %} {% translate "Carrier" %}: {{ carrier }}.{% endif %}{% if tracking_number %} {% translate "Tracking" %}: {{ tracking_number }}.{% endif %}
+
+{% if action_url %}{{ action_url }}
+{% endif %}
+Manage preferences: {{ preferences_url }}
+FLASHWEAR — Fashion Beyond Ordinary

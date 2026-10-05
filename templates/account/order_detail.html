@@ -104,7 +104,7 @@
     </div>
 
     {% if order.is_cancellable %}
-    <form method="post" action="{% url 'account:order-cancel' order.number %}" onsubmit="return confirm('Cancel this order? Your held items go back to the shop floor.');">
+    <form method="post" action="{% url 'account:order-cancel' order.number %}" data-confirm="Cancel this order? Your held items go back to the shop floor.">
         {% csrf_token %}
         <button type="submit" class="font-medium text-red-700 underline-offset-4 hover:underline">Cancel this order</button>
     </form>

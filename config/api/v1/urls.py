@@ -58,6 +58,12 @@ from apps.loop.api import (
     ResaleListingListView,
     TradeInListCreateView,
 )
+from apps.notifications.api import (
+    NotificationListView,
+    NotificationPreferencesView,
+    NotificationReadAllView,
+    NotificationReadView,
+)
 from apps.orders.api import OrderDetailView, OrderListView
 from apps.quests.api import (
     QuestDetailAPIView,
@@ -139,6 +145,24 @@ urlpatterns = [
     # Orders: session-authenticated and customer-scoped (Phase 6).
     path("orders/", OrderListView.as_view(), name="order-list"),
     path("orders/<str:number>/", OrderDetailView.as_view(), name="order-detail"),
+    # Phase 17: the notification center (session-authenticated, customer-scoped; writes
+    # are throttled by DRF scope and the sliding-window NotificationThrottle).
+    path("notifications/", NotificationListView.as_view(), name="notification-list"),
+    path(
+        "notifications/read-all/",
+        NotificationReadAllView.as_view(),
+        name="notification-read-all",
+    ),
+    path(
+        "notifications/preferences/",
+        NotificationPreferencesView.as_view(),
+        name="notification-preferences",
+    ),
+    path(
+        "notifications/<int:pk>/read/",
+        NotificationReadView.as_view(),
+        name="notification-read",
+    ),
     # Phase 8: FLASH Closet and outfits (customer-scoped).
     path("closet/", ClosetItemListView.as_view(), name="closet-item-list"),
     path("closet/<int:pk>/", ClosetItemDetailView.as_view(), name="closet-item-detail"),

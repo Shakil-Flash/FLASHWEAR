@@ -270,9 +270,32 @@ celery -A config worker -l info
 ```
 
 A `debug_task` is registered for smoke tests. Serialization is JSON-only and time limits are set
-in settings. `celery -A config beat` runs the one periodic task,
-`inventory.sweep_expired_reservations`, which returns expired checkout holds to the shop floor
-every `INVENTORY_SWEEP_INTERVAL_SECONDS` (60 by default).
+in settings. Retries use bounded exponential backoff (`CELERY_TASK_RETRY_BACKOFF`,
+`CELERY_TASK_MAX_RETRIES`); results expire after `CELERY_RESULT_EXPIRES` (one hour) because
+nothing in the codebase polls the result backend.
+
+`celery -A config beat` runs the periodic schedule (`CELERY_BEAT_SCHEDULE` in
+`config/settings/base.py`):
+
+| Entry | Task | Cadence setting | Default |
+| --- | --- | --- | --- |
+| `inventory-sweep-expired-reservations` | `inventory.sweep_expired_reservations` | `INVENTORY_SWEEP_INTERVAL_SECONDS` | 60s |
+| `engagement-sweep-loyalty` | `engagement.sweep_loyalty` | `LOYALTY_SWEEP_INTERVAL_SECONDS` | 60s |
+| `quests-sweep-progress` | `quests.sweep_progress` | `QUESTS_SWEEP_INTERVAL_SECONDS` | 300s |
+| `notifications-sweep-queue` | `notifications.sweep_queue` | `NOTIFICATIONS_QUEUE_SWEEP_INTERVAL_SECONDS` | 300s |
+| `notifications-sweep-retention` | `notifications.sweep_retention` | `NOTIFICATIONS_RETENTION_SWEEP_INTERVAL_SECONDS` | 6h |
+| `notifications-sweep-drop-events` | `notifications.sweep_drop_events` | `NOTIFICATIONS_DROP_SWEEP_INTERVAL_SECONDS` | 300s |
+| `notifications-sweep-points-expiring` | `notifications.sweep_points_expiring` | `NOTIFICATIONS_POINTS_SWEEP_INTERVAL_SECONDS` | 24h |
+| `support-close-abandoned` | `support.close_abandoned_tickets` | `SUPPORT_SWEEP_INTERVAL_SECONDS` | 1h |
+| `support-remind-pending` | `support.remind_pending_tickets` | `SUPPORT_SWEEP_INTERVAL_SECONDS` | 1h |
+| `loop-expire-stale-listings` | `loop.expire_stale_listings` | `LOOP_SWEEP_INTERVAL_SECONDS` | 1h |
+| `loop-expire-credits` | `loop.expire_loop_credits` | `LOOP_SWEEP_INTERVAL_SECONDS` | 1h |
+
+Every sweep is safe to skip or run twice: database state is authoritative, and each task
+resolves the same rows on the next pass -- a worker that is down delays housekeeping, it never
+corrupts anything. Event-driven tasks (`notifications.send_email`, `notifications.broadcast_batch`,
+`increment_post_views`) are never scheduled; they fire from `transaction.on_commit`. In
+production, `celery -A config worker` and `celery -A config beat` run as separate services.
 
 ## Catalogue (Phase 3)
 

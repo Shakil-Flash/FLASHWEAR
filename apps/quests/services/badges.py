@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from apps.engagement.models import Review
 from apps.loop.models import LoopItem
+from apps.notifications.models import NotificationType
 from apps.orders.models import Order
 from apps.quests.models import Badge, UserBadge
 from apps.quests.services.handlers import PAID_ORDER_STATUSES
@@ -32,6 +33,20 @@ def award_badge(user, badge: Badge, *, source: str = "") -> tuple[UserBadge, boo
         badge=badge,
         defaults={"source": source},
     )
+    if created:
+        from django.urls import reverse
+
+        from apps.notifications.services.events import emit
+
+        emit(
+            notification_type=NotificationType.BADGE_EARNED,
+            user=user,
+            idempotency_key=f"badge:{badge.pk}:user:{user.pk}",
+            context={"badge_name": badge.name},
+            action_url=reverse("account:rewards"),
+            related_object_type="badge",
+            related_object_id=badge.pk,
+        )
     return holder, created
 
 

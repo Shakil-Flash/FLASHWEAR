@@ -18,6 +18,11 @@ app_name = "backoffice"
 urlpatterns = [
     path("", views.dashboard, name="dashboard"),
     path("alerts/", views.alerts, name="alerts"),
+    path("health/", views.health, name="health"),
+    # Notifications (Phase 17)
+    path("notifications/", views.notifications, name="notifications"),
+    path("notifications/<int:pk>/", views.notification_detail, name="notification_detail"),
+    path("notifications/<int:pk>/retry/", views.notification_retry, name="notification_retry"),
     # Sales
     path("orders/", views.orders, name="orders"),
     path("orders/<str:number>/", views.order_detail, name="order_detail"),

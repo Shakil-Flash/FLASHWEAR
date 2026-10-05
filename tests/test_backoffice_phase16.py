@@ -42,6 +42,7 @@ from apps.backoffice.permissions import (
 from apps.backoffice.services import audit as audit_service
 from apps.backoffice.services.alerts import alerts_for
 from apps.catalog.models import Product
+from apps.core import metrics
 from apps.engagement.models import Review
 from apps.engagement.services.loyalty import balance_for
 from apps.inventory.models import InventoryMovement, Stock
@@ -119,6 +120,7 @@ READ_SCREENS = [
 ALL_SCREEN_NAMES = [name for name, _allowed, _denied in READ_SCREENS] + [
     "dashboard",
     "alerts",
+    "health",
 ]
 
 
@@ -142,9 +144,7 @@ class TestAccessMatrix:
         assert client.get(bo("orders")).status_code == 404
 
     @pytest.mark.parametrize("name,allowed,denied", READ_SCREENS)
-    def test_each_screen_is_gated_by_its_own_capability(
-        self, client, name, allowed, denied
-    ):
+    def test_each_screen_is_gated_by_its_own_capability(self, client, name, allowed, denied):
         allowed_key = allowed.split()[0].lower()
         sign_in(client, allowed, email=f"{allowed_key}-{name}@flashwear.test")
         assert client.get(bo(name)).status_code == 200
@@ -172,16 +172,12 @@ class TestAccessMatrix:
 
     def test_navigation_offers_only_what_the_user_may_open(self, admin_user):
         admin_nav = navigation_for(admin_user)
-        admin_urls = {
-            item["url_name"] for group in admin_nav for item in group["items"]
-        }
+        admin_urls = {item["url_name"] for group in admin_nav for item in group["items"]}
         assert "backoffice:staff" in admin_urls
 
         operator = staff_user("sidebar@flashwear.test", OPERATOR_GROUP)
         operator_urls = {
-            item["url_name"]
-            for group in navigation_for(operator)
-            for item in group["items"]
+            item["url_name"] for group in navigation_for(operator) for item in group["items"]
         }
         assert "backoffice:staff" not in operator_urls
         assert "backoffice:audit" not in operator_urls
@@ -219,12 +215,15 @@ class TestDashboard:
         place_and_pay(user, product.variants.first())
         client.force_login(admin_user)
 
-        assert client.get(bo("dashboard"), {"range": "all"}).context[
-            "summary"
-        ]["sales"]["placed"] == 1
-        assert client.get(bo("dashboard"), {"range": "yesterday"}).context[
-            "summary"
-        ]["sales"]["placed"] == 0
+        assert (
+            client.get(bo("dashboard"), {"range": "all"}).context["summary"]["sales"]["placed"] == 1
+        )
+        assert (
+            client.get(bo("dashboard"), {"range": "yesterday"}).context["summary"]["sales"][
+                "placed"
+            ]
+            == 0
+        )
 
     def test_an_unknown_range_falls_back_to_the_default(self, client, admin_user):
         client.force_login(admin_user)
@@ -307,6 +306,68 @@ class TestAlerts:
         assert client.get(bo("alerts"), {"severity": "everything"}).status_code == 200
 
 
+class TestSystemHealth:
+    """``/operations/health/``: live probes, honest telemetry, no leaked configuration."""
+
+    def test_the_page_answers_with_live_probes(self, client, admin_user):
+        client.force_login(admin_user)
+        response = client.get(bo("health"))
+        assert response.status_code == 200
+        report = response.context["report"]
+        checks = {row["label"]: row["status"] for row in report["checks"]}
+        # The broker is skipped under eager execution -- honest, not optimistically "ok".
+        assert checks == {"Database": "ok", "Cache": "ok", "Celery broker": "skipped"}
+        assert report["healthy"] is True
+        # Environment labels only: no URL, hostname or credential reaches the page.
+        assert "redis://" not in response.content.decode()
+
+    def test_a_down_probe_is_reported_not_hidden(self, client, admin_user, monkeypatch):
+        from apps.core import health as health_checks
+
+        monkeypatch.setattr(health_checks, "check_database", lambda: "down")
+        client.force_login(admin_user)
+        response = client.get(bo("health"))
+        report = response.context["report"]
+        checks = {row["label"]: row["status"] for row in report["checks"]}
+        assert checks["Database"] == "down"
+        assert report["healthy"] is False
+        assert "A dependency is down" in response.content.decode()
+
+    def test_the_counters_that_exist_reach_the_page(self, client, admin_user):
+        metrics.mark_request(500, 120)
+        metrics.mark_request(200, 40)
+        client.force_login(admin_user)
+        # The middleware counts this very response *after* the view renders its context,
+        # so the snapshot sees exactly the two calls above.
+        report = client.get(bo("health")).context["report"]
+        assert report["metrics"]["requests"]["5xx"] == 1
+        assert report["metrics"]["requests"]["2xx"] == 1
+
+    def test_queue_depth_admits_it_cannot_be_measured(self, client, admin_user):
+        client.force_login(admin_user)
+        report = client.get(bo("health")).context["report"]
+        # No Redis in tests: the number must be absent, never fabricated.
+        assert report["metrics"]["queue_depth"] is None
+        assert report["metrics"]["queue_depth_measured"] is False
+
+    def test_the_page_carries_the_same_alert_rules_as_the_alerts_screen(
+        self, client, admin_user, product
+    ):
+        seed_stock(product.variants.first(), 0)  # fires the out-of-stock rule
+        client.force_login(admin_user)
+        response = client.get(bo("health"))
+        # One rule set, three screens -- this page must not grow rules of its own.
+        assert response.context["alerts"] == alerts_for(admin_user)
+        assert "Variants out of stock" in response.content.decode()
+
+    def test_the_screen_is_gated_like_the_rest_of_the_overview(self, client):
+        client.force_login(staff_user("health-no-group@flashwear.test"))
+        assert client.get(bo("health")).status_code == 404
+
+        client.logout()
+        assert client.get(bo("health")).status_code == 302
+
+
 # --------------------------------------------------------------------------------------
 # Sales: orders, customers, payments
 # --------------------------------------------------------------------------------------
@@ -328,16 +389,12 @@ class TestOrdersQueue:
         assert order.number in body
 
     def test_the_status_filter_only_honours_known_states(self, client, manager, order):
-        assert order.number in client.get(
-            bo("orders"), {"status": "paid"}
-        ).content.decode()
-        assert order.number not in client.get(
-            bo("orders"), {"status": "cancelled"}
-        ).content.decode()
+        assert order.number in client.get(bo("orders"), {"status": "paid"}).content.decode()
+        assert (
+            order.number not in client.get(bo("orders"), {"status": "cancelled"}).content.decode()
+        )
         # An unknown value is dropped rather than honoured literally.
-        assert order.number in client.get(
-            bo("orders"), {"status": "nonsense"}
-        ).content.decode()
+        assert order.number in client.get(bo("orders"), {"status": "nonsense"}).content.decode()
 
     def test_a_crafted_sort_cannot_break_the_page(self, client, manager, order):
         response = client.get(bo("orders"), {"sort": "-total); drop table order--"})
@@ -346,9 +403,7 @@ class TestOrdersQueue:
 
     def test_search_by_number_and_email(self, client, manager, order, user):
         assert order.number in client.get(bo("orders"), {"q": order.number}).content.decode()
-        assert order.number in client.get(
-            bo("orders"), {"q": user.email}
-        ).content.decode()
+        assert order.number in client.get(bo("orders"), {"q": user.email}).content.decode()
 
     def test_the_detail_page_shows_the_timeline(self, client, manager, order):
         body = client.get(bo("order_detail", order.number)).content.decode()
@@ -357,12 +412,8 @@ class TestOrdersQueue:
     def test_an_unknown_order_number_is_404(self, client, manager):
         assert client.get(bo("order_detail", "FW-2099-999999")).status_code == 404
 
-    def test_marking_processing_runs_the_service_and_audits_it(
-        self, client, manager, order
-    ):
-        response = client.post(
-            bo("order_action", order.number), {"action": "processing"}
-        )
+    def test_marking_processing_runs_the_service_and_audits_it(self, client, manager, order):
+        response = client.post(bo("order_action", order.number), {"action": "processing"})
         assert response.status_code == 302
         order.refresh_from_db()
         assert order.status == Order.Status.PROCESSING
@@ -371,18 +422,12 @@ class TestOrdersQueue:
         assert row.actor == manager
         assert row.metadata["transition"] == "processing"
 
-    def test_an_illegal_transition_is_refused_with_no_audit_row(
-        self, client, manager, order
-    ):
-        response = client.post(
-            bo("order_action", order.number), {"action": "deliver"}, follow=True
-        )
+    def test_an_illegal_transition_is_refused_with_no_audit_row(self, client, manager, order):
+        response = client.post(bo("order_action", order.number), {"action": "deliver"}, follow=True)
         order.refresh_from_db()
         assert order.status == Order.Status.PAID
         assert error_texts(response)
-        assert not AuditEvent.objects.filter(
-            action="order.status", object_id=order.number
-        ).exists()
+        assert not AuditEvent.objects.filter(action="order.status", object_id=order.number).exists()
 
     def test_a_get_never_changes_state(self, client, manager, order):
         assert client.get(bo("order_action", order.number)).status_code == 405
@@ -391,16 +436,12 @@ class TestOrdersQueue:
 
     def test_a_viewer_cannot_advance_an_order(self, client, order, user):
         sign_in(client, OPERATOR_GROUP, email="viewer@flashwear.test")
-        response = client.post(
-            bo("order_action", order.number), {"action": "processing"}
-        )
+        response = client.post(bo("order_action", order.number), {"action": "processing"})
         assert response.status_code == 404
         order.refresh_from_db()
         assert order.status == Order.Status.PAID
 
-    def test_an_internal_note_is_written_to_the_timeline_and_the_log(
-        self, client, manager, order
-    ):
+    def test_an_internal_note_is_written_to_the_timeline_and_the_log(self, client, manager, order):
         client.post(bo("order_note", order.number), {"note": "Called the customer."})
         assert OrderEvent.objects.filter(
             order=order, event_type=OrderEvent.Type.NOTE, note="Called the customer."
@@ -470,9 +511,7 @@ class TestInventory:
         body = client.get(bo("inventory")).content.decode()
         assert variant.sku in body
 
-    def test_a_positive_adjustment_moves_stock_and_is_audited(
-        self, client, keeper, variant
-    ):
+    def test_a_positive_adjustment_moves_stock_and_is_audited(self, client, keeper, variant):
         response = client.post(
             bo("inventory_adjust"),
             {
@@ -590,7 +629,8 @@ class TestCatalogueBulk:
 
     def test_an_empty_selection_changes_nothing(self, client, cataloguer, draft_product):
         response = client.post(
-            bo("products_bulk"), {"action": "publish", "reason": "Nothing selected"},
+            bo("products_bulk"),
+            {"action": "publish", "reason": "Nothing selected"},
             follow=True,
         )
         draft_product.refresh_from_db()
@@ -696,9 +736,7 @@ class TestModeration:
         assert submitted_item.reviewed_by == moderator
         assert AuditEvent.objects.filter(action="loop.moderate").exists()
 
-    def test_an_unknown_decision_writes_nothing(
-        self, client, moderator, submitted_item
-    ):
+    def test_an_unknown_decision_writes_nothing(self, client, moderator, submitted_item):
         response = client.post(
             bo("loop_action", submitted_item.pk), {"action": "invent"}, follow=True
         )
@@ -729,17 +767,13 @@ class TestSupportQueue:
         client.force_login(user)
         return user
 
-    def test_the_queue_shows_metadata_but_never_the_transcript(
-        self, client, lead, ticket
-    ):
+    def test_the_queue_shows_metadata_but_never_the_transcript(self, client, lead, ticket):
         body = client.get(bo("support")).content.decode()
         assert ticket.number in body
         assert "Where is my parcel?" in body
         assert "CONFIDENTIAL-TRANSCRIPT" not in body
 
-    def test_assignment_is_taken_by_the_desks_service_and_audited(
-        self, client, lead, ticket
-    ):
+    def test_assignment_is_taken_by_the_desks_service_and_audited(self, client, lead, ticket):
         agent = staff_user("support-agent@flashwear.test", SUPPORT_AGENT_GROUP)
         response = client.post(bo("support_assign", ticket.number), {"agent": agent.pk})
         assert response.status_code == 302
@@ -765,9 +799,7 @@ class TestSupportQueue:
         assert ticket.status == SupportTicket.Status.CLOSED
         assert AuditEvent.objects.filter(action="support.status").exists()
 
-    def test_an_illegal_status_change_is_refused_with_no_audit_row(
-        self, client, lead, ticket
-    ):
+    def test_an_illegal_status_change_is_refused_with_no_audit_row(self, client, lead, ticket):
         ticket.status = SupportTicket.Status.CLOSED
         ticket.save(update_fields=["status", "updated_at"])
         response = client.post(
@@ -783,9 +815,12 @@ class TestSupportQueue:
     def test_a_user_outside_the_desk_cannot_open_the_queue(self, client, ticket):
         sign_in(client, FINANCE_GROUP, email="finance-support@flashwear.test")
         assert client.get(bo("support")).status_code == 404
-        assert client.post(
-            bo("support_status", ticket.number), {"status": SupportTicket.Status.CLOSED}
-        ).status_code == 404
+        assert (
+            client.post(
+                bo("support_status", ticket.number), {"status": SupportTicket.Status.CLOSED}
+            ).status_code
+            == 404
+        )
 
 
 class TestPointsLedger:
@@ -799,9 +834,7 @@ class TestPointsLedger:
         body = client.get(bo("points")).content.decode()
         assert user.email in body
 
-    def test_a_manual_credit_is_a_ledger_row_and_is_audited(
-        self, client, finance, user
-    ):
+    def test_a_manual_credit_is_a_ledger_row_and_is_audited(self, client, finance, user):
         response = client.post(
             bo("points_adjust"),
             {"user": user.pk, "amount": 100, "reason": "Goodwill for the delay"},
@@ -822,17 +855,13 @@ class TestPointsLedger:
         assert not AuditEvent.objects.filter(action="loyalty.adjust").exists()
 
     def test_the_balance_is_the_ledger_not_a_column(self, client, finance, user):
-        client.post(
-            bo("points_adjust"), {"user": user.pk, "amount": -250, "reason": "Correction"}
-        )
+        client.post(bo("points_adjust"), {"user": user.pk, "amount": -250, "reason": "Correction"})
         assert balance_for(user) == -250
         assert AuditEvent.objects.get(action="loyalty.adjust").metadata["amount"] == -250
 
     def test_a_non_loyalty_operator_cannot_adjust(self, client, user):
         sign_in(client, MODERATOR_GROUP, email="mod-points@flashwear.test")
-        response = client.post(
-            bo("points_adjust"), {"user": user.pk, "amount": 10, "reason": "no"}
-        )
+        response = client.post(bo("points_adjust"), {"user": user.pk, "amount": 10, "reason": "no"})
         assert response.status_code == 404
         assert balance_for(user) == 0
 
@@ -925,9 +954,7 @@ class TestStaffRoles:
         assert user.email not in body  # customers are never staff
 
     def test_granting_a_group_is_audited(self, client, root, target):
-        response = client.post(
-            bo("staff_update", target.pk), {"add": [ORDERS_GROUP]}
-        )
+        response = client.post(bo("staff_update", target.pk), {"add": [ORDERS_GROUP]})
         assert response.status_code == 302
         assert target.groups.filter(name=ORDERS_GROUP).exists()
         row = AuditEvent.objects.get(action="staff.role")
@@ -955,9 +982,9 @@ class TestStaffRoles:
 
     def test_only_an_administrator_may_change_roles(self, client, target):
         sign_in(client, ORDERS_GROUP, email="sales-roles@flashwear.test")
-        assert client.post(
-            bo("staff_update", target.pk), {"add": [ORDERS_GROUP]}
-        ).status_code == 404
+        assert (
+            client.post(bo("staff_update", target.pk), {"add": [ORDERS_GROUP]}).status_code == 404
+        )
         assert not target.groups.exists()
 
 
@@ -982,9 +1009,7 @@ class TestBackOfficeApi:
         endpoints = api_client.get("/api/v1/").data["endpoints"]
         assert endpoints["backoffice"].endswith("/api/v1/backoffice/")
 
-    def test_the_dashboard_carries_the_same_numbers(
-        self, api_client, admin_user, user, product
-    ):
+    def test_the_dashboard_carries_the_same_numbers(self, api_client, admin_user, user, product):
         place_and_pay(user, product.variants.first())
         api_client.force_login(admin_user)
         response = api_client.get("/api/v1/backoffice/dashboard/")
@@ -993,13 +1018,14 @@ class TestBackOfficeApi:
 
     def test_the_dashboard_range_is_allowlisted(self, api_client, admin_user):
         api_client.force_login(admin_user)
-        assert api_client.get(
-            "/api/v1/backoffice/dashboard/", {"range": "today"}
-        ).status_code == 200
+        assert (
+            api_client.get("/api/v1/backoffice/dashboard/", {"range": "today"}).status_code == 200
+        )
         # Unknown keys fall back to the default window rather than 500.
-        assert api_client.get(
-            "/api/v1/backoffice/dashboard/", {"range": "nonsense"}
-        ).status_code == 200
+        assert (
+            api_client.get("/api/v1/backoffice/dashboard/", {"range": "nonsense"}).status_code
+            == 200
+        )
 
     def test_the_orders_endpoint_ships_six_fields_and_no_more(
         self, api_client, admin_user, user, product
@@ -1013,15 +1039,11 @@ class TestBackOfficeApi:
         assert row["number"] == order.number
         assert row["customer"] == user.email
 
-    def test_the_orders_endpoint_filters_by_status(
-        self, api_client, admin_user, user, product
-    ):
+    def test_the_orders_endpoint_filters_by_status(self, api_client, admin_user, user, product):
         place_and_pay(user, product.variants.first())
         api_client.force_login(admin_user)
         paid = api_client.get("/api/v1/backoffice/orders/", {"status": "paid"}).data
-        cancelled = api_client.get(
-            "/api/v1/backoffice/orders/", {"status": "cancelled"}
-        ).data
+        cancelled = api_client.get("/api/v1/backoffice/orders/", {"status": "cancelled"}).data
         assert paid["count"] == 1
         assert cancelled["count"] == 0
 

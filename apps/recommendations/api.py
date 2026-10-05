@@ -68,6 +68,7 @@ class ForYouView(APIView):
     """GET/POST ``/api/v1/recommendations/for-you/`` — personalized recommendations."""
 
     permission_classes = [IsAuthenticated]
+    throttle_scope = "expensive"
 
     def get(self, request) -> Response:
         """Get personalized recommendations for the user."""
@@ -92,6 +93,7 @@ class ClosetComplementView(APIView):
     """GET ``/api/v1/recommendations/closet/`` — closet complement recommendations."""
 
     permission_classes = [IsAuthenticated]
+    throttle_scope = "expensive"
 
     def get(self, request) -> Response:
         """Get closet complement recommendations."""
@@ -116,6 +118,7 @@ class OutfitCompletionView(APIView):
     """GET ``/api/v1/recommendations/outfit/<id>/`` — complete the outfit."""
 
     permission_classes = [IsAuthenticated]
+    throttle_scope = "expensive"
 
     def get(self, request, outfit_id: int) -> Response:
         """Get outfit completion recommendations."""
@@ -151,6 +154,7 @@ class SimilarProductsView(APIView):
     """GET ``/api/v1/products/<slug>/recommendations/`` — similar products."""
 
     permission_classes = [IsAuthenticated]
+    throttle_scope = "expensive"
 
     def get(self, request, slug: str) -> Response:
         """Get similar products to the given product."""
@@ -184,6 +188,7 @@ class NewForYouView(APIView):
     """GET ``/api/v1/recommendations/new-for-you/`` — new products matching preferences."""
 
     permission_classes = [IsAuthenticated]
+    throttle_scope = "expensive"
 
     def get(self, request) -> Response:
         """Get new products matching user preferences."""

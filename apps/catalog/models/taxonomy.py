@@ -27,6 +27,7 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from apps.catalog.models.base import SluggedModel
+from apps.catalog.validators import validate_catalog_image
 
 
 class Category(SluggedModel):
@@ -58,6 +59,7 @@ class Category(SluggedModel):
         _("image"),
         upload_to="catalog/categories/",
         blank=True,
+        validators=[validate_catalog_image],
         help_text=_("PNG, JPEG or WebP. Optional."),
     )
 
@@ -191,6 +193,7 @@ class Brand(SluggedModel):
         _("logo"),
         upload_to="catalog/brands/",
         blank=True,
+        validators=[validate_catalog_image],
         help_text=_("PNG or WebP with transparency. Optional."),
     )
     website_url = models.URLField(
@@ -245,12 +248,14 @@ class Collection(SluggedModel):
         _("hero image"),
         upload_to="catalog/collections/",
         blank=True,
+        validators=[validate_catalog_image],
         help_text=_("Wide banner for the collection page and Open Graph. Optional."),
     )
     banner_image = models.ImageField(
         _("banner image"),
         upload_to="catalog/collections/",
         blank=True,
+        validators=[validate_catalog_image],
         help_text=_("Alternative wide image used on cards and in listings."),
     )
     is_featured = models.BooleanField(

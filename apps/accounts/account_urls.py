@@ -19,6 +19,7 @@ from apps.accounts import views
 from apps.closet import views as closet_views
 from apps.engagement.views import loyalty_dashboard
 from apps.loop import views as loop_views
+from apps.notifications.views import preferences_view as notification_preferences
 from apps.orders.views import OrderDetailView, OrderListView, order_cancel
 from apps.quests import views as quest_views
 
@@ -141,4 +142,6 @@ urlpatterns += [
     protected("quests/<str:slug>/", quest_views.quest_detail, "quest-detail"),
     protected("quests/<str:slug>/start/", quest_views.quest_start, "quest-start"),
     protected("rewards/", quest_views.rewards_dashboard, "rewards"),
+    # Phase 17: notification preferences (the center itself mounts at /notifications/).
+    protected("notifications/", notification_preferences, "notifications"),
 ]

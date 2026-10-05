@@ -124,6 +124,7 @@ class PromotionValidateView(APIView):
     """``POST /api/v1/checkout/promotion/`` -- preview what a code would give."""
 
     permission_classes = [IsAuthenticated]
+    throttle_scope = "sensitive"
 
     def post(self, request):
         form = PromotionValidateSerializer(data=request.data)

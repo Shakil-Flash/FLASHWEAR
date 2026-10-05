@@ -16,6 +16,8 @@ from django.db import models
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
+from apps.accounts.validators import validate_avatar
+
 
 class UserManager(BaseUserManager):
     """Custom manager for ``User`` using email as the unique identifier."""
@@ -169,6 +171,9 @@ class Profile(models.Model):
         _("avatar"),
         upload_to="avatars/",
         blank=True,
+        # Model-level, not form-level: the admin's Profile inline and any future form
+        # that edits this row must run the same content-first check as the storefront.
+        validators=[validate_avatar],
         help_text=_("Square image. PNG, JPEG or WebP, within the configured size limit."),
     )
     phone = models.CharField(_("phone"), max_length=32, blank=True)

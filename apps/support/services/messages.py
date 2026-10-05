@@ -20,13 +20,14 @@ from django.db import transaction
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
+from apps.notifications.models import NotificationType
 from apps.support.models import SupportMessage, SupportTicket, SupportTicketEvent
 from apps.support.permissions import SUPPORT_AGENT, has_capability
 from apps.support.services import events, notifications
-from apps.support.services.attachments import attach, validate_attachment
+from apps.support.services.attachments import attach, validate_uploads
 from apps.support.services.errors import ForbiddenError, SupportError
 from apps.support.services.throttling import SupportThrottle
-from apps.support.services.tickets import clean_text, transition_ticket
+from apps.support.services.tickets import clean_text, notify_ticket, transition_ticket
 
 __all__ = ["post_agent_message", "post_customer_message"]
 
@@ -46,13 +47,6 @@ def _require_open(ticket: SupportTicket) -> None:
             _("This ticket is closed. Reopen it to continue the conversation."),
             code="support_closed",
         )
-
-
-def _validate_uploads(uploads) -> list:
-    upload_list = list(uploads or [])
-    for upload in upload_list:
-        validate_attachment(upload)
-    return upload_list
 
 
 @transaction.atomic
@@ -79,7 +73,7 @@ def post_customer_message(
             code="support_throttled",
         )
 
-    upload_list = _validate_uploads(uploads)
+    upload_list = validate_uploads(uploads)
     message = SupportMessage.objects.create(
         ticket=ticket,
         author=customer,
@@ -135,7 +129,7 @@ def post_agent_message(
         raise ForbiddenError(_("Only the support team can reply on a ticket."))
     _require_open(ticket)
     body = clean_text(body, field=_("Message"), max_length=10_000)
-    upload_list = _validate_uploads(uploads)
+    upload_list = validate_uploads(uploads)
 
     message = SupportMessage.objects.create(
         ticket=ticket,
@@ -180,4 +174,5 @@ def post_agent_message(
         request=request,
         actor=actor,
     )
+    notify_ticket(ticket, NotificationType.SUPPORT_AGENT_REPLY, f"message:{message.pk}")
     return message

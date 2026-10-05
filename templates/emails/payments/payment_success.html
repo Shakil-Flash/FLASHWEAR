@@ -1,0 +1,17 @@
+{# djlint:off H021 #}
+{% extends "emails/base.html" %}
+{% load i18n %}
+
+{% block eyebrow %}{% translate "Payment received" %}{% endblock eyebrow %}
+
+{% block heading %}{% if order_number %}{% blocktranslate %}Payment received — order {{ order_number }}{% endblocktranslate %}{% else %}{{ notification_title }}{% endif %}{% endblock heading %}
+
+{% block content %}
+<p style="margin:0 0 12px 0;font-size:15px;line-height:1.6;color:#334155;">
+    {% if amount %}{% blocktranslate %}We received {{ amount }}.{% endblocktranslate %} {% endif %}{% translate "Your order is confirmed." %}
+</p>
+{% endblock content %}
+
+{% block cta_label %}{% translate "View your order" %}{% endblock cta_label %}
+
+{# djlint:on #}

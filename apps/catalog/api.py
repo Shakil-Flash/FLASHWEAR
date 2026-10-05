@@ -357,6 +357,7 @@ class ProductSearchSuggestionsView(ListAPIView):
     """
 
     permission_classes = [AllowAny]
+    throttle_scope = "expensive"
     authentication_classes: list = []
     serializer_class = None  # We return raw data
     pagination_class = None
@@ -375,6 +376,7 @@ class ProductSearchView(ListAPIView):
     """
 
     permission_classes = [AllowAny]
+    throttle_scope = "expensive"
     authentication_classes: list = []
     serializer_class = ProductListSerializer
     pagination_class = CatalogPagination

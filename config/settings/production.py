@@ -106,29 +106,11 @@ X_FRAME_OPTIONS = "DENY"
 
 SECURE_SERIALIZATION_COOKIE = env.bool("SECURE_SERIALIZATION_COOKIE", default=True)
 
-# Baseline CSP. All first-party CSS/JS (Tailwind build, HTMX, Alpine) is served from this
-# origin, so no third-party script or style source is required.
+# CSP: the policy itself lives in base.py so every environment renders the same
+# directives; production is the only environment that *enforces* it by default.
+# CSP_REPORT_ONLY=True watches violations without blocking (recommended for a first
+# deployment, then flipped off).
 CSP_REPORT_ONLY = env.bool("CSP_REPORT_ONLY", default=False)
-CONTENT_SECURITY_POLICY = {
-    "DIRECTIVES": {
-        "default-src": ["'self'"],
-        "base-uri": ["'self'"],
-        "object-src": ["'none'"],
-        "frame-ancestors": ["'none'"],
-        "form-action": ["'self'"],
-        # Product and editorial imagery may be served from a CDN over HTTPS.
-        "img-src": ["'self'", "data:", "https:"],
-        "font-src": ["'self'", "data:"],
-        # 'unsafe-inline' is required by Django form/error widgets; drop it if avoidable.
-        "style-src": ["'self'", "'unsafe-inline'"],
-        "script-src": ["'self'"],
-        "connect-src": ["'self'"],
-        "worker-src": ["'self'", "blob:"],
-        "frame-src": ["'self'"],
-        "manifest-src": ["'self'"],
-        "upgrade-insecure-requests": [],
-    }
-}
 
 # --------------------------------------------------------------------------------------
 # Static assets / optional object storage
@@ -160,6 +142,11 @@ if env("STORAGE_BACKEND", default="local").lower() in {"s3", "minio", "object"}:
 # --------------------------------------------------------------------------------------
 
 EMAIL_BACKEND = env("EMAIL_BACKEND", default="django.core.mail.backends.smtp.EmailBackend")
+if EMAIL_BACKEND.endswith("smtp.EmailBackend") and not env("EMAIL_HOST", default=""):
+    raise ImproperlyConfigured(
+        "EMAIL_HOST must be set in the environment when the SMTP email backend is used. "
+        "Transactional email would otherwise fail silently at the first order."
+    )
 
 CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS", default=[])
 CORS_ALLOW_ALL_ORIGINS = False
@@ -184,3 +171,10 @@ LOGGING["handlers"]["security_file"]["backupCount"] = env.int(
 )
 
 LOG_DIR.mkdir(parents=True, exist_ok=True)
+
+# Structured logs by default: production output is consumed by a log shipper, not a
+# terminal. Setting LOG_FORMAT=plain opts back into the human-readable format.
+LOG_FORMAT = env("LOG_FORMAT", default="json")
+if LOG_FORMAT == "json":
+    for _handler in ("console", "app_file", "django_file", "security_file"):
+        LOGGING["handlers"][_handler]["formatter"] = "json"

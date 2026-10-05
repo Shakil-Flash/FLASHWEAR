@@ -23,7 +23,7 @@ from apps.backoffice.views.community import (
     support_assign,
     support_status,
 )
-from apps.backoffice.views.dashboard import alerts, dashboard
+from apps.backoffice.views.dashboard import alerts, dashboard, health
 from apps.backoffice.views.governance import audit, staff, staff_update
 from apps.backoffice.views.merchandising import (
     adjust_stock,
@@ -33,6 +33,11 @@ from apps.backoffice.views.merchandising import (
     products_bulk,
     promotions,
     quests,
+)
+from apps.backoffice.views.notifications import (
+    notification_detail,
+    notification_retry,
+    notifications,
 )
 from apps.backoffice.views.sales import (
     customers,
@@ -52,9 +57,13 @@ __all__ = [
     "customers",
     "dashboard",
     "drops",
+    "health",
     "inventory",
     "loop",
     "loop_action",
+    "notification_detail",
+    "notification_retry",
+    "notifications",
     "order_action",
     "order_detail",
     "order_note",

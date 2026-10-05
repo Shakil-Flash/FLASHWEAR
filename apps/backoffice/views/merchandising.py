@@ -130,9 +130,7 @@ def inventory(request):
         page=page,
         rows=rows,
         recent_movements=selectors.recent_movements(limit=25),
-        adjust_form=InventoryAdjustForm(
-            initial={"variant": request.GET.get("variant", "")}
-        ),
+        adjust_form=InventoryAdjustForm(initial={"variant": request.GET.get("variant", "")}),
         filters={
             "q": request.GET.get("q", ""),
             "state": request.GET.get("state", ""),

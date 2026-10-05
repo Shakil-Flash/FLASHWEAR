@@ -402,7 +402,8 @@ class TestOrderPages:
             placed_order(user, variant, stock=None)
         sign_in(client)
 
-        with django_assert_max_num_queries(12):
+        # 12 page queries + 1 for the navbar bell badge (Phase 17 unread count).
+        with django_assert_max_num_queries(13):
             response = client.get(reverse("account:orders"))
 
         assert response.status_code == 200

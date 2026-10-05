@@ -1,0 +1,112 @@
+{% extends "backoffice/base.html" %}
+
+{% block title %}System health{% endblock title %}
+{% block breadcrumb %}Operations · System health{% endblock breadcrumb %}
+
+{% block content %}
+<header class="mb-6 flex flex-wrap items-end justify-between gap-4">
+    <div>
+        <h1 class="text-2xl font-semibold tracking-tight text-slate-900">System health</h1>
+        <p class="mt-1 text-sm text-slate-500">Probed on every load · counters cover {{ report.metrics.date }} (UTC day, reset at midnight).</p>
+    </div>
+    <span class="rounded-full px-3 py-1 text-sm font-semibold {% if report.healthy %}bg-emerald-100 text-emerald-800{% else %}bg-rose-100 text-rose-800{% endif %}">
+        {% if report.healthy %}All dependencies answering{% else %}A dependency is down{% endif %}
+    </span>
+</header>
+
+{# ---- dependencies -------------------------------------------------------------------------- #}
+<section aria-labelledby="dependencies-heading" class="mb-6 rounded-2xl border border-slate-200 bg-white shadow-soft">
+    <header class="border-b border-slate-100 px-5 py-4">
+        <h2 id="dependencies-heading" class="text-base font-semibold text-slate-900">Dependencies</h2>
+        <p class="text-sm text-slate-500">The same probes the readiness endpoint runs. "skipped" means this environment has no such dependency to answer.</p>
+    </header>
+    <ul class="divide-y divide-slate-100">
+        {% for row in report.checks %}
+        <li class="flex items-center justify-between px-5 py-3">
+            <span class="text-sm font-medium text-slate-900">{{ row.label }}</span>
+            <span class="rounded-full px-2.5 py-0.5 text-xs font-semibold
+                {% if row.status == 'ok' %}bg-emerald-100 text-emerald-800
+                {% elif row.status == 'down' %}bg-rose-100 text-rose-800
+                {% else %}bg-slate-100 text-slate-700{% endif %}">{{ row.status }}</span>
+        </li>
+        {% endfor %}
+    </ul>
+</section>
+
+{# ---- telemetry ------------------------------------------------------------------------------ #}
+<section aria-labelledby="telemetry-heading" class="mb-6">
+    <h2 id="telemetry-heading" class="sr-only">Today's telemetry</h2>
+    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
+            <p class="text-xs font-medium uppercase tracking-wider text-slate-500">Requests today</p>
+            <p class="mt-1 text-2xl font-semibold tabular-nums text-slate-900">{{ report.metrics.requests.total }}</p>
+            <p class="mt-1 text-sm text-slate-500">{{ report.metrics.requests.2xx }} ok · {{ report.metrics.requests.4xx }} client errors · {{ report.metrics.requests.5xx }} server errors</p>
+        </div>
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
+            <p class="text-xs font-medium uppercase tracking-wider text-slate-500">Average response</p>
+            <p class="mt-1 text-2xl font-semibold tabular-nums text-slate-900">{{ report.metrics.requests.avg_ms }}<span class="text-sm font-normal text-slate-500"> ms</span></p>
+            <p class="mt-1 text-sm text-slate-500">{{ report.metrics.requests.3xx }} redirects counted too</p>
+        </div>
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
+            <p class="text-xs font-medium uppercase tracking-wider text-slate-500">Tasks today</p>
+            <p class="mt-1 text-2xl font-semibold tabular-nums text-slate-900">{{ report.metrics.tasks.total }}</p>
+            <p class="mt-1 text-sm text-slate-500">{{ report.metrics.tasks.failed }} failed · {{ report.metrics.tasks.succeeded }} succeeded</p>
+        </div>
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
+            <p class="text-xs font-medium uppercase tracking-wider text-slate-500">Queue depth</p>
+            {% if report.metrics.queue_depth_measured %}
+            <p class="mt-1 text-2xl font-semibold tabular-nums text-slate-900">{{ report.metrics.queue_depth }}</p>
+            <p class="mt-1 text-sm text-slate-500">messages waiting on celery</p>
+            {% else %}
+            <p class="mt-1 text-2xl font-semibold text-slate-400">n/a</p>
+            <p class="mt-1 text-sm text-slate-500">not measurable without a Redis-backed queue</p>
+            {% endif %}
+        </div>
+    </div>
+    {% if report.metrics.tasks.failed_by_task %}
+    <div class="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4">
+        <p class="text-sm font-semibold text-amber-900">Tasks that failed today</p>
+        <ul class="mt-2 flex flex-wrap gap-x-6 gap-y-1">
+            {% for name, count in report.metrics.tasks.failed_by_task.items %}
+            <li class="text-sm tabular-nums text-amber-800">{{ name }} — {{ count }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+</section>
+
+<div class="grid gap-6 lg:grid-cols-2">
+    {# ---- environment ------------------------------------------------------------------------- #}
+    <section aria-labelledby="environment-heading" class="rounded-2xl border border-slate-200 bg-white shadow-soft">
+        <header class="border-b border-slate-100 px-5 py-4">
+            <h2 id="environment-heading" class="text-base font-semibold text-slate-900">Environment</h2>
+            <p class="text-sm text-slate-500">Labels only — no hostnames, credentials or URLs are ever rendered here.</p>
+        </header>
+        <dl class="divide-y divide-slate-100">
+            <div class="flex items-center justify-between gap-4 px-5 py-3">
+                <dt class="text-sm text-slate-500">Settings module</dt>
+                <dd class="truncate text-sm font-medium text-slate-900">{{ report.environment.settings_module }}</dd>
+            </div>
+            <div class="flex items-center justify-between gap-4 px-5 py-3">
+                <dt class="text-sm text-slate-500">Debug</dt>
+                <dd class="text-sm font-medium {% if report.environment.debug %}text-rose-700{% else %}text-slate-900{% endif %}">{{ report.environment.debug }}</dd>
+            </div>
+            <div class="flex items-center justify-between gap-4 px-5 py-3">
+                <dt class="text-sm text-slate-500">Database</dt>
+                <dd class="text-sm font-medium text-slate-900">{{ report.environment.database_vendor }}</dd>
+            </div>
+            <div class="flex items-center justify-between gap-4 px-5 py-3">
+                <dt class="text-sm text-slate-500">Cache backend</dt>
+                <dd class="text-sm font-medium text-slate-900">{{ report.environment.cache_backend }}</dd>
+            </div>
+            <div class="flex items-center justify-between gap-4 px-5 py-3">
+                <dt class="text-sm text-slate-500">Celery broker</dt>
+                <dd class="text-sm font-medium text-slate-900">{{ report.environment.broker }}</dd>
+            </div>
+        </dl>
+    </section>
+
+    {# ---- fired rules -------------------------------------------------------------------------- #}
+    {% include "backoffice/_alerts.html" with alerts=alerts %}
+</div>
+{% endblock content %}

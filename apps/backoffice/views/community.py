@@ -332,7 +332,5 @@ def points_adjust(request):
     except operations.DOMAIN_ERRORS as exc:
         messages.error(request, operations.error_message(exc))
     else:
-        messages.success(
-            request, f"{data['amount']:+d} points applied to {data['user'].email}."
-        )
+        messages.success(request, f"{data['amount']:+d} points applied to {data['user'].email}.")
     return redirect("backoffice:points")

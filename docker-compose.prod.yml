@@ -1,0 +1,136 @@
+# FLASHWEAR production stack: PostgreSQL, Redis, Gunicorn, Celery worker + beat, nginx.
+#
+# Usage (after configuring .env -- see .env.example and docs/production-runbook.md):
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# What differs from docker-compose.yml (development):
+#   * images only -- no source bind mounts, no file watcher; changes arrive by rebuild.
+#   * web runs migrations and collectstatic at boot (safe here: exactly one web
+#     service; the runbook covers the multi-replica case).
+#   * db and redis publish no host ports; only nginx reaches the network.
+#   * staticfiles and media are shared volumes: the web container writes them, nginx
+#     serves them.
+#   * a dedicated beat service -- without it, no periodic task ever fires.
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-flashwear}
+      POSTGRES_USER: ${POSTGRES_USER:-flashwear}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-flashwear}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    env_file:
+      - .env
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.production
+    command: >
+      sh -c "python manage.py migrate --noinput &&
+             python manage.py collectstatic --noinput &&
+             gunicorn --config gunicorn.conf.py config.wsgi:application"
+    volumes:
+      - staticfiles:/app/staticfiles
+      - media:/app/media
+      - logs:/app/logs
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    # Inherits the image HEALTHCHECK (curl /health/live/).
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    env_file:
+      - .env
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.production
+    command: >
+      celery -A config worker --loglevel=info
+      --concurrency=${CELERY_WORKER_CONCURRENCY:-2}
+    volumes:
+      - media:/app/media
+      - logs:/app/logs
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A config inspect ping -d celery@$${HOSTNAME} --timeout 5 | grep -q pong"]
+      interval: 60s
+      timeout: 15s
+      retries: 3
+      start_period: 30s
+
+  # Without this service the beat schedule exists but nothing fires it: sweeps and
+  # housekeeping jobs are scheduled work, not something the worker does on its own.
+  beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    env_file:
+      - .env
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.production
+    command: celery -A config beat --loglevel=info --schedule=/tmp/celerybeat-schedule
+    depends_on:
+      redis:
+        condition: service_healthy
+    # No healthcheck: beat has no ping; restart: always plus the log is the signal.
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: always
+    ports:
+      - "80:80"
+      # TLS: uncomment together with the 443 block in deploy/nginx.conf.
+      # - "443:443"
+    volumes:
+      - ./deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - staticfiles:/app/staticfiles:ro
+      - media:/app/media:ro
+    depends_on:
+      web:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  pg_data:
+  redis_data:
+  staticfiles:
+  media:
+  logs:

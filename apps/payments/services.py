@@ -220,6 +220,14 @@ def _apply(payment: Payment, event: ProviderEvent, record: PaymentEvent) -> None
         payment.failure_code = "provider_failed"
         payment.save(update_fields=["failure_code", "failure_message", "updated_at"])
         _on_unpaid(payment, event, OrderEvent.Type.PAYMENT_FAILED, "Payment failed.")
+        from apps.notifications.models import NotificationType
+
+        _notify(
+            payment.order,
+            NotificationType.PAYMENT_FAILED,
+            "payment_failed",
+            context={"payment_error": payment.failure_message},
+        )
     elif target == Payment.Status.CANCELLED:
         _on_unpaid(payment, event, OrderEvent.Type.PAYMENT_CANCELLED, "Payment cancelled.")
     elif target == Payment.Status.PENDING:
@@ -228,15 +236,38 @@ def _apply(payment: Payment, event: ProviderEvent, record: PaymentEvent) -> None
         )
 
 
+def _notify(order, notification_type: str, key: str, *, context=None) -> None:
+    """Emit a customer notification tied to this order (Phase 17). Never raises; rows
+    land in the caller's transaction, email is deferred to on_commit by the dispatcher.
+    """
+    from django.urls import reverse
+
+    from apps.notifications.services.events import emit
+
+    emit(
+        notification_type=notification_type,
+        user=order.user,
+        idempotency_key=f"order:{order.pk}:{key}",
+        context={"order_number": order.number, **(context or {})},
+        action_url=reverse("account:order-detail", args=[order.number]),
+        related_object_type="order",
+        related_object_id=order.pk,
+    )
+
+
 def _pending_event(order: Order, note: str, *, metadata: dict) -> None:
     """Record "payment is pending" once per order (intent and webhook can both say it)."""
     if order.status != Order.Status.PENDING_PAYMENT:
         return
-    OrderEvent.objects.get_or_create(
+    _event, created = OrderEvent.objects.get_or_create(
         order=order,
         event_type=OrderEvent.Type.PAYMENT_PENDING,
         defaults={"note": note[:300], "metadata": metadata},
     )
+    if created:
+        from apps.notifications.models import NotificationType
+
+        _notify(order, NotificationType.PAYMENT_PENDING, "payment_pending")
 
 
 def _lock_order(payment: Payment) -> Order:
@@ -270,6 +301,15 @@ def _on_succeeded(payment: Payment, event: ProviderEvent) -> None:
         # FLASH Points earning/redemption runs in this same transaction (see
         # apps.orders.signals): points must be transactional with the payment.
         order_paid.send(sender=Order, order=order)
+        from apps.notifications.models import NotificationType
+
+        _notify(order, NotificationType.ORDER_CONFIRMED, "confirmed")
+        _notify(
+            order,
+            NotificationType.PAYMENT_SUCCESS,
+            "payment_success",
+            context={"amount": f"{payment.amount} {order.currency}"},
+        )
     elif order.status == Order.Status.CANCELLED:
         # Money arrived for an order that was already given up: never silent.
         logger.error("Payment %s succeeded for cancelled order %s", payment.pk, order.number)

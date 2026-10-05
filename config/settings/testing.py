@@ -61,6 +61,19 @@ LOGGING["loggers"]["django.request"]["handlers"] = ["console"]
 LOGGING["loggers"]["django.security"]["handlers"] = ["console"]
 LOGGING["loggers"]["django.security"]["level"] = "ERROR"
 
+# The suite makes thousands of API calls from one address inside a minute; the real
+# budgets would 429 the tests themselves. Throttle *behaviour* is tested by
+# overriding these rates down (or using the per-view throttle classes directly), so
+# raising them here hides nothing.
+REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"].update(
+    {
+        "anon": "100000/min",
+        "user": "100000/min",
+        "sensitive": "100000/min",
+        "expensive": "100000/min",
+    }
+)
+
 CELERY_TASK_ALWAYS_EAGER = True
 CELERY_TASK_EAGER_PROPAGATES = True
 

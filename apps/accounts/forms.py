@@ -15,14 +15,9 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from apps.accounts.models import Address
+from apps.accounts.validators import validate_avatar
 
 User = get_user_model()
-
-AVATAR_EXTENSIONS = {
-    "JPEG": {".jpg", ".jpeg"},
-    "PNG": {".png"},
-    "WEBP": {".webp"},
-}
 
 # Input styling lives here rather than in the templates so there is one definition of it and the
 # markup stays readable. ``templates/account/_field.html`` renders the widget as-is.
@@ -41,11 +36,6 @@ def input_attrs(**extra) -> dict:
 
 def checkbox_attrs(**extra) -> dict:
     return {**extra, "class": CHECKBOX_CLASSES}
-
-
-def _extension(filename: str) -> str:
-    name = (filename or "").strip().lower()
-    return name[name.rfind(".") :] if "." in name else ""
 
 
 class RegistrationForm(forms.Form):
@@ -302,73 +292,6 @@ class ProfileForm(forms.Form):
         profile.save()
         record_account_event(user, "profile_updated", metadata={"fields": sorted(changed)})
         return profile
-
-
-def validate_avatar(upload) -> object:
-    """Return ``upload`` if it is a safe, correctly-sized raster image.
-
-    Rejects, in order: an oversized file, an unsupported format, and a file whose declared
-    extension contradicts its actual content. SVG is not in the allow-list and never will be
-    without a sanitiser -- an SVG is executable markup served from our own origin.
-    """
-    allowed_formats = set(settings.ACCOUNT_AVATAR_ALLOWED_FORMATS)
-    allowed_extensions = {
-        extension for fmt in allowed_formats for extension in AVATAR_EXTENSIONS.get(fmt, set())
-    }
-
-    max_bytes = settings.ACCOUNT_AVATAR_MAX_BYTES
-    if upload.size > max_bytes:
-        raise ValidationError(
-            _("That image is %(size).1f MB. Keep it under %(limit)d MB."),
-            code="too_large",
-            params={"size": upload.size / 1024 / 1024, "limit": max_bytes // (1024 * 1024)},
-        )
-
-    # Reject on the declared name before spending CPU on a decode, but only after the size
-    # check so the customer gets the more useful message first.
-    if _extension(upload.name) not in allowed_extensions:
-        raise ValidationError(
-            _("Unsupported file type. Use PNG, JPEG or WebP."),
-            code="bad_extension",
-        )
-
-    try:
-        from PIL import Image
-    except ImportError as error:  # pragma: no cover - Pillow is a declared dependency
-        raise ValidationError(
-            _("Image uploads are unavailable right now."),
-        ) from error
-
-    try:
-        upload.seek(0)
-        with Image.open(upload) as image:
-            image.verify()  # structural check; decodes nothing fully
-        upload.seek(0)
-        with Image.open(upload) as image:
-            detected = (image.format or "").upper()
-            width, height = image.size
-    except ValidationError:
-        raise
-    except Exception as error:
-        raise ValidationError(_("That file is not a readable image."), code="unreadable") from error
-
-    if detected not in allowed_formats:
-        raise ValidationError(
-            _("Unsupported image format (%(format)s). Use PNG, JPEG or WebP."),
-            code="bad_format",
-            params={"format": detected or "unknown"},
-        )
-
-    max_pixels = settings.ACCOUNT_AVATAR_MAX_PIXELS
-    if width > max_pixels or height > max_pixels:
-        raise ValidationError(
-            _("Images must be at most %(limit)d pixels on each side."),
-            code="too_large_dimensions",
-            params={"limit": max_pixels},
-        )
-
-    upload.seek(0)
-    return upload
 
 
 class AddressForm(forms.ModelForm):

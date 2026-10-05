@@ -9,11 +9,11 @@ places to read it.
 from __future__ import annotations
 
 from apps.backoffice.permissions import OPS_VIEW, backoffice_access
-from apps.backoffice.selectors.dashboard import dashboard_summary
+from apps.backoffice.selectors.dashboard import dashboard_summary, health_report
 from apps.backoffice.services.alerts import SEVERITY_LABELS, alerts_for
 from apps.backoffice.views.base import range_from_request, render_bo
 
-__all__ = ["alerts", "dashboard"]
+__all__ = ["alerts", "dashboard", "health"]
 
 
 @backoffice_access(OPS_VIEW)
@@ -56,4 +56,17 @@ def alerts(request):
         severity_labels=SEVERITY_LABELS,
         # The dashboard renders the same list; this page adds a count and a filter.
         total=len(fired),
+    )
+
+
+@backoffice_access(OPS_VIEW)
+def health(request):
+    """``/operations/health/`` -- live dependency probes, today's counters, fired rules."""
+    return render_bo(
+        request,
+        "backoffice/health.html",
+        active="health",
+        report=health_report(),
+        # One rule set, three places to read it (dashboard, alerts, here).
+        alerts=alerts_for(request.user),
     )

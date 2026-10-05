@@ -1,0 +1,29 @@
+{# djlint:off H021 #}
+{% extends "emails/base.html" %}
+{% load i18n %}
+
+{% block eyebrow %}{% translate "On its way" %}{% endblock eyebrow %}
+
+{% block heading %}{% if order_number %}Order {{ order_number }} has shipped{% else %}{{ notification_title }}{% endif %}{% endblock heading %}
+
+{% block content %}
+<p style="margin:0 0 12px 0;font-size:15px;line-height:1.6;color:#334155;">{% translate "Your order has left our warehouse." %}</p>
+<table role="presentation" cellpadding="0" cellspacing="0" style="margin:8px 0 4px 0;">
+    {% if carrier %}
+    <tr>
+        <td style="padding:4px 24px 4px 0;font-size:13px;color:#64748b;">{% translate "Carrier" %}</td>
+        <td style="padding:4px 0;font-size:13px;color:#0f172a;">{{ carrier }}</td>
+    </tr>
+    {% endif %}
+    {% if tracking_number %}
+    <tr>
+        <td style="padding:4px 24px 4px 0;font-size:13px;color:#64748b;">{% translate "Tracking" %}</td>
+        <td style="padding:4px 0;font-size:13px;color:#0f172a;">{{ tracking_number }}</td>
+    </tr>
+    {% endif %}
+</table>
+{% endblock content %}
+
+{% block cta_label %}{% translate "Track your order" %}{% endblock cta_label %}
+
+{# djlint:on #}

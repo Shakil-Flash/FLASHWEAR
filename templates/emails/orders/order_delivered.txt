@@ -1,0 +1,8 @@
+{% load i18n %}{% if order_number %}{% blocktranslate %}Order {{ order_number }} was delivered{% endblocktranslate %}{% else %}{{ notification_title }}{% endif %}
+
+{% translate "Your order arrived. You have 30 days to return anything that is not quite right." %}
+
+{% if action_url %}{{ action_url }}
+{% endif %}
+Manage preferences: {{ preferences_url }}
+FLASHWEAR — Fashion Beyond Ordinary

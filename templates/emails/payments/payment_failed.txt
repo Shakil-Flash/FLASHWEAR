@@ -1,0 +1,8 @@
+{% load i18n %}{% if order_number %}{% blocktranslate %}Payment failed — order {{ order_number }}{% endblocktranslate %}{% else %}{{ notification_title }}{% endif %}
+
+{% translate "We could not process your payment." %}{% if payment_error %} {{ payment_error }}{% endif %} {% translate "Please try again or use a different method." %}
+
+{% if action_url %}{{ action_url }}
+{% endif %}
+Manage preferences: {{ preferences_url }}
+FLASHWEAR — Fashion Beyond Ordinary

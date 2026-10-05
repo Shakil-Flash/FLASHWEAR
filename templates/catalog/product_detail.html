@@ -366,7 +366,7 @@ Three rules shape this template:
                 <p class="mt-1 text-sm leading-relaxed text-slate-700">{{ own_review.body }}</p>
                 <div class="mt-4 flex flex-wrap items-center gap-4 text-sm">
                     <a href="{% url 'engagement:review-edit' own_review.pk %}" class="font-medium text-slate-900 underline-offset-4 hover:underline">Edit</a>
-                    <form method="post" action="{% url 'engagement:review-delete' own_review.pk %}" onsubmit="return confirm('Delete your review? This cannot be undone.');">
+                    <form method="post" action="{% url 'engagement:review-delete' own_review.pk %}" data-confirm="Delete your review? This cannot be undone.">
                         {% csrf_token %}
                         <button type="submit" class="font-medium text-red-600 underline-offset-4 hover:underline">Delete</button>
                     </form>

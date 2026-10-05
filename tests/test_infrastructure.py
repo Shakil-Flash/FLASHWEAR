@@ -66,9 +66,16 @@ class TestLoggingConfiguration:
         assert handlers["security_file"]["backupCount"] == base.SECURITY_LOG_BACKUP_COUNT
 
     def test_every_formatter_redacts(self):
+        """Every formatter -- plain or JSON -- must redact, not just claim to."""
+        from django.utils.module_loading import import_string
+
+        from apps.core.logging_filters import RedactingFormatter
+
         formatters = self._base_logging()["formatters"]
+        assert formatters, "no formatters configured"
         for name, config in formatters.items():
-            assert str(config["()"]).endswith("RedactingFormatter"), name
+            formatter_class = import_string(config["()"])
+            assert issubclass(formatter_class, RedactingFormatter), name
 
     def test_runtime_logging_is_wired(self, caplog):
         logger = logging.getLogger("flashwear.test")

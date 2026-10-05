@@ -61,11 +61,13 @@ def record_account_event(
     request=None,
     metadata: dict | None = None,
     channel: str = "web",
-) -> None:
-    """Append an audit row. Never raises into the caller.
+) -> object | None:
+    """Append an audit row and return it (``None`` when the write failed). Never raises
+    into the caller.
 
     Losing an audit line must not turn a successful sign-up into a 500, so failures are logged
-    at error level and swallowed.
+    at error level and swallowed. The row is returned so callers that notify the customer
+    (password change) can key the notification to this exact audit line.
     """
     try:
         from apps.accounts.models import AccountEvent
@@ -75,7 +77,7 @@ def record_account_event(
             from apps.accounts.throttling import _client_ip
 
             ip = _client_ip(request)
-        AccountEvent.objects.create(
+        return AccountEvent.objects.create(
             user=user if getattr(user, "pk", None) else None,
             email_digest=digest(getattr(user, "email", "") or ""),
             event_type=event_type,
@@ -85,6 +87,7 @@ def record_account_event(
         )
     except Exception:  # pragma: no cover - defensive, exercised only on a broken database
         logger.exception("Failed to record account event %s", event_type)
+        return None
 
 
 # --------------------------------------------------------------------------------------
@@ -122,6 +125,18 @@ def create_account(
     user.set_password(password)
     user.save()
     logger.info("Account created for %s", digest(user.email))
+    from apps.notifications.models import NotificationType
+    from apps.notifications.services.events import emit
+
+    emit(
+        notification_type=NotificationType.ACCOUNT_CREATED,
+        user=user,
+        idempotency_key=f"user:{user.pk}:account_created",
+        context={},
+        action_url="/account/",
+        related_object_type="user",
+        related_object_id=user.pk,
+    )
     return user
 
 

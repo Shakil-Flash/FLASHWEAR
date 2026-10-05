@@ -1,0 +1,8 @@
+{% load i18n %}{% if order_number %}{% blocktranslate %}Payment received — order {{ order_number }}{% endblocktranslate %}{% else %}{{ notification_title }}{% endif %}
+
+{% if amount %}{% blocktranslate %}We received {{ amount }}.{% endblocktranslate %} {% endif %}{% translate "Your order is confirmed." %}
+
+{% if action_url %}{{ action_url }}
+{% endif %}
+Manage preferences: {{ preferences_url }}
+FLASHWEAR — Fashion Beyond Ordinary

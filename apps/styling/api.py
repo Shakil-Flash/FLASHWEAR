@@ -35,6 +35,7 @@ class FlashDNAView(APIView):
     """GET/PUT ``/api/v1/flash-dna/`` — profile CRUD."""
 
     permission_classes = [IsAuthenticated]
+    throttle_scope = "expensive"
 
     def get(self, request) -> Response:
         try:
@@ -117,6 +118,7 @@ class StylistRecommendView(APIView):
     """POST ``/api/v1/stylist/recommend/`` — get outfit recommendations."""
 
     permission_classes = [IsAuthenticated]
+    throttle_scope = "expensive"
 
     def post(self, request, *args, **kwargs) -> Response:
         try:
@@ -136,6 +138,7 @@ class StylistStyleProductView(APIView):
     """POST ``/api/v1/stylist/style-product/`` — style a specific product."""
 
     permission_classes = [IsAuthenticated]
+    throttle_scope = "expensive"
 
     def post(self, request, *args, **kwargs) -> Response:
         product_pk = request.data.get("product_pk")
@@ -161,6 +164,7 @@ class StylistSaveOutfitView(APIView):
     """POST ``/api/v1/stylist/recommendations/<id>/save/`` — save an outfit."""
 
     permission_classes = [IsAuthenticated]
+    throttle_scope = "expensive"
 
     def post(self, request, *args, **kwargs) -> Response:
         try:
@@ -186,6 +190,7 @@ class FlashDNACheckView(APIView):
     """GET ``/api/v1/flash-dna/check/`` — quick check for profile existence."""
 
     permission_classes = [IsAuthenticated]
+    throttle_scope = "expensive"
 
     def get(self, request) -> Response:
         has_it = request.user.flash_dna is not None

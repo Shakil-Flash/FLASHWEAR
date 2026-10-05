@@ -1,0 +1,8 @@
+{% load i18n %}{% if order_number %}{% blocktranslate %}Order {{ order_number }} was cancelled{% endblocktranslate %}{% else %}{{ notification_title }}{% endif %}
+
+{% translate "Your order was cancelled." %}{% if cancellation_reason %} {{ cancellation_reason }}.{% endif %} {% translate "Any payment will be refunded to your original method." %}
+
+{% if action_url %}{{ action_url }}
+{% endif %}
+Manage preferences: {{ preferences_url }}
+FLASHWEAR — Fashion Beyond Ordinary

@@ -76,9 +76,7 @@ def staff(request):
     members = [
         {
             "user": user,
-            "groups": {
-                group.name for group in user.groups.all() if group.name in owned
-            },
+            "groups": {group.name for group in user.groups.all() if group.name in owned},
         }
         for user in staff_members()
     ]
