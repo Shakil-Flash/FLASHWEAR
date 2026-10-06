@@ -1,77 +1,97 @@
 {% extends "backoffice/base.html" %}
 
-{% block title %}Staff &amp; roles{% endblock title %}
-{% block breadcrumb %}Operations · Staff &amp; roles{% endblock breadcrumb %}
+{% block title %}
+    Staff &amp; Permissions
+{% endblock title %}
+{% block breadcrumb %}
+    Staff &amp; Permissions
+{% endblock breadcrumb %}
 
 {% block content %}
-<header class="mb-5">
-    <h1 class="text-2xl font-semibold tracking-tight text-slate-900">Staff &amp; roles</h1>
-    <p class="mt-1 text-sm text-slate-500">
-        Back-office groups only. Support desk groups are owned by the support app and Django's
-        model permissions belong to <a class="text-flash-700 hover:underline" href="{% url 'admin:index' %}">/admin/</a>.
-        Every change here writes an audit row.
-    </p>
-</header>
+    {# ---- Page Header -------------------------------------------------------------------------- #}
+    <header class="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+                Staff &amp; Permissions
+            </h1>
+            <p class="mt-1 text-sm text-slate-500">
+                RBAC capability management for active back-office staff. Granular model permissions configure via <a class="text-slate-900 font-semibold underline hover:text-amber-600" href="{% url 'admin:index' %}">Django Admin</a>.
+            </p>
+        </div>
+    </header>
 
-<div class="grid gap-4 lg:grid-cols-2">
-    {% for entry in members %}
-    {% with member=entry.user current=entry.groups %}
-    <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
-        <header class="flex items-start justify-between gap-3">
-            <div class="min-w-0">
-                <p class="truncate font-medium text-slate-900" title="{{ member.email }}">{{ member.email }}</p>
-                <p class="text-xs text-slate-500">
-                    {% if member.is_superuser %}Superuser · implies every capability{% else %}Staff account{% endif %}
-                </p>
-            </div>
-            <div class="flex flex-wrap justify-end gap-1.5">
-                {% for name in groups %}
-                    {% if name in current %}
-                    <span class="rounded-full bg-slate-900 px-2.5 py-0.5 text-xs font-medium text-white">{{ name }}</span>
-                    {% endif %}
-                {% endfor %}
-                {% if not current %}
-                <span class="rounded-full border border-dashed border-slate-300 px-2.5 py-0.5 text-xs text-slate-500">no back-office group</span>
-                {% endif %}
-            </div>
-        </header>
+    {# ---- Staff Members Grid ------------------------------------------------------------------- #}
+    <div class="grid gap-6 lg:grid-cols-2">
+        {% for entry in members %}
+            {% with member=entry.user current=entry.groups %}
+                <section class="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs transition hover:border-slate-300">
+                    <header class="flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
+                        <div class="min-w-0">
+                            <p class="truncate font-bold text-slate-900 text-base" title="{{ member.email }}">
+                                {{ member.email }}
+                            </p>
+                            <p class="text-xs text-slate-500 mt-0.5">
+                                {% if member.is_superuser %}
+                                    <span class="inline-flex items-center gap-1 font-semibold text-emerald-700">★ Superuser · all capabilities granted</span>
+                                {% else %}
+                                    Staff operator account
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div class="flex flex-wrap justify-end gap-1.5">
+                            {% for name in groups %}
+                                {% if name in current %}
+                                    <span class="inline-flex items-center rounded-full bg-slate-900 px-2.5 py-0.5 text-xs font-semibold text-white shadow-xs">{{ name }}</span>
+                                {% endif %}
+                            {% endfor %}
+                            {% if not current %}
+                                <span class="inline-flex items-center rounded-full border border-dashed border-slate-300 px-2.5 py-0.5 text-xs font-medium text-slate-400">No active groups</span>
+                            {% endif %}
+                        </div>
+                    </header>
 
-        <form method="post" action="{% url 'backoffice:staff_update' member.pk %}" class="mt-4 border-t border-slate-100 pt-4">
-            {% csrf_token %}
-            <div class="grid gap-4 sm:grid-cols-2">
-                <fieldset>
-                    <legend class="text-xs font-semibold uppercase tracking-wider text-slate-500">Grant</legend>
-                    <div class="mt-2 space-y-1">
-                        {% for value, label in role_form.add.field.choices %}
-                        <label class="flex items-center gap-2 text-sm text-slate-700">
-                            <input type="checkbox" name="add" value="{{ value }}"
-                                   class="h-4 w-4 rounded border-slate-300"
-                                   {% if value in current %}disabled{% endif %} />
-                            <span {% if value in current %}class="text-slate-400"{% endif %}>{{ label }}</span>
-                        </label>
-                        {% endfor %}
-                    </div>
-                </fieldset>
-                <fieldset>
-                    <legend class="text-xs font-semibold uppercase tracking-wider text-slate-500">Revoke</legend>
-                    <div class="mt-2 space-y-1">
-                        {% for value, label in role_form.remove.field.choices %}
-                        <label class="flex items-center gap-2 text-sm text-slate-700">
-                            <input type="checkbox" name="remove" value="{{ value }}"
-                                   class="h-4 w-4 rounded border-slate-300"
-                                   {% if value not in current %}disabled{% endif %} />
-                            <span {% if value not in current %}class="text-slate-400"{% endif %}>{{ label }}</span>
-                        </label>
-                        {% endfor %}
-                    </div>
-                </fieldset>
-            </div>
-            <button type="submit" class="mt-4 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700">Save roles</button>
-        </form>
-    </section>
-    {% endwith %}
-    {% empty %}
-    <p class="text-sm text-slate-500">No active staff accounts.</p>
-    {% endfor %}
-</div>
+                    <form method="post" action="{% url 'backoffice:staff_update' member.pk %}" class="mt-4">
+                        {% csrf_token %}
+                        <div class="grid gap-6 sm:grid-cols-2">
+                            <fieldset class="rounded-xl border border-slate-100 bg-slate-50/60 p-3.5">
+                                <legend class="text-[11px] font-bold uppercase tracking-wider text-slate-500 px-1">
+                                    Grant Capability Group
+                                </legend>
+                                <div class="mt-2 space-y-1.5">
+                                    {% for value, label in role_form.add.field.choices %}
+                                        <label class="flex items-center gap-2 text-xs font-medium text-slate-700 hover:text-slate-900 cursor-pointer">
+                                            <input type="checkbox" name="add" value="{{ value }}" class="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900" {% if value in current %}disabled{% endif %} />
+                                            <span {% if value in current %}class="text-slate-400 line-through"{% endif %}>{{ label }}</span>
+                                        </label>
+                                    {% endfor %}
+                                </div>
+                            </fieldset>
+                            <fieldset class="rounded-xl border border-slate-100 bg-slate-50/60 p-3.5">
+                                <legend class="text-[11px] font-bold uppercase tracking-wider text-slate-500 px-1">
+                                    Revoke Capability Group
+                                </legend>
+                                <div class="mt-2 space-y-1.5">
+                                    {% for value, label in role_form.remove.field.choices %}
+                                        <label class="flex items-center gap-2 text-xs font-medium text-slate-700 hover:text-slate-900 cursor-pointer">
+                                            <input type="checkbox" name="remove" value="{{ value }}" class="h-4 w-4 rounded border-slate-300 text-rose-600 focus:ring-rose-500" {% if value not in current %}disabled{% endif %} />
+                                            <span {% if value not in current %}class="text-slate-400"{% endif %}>{{ label }}</span>
+                                        </label>
+                                    {% endfor %}
+                                </div>
+                            </fieldset>
+                        </div>
+                        <div class="mt-4 flex justify-end">
+                            <button type="submit" class="inline-flex items-center justify-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-xs transition hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2">
+                                Update Roles
+                            </button>
+                        </div>
+                    </form>
+                </section>
+            {% endwith %}
+        {% empty %}
+            <p class="text-sm text-slate-500">
+                No active staff accounts found.
+            </p>
+        {% endfor %}
+    </div>
 {% endblock content %}

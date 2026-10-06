@@ -1,90 +1,150 @@
 {% extends "backoffice/base.html" %}
 
-{% block title %}Analytics{% endblock title %}
-{% block breadcrumb %}Operations › Analytics{% endblock breadcrumb %}
+{% block title %}
+    Analytics
+{% endblock title %}
+{% block breadcrumb %}
+    Operations › Analytics
+{% endblock breadcrumb %}
 
 {% block content %}
-<header class="mb-6 flex flex-wrap items-end justify-between gap-4">
-    <div>
-        <h1 class="text-2xl font-semibold tracking-tight text-slate-900">Analytics</h1>
-        <p class="mt-1 text-sm text-slate-500">{{ summary.range.label }} — aggregated counts from the event log. No individual visitor or customer rows are shown.</p>
-    </div>
-    {% include "backoffice/_range_filter.html" %}
-</header>
+    <header class="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-semibold tracking-tight text-slate-900">
+                Analytics
+            </h1>
+            <p class="mt-1 text-sm text-slate-500">
+                {{ summary.range.label }} — aggregated counts from the event log. No individual visitor or customer rows are shown.
+            </p>
+        </div>
+        {% include "backoffice/_range_filter.html" %}
+    </header>
 
-{# ---- funnel stages ------------------------------------------------------------------------ #}
-<section aria-labelledby="funnel-heading" class="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-    <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
-        <p class="text-xs font-medium uppercase tracking-wider text-slate-500">Visitors</p>
-        <p class="mt-1 text-2xl font-semibold tabular-nums text-slate-900">{{ summary.visitors }}</p>
-        <p class="mt-1 text-sm text-slate-500">distinct in this window</p>
-    </div>
-    <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
-        <p class="text-xs font-medium uppercase tracking-wider text-slate-500">Product views</p>
-        <p class="mt-1 text-2xl font-semibold tabular-nums text-slate-900">{{ summary.product_views }}</p>
-        <p class="mt-1 text-sm text-slate-500">{{ summary.searches }} search{{ summary.searches|pluralize }} · {{ summary.cart_adds }} cart add{{ summary.cart_adds|pluralize }}</p>
-    </div>
-    <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
-        <p class="text-xs font-medium uppercase tracking-wider text-slate-500">Checkouts started</p>
-        <p class="mt-1 text-2xl font-semibold tabular-nums text-slate-900">{{ summary.checkout_started }}</p>
-        <p class="mt-1 text-sm text-slate-500">{{ summary.abandoned_checkouts }} still open or validated</p>
-    </div>
-    <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
-        <p class="text-xs font-medium uppercase tracking-wider text-slate-500">Orders completed</p>
-        <p class="mt-1 text-2xl font-semibold tabular-nums text-slate-900">{{ summary.orders_completed }}</p>
-        <p class="mt-1 text-sm text-slate-500">{{ summary.conversion_rate }}% of visitors bought</p>
-    </div>
-    <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
-        <p class="text-xs font-medium uppercase tracking-wider text-slate-500">Conversion rate</p>
-        <p class="mt-1 text-2xl font-semibold tabular-nums text-slate-900">{{ summary.conversion_rate }}%</p>
-        <p class="mt-1 text-sm text-slate-500">orders ÷ visitors</p>
-    </div>
-    <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
-        <p class="text-xs font-medium uppercase tracking-wider text-slate-500">Revenue</p>
-        <p class="mt-1 text-2xl font-semibold tabular-nums text-slate-900">£{{ summary.revenue }}</p>
-        <p class="mt-1 text-sm text-slate-500">{% if summary.aov is not None %}£{{ summary.aov|floatformat:2 }} average order{% else %}no completed orders yet{% endif %}</p>
-    </div>
-</section>
-
-<div class="grid gap-6 lg:grid-cols-2">
-    {# ---- top products ---------------------------------------------------------------------- #}
-    <section aria-labelledby="top-products-heading" class="rounded-2xl border border-slate-200 bg-white shadow-soft">
-        <header class="border-b border-slate-100 px-5 py-4">
-            <h2 id="top-products-heading" class="text-base font-semibold text-slate-900">Top viewed products</h2>
-            <p class="text-sm text-slate-500">Product views in this window, ranked.</p>
-        </header>
-        {% if summary.top_products %}
-        <ol class="divide-y divide-slate-100">
-            {% for row in summary.top_products %}
-            <li class="flex items-center justify-between gap-4 px-5 py-3">
-                <span class="text-sm text-slate-700">{{ row.name }}</span>
-                <span class="text-sm font-medium tabular-nums text-slate-900">{{ row.views }}</span>
-            </li>
-            {% endfor %}
-        </ol>
-        {% else %}
-        <p class="px-5 py-6 text-sm text-slate-500">No product views recorded in this window.</p>
-        {% endif %}
+    {# ---- funnel stages ------------------------------------------------------------------------ #}
+    <section aria-labelledby="funnel-heading" class="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
+            <p class="text-xs font-medium uppercase tracking-wider text-slate-500">
+                Visitors
+            </p>
+            <p class="mt-1 text-2xl font-semibold tabular-nums text-slate-900">
+                {{ summary.visitors }}
+            </p>
+            <p class="mt-1 text-sm text-slate-500">
+                distinct in this window
+            </p>
+        </div>
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
+            <p class="text-xs font-medium uppercase tracking-wider text-slate-500">
+                Product views
+            </p>
+            <p class="mt-1 text-2xl font-semibold tabular-nums text-slate-900">
+                {{ summary.product_views }}
+            </p>
+            <p class="mt-1 text-sm text-slate-500">
+                {{ summary.searches }} search{{ summary.searches|pluralize }} · {{ summary.cart_adds }} cart add{{ summary.cart_adds|pluralize }}
+            </p>
+        </div>
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
+            <p class="text-xs font-medium uppercase tracking-wider text-slate-500">
+                Checkouts started
+            </p>
+            <p class="mt-1 text-2xl font-semibold tabular-nums text-slate-900">
+                {{ summary.checkout_started }}
+            </p>
+            <p class="mt-1 text-sm text-slate-500">
+                {{ summary.abandoned_checkouts }} still open or validated
+            </p>
+        </div>
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
+            <p class="text-xs font-medium uppercase tracking-wider text-slate-500">
+                Orders completed
+            </p>
+            <p class="mt-1 text-2xl font-semibold tabular-nums text-slate-900">
+                {{ summary.orders_completed }}
+            </p>
+            <p class="mt-1 text-sm text-slate-500">
+                {{ summary.conversion_rate }}% of visitors bought
+            </p>
+        </div>
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
+            <p class="text-xs font-medium uppercase tracking-wider text-slate-500">
+                Conversion rate
+            </p>
+            <p class="mt-1 text-2xl font-semibold tabular-nums text-slate-900">
+                {{ summary.conversion_rate }}%
+            </p>
+            <p class="mt-1 text-sm text-slate-500">
+                orders ÷ visitors
+            </p>
+        </div>
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
+            <p class="text-xs font-medium uppercase tracking-wider text-slate-500">
+                Revenue
+            </p>
+            <p class="mt-1 text-2xl font-semibold tabular-nums text-slate-900">
+                £{{ summary.revenue }}
+            </p>
+            <p class="mt-1 text-sm text-slate-500">
+                {% if summary.aov is not None %}
+                    £{{ summary.aov|floatformat:2 }} average order
+                {% else %}
+                    no completed orders yet
+                {% endif %}
+            </p>
+        </div>
     </section>
 
-    {# ---- top searches ---------------------------------------------------------------------- #}
-    <section aria-labelledby="top-searches-heading" class="rounded-2xl border border-slate-200 bg-white shadow-soft">
-        <header class="border-b border-slate-100 px-5 py-4">
-            <h2 id="top-searches-heading" class="text-base font-semibold text-slate-900">Top searches</h2>
-            <p class="text-sm text-slate-500">What shoppers typed, ranked by how often.</p>
-        </header>
-        {% if summary.top_searches %}
-        <ol class="divide-y divide-slate-100">
-            {% for row in summary.top_searches %}
-            <li class="flex items-center justify-between gap-4 px-5 py-3">
-                <span class="text-sm text-slate-700">{{ row.metadata__query }}</span>
-                <span class="text-sm font-medium tabular-nums text-slate-900">{{ row.hits }}</span>
-            </li>
-            {% endfor %}
-        </ol>
-        {% else %}
-        <p class="px-5 py-6 text-sm text-slate-500">No searches recorded in this window.</p>
-        {% endif %}
-    </section>
-</div>
+    <div class="grid gap-6 lg:grid-cols-2">
+        {# ---- top products ---------------------------------------------------------------------- #}
+        <section aria-labelledby="top-products-heading" class="rounded-2xl border border-slate-200 bg-white shadow-soft">
+            <header class="border-b border-slate-100 px-5 py-4">
+                <h2 id="top-products-heading" class="text-base font-semibold text-slate-900">
+                    Top viewed products
+                </h2>
+                <p class="text-sm text-slate-500">
+                    Product views in this window, ranked.
+                </p>
+            </header>
+            {% if summary.top_products %}
+                <ol class="divide-y divide-slate-100">
+                    {% for row in summary.top_products %}
+                        <li class="flex items-center justify-between gap-4 px-5 py-3">
+                            <span class="text-sm text-slate-700">{{ row.name }}</span>
+                            <span class="text-sm font-medium tabular-nums text-slate-900">{{ row.views }}</span>
+                        </li>
+                    {% endfor %}
+                </ol>
+            {% else %}
+                <p class="px-5 py-6 text-sm text-slate-500">
+                    No product views recorded in this window.
+                </p>
+            {% endif %}
+        </section>
+
+        {# ---- top searches ---------------------------------------------------------------------- #}
+        <section aria-labelledby="top-searches-heading" class="rounded-2xl border border-slate-200 bg-white shadow-soft">
+            <header class="border-b border-slate-100 px-5 py-4">
+                <h2 id="top-searches-heading" class="text-base font-semibold text-slate-900">
+                    Top searches
+                </h2>
+                <p class="text-sm text-slate-500">
+                    What shoppers typed, ranked by how often.
+                </p>
+            </header>
+            {% if summary.top_searches %}
+                <ol class="divide-y divide-slate-100">
+                    {% for row in summary.top_searches %}
+                        <li class="flex items-center justify-between gap-4 px-5 py-3">
+                            <span class="text-sm text-slate-700">{{ row.metadata__query }}</span>
+                            <span class="text-sm font-medium tabular-nums text-slate-900">{{ row.hits }}</span>
+                        </li>
+                    {% endfor %}
+                </ol>
+            {% else %}
+                <p class="px-5 py-6 text-sm text-slate-500">
+                    No searches recorded in this window.
+                </p>
+            {% endif %}
+        </section>
+    </div>
 {% endblock content %}

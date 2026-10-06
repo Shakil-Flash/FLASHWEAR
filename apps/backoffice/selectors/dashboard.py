@@ -31,12 +31,13 @@ from django.utils import timezone
 
 from apps.backoffice.selectors.common import DateRange
 from apps.backoffice.selectors.queues import open_support_statuses, pending_loop_count
+from apps.catalog.models import Product
 from apps.core import health as health_checks
 from apps.core import metrics as telemetry
 from apps.drops.models import DropStatus, FlashDrop
 from apps.engagement.models import PointsTransaction, Promotion, Review
 from apps.inventory.models import Reservation, Stock
-from apps.orders.models import Order
+from apps.orders.models import Order, ReturnRequest
 from apps.payments.models import Payment
 from apps.quests.models import Quest
 from apps.support.models import SupportTicket
@@ -175,6 +176,12 @@ def dashboard_summary(*, date_range: DateRange) -> dict:
         redeemed=Coalesce(Sum("amount", filter=Q(amount__lt=0)), 0),
     )
 
+    # --- products & returns -------------------------------------------------------------
+    products = {"total": Product.objects.count()}
+    returns = {
+        "pending": ReturnRequest.objects.filter(status=ReturnRequest.Status.REQUESTED).count(),
+    }
+
     return {
         "range": date_range,
         "sales": {
@@ -187,6 +194,8 @@ def dashboard_summary(*, date_range: DateRange) -> dict:
         "pipeline": pipeline,
         "payments": payments,
         "customers": customers,
+        "products": products,
+        "returns": returns,
         "inventory": {**stock, **holds},
         "support": support,
         "reviews": reviews,

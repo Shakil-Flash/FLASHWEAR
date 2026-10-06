@@ -1,100 +1,203 @@
 {% extends "backoffice/base.html" %}
 {% load catalog_extras %}
 
-{% block title %}Products{% endblock title %}
-{% block breadcrumb %}Operations · Products{% endblock breadcrumb %}
+{% block title %}
+    Products
+{% endblock title %}
+{% block breadcrumb %}
+    Products
+{% endblock breadcrumb %}
 
 {% block content %}
-<header class="mb-5 flex flex-wrap items-end justify-between gap-4">
-    <div>
-        <h1 class="text-2xl font-semibold tracking-tight text-slate-900">Products</h1>
-        <p class="mt-1 text-sm text-slate-500">{{ page.paginator.count }} product{{ page.paginator.count|pluralize }} match.</p>
-    </div>
-</header>
+    {# ---- Page Header -------------------------------------------------------------------------- #}
+    <header class="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+                Products
+            </h1>
+            <p class="mt-1 text-sm text-slate-500">
+                {{ page.paginator.count }} product{{ page.paginator.count|pluralize }} match current filters.
+            </p>
+        </div>
+        <div class="flex items-center gap-2.5">
+            {% if can_manage %}
+                <a href="{% url 'admin:catalog_product_add' %}" class="inline-flex items-center justify-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-xs transition hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2">
+                    + New Product
+                </a>
+            {% endif %}
+        </div>
+    </header>
 
-<section aria-label="Catalogue health" class="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-    <a href="{% url 'backoffice:products' %}" class="rounded-xl border border-slate-200 bg-white p-4 shadow-soft">
-        <p class="text-xs uppercase tracking-wider text-slate-500">Products</p>
-        <p class="mt-1 text-xl font-semibold tabular-nums">{{ health.products_total }}</p>
-    </a>
-    <a href="{% query_transform issue='missing_images' %}" class="rounded-xl border border-slate-200 bg-white p-4 shadow-soft hover:border-slate-900">
-        <p class="text-xs uppercase tracking-wider text-slate-500">Missing images</p>
-        <p class="mt-1 text-xl font-semibold tabular-nums {% if health.missing_images %}text-amber-700{% endif %}">{{ health.missing_images }}</p>
-    </a>
-    <a href="{% query_transform issue='no_active_variants' %}" class="rounded-xl border border-slate-200 bg-white p-4 shadow-soft hover:border-slate-900">
-        <p class="text-xs uppercase tracking-wider text-slate-500">No sellable variant</p>
-        <p class="mt-1 text-xl font-semibold tabular-nums {% if health.no_active_variants %}text-amber-700{% endif %}">{{ health.no_active_variants }}</p>
-    </a>
-    <a href="{% query_transform issue='unpublished' %}" class="rounded-xl border border-slate-200 bg-white p-4 shadow-soft hover:border-slate-900">
-        <p class="text-xs uppercase tracking-wider text-slate-500">Not live</p>
-        <p class="mt-1 text-xl font-semibold tabular-nums">{{ health.drafts }} draft · {{ health.archived }} archived</p>
-    </a>
-</section>
+    {# ---- Catalog Health Summary Cards --------------------------------------------------------- #}
+    <section aria-label="Catalogue health" class="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <a href="{% url 'backoffice:products' %}" class="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs transition hover:border-slate-400">
+            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                Total Products
+            </p>
+            <p class="mt-1 text-2xl font-bold tabular-nums text-slate-900">
+                {{ health.products_total }}
+            </p>
+        </a>
+        <a href="{% query_transform issue='missing_images' %}" class="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs transition hover:border-slate-400">
+            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                Missing Images
+            </p>
+            <p class="mt-1 text-2xl font-bold tabular-nums {% if health.missing_images %}text-amber-600{% else %}text-slate-900{% endif %}">
+                {{ health.missing_images }}
+            </p>
+        </a>
+        <a href="{% query_transform issue='no_active_variants' %}" class="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs transition hover:border-slate-400">
+            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                No Sellable Variant
+            </p>
+            <p class="mt-1 text-2xl font-bold tabular-nums {% if health.no_active_variants %}text-amber-600{% else %}text-slate-900{% endif %}">
+                {{ health.no_active_variants }}
+            </p>
+        </a>
+        <a href="{% query_transform issue='unpublished' %}" class="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs transition hover:border-slate-400">
+            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                Not Live
+            </p>
+            <p class="mt-1 text-2xl font-bold tabular-nums text-slate-900">
+                {{ health.drafts }} <span class="text-xs font-normal text-slate-500">draft</span> · {{ health.archived }} <span class="text-xs font-normal text-slate-500">arch</span>
+            </p>
+        </a>
+    </section>
 
-<form method="get" class="mb-4 flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-soft">
-    <div class="min-w-[14rem] flex-1">
-        <label class="block text-xs font-medium uppercase tracking-wider text-slate-500" for="prod-q">Search</label>
-        <input id="prod-q" name="q" value="{{ filters.q }}" placeholder="Product name or slug"
-               class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none" />
-    </div>
-    <div>
-        <label class="block text-xs font-medium uppercase tracking-wider text-slate-500" for="prod-issue">Issue</label>
-        <select id="prod-issue" name="issue" class="mt-1 rounded-lg border border-slate-300 px-3 py-2 text-sm">
-            <option value="">Any</option>
-            <option value="unpublished" {% if filters.issue == 'unpublished' %}selected{% endif %}>Not live</option>
-            <option value="missing_images" {% if filters.issue == 'missing_images' %}selected{% endif %}>Missing images</option>
-            <option value="no_active_variants" {% if filters.issue == 'no_active_variants' %}selected{% endif %}>No sellable variant</option>
-        </select>
-    </div>
-    <button type="submit" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700">Filter</button>
-</form>
+    {# ---- Search & Filters Bar ----------------------------------------------------------------- #}
+    <form method="get" class="mb-5 flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs">
+        <div class="min-w-[14rem] flex-1">
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-500" for="prod-q">
+                Search
+            </label>
+            <input id="prod-q" name="q" value="{{ filters.q }}" placeholder="Product name or slug..." class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900" />
+        </div>
+        <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-500" for="prod-issue">
+                Issue Filter
+            </label>
+            <select id="prod-issue" name="issue" class="mt-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900">
+                <option value="">
+                    Any issue
+                </option>
+                <option value="unpublished" {% if filters.issue == 'unpublished' %}selected{% endif %}>
+                    Not live
+                </option>
+                <option value="missing_images" {% if filters.issue == 'missing_images' %}selected{% endif %}>
+                    Missing images
+                </option>
+                <option value="no_active_variants" {% if filters.issue == 'no_active_variants' %}selected{% endif %}>
+                    No sellable variant
+                </option>
+            </select>
+        </div>
+        <div class="flex items-center gap-2">
+            <button type="submit" class="inline-flex items-center justify-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-xs transition hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2">
+                Filter
+            </button>
+            {% if filters.q or filters.issue %}
+                <a href="{% url 'backoffice:products' %}" class="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-xs transition hover:bg-slate-50 hover:border-slate-400">
+                    Reset
+                </a>
+            {% endif %}
+        </div>
+    </form>
 
-<form method="post" action="{% url 'backoffice:products_bulk' %}">
-    {% csrf_token %}
-    <div class="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-soft">
-        <table class="min-w-full text-sm">
-            <thead class="border-b border-slate-200 bg-slate-50 text-left text-xs uppercase tracking-wider text-slate-500">
-                <tr>
-                    <th scope="col" class="px-4 py-3"><span class="sr-only">Select</span></th>
-                    <th scope="col" class="px-4 py-3">Product</th>
-                    <th scope="col" class="px-4 py-3">Status</th>
-                    <th scope="col" class="px-4 py-3 text-right">Variants</th>
-                    <th scope="col" class="px-4 py-3 text-right">Images</th>
-                    <th scope="col" class="px-4 py-3">Updated</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-100">
-                {% for product in page %}
-                <tr class="hover:bg-slate-50">
-                    <td class="px-4 py-3">
-                        {% if can_manage %}
-                        <input type="checkbox" name="selected" value="{{ product.pk }}" aria-label="Select {{ product.name }}"
-                               class="h-4 w-4 rounded border-slate-300" />
-                        {% endif %}
-                    </td>
-                    <td class="px-4 py-3">
-                        <p class="font-medium text-slate-900">{{ product.name }}</p>
-                        <p class="text-xs text-slate-500">{{ product.category.name|default:"—" }} · {{ product.brand.name|default:"—" }}</p>
-                    </td>
-                    <td class="px-4 py-3"><span class="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700">{{ product.get_status_display }}</span></td>
-                    <td class="px-4 py-3 text-right tabular-nums">{{ product.active_variant_count }}/{{ product.variant_count }}</td>
-                    <td class="px-4 py-3 text-right tabular-nums {% if product.image_count == 0 %}text-amber-700{% endif %}">{{ product.image_count }}</td>
-                    <td class="px-4 py-3 text-slate-500">{{ product.updated_at|date:"Y-m-d" }}</td>
-                </tr>
-                {% empty %}
-                <tr><td colspan="6" class="px-4 py-8 text-center text-slate-500">No products match these filters.</td></tr>
+    {# ---- Bulk Selection & Table --------------------------------------------------------------- #}
+    <form method="post" action="{% url 'backoffice:products_bulk' %}">
+        {% csrf_token %}
+        <div class="overflow-x-auto rounded-2xl border border-slate-200/80 bg-white shadow-xs">
+            <table class="min-w-full text-sm divide-y divide-slate-200/80">
+                <thead class="bg-slate-50 text-left text-xs font-bold uppercase tracking-wider text-slate-500">
+                    <tr>
+                        <th scope="col" class="px-5 py-3.5 w-10">
+                            <span class="sr-only">Select</span>
+                        </th>
+                        <th scope="col" class="px-5 py-3.5">
+                            Product
+                        </th>
+                        <th scope="col" class="px-5 py-3.5">
+                            Status
+                        </th>
+                        <th scope="col" class="px-5 py-3.5 text-right">
+                            Variants
+                        </th>
+                        <th scope="col" class="px-5 py-3.5 text-right">
+                            Images
+                        </th>
+                        <th scope="col" class="px-5 py-3.5">
+                            Updated
+                        </th>
+                        <th scope="col" class="px-5 py-3.5 text-right">
+                            <span class="sr-only">Actions</span>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 bg-white">
+                    {% for product in page %}
+                        <tr class="transition hover:bg-slate-50/80">
+                            <td class="px-5 py-3.5">
+                                {% if can_manage %}
+                                    <input type="checkbox" name="selected" value="{{ product.pk }}" aria-label="Select {{ product.name }}" class="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900" />
+                                {% endif %}
+                            </td>
+                            <td class="px-5 py-3.5">
+                                <p class="font-semibold text-slate-900">
+                                    {{ product.name }}
+                                </p>
+                                <p class="text-xs text-slate-500">
+                                    {{ product.category.name|default:"—" }} · {{ product.brand.name|default:"—" }}
+                                </p>
+                            </td>
+                            <td class="px-5 py-3.5">
+                                {% status_badge product.status product.get_status_display %}
+                            </td>
+                            <td class="px-5 py-3.5 text-right tabular-nums text-slate-700 font-medium">
+                                {{ product.active_variant_count }}/{{ product.variant_count }}
+                            </td>
+                            <td class="px-5 py-3.5 text-right tabular-nums {% if product.image_count == 0 %}text-amber-600 font-bold{% else %}text-slate-700 font-medium{% endif %}">
+                                {{ product.image_count }}
+                            </td>
+                            <td class="px-5 py-3.5 text-slate-500 tabular-nums">
+                                {{ product.updated_at|date:"Y-m-d" }}
+                            </td>
+                            <td class="px-5 py-3.5 text-right">
+                                <a class="text-xs font-semibold text-slate-700 hover:text-slate-900 hover:underline" href="{% url 'admin:catalog_product_change' product.pk %}">
+                                    Edit &rarr;
+                                </a>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="7" class="px-5 py-12 text-center text-sm text-slate-500">
+                                <p class="font-medium">
+                                    No products match these filters.
+                                </p>
+                                <p class="mt-1 text-xs text-slate-400">
+                                    Try clearing the issue filter or searching for another term.
+                                </p>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {# Bulk Actions Bar #}
+        {% if can_manage %}
+            <div class="mt-4 flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs">
+                {% for field in bulk_form %}
+                    <div class="min-w-[12rem]">
+                        {% include "backoffice/_field.html" with field=field %}
+                    </div>
                 {% endfor %}
-            </tbody>
-        </table>
-    </div>
+                <button type="submit" class="inline-flex items-center justify-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-xs transition hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2">
+                    Apply to selection
+                </button>
+            </div>
+        {% endif %}
+    </form>
 
-    {% if can_manage %}
-    <div class="mt-4 flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-soft">
-        {% for field in bulk_form %}{% include "backoffice/_field.html" with field=field %}{% endfor %}
-        <button type="submit" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700">Apply to selection</button>
-    </div>
-    {% endif %}
-</form>
-
-{% include "backoffice/_pagination.html" %}
+    {# ---- Pagination ---------------------------------------------------------------------------- #}
+    {% include "backoffice/_pagination.html" %}
 {% endblock content %}

@@ -1,117 +1,211 @@
 {% extends "backoffice/base.html" %}
 {% load catalog_extras %}
 
-{% block title %}Inventory{% endblock title %}
-{% block breadcrumb %}Operations · Inventory{% endblock breadcrumb %}
+{% block title %}
+    Inventory
+{% endblock title %}
+{% block breadcrumb %}
+    Inventory
+{% endblock breadcrumb %}
 
 {% block content %}
-<header class="mb-5 flex flex-wrap items-end justify-between gap-4">
-    <div>
-        <h1 class="text-2xl font-semibold tracking-tight text-slate-900">Inventory</h1>
-        <p class="mt-1 text-sm text-slate-500">{{ page.paginator.count }} SKU{{ page.paginator.count|pluralize }} · {{ low_stock_count }} at or below the low-stock threshold ({{ threshold }}).</p>
-    </div>
-</header>
-
-{% if can_manage %}
-<section aria-labelledby="adjust-heading" class="mb-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
-    <h2 id="adjust-heading" class="text-base font-semibold text-slate-900">Adjust stock</h2>
-    <p class="text-sm text-slate-500">Writes one movement to the ledger and one row to the audit log. Stock can never go negative.</p>
-    <form method="post" action="{% url 'backoffice:inventory_adjust' %}" class="mt-3 grid gap-x-4 sm:grid-cols-2 lg:grid-cols-6">
-        {% csrf_token %}
-        <div class="lg:col-span-2">{% include "backoffice/_field.html" with field=adjust_form.variant %}</div>
-        <div>{% include "backoffice/_field.html" with field=adjust_form.delta %}</div>
-        <div>{% include "backoffice/_field.html" with field=adjust_form.kind %}</div>
-        <div>{% include "backoffice/_field.html" with field=adjust_form.note %}</div>
-        <div>{% include "backoffice/_field.html" with field=adjust_form.reason %}</div>
-        <button type="submit" class="h-fit rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700">Apply</button>
-    </form>
-</section>
-{% endif %}
-
-<form method="get" class="mb-4 flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-soft">
-    <div class="min-w-[14rem] flex-1">
-        <label class="block text-xs font-medium uppercase tracking-wider text-slate-500" for="inv-q">Search</label>
-        <input id="inv-q" name="q" value="{{ filters.q }}" placeholder="SKU or product"
-               class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none" />
-    </div>
-    <div>
-        <label class="block text-xs font-medium uppercase tracking-wider text-slate-500" for="inv-state">State</label>
-        <select id="inv-state" name="state" class="mt-1 rounded-lg border border-slate-300 px-3 py-2 text-sm">
-            <option value="">Any</option>
-            <option value="out" {% if filters.state == 'out' %}selected{% endif %}>Out of stock</option>
-            <option value="low" {% if filters.state == 'low' %}selected{% endif %}>Low stock</option>
-            <option value="reserved" {% if filters.state == 'reserved' %}selected{% endif %}>Has reservations</option>
-        </select>
-    </div>
-    <button type="submit" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700">Filter</button>
-</form>
-
-<div class="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-soft">
-    <table class="min-w-full text-sm">
-        <thead class="border-b border-slate-200 bg-slate-50 text-left text-xs uppercase tracking-wider text-slate-500">
-            <tr>
-                <th scope="col" class="px-4 py-3">SKU</th>
-                <th scope="col" class="px-4 py-3">Product</th>
-                <th scope="col" class="px-4 py-3">State</th>
-                <th scope="col" class="px-4 py-3 text-right">On hand</th>
-                <th scope="col" class="px-4 py-3 text-right">Reserved</th>
-                <th scope="col" class="px-4 py-3 text-right">Available</th>
-                <th scope="col" class="px-4 py-3"></th>
-            </tr>
-        </thead>
-        <tbody class="divide-y divide-slate-100">
-            {% for row in rows %}
-            <tr class="hover:bg-slate-50">
-                <td class="px-4 py-3 font-medium text-slate-900">{{ row.stock.variant.sku }}</td>
-                <td class="px-4 py-3 text-slate-600">{{ row.stock.variant.product.name }}</td>
-                <td class="px-4 py-3">
-                    <span class="rounded-full px-2.5 py-0.5 text-xs font-medium
-                        {% if row.state == 'out' %}bg-rose-100 text-rose-800
-                        {% elif row.state == 'low' %}bg-amber-100 text-amber-800
-                        {% else %}bg-slate-100 text-slate-700{% endif %}">
-                        {{ row.state }}
-                    </span>
-                </td>
-                <td class="px-4 py-3 text-right tabular-nums">{{ row.stock.on_hand }}</td>
-                <td class="px-4 py-3 text-right tabular-nums">{{ row.stock.reserved }}</td>
-                <td class="px-4 py-3 text-right tabular-nums">{{ row.stock.qty_available }}</td>
-                <td class="px-4 py-3 text-right">
-                    <a class="text-flash-700 hover:underline" href="{% query_transform variant=row.stock.variant.pk %}#adjust-heading">Adjust</a>
-                </td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="7" class="px-4 py-8 text-center text-slate-500">No SKUs match these filters.</td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
-
-{% include "backoffice/_pagination.html" %}
-
-<section aria-labelledby="ledger-heading" class="mt-6 rounded-2xl border border-slate-200 bg-white shadow-soft">
-    <header class="border-b border-slate-100 px-5 py-4">
-        <h2 id="ledger-heading" class="text-base font-semibold text-slate-900">Recent movements</h2>
-        <p class="text-sm text-slate-500">The stock ledger, newest first — what changed, and who changed it.</p>
+    {# ---- Page Header -------------------------------------------------------------------------- #}
+    <header class="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+                Inventory
+            </h1>
+            <p class="mt-1 text-sm text-slate-500">
+                {{ page.paginator.count }} SKU{{ page.paginator.count|pluralize }} tracked · {{ low_stock_count }} at or below low-stock threshold ({{ threshold }}).
+            </p>
+        </div>
     </header>
-    <ul class="divide-y divide-slate-100">
-        {% for movement in recent_movements %}
-        <li class="flex flex-wrap items-baseline justify-between gap-3 px-5 py-3 text-sm">
-            <div>
-                <span class="font-medium text-slate-900">{{ movement.variant.sku }}</span>
-                <span class="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-700">{{ movement.get_kind_display }}</span>
-                {% if movement.note %}<span class="ml-2 text-slate-600">{{ movement.note }}</span>{% endif %}
+
+    {# ---- Stock Adjustment Panel --------------------------------------------------------------- #}
+    {% if can_manage %}
+        <section aria-labelledby="adjust-heading" class="mb-6 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs">
+            <div class="mb-3">
+                <h2 id="adjust-heading" class="text-base font-bold text-slate-900">
+                    Authoritative Stock Adjustment
+                </h2>
+                <p class="text-xs text-slate-500">
+                    Writes atomic delta movements to the stock ledger and logs a non-repudiable audit event.
+                </p>
             </div>
-            <div class="flex items-baseline gap-4 text-slate-500">
-                <span class="tabular-nums {% if movement.on_hand_delta > 0 %}text-emerald-700{% elif movement.on_hand_delta < 0 %}text-rose-700{% endif %}">
-                    {{ movement.on_hand_delta }}
-                </span>
-                <span>{{ movement.user.email|default:"system" }}</span>
-                <time class="tabular-nums">{{ movement.created_at|date:"Y-m-d H:i" }}</time>
-            </div>
-        </li>
-        {% empty %}
-        <li class="px-5 py-6 text-sm text-slate-500">No movements recorded.</li>
-        {% endfor %}
-    </ul>
-</section>
+            <form method="post" action="{% url 'backoffice:inventory_adjust' %}" class="grid gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-6 items-end">
+                {% csrf_token %}
+                <div class="lg:col-span-2">
+                    {% include "backoffice/_field.html" with field=adjust_form.variant %}
+                </div>
+                <div>
+                    {% include "backoffice/_field.html" with field=adjust_form.delta %}
+                </div>
+                <div>
+                    {% include "backoffice/_field.html" with field=adjust_form.kind %}
+                </div>
+                <div>
+                    {% include "backoffice/_field.html" with field=adjust_form.note %}
+                </div>
+                <div>
+                    {% include "backoffice/_field.html" with field=adjust_form.reason %}
+                </div>
+                <div class="mb-3">
+                    <button type="submit" class="w-full inline-flex items-center justify-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-xs transition hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2">
+                        Apply Delta
+                    </button>
+                </div>
+            </form>
+        </section>
+    {% endif %}
+
+    {# ---- Search & Filters Bar ----------------------------------------------------------------- #}
+    <form method="get" class="mb-5 flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs">
+        <div class="min-w-[14rem] flex-1">
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-500" for="inv-q">
+                Search
+            </label>
+            <input id="inv-q" name="q" value="{{ filters.q }}" placeholder="SKU code or product title..." class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900" />
+        </div>
+        <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-500" for="inv-state">
+                Stock State
+            </label>
+            <select id="inv-state" name="state" class="mt-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900">
+                <option value="">
+                    All stock states
+                </option>
+                <option value="out" {% if filters.state == 'out' %}selected{% endif %}>
+                    Out of stock (0)
+                </option>
+                <option value="low" {% if filters.state == 'low' %}selected{% endif %}>
+                    Low stock (&le; {{ threshold }})
+                </option>
+                <option value="reserved" {% if filters.state == 'reserved' %}selected{% endif %}>
+                    Active reservations
+                </option>
+            </select>
+        </div>
+        <div class="flex items-center gap-2">
+            <button type="submit" class="inline-flex items-center justify-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-xs transition hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2">
+                Filter
+            </button>
+            {% if filters.q or filters.state %}
+                <a href="{% url 'backoffice:inventory' %}" class="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-xs transition hover:bg-slate-50 hover:border-slate-400">
+                    Reset
+                </a>
+            {% endif %}
+        </div>
+    </form>
+
+    {# ---- Data Table ---------------------------------------------------------------------------- #}
+    <div class="overflow-x-auto rounded-2xl border border-slate-200/80 bg-white shadow-xs">
+        <table class="min-w-full text-sm divide-y divide-slate-200/80">
+            <thead class="bg-slate-50 text-left text-xs font-bold uppercase tracking-wider text-slate-500">
+                <tr>
+                    <th scope="col" class="px-5 py-3.5">
+                        SKU
+                    </th>
+                    <th scope="col" class="px-5 py-3.5">
+                        Product
+                    </th>
+                    <th scope="col" class="px-5 py-3.5">
+                        State
+                    </th>
+                    <th scope="col" class="px-5 py-3.5 text-right">
+                        On hand
+                    </th>
+                    <th scope="col" class="px-5 py-3.5 text-right">
+                        Reserved
+                    </th>
+                    <th scope="col" class="px-5 py-3.5 text-right">
+                        Available
+                    </th>
+                    <th scope="col" class="px-5 py-3.5 text-right">
+                        <span class="sr-only">Actions</span>
+                    </th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 bg-white">
+                {% for row in rows %}
+                    <tr class="transition hover:bg-slate-50/80">
+                        <td class="px-5 py-3.5 font-mono font-semibold text-slate-900">
+                            {{ row.stock.variant.sku }}
+                        </td>
+                        <td class="px-5 py-3.5 text-slate-600 font-medium">
+                            {{ row.stock.variant.product.name }}
+                        </td>
+                        <td class="px-5 py-3.5">
+                            {% status_badge row.state %}
+                        </td>
+                        <td class="px-5 py-3.5 text-right tabular-nums text-slate-800 font-medium">
+                            {{ row.stock.on_hand }}
+                        </td>
+                        <td class="px-5 py-3.5 text-right tabular-nums text-slate-500">
+                            {{ row.stock.reserved }}
+                        </td>
+                        <td class="px-5 py-3.5 text-right tabular-nums font-bold {% if row.stock.qty_available == 0 %}text-rose-600{% elif row.stock.qty_available <= threshold %}text-amber-600{% else %}text-emerald-600{% endif %}">
+                            {{ row.stock.qty_available }}
+                        </td>
+                        <td class="px-5 py-3.5 text-right">
+                            <a class="text-xs font-semibold text-slate-700 hover:text-slate-900 hover:underline" href="{% query_transform variant=row.stock.variant.pk %}#adjust-heading">
+                                Adjust &rarr;
+                            </a>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="7" class="px-5 py-12 text-center text-sm text-slate-500">
+                            <p class="font-medium">
+                                No SKUs match these filters.
+                            </p>
+                            <p class="mt-1 text-xs text-slate-400">
+                                Try adjusting your search query or state filter.
+                            </p>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {# ---- Pagination ---------------------------------------------------------------------------- #}
+    {% include "backoffice/_pagination.html" %}
+
+    {# ---- Ledger Activity ----------------------------------------------------------------------- #}
+    <section aria-labelledby="ledger-heading" class="mt-8 rounded-2xl border border-slate-200/80 bg-white shadow-xs">
+        <header class="border-b border-slate-100 px-5 py-4">
+            <h2 id="ledger-heading" class="text-base font-bold text-slate-900">
+                Recent Ledger Movements
+            </h2>
+            <p class="text-xs text-slate-500">
+                Authoritative audit ledger: delta movements and user attribution.
+            </p>
+        </header>
+        <ul class="divide-y divide-slate-100">
+            {% for movement in recent_movements %}
+                <li class="flex flex-wrap items-center justify-between gap-3 px-5 py-3 text-sm hover:bg-slate-50/50">
+                    <div>
+                        <span class="font-mono font-semibold text-slate-900">{{ movement.variant.sku }}</span>
+                        <span class="text-xs text-slate-500 ml-2">{{ movement.reason }}</span>
+                        {% if movement.reference %}
+                            <span class="text-xs text-slate-400 ml-1">({{ movement.reference }})</span>
+                        {% endif %}
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <span class="tabular-nums font-bold text-sm {% if movement.on_hand_delta > 0 %}text-emerald-600{% else %}text-rose-600{% endif %}">
+                            {% if movement.on_hand_delta > 0 %}
+                                +
+                            {% endif %}
+                            {{ movement.on_hand_delta }}
+                        </span>
+                        <span class="text-xs text-slate-400 tabular-nums">{{ movement.created_at|date:"Y-m-d H:i" }}</span>
+                    </div>
+                </li>
+            {% empty %}
+                <li class="px-5 py-6 text-center text-xs text-slate-400">
+                    No stock movements recorded yet.
+                </li>
+            {% endfor %}
+        </ul>
+    </section>
 {% endblock content %}

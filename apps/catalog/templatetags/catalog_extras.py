@@ -126,3 +126,12 @@ def get_item(mapping, key):
         return mapping.get(key)
     except AttributeError:
         return None
+
+
+@register.simple_tag
+def status_badge(status, label: str | None = None) -> str:
+    """Render a unified, accessible status badge."""
+    from apps.backoffice.templatetags.backoffice_extras import status_badge as _sb
+
+    return _sb(status, label)
+

@@ -19,10 +19,12 @@ __all__ = ["alerts", "dashboard", "health"]
 @backoffice_access(OPS_VIEW)
 def dashboard(request):
     """``/operations/`` -- the shop's numbers for the chosen window."""
+    from apps.backoffice.selectors.analytics import funnel_summary
     from apps.orders.models import Order
 
     date_range = range_from_request(request)
     summary = dashboard_summary(date_range=date_range)
+    funnel = funnel_summary(date_range=date_range)
     # Labels are resolved here, not in the template: a template cannot look a dict up by
     # a variable key without a bespoke filter, and a bespoke filter is where a typo hides.
     pipeline = [
@@ -34,6 +36,7 @@ def dashboard(request):
         "backoffice/dashboard.html",
         active="dashboard",
         summary=summary,
+        funnel=funnel,
         alerts=alerts_for(request.user),
         current_range=date_range.key,
         pipeline=pipeline,

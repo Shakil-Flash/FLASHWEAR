@@ -1,70 +1,125 @@
 {% extends "backoffice/base.html" %}
-{% load catalog_extras %}
+{% load catalog_extras backoffice_extras %}
 
-{% block title %}Promotions{% endblock title %}
-{% block breadcrumb %}Operations · Promotions{% endblock breadcrumb %}
+{% block title %}
+    Promotions
+{% endblock title %}
+{% block breadcrumb %}
+    Operations · Promotions
+{% endblock breadcrumb %}
 
 {% block content %}
-<header class="mb-5">
-    <h1 class="text-2xl font-semibold tracking-tight text-slate-900">Promotions</h1>
-    <p class="mt-1 text-sm text-slate-500">Read-only here: windows and usage limits belong to the engagement app.</p>
-</header>
-
-<nav class="mb-4 flex flex-wrap gap-1.5" aria-label="Promotion scope">
-    {% for key, label in scopes %}
-    <a href="{% query_transform scope=key %}"
-       class="rounded-full px-3 py-1 text-sm {% if filters.scope == key %}bg-slate-900 font-medium text-white{% else %}border border-slate-300 bg-white text-slate-600 hover:border-slate-900{% endif %}">{{ label }}</a>
-    {% endfor %}
-</nav>
-
-<form method="get" class="mb-4 flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-soft">
-    <div class="min-w-[14rem] flex-1">
-        <label class="block text-xs font-medium uppercase tracking-wider text-slate-500" for="promo-q">Search</label>
-        <input id="promo-q" name="q" value="{{ filters.q }}" placeholder="Code or name"
-               class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none" />
+    <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+            <h1 class="text-2xl font-bold tracking-tight text-slate-900">
+                Promotions
+            </h1>
+            <p class="mt-1 text-sm text-slate-500">
+                Active campaigns, discount codes, usage limits, and scheduling windows.
+            </p>
+        </div>
+        <div class="flex items-center gap-2">
+            <a href="{% url 'admin:engagement_promotion_changelist' %}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400">
+                <span>⚙ Manage in Admin</span>
+            </a>
+        </div>
     </div>
-    <button type="submit" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700">Search</button>
-</form>
 
-<div class="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-soft">
-    <table class="min-w-full text-sm">
-        <thead class="border-b border-slate-200 bg-slate-50 text-left text-xs uppercase tracking-wider text-slate-500">
-            <tr>
-                <th scope="col" class="px-4 py-3">Code</th>
-                <th scope="col" class="px-4 py-3">State</th>
-                <th scope="col" class="px-4 py-3">Window</th>
-                <th scope="col" class="px-4 py-3 text-right">Used</th>
-                <th scope="col" class="px-4 py-3 text-right">Limit</th>
-            </tr>
-        </thead>
-        <tbody class="divide-y divide-slate-100">
-            {% for promotion in page %}
-            <tr class="hover:bg-slate-50">
-                <td class="px-4 py-3">
-                    <p class="font-mono font-medium text-slate-900">{{ promotion.code }}</p>
-                    <p class="text-xs text-slate-500">{{ promotion.name }}</p>
-                </td>
-                <td class="px-4 py-3">
-                    {% with state=states|get_item:promotion.pk %}
-                    <span class="rounded-full px-2.5 py-0.5 text-xs font-medium
-                        {% if state == 'active' %}bg-emerald-100 text-emerald-800
-                        {% elif state == 'scheduled' %}bg-sky-100 text-sky-800
-                        {% elif state == 'expired' %}bg-amber-100 text-amber-800
-                        {% else %}bg-slate-100 text-slate-700{% endif %}">{{ state|default:"inactive" }}</span>
-                    {% endwith %}
-                </td>
-                <td class="px-4 py-3 text-slate-600">
-                    {{ promotion.starts_at|date:"Y-m-d H:i" }} → {{ promotion.ends_at|date:"Y-m-d H:i" }}
-                </td>
-                <td class="px-4 py-3 text-right tabular-nums">{{ promotion.used_count }}</td>
-                <td class="px-4 py-3 text-right tabular-nums">{{ promotion.usage_limit|default:"∞" }}</td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="5" class="px-4 py-8 text-center text-slate-500">No promotions match this filter.</td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
+    <nav class="mb-5 flex flex-wrap gap-2" aria-label="Promotion scope">
+        {% for key, label in scopes %}
+            <a href="{% query_transform scope=key %}" class="rounded-xl px-3.5 py-1.5 text-xs font-semibold transition {% if filters.scope == key %}bg-slate-900 text-white shadow-sm{% else %}border border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50{% endif %}">
+                {{ label }}
+            </a>
+        {% endfor %}
+    </nav>
 
-{% include "backoffice/_pagination.html" %}
+    <div class="mb-6 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-soft">
+        <form method="get" class="flex flex-wrap items-end gap-3">
+            <input type="hidden" name="scope" value="{{ filters.scope }}" />
+            <div class="min-w-[14rem] flex-1">
+                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500" for="promo-q">
+                    Search Campaign
+                </label>
+                <input id="promo-q" name="q" value="{{ filters.q }}" placeholder="Promotion code or name..." class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900" />
+            </div>
+            <button type="submit" class="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900">
+                Search
+            </button>
+            {% if filters.q %}
+                <a href="{% query_transform q='' %}" class="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50">
+                    Clear
+                </a>
+            {% endif %}
+        </form>
+    </div>
+
+    <div class="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-soft">
+        <div class="overflow-x-auto">
+            <table class="min-w-full text-sm">
+                <thead class="border-b border-slate-200 bg-slate-50 text-left text-xs uppercase tracking-wider text-slate-500">
+                    <tr>
+                        <th scope="col" class="px-5 py-3.5 font-semibold">
+                            Promotion Code
+                        </th>
+                        <th scope="col" class="px-5 py-3.5 font-semibold">
+                            State
+                        </th>
+                        <th scope="col" class="px-5 py-3.5 font-semibold">
+                            Scheduling Window
+                        </th>
+                        <th scope="col" class="px-5 py-3.5 text-right font-semibold">
+                            Redemptions
+                        </th>
+                        <th scope="col" class="px-5 py-3.5 text-right font-semibold">
+                            Usage Limit
+                        </th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for promotion in page %}
+                        <tr class="transition hover:bg-slate-50/80">
+                            <td class="px-5 py-3.5">
+                                <p class="font-mono font-semibold text-slate-900">
+                                    {{ promotion.code }}
+                                </p>
+                                <p class="text-xs text-slate-500">
+                                    {{ promotion.name }}
+                                </p>
+                            </td>
+                            <td class="px-5 py-3.5">
+                                {% with state=states|get_item:promotion.pk %}
+                                    {% status_badge state|default:"inactive" %}
+                                {% endwith %}
+                            </td>
+                            <td class="px-5 py-3.5 text-slate-600 tabular-nums">
+                                {{ promotion.starts_at|date:"Y-m-d H:i" }} → {{ promotion.ends_at|date:"Y-m-d H:i" }}
+                            </td>
+                            <td class="px-5 py-3.5 text-right font-semibold tabular-nums text-slate-900">
+                                {{ promotion.used_count }}
+                            </td>
+                            <td class="px-5 py-3.5 text-right tabular-nums text-slate-600">
+                                {{ promotion.usage_limit|default:"∞" }}
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="5" class="px-5 py-12 text-center text-slate-500">
+                                <div class="flex flex-col items-center justify-center">
+                                    <span class="text-2xl">🏷️</span>
+                                    <p class="mt-2 text-sm font-medium text-slate-700">
+                                        No promotions found
+                                    </p>
+                                    <p class="text-xs text-slate-400">
+                                        Try adjusting your search criteria or promotion scope filter.
+                                    </p>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {% include "backoffice/_pagination.html" %}
 {% endblock content %}

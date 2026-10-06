@@ -1,138 +1,527 @@
 {% extends "backoffice/base.html" %}
+{% load catalog_extras %}
 
-{% block title %}Dashboard{% endblock title %}
-{% block breadcrumb %}Operations · Dashboard{% endblock breadcrumb %}
+{% block title %}
+    Dashboard
+{% endblock title %}
+{% block breadcrumb %}
+    Dashboard
+{% endblock breadcrumb %}
 
 {% block content %}
-<header class="mb-6 flex flex-wrap items-end justify-between gap-4">
-    <div>
-        <h1 class="text-2xl font-semibold tracking-tight text-slate-900">Dashboard</h1>
-        <p class="mt-1 text-sm text-slate-500">{{ summary.range.label }} · every figure below is a live count.</p>
-    </div>
-    {% include "backoffice/_range_filter.html" %}
-</header>
+    {# ---- Page Header -------------------------------------------------------------------------- #}
+    <header class="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+                Dashboard
+            </h1>
+            <p class="mt-1 text-sm text-slate-500">
+                {{ summary.range.label }} · live metrics and real counts across all operations.
+            </p>
+        </div>
+        {% include "backoffice/_range_filter.html" %}
+    </header>
 
-{# ---- sales -------------------------------------------------------------------------------- #}
-<section aria-labelledby="sales-heading" class="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-    <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
-        <p class="text-xs font-medium uppercase tracking-wider text-slate-500">Gross</p>
-        <p class="mt-1 text-2xl font-semibold tabular-nums text-slate-900">£{{ summary.sales.gross }}</p>
-        <p class="mt-1 text-sm text-slate-500">{{ summary.sales.paid }} paid order{{ summary.sales.paid|pluralize }}</p>
-    </div>
-    <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
-        <p class="text-xs font-medium uppercase tracking-wider text-slate-500">Average order</p>
-        <p class="mt-1 text-2xl font-semibold tabular-nums text-slate-900">£{{ summary.sales.aov }}</p>
-        <p class="mt-1 text-sm text-slate-500">{{ summary.sales.placed }} placed in total</p>
-    </div>
-    <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
-        <p class="text-xs font-medium uppercase tracking-wider text-slate-500">Discounts</p>
-        <p class="mt-1 text-2xl font-semibold tabular-nums text-slate-900">£{{ summary.sales.discounts }}</p>
-        <p class="mt-1 text-sm text-slate-500">promo + FLASH Points, frozen at checkout</p>
-    </div>
-    <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
-        <p class="text-xs font-medium uppercase tracking-wider text-slate-500">Customers</p>
-        <p class="mt-1 text-2xl font-semibold tabular-nums text-slate-900">{{ summary.customers.total }}</p>
-        <p class="mt-1 text-sm text-slate-500">{{ summary.customers.new }} new · {{ summary.customers.buying }} bought this window</p>
-    </div>
-</section>
+    {# ---- 1. KPI Cards Section ------------------------------------------------------------------ #}
+    <section aria-labelledby="kpi-heading" class="mb-8">
+        <h2 id="kpi-heading" class="sr-only">
+            Key Performance Indicators
+        </h2>
+        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
+            {# Revenue #}
+            <div class="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs transition hover:border-slate-300">
+                <div class="flex items-center justify-between">
+                    <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Revenue</span>
+                    <span class="inline-flex h-6 w-6 items-center justify-center rounded-md bg-emerald-50 text-emerald-600" aria-hidden="true">
+                        <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </span>
+                </div>
+                <p class="mt-2 text-2xl font-bold tabular-nums text-slate-900">
+                    £{{ summary.sales.gross }}
+                </p>
+                <p class="mt-1 text-xs text-slate-500">
+                    {{ summary.sales.paid }} paid order{{ summary.sales.paid|pluralize }}
+                </p>
+            </div>
 
-<div class="grid gap-6 lg:grid-cols-3">
-    {# ---- order pipeline -------------------------------------------------------------------- #}
-    <section aria-labelledby="pipeline-heading" class="rounded-2xl border border-slate-200 bg-white shadow-soft lg:col-span-2">
-        <header class="border-b border-slate-100 px-5 py-4">
-            <h2 id="pipeline-heading" class="text-base font-semibold text-slate-900">Order pipeline</h2>
-            <p class="text-sm text-slate-500">Current status of every order, all time.</p>
-        </header>
-        <ul class="grid gap-3 px-5 py-4 sm:grid-cols-2">
-            {% for row in pipeline %}
-            <li class="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-2.5">
-                <span class="text-sm text-slate-700">{{ row.label }}</span>
-                <span class="text-sm font-semibold tabular-nums text-slate-900">{{ row.count }}</span>
-            </li>
-            {% empty %}
-            <li class="text-sm text-slate-500">No orders yet.</li>
-            {% endfor %}
-        </ul>
-        <footer class="border-t border-slate-100 px-5 py-3 text-sm">
-            <a class="text-flash-700 hover:underline" href="{% url 'backoffice:orders' %}">Open the order queue</a>
-        </footer>
+            {# Orders #}
+            <div class="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs transition hover:border-slate-300">
+                <div class="flex items-center justify-between">
+                    <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Orders</span>
+                    <span class="inline-flex h-6 w-6 items-center justify-center rounded-md bg-blue-50 text-blue-600" aria-hidden="true">
+                        <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119.993z" />
+                        </svg>
+                    </span>
+                </div>
+                <p class="mt-2 text-2xl font-bold tabular-nums text-slate-900">
+                    {{ summary.sales.placed }}
+                </p>
+                <p class="mt-1 text-xs text-slate-500">
+                    £{{ summary.sales.aov }} AOV
+                </p>
+            </div>
+
+            {# Customers #}
+            <div class="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs transition hover:border-slate-300">
+                <div class="flex items-center justify-between">
+                    <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Customers</span>
+                    <span class="inline-flex h-6 w-6 items-center justify-center rounded-md bg-indigo-50 text-indigo-600" aria-hidden="true">
+                        <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+                        </svg>
+                    </span>
+                </div>
+                <p class="mt-2 text-2xl font-bold tabular-nums text-slate-900">
+                    {{ summary.customers.total }}
+                </p>
+                <p class="mt-1 text-xs text-slate-500">
+                    {{ summary.customers.new }} new · {{ summary.customers.buying }} buyers
+                </p>
+            </div>
+
+            {# Products #}
+            <div class="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs transition hover:border-slate-300">
+                <div class="flex items-center justify-between">
+                    <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Products</span>
+                    <span class="inline-flex h-6 w-6 items-center justify-center rounded-md bg-purple-50 text-purple-600" aria-hidden="true">
+                        <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.386l5.228-3.072a2.25 2.25 0 00.784-2.887L11.159 3.659A2.25 2.25 0 009.568 3z" />
+                        </svg>
+                    </span>
+                </div>
+                <p class="mt-2 text-2xl font-bold tabular-nums text-slate-900">
+                    {{ summary.products.total|default:0 }}
+                </p>
+                <p class="mt-1 text-xs text-slate-500">
+                    Active catalog items
+                </p>
+            </div>
+
+            {# Low Stock #}
+            <div class="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs transition hover:border-slate-300">
+                <div class="flex items-center justify-between">
+                    <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Low Stock</span>
+                    <span class="inline-flex h-6 w-6 items-center justify-center rounded-md {% if summary.inventory.low %}bg-amber-50 text-amber-600{% else %}bg-slate-50 text-slate-400{% endif %}" aria-hidden="true">
+                        <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                        </svg>
+                    </span>
+                </div>
+                <p class="mt-2 text-2xl font-bold tabular-nums {% if summary.inventory.low %}text-amber-600{% else %}text-slate-900{% endif %}">
+                    {{ summary.inventory.low }}
+                </p>
+                <p class="mt-1 text-xs text-slate-500">
+                    {{ summary.inventory.out }} out of stock
+                </p>
+            </div>
+
+            {# Pending Returns #}
+            <div class="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs transition hover:border-slate-300">
+                <div class="flex items-center justify-between">
+                    <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Returns</span>
+                    <span class="inline-flex h-6 w-6 items-center justify-center rounded-md {% if summary.returns.pending %}bg-rose-50 text-rose-600{% else %}bg-slate-50 text-slate-400{% endif %}" aria-hidden="true">
+                        <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
+                        </svg>
+                    </span>
+                </div>
+                <p class="mt-2 text-2xl font-bold tabular-nums {% if summary.returns.pending %}text-rose-600{% else %}text-slate-900{% endif %}">
+                    {{ summary.returns.pending|default:0 }}
+                </p>
+                <p class="mt-1 text-xs text-slate-500">
+                    Awaiting processing
+                </p>
+            </div>
+
+            {# Open Support Tickets #}
+            <div class="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs transition hover:border-slate-300">
+                <div class="flex items-center justify-between">
+                    <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Tickets</span>
+                    <span class="inline-flex h-6 w-6 items-center justify-center rounded-md {% if summary.support.open %}bg-sky-50 text-sky-600{% else %}bg-slate-50 text-slate-400{% endif %}" aria-hidden="true">
+                        <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
+                        </svg>
+                    </span>
+                </div>
+                <p class="mt-2 text-2xl font-bold tabular-nums text-slate-900">
+                    {{ summary.support.open }}
+                </p>
+                <p class="mt-1 text-xs text-slate-500">
+                    {{ summary.support.urgent }} urgent · {{ summary.support.waiting }} waiting
+                </p>
+            </div>
+        </div>
     </section>
 
-    {# ---- alerts ---------------------------------------------------------------------------- #}
-    {% include "backoffice/_alerts.html" with alerts=alerts %}
-</div>
+    {# ---- 2. Operational Attention Section ------------------------------------------------------ #}
+    <section aria-labelledby="ops-heading" class="mb-8">
+        <div class="mb-3 flex items-center justify-between">
+            <h2 id="ops-heading" class="text-base font-bold text-slate-900 tracking-tight">
+                Staff Attention Required
+            </h2>
+            <span class="text-xs text-slate-500 font-medium">Real-time action queues</span>
+        </div>
 
-<div class="mt-6 grid gap-6 lg:grid-cols-3">
-    {# ---- inventory -------------------------------------------------------------------------- #}
-    <section aria-labelledby="stock-heading" class="rounded-2xl border border-slate-200 bg-white shadow-soft">
-        <header class="border-b border-slate-100 px-5 py-4">
-            <h2 id="stock-heading" class="text-base font-semibold text-slate-900">Inventory</h2>
-        </header>
-        <ul class="space-y-2 px-5 py-4 text-sm">
-            <li class="flex justify-between"><span class="text-slate-600">Out of stock</span><span class="font-semibold tabular-nums">{{ summary.inventory.out }}</span></li>
-            <li class="flex justify-between"><span class="text-slate-600">Low stock</span><span class="font-semibold tabular-nums">{{ summary.inventory.low }}</span></li>
-            <li class="flex justify-between"><span class="text-slate-600">Units reserved</span><span class="font-semibold tabular-nums">{{ summary.inventory.reserved }}</span></li>
-            <li class="flex justify-between"><span class="text-slate-600">Active holds</span><span class="font-semibold tabular-nums">{{ summary.inventory.active }}</span></li>
-            <li class="flex justify-between"><span class="text-slate-600">Holds past expiry</span><span class="font-semibold tabular-nums">{{ summary.inventory.stale }}</span></li>
-        </ul>
-        <footer class="border-t border-slate-100 px-5 py-3 text-sm">
-            <a class="text-flash-700 hover:underline" href="{% url 'backoffice:inventory' %}">Inventory</a>
-        </footer>
-    </section>
-
-    {# ---- support & moderation ---------------------------------------------------------------- #}
-    <section aria-labelledby="service-heading" class="rounded-2xl border border-slate-200 bg-white shadow-soft">
-        <header class="border-b border-slate-100 px-5 py-4">
-            <h2 id="service-heading" class="text-base font-semibold text-slate-900">Service &amp; community</h2>
-        </header>
-        <ul class="space-y-2 px-5 py-4 text-sm">
-            <li class="flex justify-between"><span class="text-slate-600">Open tickets</span><span class="font-semibold tabular-nums">{{ summary.support.open }}</span></li>
-            <li class="flex justify-between"><span class="text-slate-600">Urgent tickets</span><span class="font-semibold tabular-nums">{{ summary.support.urgent }}</span></li>
-            <li class="flex justify-between"><span class="text-slate-600">Escalated</span><span class="font-semibold tabular-nums">{{ summary.support.escalated }}</span></li>
-            <li class="flex justify-between"><span class="text-slate-600">Past first response</span><span class="font-semibold tabular-nums">{{ summary.support.waiting }}</span></li>
-            <li class="flex justify-between"><span class="text-slate-600">Reviews pending</span><span class="font-semibold tabular-nums">{{ summary.reviews.pending }}</span></li>
-            <li class="flex justify-between"><span class="text-slate-600">Loop items in review</span><span class="font-semibold tabular-nums">{{ summary.loop.items }}</span></li>
-        </ul>
-        <footer class="flex gap-4 border-t border-slate-100 px-5 py-3 text-sm">
-            <a class="text-flash-700 hover:underline" href="{% url 'backoffice:support' %}">Support</a>
-            <a class="text-flash-700 hover:underline" href="{% url 'backoffice:reviews' %}">Reviews</a>
-            <a class="text-flash-700 hover:underline" href="{% url 'backoffice:loop' %}">Loop</a>
-        </footer>
-    </section>
-
-    {# ---- merchandising ------------------------------------------------------------------------ #}
-    <section aria-labelledby="trade-heading" class="rounded-2xl border border-slate-200 bg-white shadow-soft">
-        <header class="border-b border-slate-100 px-5 py-4">
-            <h2 id="trade-heading" class="text-base font-semibold text-slate-900">Trade &amp; marketing</h2>
-        </header>
-        <ul class="space-y-2 px-5 py-4 text-sm">
-            <li class="flex justify-between"><span class="text-slate-600">Live drops</span><span class="font-semibold tabular-nums">{{ summary.drops.live|default:0 }}</span></li>
-            <li class="flex justify-between"><span class="text-slate-600">Drops ending soon</span><span class="font-semibold tabular-nums">{{ summary.drops.ending_soon }}</span></li>
-            <li class="flex justify-between"><span class="text-slate-600">Running promotions</span><span class="font-semibold tabular-nums">{{ summary.promotions.running }}</span></li>
-            <li class="flex justify-between"><span class="text-slate-600">Promotions near limit</span><span class="font-semibold tabular-nums">{{ summary.promotions.near_limit }}</span></li>
-            <li class="flex justify-between"><span class="text-slate-600">Published quests</span><span class="font-semibold tabular-nums">{{ summary.quests.published|default:0 }}</span></li>
-            <li class="flex justify-between"><span class="text-slate-600">Points issued / redeemed</span><span class="font-semibold tabular-nums">{{ summary.points.issued }} / {{ summary.points.redeemed }}</span></li>
-        </ul>
-        <footer class="flex gap-4 border-t border-slate-100 px-5 py-3 text-sm">
-            <a class="text-flash-700 hover:underline" href="{% url 'backoffice:promotions' %}">Promotions</a>
-            <a class="text-flash-700 hover:underline" href="{% url 'backoffice:drops' %}">Drops</a>
-            <a class="text-flash-700 hover:underline" href="{% url 'backoffice:points' %}">Points</a>
-        </footer>
-    </section>
-</div>
-
-{# ---- section tiles -------------------------------------------------------------------------- #}
-<section aria-labelledby="sections-heading" class="mt-6">
-    <h2 id="sections-heading" class="mb-3 text-sm font-semibold uppercase tracking-wider text-slate-500">Sections</h2>
-    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {% for group in nav %}
-            {% for item in group.items %}
-            <a href="{% url item.url_name %}" class="group rounded-2xl border border-slate-200 bg-white p-4 shadow-soft transition hover:border-slate-900">
-                <p class="text-xs font-medium uppercase tracking-wider text-slate-500">{{ group.label }}</p>
-                <p class="mt-1 text-sm font-semibold text-slate-900 group-hover:text-flash-700">{{ item.label }}</p>
+        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+            {# Pending Orders #}
+            <a href="{% url 'backoffice:orders' %}?status=paid" class="group flex flex-col justify-between rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs transition hover:border-slate-900 hover:shadow-sm">
+                <div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-semibold text-slate-700">Pending Orders</span>
+                        <span class="inline-flex h-2 w-2 rounded-full {% if summary.pipeline.paid %}bg-amber-500 animate-pulse{% else %}bg-slate-300{% endif %}"></span>
+                    </div>
+                    <p class="mt-2 text-xl font-bold tabular-nums text-slate-900">
+                        {{ summary.pipeline.paid|default:0 }}
+                    </p>
+                    <p class="mt-0.5 text-[11px] text-slate-500 leading-tight">
+                        Paid orders awaiting fulfillment &amp; packing
+                    </p>
+                </div>
+                <span class="mt-3 text-xs font-semibold text-slate-900 group-hover:underline">Open Queue &rarr;</span>
             </a>
-            {% endfor %}
-        {% endfor %}
+
+            {# Low Stock #}
+            <a href="{% url 'backoffice:inventory' %}?state=low" class="group flex flex-col justify-between rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs transition hover:border-slate-900 hover:shadow-sm">
+                <div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-semibold text-slate-700">Low Stock SKUs</span>
+                        <span class="inline-flex h-2 w-2 rounded-full {% if summary.inventory.low %}bg-amber-500{% else %}bg-slate-300{% endif %}"></span>
+                    </div>
+                    <p class="mt-2 text-xl font-bold tabular-nums text-slate-900">
+                        {{ summary.inventory.low }}
+                    </p>
+                    <p class="mt-0.5 text-[11px] text-slate-500 leading-tight">
+                        Garments near exhaustion threshold
+                    </p>
+                </div>
+                <span class="mt-3 text-xs font-semibold text-slate-900 group-hover:underline">Review Inventory &rarr;</span>
+            </a>
+
+            {# Pending Returns #}
+            <a href="{% url 'backoffice:returns' %}?status=requested" class="group flex flex-col justify-between rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs transition hover:border-slate-900 hover:shadow-sm">
+                <div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-semibold text-slate-700">Pending Returns</span>
+                        <span class="inline-flex h-2 w-2 rounded-full {% if summary.returns.pending %}bg-rose-500{% else %}bg-slate-300{% endif %}"></span>
+                    </div>
+                    <p class="mt-2 text-xl font-bold tabular-nums text-slate-900">
+                        {{ summary.returns.pending|default:0 }}
+                    </p>
+                    <p class="mt-0.5 text-[11px] text-slate-500 leading-tight">
+                        Customer return requests to approve
+                    </p>
+                </div>
+                <span class="mt-3 text-xs font-semibold text-slate-900 group-hover:underline">Process Returns &rarr;</span>
+            </a>
+
+            {# Pending Reviews #}
+            <a href="{% url 'backoffice:reviews' %}?status=pending" class="group flex flex-col justify-between rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs transition hover:border-slate-900 hover:shadow-sm">
+                <div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-semibold text-slate-700">Pending Reviews</span>
+                        <span class="inline-flex h-2 w-2 rounded-full {% if summary.reviews.pending %}bg-amber-500{% else %}bg-slate-300{% endif %}"></span>
+                    </div>
+                    <p class="mt-2 text-xl font-bold tabular-nums text-slate-900">
+                        {{ summary.reviews.pending }}
+                    </p>
+                    <p class="mt-0.5 text-[11px] text-slate-500 leading-tight">
+                        Shopper feedback awaiting moderation
+                    </p>
+                </div>
+                <span class="mt-3 text-xs font-semibold text-slate-900 group-hover:underline">Moderate &rarr;</span>
+            </a>
+
+            {# Support Tickets #}
+            <a href="{% url 'backoffice:support' %}" class="group flex flex-col justify-between rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs transition hover:border-slate-900 hover:shadow-sm">
+                <div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-semibold text-slate-700">Support Care</span>
+                        <span class="inline-flex h-2 w-2 rounded-full {% if summary.support.urgent %}bg-rose-500 animate-pulse{% elif summary.support.open %}bg-amber-500{% else %}bg-slate-300{% endif %}"></span>
+                    </div>
+                    <p class="mt-2 text-xl font-bold tabular-nums text-slate-900">
+                        {{ summary.support.open }}
+                    </p>
+                    <p class="mt-0.5 text-[11px] text-slate-500 leading-tight">
+                        {{ summary.support.urgent }} marked urgent priority
+                    </p>
+                </div>
+                <span class="mt-3 text-xs font-semibold text-slate-900 group-hover:underline">Open Desk &rarr;</span>
+            </a>
+
+            {# Payment Issues #}
+            <a href="{% url 'backoffice:payments' %}?status=failed" class="group flex flex-col justify-between rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs transition hover:border-slate-900 hover:shadow-sm">
+                <div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-semibold text-slate-700">Payment Issues</span>
+                        <span class="inline-flex h-2 w-2 rounded-full {% if summary.payments.failed %}bg-rose-500{% else %}bg-slate-300{% endif %}"></span>
+                    </div>
+                    <p class="mt-2 text-xl font-bold tabular-nums text-slate-900">
+                        {{ summary.payments.failed }}
+                    </p>
+                    <p class="mt-0.5 text-[11px] text-slate-500 leading-tight">
+                        Failed charges requiring investigation
+                    </p>
+                </div>
+                <span class="mt-3 text-xs font-semibold text-slate-900 group-hover:underline">View Payments &rarr;</span>
+            </a>
+        </div>
+    </section>
+
+    {# ---- 3. Analytics Section (Phase 20 Real Funnel Data) --------------------------------------- #}
+    {% if funnel %}
+        <section aria-labelledby="analytics-heading" class="mb-8">
+            <div class="mb-3 flex items-center justify-between">
+                <h2 id="analytics-heading" class="text-base font-bold text-slate-900 tracking-tight">
+                    Storefront Traffic &amp; Funnel Analytics
+                </h2>
+                <a href="{% url 'backoffice:analytics' %}" class="text-xs font-semibold text-slate-700 hover:text-slate-900 hover:underline">Full Analytics &rarr;</a>
+            </div>
+
+            {# Funnel Metrics Grid #}
+            <div class="mb-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
+                <div class="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs">
+                    <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Unique Visitors</span>
+                    <p class="mt-1 text-xl font-bold tabular-nums text-slate-900">
+                        {{ funnel.visitors|default:0 }}
+                    </p>
+                </div>
+                <div class="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs">
+                    <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Product Views</span>
+                    <p class="mt-1 text-xl font-bold tabular-nums text-slate-900">
+                        {{ funnel.product_views|default:0 }}
+                    </p>
+                </div>
+                <div class="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs">
+                    <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Cart Additions</span>
+                    <p class="mt-1 text-xl font-bold tabular-nums text-slate-900">
+                        {{ funnel.cart_adds|default:0 }}
+                    </p>
+                </div>
+                <div class="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs">
+                    <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Checkout Started</span>
+                    <p class="mt-1 text-xl font-bold tabular-nums text-slate-900">
+                        {{ funnel.checkout_started|default:0 }}
+                    </p>
+                </div>
+                <div class="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs">
+                    <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Conversion Rate</span>
+                    <p class="mt-1 text-xl font-bold tabular-nums text-emerald-600">
+                        {{ funnel.conversion_rate|floatformat:1 }}%
+                    </p>
+                </div>
+                <div class="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs">
+                    <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Abandoned Checkouts</span>
+                    <p class="mt-1 text-xl font-bold tabular-nums text-amber-600">
+                        {{ funnel.abandoned_checkouts|default:0 }}
+                    </p>
+                </div>
+            </div>
+
+            {# Top Products and Searches #}
+            <div class="grid gap-4 lg:grid-cols-2">
+                {# Top Products #}
+                <div class="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs">
+                    <h3 class="text-sm font-bold text-slate-900">
+                        Most Viewed Products
+                    </h3>
+                    <p class="text-xs text-slate-500 mb-3">
+                        Garments driving highest shopper traffic
+                    </p>
+                    <ul class="divide-y divide-slate-100 text-sm">
+                        {% for prod in funnel.top_products|slice:":5" %}
+                            <li class="flex items-center justify-between py-2.5">
+                                <span class="truncate font-medium text-slate-800 pr-4">{{ prod.name }}</span>
+                                <span class="shrink-0 text-xs font-semibold tabular-nums text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full">{{ prod.views }} view{{ prod.views|pluralize }}</span>
+                            </li>
+                        {% empty %}
+                            <li class="py-4 text-center text-xs text-slate-400">
+                                No product views recorded in this window.
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+
+                {# Top Searches #}
+                <div class="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs">
+                    <h3 class="text-sm font-bold text-slate-900">
+                        Top Storefront Searches
+                    </h3>
+                    <p class="text-xs text-slate-500 mb-3">
+                        Popular search keywords used by customers
+                    </p>
+                    <ul class="divide-y divide-slate-100 text-sm">
+                        {% for item in funnel.top_searches|slice:":5" %}
+                            <li class="flex items-center justify-between py-2.5">
+                                <span class="truncate font-medium text-slate-800 pr-4">"{{ item.metadata__query }}"</span>
+                                <span class="shrink-0 text-xs font-semibold tabular-nums text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full">{{ item.hits }} search{{ item.hits|pluralize }}</span>
+                            </li>
+                        {% empty %}
+                            <li class="py-4 text-center text-xs text-slate-400">
+                                No searches recorded in this window.
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </section>
+    {% endif %}
+
+    {# ---- 4. Order Pipeline & Operational Reports ----------------------------------------------- #}
+    <div class="mb-8 grid gap-6 lg:grid-cols-3">
+        {# Pipeline #}
+        <section aria-labelledby="pipeline-heading" class="rounded-2xl border border-slate-200/80 bg-white shadow-xs lg:col-span-2">
+            <header class="border-b border-slate-100 px-5 py-4 flex items-center justify-between">
+                <div>
+                    <h2 id="pipeline-heading" class="text-base font-bold text-slate-900">
+                        Order Pipeline Status
+                    </h2>
+                    <p class="text-xs text-slate-500">
+                        Status breakdown for all orders placed all-time.
+                    </p>
+                </div>
+                <a class="text-xs font-semibold text-slate-700 hover:text-slate-900 hover:underline" href="{% url 'backoffice:orders' %}">Open queue &rarr;</a>
+            </header>
+            <ul class="grid gap-3 p-5 sm:grid-cols-2">
+                {% for row in pipeline %}
+                    <li class="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50/70 px-4 py-2.5">
+                        <span class="text-sm font-medium text-slate-700">{{ row.label }}</span>
+                        <span class="text-sm font-bold tabular-nums text-slate-900">{{ row.count }}</span>
+                    </li>
+                {% empty %}
+                    <li class="text-sm text-slate-500">
+                        No orders yet.
+                    </li>
+                {% endfor %}
+            </ul>
+        </section>
+
+        {# System Alerts #}
+        {% include "backoffice/_alerts.html" with alerts=alerts %}
     </div>
-</section>
+
+    {# ---- 5. Merchandising & Service Health ---------------------------------------------------- #}
+    <div class="mb-8 grid gap-6 lg:grid-cols-3">
+        {# Inventory Health #}
+        <section aria-labelledby="stock-heading" class="rounded-2xl border border-slate-200/80 bg-white shadow-xs">
+            <header class="border-b border-slate-100 px-5 py-4 flex items-center justify-between">
+                <h2 id="stock-heading" class="text-base font-bold text-slate-900">
+                    Inventory Status
+                </h2>
+                <a class="text-xs font-semibold text-slate-700 hover:text-slate-900 hover:underline" href="{% url 'backoffice:inventory' %}">Manage &rarr;</a>
+            </header>
+            <ul class="space-y-2.5 p-5 text-sm">
+                <li class="flex justify-between items-center">
+                    <span class="text-slate-600">Out of stock</span><span class="font-bold tabular-nums text-rose-600">{{ summary.inventory.out }}</span>
+                </li>
+                <li class="flex justify-between items-center">
+                    <span class="text-slate-600">Low stock</span><span class="font-bold tabular-nums text-amber-600">{{ summary.inventory.low }}</span>
+                </li>
+                <li class="flex justify-between items-center">
+                    <span class="text-slate-600">Units reserved</span><span class="font-semibold tabular-nums text-slate-800">{{ summary.inventory.reserved }}</span>
+                </li>
+                <li class="flex justify-between items-center">
+                    <span class="text-slate-600">Active holds</span><span class="font-semibold tabular-nums text-slate-800">{{ summary.inventory.active }}</span>
+                </li>
+                <li class="flex justify-between items-center">
+                    <span class="text-slate-600">Stale holds</span><span class="font-semibold tabular-nums text-slate-800">{{ summary.inventory.stale }}</span>
+                </li>
+            </ul>
+        </section>
+
+        {# Support & Community #}
+        <section aria-labelledby="service-heading" class="rounded-2xl border border-slate-200/80 bg-white shadow-xs">
+            <header class="border-b border-slate-100 px-5 py-4 flex items-center justify-between">
+                <h2 id="service-heading" class="text-base font-bold text-slate-900">
+                    Service &amp; Care
+                </h2>
+                <div class="flex gap-2 text-xs font-semibold text-slate-700">
+                    <a class="hover:underline" href="{% url 'backoffice:support' %}">Support</a> ·
+                    <a class="hover:underline" href="{% url 'backoffice:reviews' %}">Reviews</a>
+                </div>
+            </header>
+            <ul class="space-y-2.5 p-5 text-sm">
+                <li class="flex justify-between items-center">
+                    <span class="text-slate-600">Open tickets</span><span class="font-bold tabular-nums text-slate-900">{{ summary.support.open }}</span>
+                </li>
+                <li class="flex justify-between items-center">
+                    <span class="text-slate-600">Urgent tickets</span><span class="font-bold tabular-nums text-rose-600">{{ summary.support.urgent }}</span>
+                </li>
+                <li class="flex justify-between items-center">
+                    <span class="text-slate-600">Escalated</span><span class="font-semibold tabular-nums text-slate-800">{{ summary.support.escalated }}</span>
+                </li>
+                <li class="flex justify-between items-center">
+                    <span class="text-slate-600">Awaiting agent reply</span><span class="font-semibold tabular-nums text-slate-800">{{ summary.support.waiting }}</span>
+                </li>
+                <li class="flex justify-between items-center">
+                    <span class="text-slate-600">Pending reviews</span><span class="font-bold tabular-nums text-amber-600">{{ summary.reviews.pending }}</span>
+                </li>
+                <li class="flex justify-between items-center">
+                    <span class="text-slate-600">Loop items in review</span><span class="font-semibold tabular-nums text-slate-800">{{ summary.loop.items }}</span>
+                </li>
+            </ul>
+        </section>
+
+        {# Merchandising #}
+        <section aria-labelledby="trade-heading" class="rounded-2xl border border-slate-200/80 bg-white shadow-xs">
+            <header class="border-b border-slate-100 px-5 py-4 flex items-center justify-between">
+                <h2 id="trade-heading" class="text-base font-bold text-slate-900">
+                    Trade &amp; Campaigns
+                </h2>
+                <div class="flex gap-2 text-xs font-semibold text-slate-700">
+                    <a class="hover:underline" href="{% url 'backoffice:promotions' %}">Promos</a> ·
+                    <a class="hover:underline" href="{% url 'backoffice:drops' %}">Drops</a>
+                </div>
+            </header>
+            <ul class="space-y-2.5 p-5 text-sm">
+                <li class="flex justify-between items-center">
+                    <span class="text-slate-600">Live drops</span><span class="font-semibold tabular-nums text-slate-800">{{ summary.drops.live|default:0 }}</span>
+                </li>
+                <li class="flex justify-between items-center">
+                    <span class="text-slate-600">Drops ending soon</span><span class="font-bold tabular-nums text-amber-600">{{ summary.drops.ending_soon }}</span>
+                </li>
+                <li class="flex justify-between items-center">
+                    <span class="text-slate-600">Running promotions</span><span class="font-semibold tabular-nums text-slate-800">{{ summary.promotions.running }}</span>
+                </li>
+                <li class="flex justify-between items-center">
+                    <span class="text-slate-600">Promotions near limit</span><span class="font-bold tabular-nums text-amber-600">{{ summary.promotions.near_limit }}</span>
+                </li>
+                <li class="flex justify-between items-center">
+                    <span class="text-slate-600">Published quests</span><span class="font-semibold tabular-nums text-slate-800">{{ summary.quests.published|default:0 }}</span>
+                </li>
+                <li class="flex justify-between items-center">
+                    <span class="text-slate-600">Points issued / redeemed</span><span class="font-semibold tabular-nums text-slate-800">{{ summary.points.issued }} / {{ summary.points.redeemed }}</span>
+                </li>
+            </ul>
+        </section>
+    </div>
+
+    {# ---- 6. Quick Navigation Section Tiles ---------------------------------------------------- #}
+    <section aria-labelledby="sections-heading">
+        <h2 id="sections-heading" class="mb-3 text-xs font-bold uppercase tracking-wider text-slate-500">
+            Quick Section Directory
+        </h2>
+        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+            {% for group in nav %}
+                {% for item in group.items %}
+                    <a href="{% url item.url_name %}" class="group flex flex-col justify-between rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs transition hover:border-slate-900 hover:shadow-sm">
+                        <div>
+                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                                {{ group.label }}
+                            </p>
+                            <p class="mt-1 text-sm font-semibold text-slate-900 group-hover:text-slate-700">
+                                {{ item.label }}
+                            </p>
+                        </div>
+                        <div class="mt-3 flex items-center gap-1 text-xs font-medium text-slate-400 group-hover:text-slate-900">
+                            <span>Open</span>
+                            <span aria-hidden="true">&rarr;</span>
+                        </div>
+                    </a>
+                {% endfor %}
+            {% endfor %}
+        </div>
+    </section>
 {% endblock content %}

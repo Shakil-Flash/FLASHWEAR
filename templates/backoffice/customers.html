@@ -1,56 +1,112 @@
 {% extends "backoffice/base.html" %}
 {% load catalog_extras %}
 
-{% block title %}Customers{% endblock title %}
-{% block breadcrumb %}Operations · Customers{% endblock breadcrumb %}
+{% block title %}
+    Customers
+{% endblock title %}
+{% block breadcrumb %}
+    Customers
+{% endblock breadcrumb %}
 
 {% block content %}
-<header class="mb-5 flex flex-wrap items-end justify-between gap-4">
-    <div>
-        <h1 class="text-2xl font-semibold tracking-tight text-slate-900">Customers</h1>
-        <p class="mt-1 text-sm text-slate-500">Account and order counters — no messages, no addresses, no content.</p>
+    {# ---- Page Header -------------------------------------------------------------------------- #}
+    <header class="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+                Customers
+            </h1>
+            <p class="mt-1 text-sm text-slate-500">
+                Account records, order totals, and customer care statistics.
+            </p>
+        </div>
+        {% include "backoffice/_range_filter.html" %}
+    </header>
+
+    {# ---- Search & Filters Bar ----------------------------------------------------------------- #}
+    <form method="get" class="mb-5 flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs">
+        <div class="min-w-[14rem] flex-1">
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-500" for="cust-q">
+                Search Customers
+            </label>
+            <input id="cust-q" name="q" value="{{ filters.q }}" placeholder="Search by email, first name, or last name..." class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900" />
+        </div>
+        <div class="flex items-center gap-2">
+            <button type="submit" class="inline-flex items-center justify-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-xs transition hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2">
+                Search
+            </button>
+            {% if filters.q or filters.sort %}
+                <a href="{% url 'backoffice:customers' %}" class="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-xs transition hover:bg-slate-50 hover:border-slate-400">
+                    Reset
+                </a>
+            {% endif %}
+        </div>
+    </form>
+
+    {# ---- Data Table ---------------------------------------------------------------------------- #}
+    <div class="overflow-x-auto rounded-2xl border border-slate-200/80 bg-white shadow-xs">
+        <table class="min-w-full text-sm divide-y divide-slate-200/80">
+            <thead class="bg-slate-50 text-left text-xs font-bold uppercase tracking-wider text-slate-500">
+                <tr>
+                    <th scope="col" class="px-5 py-3.5">
+                        <a class="hover:text-slate-900 flex items-center gap-1" href="{% query_transform sort='email' %}">Customer</a>
+                    </th>
+                    <th scope="col" class="px-5 py-3.5 text-right">
+                        <a class="hover:text-slate-900 inline-flex items-center gap-1" href="{% query_transform sort='-orders' %}">Orders</a>
+                    </th>
+                    <th scope="col" class="px-5 py-3.5 text-right">
+                        <a class="hover:text-slate-900 inline-flex items-center gap-1" href="{% query_transform sort='-spend' %}">Total Spend</a>
+                    </th>
+                    <th scope="col" class="px-5 py-3.5 text-right">
+                        Open Tickets
+                    </th>
+                    <th scope="col" class="px-5 py-3.5">
+                        <a class="hover:text-slate-900 flex items-center gap-1" href="{% query_transform sort='-joined' %}">Joined</a>
+                    </th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 bg-white">
+                {% for customer in page %}
+                    <tr class="transition hover:bg-slate-50/80">
+                        <td class="px-5 py-3.5">
+                            <p class="font-semibold text-slate-900">
+                                {{ customer.email }}
+                            </p>
+                            <p class="text-xs text-slate-500">
+                                {{ customer.get_full_name|default:"—" }}
+                            </p>
+                        </td>
+                        <td class="px-5 py-3.5 text-right tabular-nums text-slate-700 font-medium">
+                            {{ customer.order_count|default:0 }}
+                        </td>
+                        <td class="px-5 py-3.5 text-right tabular-nums font-semibold text-slate-900">
+                            £{{ customer.spend|default:"0.00" }}
+                        </td>
+                        <td class="px-5 py-3.5 text-right tabular-nums">
+                            {% if customer.open_ticket_count and customer.open_ticket_count > 0 %}
+                                <span class="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 border border-amber-200">
+                                    {{ customer.open_ticket_count }} open
+                                </span>
+                            {% else %}
+                                <span class="text-slate-400">0</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-5 py-3.5 text-slate-500 tabular-nums">
+                            {{ customer.date_joined|date:"Y-m-d" }}
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="5" class="px-5 py-12 text-center text-sm text-slate-500">
+                            <p class="font-medium">
+                                No customers match this search query.
+                            </p>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
-    {% include "backoffice/_range_filter.html" %}
-</header>
 
-<form method="get" class="mb-4 flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-soft">
-    <div class="min-w-[14rem] flex-1">
-        <label class="block text-xs font-medium uppercase tracking-wider text-slate-500" for="cust-q">Search</label>
-        <input id="cust-q" name="q" value="{{ filters.q }}" placeholder="Email or name"
-               class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none" />
-    </div>
-    <button type="submit" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700">Search</button>
-</form>
-
-<div class="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-soft">
-    <table class="min-w-full text-sm">
-        <thead class="border-b border-slate-200 bg-slate-50 text-left text-xs uppercase tracking-wider text-slate-500">
-            <tr>
-                <th scope="col" class="px-4 py-3"><a href="{% query_transform sort='email' %}">Email</a></th>
-                <th scope="col" class="px-4 py-3 text-right"><a href="{% query_transform sort='-orders' %}">Orders</a></th>
-                <th scope="col" class="px-4 py-3 text-right"><a href="{% query_transform sort='-spend' %}">Spend</a></th>
-                <th scope="col" class="px-4 py-3 text-right">Open tickets</th>
-                <th scope="col" class="px-4 py-3"><a href="{% query_transform sort='-joined' %}">Joined</a></th>
-            </tr>
-        </thead>
-        <tbody class="divide-y divide-slate-100">
-            {% for customer in page %}
-            <tr class="hover:bg-slate-50">
-                <td class="px-4 py-3">
-                    <p class="font-medium text-slate-900">{{ customer.email }}</p>
-                    <p class="text-xs text-slate-500">{{ customer.get_full_name|default:"—" }}</p>
-                </td>
-                <td class="px-4 py-3 text-right tabular-nums">{{ customer.order_count|default:0 }}</td>
-                <td class="px-4 py-3 text-right tabular-nums">{{ customer.spend|default:"0.00" }}</td>
-                <td class="px-4 py-3 text-right tabular-nums">{{ customer.open_ticket_count|default:0 }}</td>
-                <td class="px-4 py-3 text-slate-500">{{ customer.date_joined|date:"Y-m-d" }}</td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="5" class="px-4 py-8 text-center text-slate-500">No customers match this search.</td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
-
-{% include "backoffice/_pagination.html" %}
+    {# ---- Pagination ---------------------------------------------------------------------------- #}
+    {% include "backoffice/_pagination.html" %}
 {% endblock content %}

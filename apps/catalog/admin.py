@@ -70,6 +70,8 @@ class ProductImageInline(admin.TabularInline):
 
     model = ProductImage
     form = ProductImageForm
+    verbose_name = _("Product Image")
+    verbose_name_plural = _("Images & Media Gallery")
     extra = 1
     fields = (
         "preview",
@@ -208,6 +210,8 @@ class ProductVariantInline(admin.TabularInline):
 
     model = ProductVariant
     form = ProductVariantForm
+    verbose_name = _("Product Variant, Pricing & Stock")
+    verbose_name_plural = _("Variants, Pricing & Stock")
     extra = 0
     fields = (
         "sku",
@@ -315,14 +319,31 @@ class ProductAdmin(admin.ModelAdmin):
         js = ("admin/js/image_url_manager.js",)
 
     fieldsets = (
-        (None, {"fields": ("name", "slug", "short_description", "description")}),
         (
-            _("Classification"),
+            _("General & Basic Information"),
             {
-                "fields": ("category", "brand", "fit", "materials", "tags", "collections"),
+                "fields": ("name", "slug", "short_description", "description"),
                 "description": _(
-                    "A garment belongs to exactly one category. Brand is optional; collections are "
-                    "how the same garment appears in more than one story."
+                    "Core product identity, naming, and customer-facing descriptions."
+                ),
+            },
+        ),
+        (
+            _("Categories & Brand"),
+            {
+                "fields": ("category", "brand", "fit", "materials"),
+                "description": _(
+                    "Primary product hierarchy, brand ownership, garment silhouette fit, "
+                    "and textile materials."
+                ),
+            },
+        ),
+        (
+            _("Collections & Merchandising"),
+            {
+                "fields": ("collections", "tags", "is_featured", "is_new"),
+                "description": _(
+                    "Seasonal collections, thematic tags, and front-page merchandising highlights."
                 ),
             },
         ),
@@ -331,29 +352,29 @@ class ProductAdmin(admin.ModelAdmin):
             {
                 "fields": (
                     "status",
-                    "is_featured",
-                    "is_new",
+                    "preview_storefront_action",
                     "published_at_preview",
                     "readiness_checklist",
                 ),
                 "description": _(
-                    "Draft is invisible everywhere. Active appears on the storefront and in API. "
-                    "Archived keeps the record but retires it."
+                    "Publishing state workflow (Draft, Active, Archived) and editorial "
+                    "readiness validation."
                 ),
             },
         ),
         (
-            _("Variant Matrix Overview"),
+            _("Variants, Pricing & Inventory Matrix"),
             {
                 "classes": ("collapse",),
                 "fields": ("variant_matrix_table",),
                 "description": _(
-                    "Live matrix of SKUs, options, pricing and warehouse inventory levels."
+                    "Live matrix of SKUs, options, pricing, margins, and warehouse "
+                    "inventory levels."
                 ),
             },
         ),
         (
-            _("Search engines & Social Preview"),
+            _("Search Engines & Social SEO"),
             {
                 "classes": ("collapse",),
                 "fields": (
@@ -364,13 +385,13 @@ class ProductAdmin(admin.ModelAdmin):
                     "seo_social_preview",
                 ),
                 "description": _(
-                    "Optional overrides. Leave blank and FLASHWEAR derives title and "
-                    "description from the product."
+                    "Search engine optimization (Google SERP) and OpenGraph / Twitter "
+                    "social card previews."
                 ),
             },
         ),
         (
-            _("Timestamps"),
+            _("Timestamps & System Audit"),
             {"classes": ("collapse",), "fields": ("created_at", "updated_at")},
         ),
     )
@@ -380,6 +401,7 @@ class ProductAdmin(admin.ModelAdmin):
         "updated_at",
         "published_at_preview",
         "readiness_checklist",
+        "preview_storefront_action",
         "variant_matrix_table",
         "seo_canonical_preview",
         "seo_serp_preview",
@@ -531,6 +553,37 @@ class ProductAdmin(admin.ModelAdmin):
         if not product.published_at:
             return "Set automatically when the product goes Active."
         return product.published_at
+
+    @admin.display(description=_("Storefront Actions"))
+    def preview_storefront_action(self, product: Product):
+        if not product.pk:
+            return _("Save product first to preview.")
+        preview_url = reverse("admin:catalog_product_preview", args=[product.pk])
+        store_url = reverse("catalog:product-detail", kwargs={"slug": product.slug})
+        btn_dark = (
+            "background:#0f172a;color:#ffffff;padding:6px 14px;border-radius:6px;"
+            "font-weight:600;font-size:12px;text-decoration:none;display:inline-flex;"
+            "align-items:center;gap:6px;"
+        )
+        btn_light = (
+            "background:#f1f5f9;color:#0f172a;border:1px solid #cbd5e1;padding:6px 14px;"
+            "border-radius:6px;font-weight:600;font-size:12px;text-decoration:none;"
+            "display:inline-flex;align-items:center;gap:6px;"
+        )
+        return format_html(
+            '<div style="display:flex;gap:10px;align-items:center;padding:4px 0;">'
+            '<a href="{preview}" target="_blank" rel="noopener noreferrer" class="button" '
+            'style="{btn_dark}">'
+            '👁 Admin Preview</a>'
+            '<a href="{store}" target="_blank" rel="noopener noreferrer" class="button" '
+            'style="{btn_light}">'
+            '↗ View Storefront</a>'
+            '</div>',
+            preview=preview_url,
+            store=store_url,
+            btn_dark=btn_dark,
+            btn_light=btn_light,
+        )
 
     # ----------------------------------------------------------------------------------
     # Read-only Form Previews (Readiness, Variant Matrix, SEO)

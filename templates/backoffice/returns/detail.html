@@ -1,274 +1,356 @@
 {% extends "backoffice/base.html" %}
-{% load catalog_extras %}
+{% load catalog_extras backoffice_extras %}
 
-{% block title %}Return {{ return_request.number }}{% endblock title %}
-{% block breadcrumb %}Operations · <a class="text-flash-700 hover:underline" href="{% url 'backoffice:returns' %}">Returns</a> · {{ return_request.number }}{% endblock breadcrumb %}
+{% block title %}
+    Return {{ return_request.number }}
+{% endblock title %}
+{% block breadcrumb %}
+    Commerce · <a class="text-flash-700 hover:underline" href="{% url 'backoffice:returns' %}">Returns</a> · {{ return_request.number }}
+{% endblock breadcrumb %}
 
 {% block content %}
-<header class="mb-6 flex flex-wrap items-start justify-between gap-4">
-    <div>
-        <h1 class="text-2xl font-semibold tracking-tight text-slate-900">{{ return_request.number }}</h1>
-        <p class="mt-1 text-sm text-slate-500">
-            Order <a class="font-medium text-flash-700 hover:underline" href="{% url 'backoffice:order_detail' return_request.order.number %}">{{ return_request.order.number }}</a>
-            · {{ return_request.user.email }} · requested {{ return_request.created_at|date:"Y-m-d H:i" }}
-        </p>
-    </div>
-    <div class="flex items-center gap-2">
-        <span class="rounded bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-slate-700">
-            {{ return_request.get_return_type_display }}
-        </span>
-        <span class="rounded-full px-3 py-1 text-xs font-semibold
-            {% if return_request.status == 'requested' %}bg-amber-100 text-amber-800
-            {% elif return_request.status == 'approved' %}bg-sky-100 text-sky-800
-            {% elif return_request.status == 'received' %}bg-indigo-100 text-indigo-800
-            {% elif return_request.status == 'inspected' %}bg-purple-100 text-purple-800
-            {% elif return_request.status == 'refunded' or return_request.status == 'completed' %}bg-emerald-100 text-emerald-800
-            {% elif return_request.status == 'rejected' or return_request.status == 'cancelled' %}bg-rose-100 text-rose-800
-            {% else %}bg-slate-100 text-slate-700{% endif %}">
-            {{ return_request.get_status_display }}
-        </span>
-    </div>
-</header>
+    <header class="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-semibold tracking-tight text-slate-900">
+                {{ return_request.number }}
+            </h1>
+            <p class="mt-1 text-sm text-slate-500">
+                Order <a class="font-medium text-flash-700 hover:underline" href="{% url 'backoffice:order_detail' return_request.order.number %}">{{ return_request.order.number }}</a>
+                · {{ return_request.user.email }} · requested {{ return_request.created_at|date:"Y-m-d H:i" }}
+            </p>
+        </div>
+        <div class="flex items-center gap-2">
+            <span class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-slate-700">
+                {{ return_request.get_return_type_display }}
+            </span>
+            {% status_badge return_request.get_status_display %}
+        </div>
+    </header>
 
-<div class="grid gap-6 lg:grid-cols-3">
-    <section class="lg:col-span-2 space-y-6">
-        {# ---- items ----------------------------------------------------------------------- #}
-        <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft">
-            <h2 class="border-b border-slate-100 px-5 py-4 text-base font-semibold text-slate-900">Items to Return</h2>
-            <div class="overflow-x-auto">
-                <table class="min-w-full text-sm">
-                    <thead class="border-b border-slate-200 bg-slate-50 text-left text-xs uppercase tracking-wider text-slate-500">
-                        <tr>
-                            <th scope="col" class="px-5 py-3">Item</th>
-                            <th scope="col" class="px-5 py-3 text-right">Requested</th>
-                            <th scope="col" class="px-5 py-3 text-right">Accepted</th>
-                            <th scope="col" class="px-5 py-3 text-right">Rejected</th>
-                            <th scope="col" class="px-5 py-3">Condition</th>
-                            <th scope="col" class="px-5 py-3 text-right">Refund</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-100">
-                        {% for item in return_request.items.all %}
-                        <tr>
-                            <td class="px-5 py-3">
-                                <div class="font-medium text-slate-900">{{ item.order_item.product_name }}</div>
-                                <div class="text-xs text-slate-500">
-                                    SKU: {{ item.order_item.sku }}
-                                    {% if item.order_item.option_label %}· {{ item.order_item.option_label }}{% endif %}
-                                    · {{ return_request.order.currency }} {{ item.order_item.unit_price }}
-                                </div>
-                                {% if item.replacement_variant %}
-                                <div class="mt-1 text-xs text-sky-700 bg-sky-50 rounded px-2 py-1 inline-block">
-                                    Exchange for: {{ item.replacement_variant.product.name }} ({{ item.replacement_variant.option_label|default:item.replacement_variant.sku }})
-                                    {% if item.price_difference != 0 %}· diff: {{ return_request.order.currency }} {{ item.price_difference }}{% endif %}
-                                </div>
-                                {% endif %}
-                                {% if item.inspection_notes %}
-                                <div class="mt-1 text-xs text-slate-600 italic">Notes: {{ item.inspection_notes }}</div>
-                                {% endif %}
-                            </td>
-                            <td class="px-5 py-3 text-right tabular-nums">{{ item.quantity }}</td>
-                            <td class="px-5 py-3 text-right tabular-nums text-emerald-700 font-medium">{{ item.accepted_quantity }}</td>
-                            <td class="px-5 py-3 text-right tabular-nums text-rose-700 font-medium">{{ item.rejected_quantity }}</td>
-                            <td class="px-5 py-3 text-slate-600">{{ item.get_condition_display|default:"—" }}</td>
-                            <td class="px-5 py-3 text-right tabular-nums font-medium text-slate-900">
-                                {% if item.refund_amount > 0 %}
-                                {{ return_request.order.currency }} {{ item.refund_amount }}
-                                {% else %}
-                                —
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+    <div class="grid gap-6 lg:grid-cols-3">
+        <section class="lg:col-span-2 space-y-6">
+            {# ---- items ----------------------------------------------------------------------- #}
+            <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft">
+                <h2 class="border-b border-slate-100 px-5 py-4 text-base font-semibold text-slate-900">
+                    Items to Return
+                </h2>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full text-sm">
+                        <thead class="border-b border-slate-200 bg-slate-50 text-left text-xs uppercase tracking-wider text-slate-500">
+                            <tr>
+                                <th scope="col" class="px-5 py-3">
+                                    Item
+                                </th>
+                                <th scope="col" class="px-5 py-3 text-right">
+                                    Requested
+                                </th>
+                                <th scope="col" class="px-5 py-3 text-right">
+                                    Accepted
+                                </th>
+                                <th scope="col" class="px-5 py-3 text-right">
+                                    Rejected
+                                </th>
+                                <th scope="col" class="px-5 py-3">
+                                    Condition
+                                </th>
+                                <th scope="col" class="px-5 py-3 text-right">
+                                    Refund
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            {% for item in return_request.items.all %}
+                                <tr>
+                                    <td class="px-5 py-3">
+                                        <div class="font-medium text-slate-900">
+                                            {{ item.order_item.product_name }}
+                                        </div>
+                                        <div class="text-xs text-slate-500">
+                                            SKU: {{ item.order_item.sku }}
+                                            {% if item.order_item.option_label %}
+                                                · {{ item.order_item.option_label }}
+                                            {% endif %}
+                                            · {{ return_request.order.currency }} {{ item.order_item.unit_price }}
+                                        </div>
+                                        {% if item.replacement_variant %}
+                                            <div class="mt-1 text-xs text-sky-700 bg-sky-50 rounded px-2 py-1 inline-block">
+                                                Exchange for: {{ item.replacement_variant.product.name }} ({{ item.replacement_variant.option_label|default:item.replacement_variant.sku }})
+                                                {% if item.price_difference != 0 %}
+                                                    · diff: {{ return_request.order.currency }} {{ item.price_difference }}
+                                                {% endif %}
+                                            </div>
+                                        {% endif %}
+                                        {% if item.inspection_notes %}
+                                            <div class="mt-1 text-xs text-slate-600 italic">
+                                                Notes: {{ item.inspection_notes }}
+                                            </div>
+                                        {% endif %}
+                                    </td>
+                                    <td class="px-5 py-3 text-right tabular-nums">
+                                        {{ item.quantity }}
+                                    </td>
+                                    <td class="px-5 py-3 text-right tabular-nums text-emerald-700 font-medium">
+                                        {{ item.accepted_quantity }}
+                                    </td>
+                                    <td class="px-5 py-3 text-right tabular-nums text-rose-700 font-medium">
+                                        {{ item.rejected_quantity }}
+                                    </td>
+                                    <td class="px-5 py-3 text-slate-600">
+                                        {{ item.get_condition_display|default:"—" }}
+                                    </td>
+                                    <td class="px-5 py-3 text-right tabular-nums font-medium text-slate-900">
+                                        {% if item.refund_amount > 0 %}
+                                            {{ return_request.order.currency }} {{ item.refund_amount }}
+                                        {% else %}
+                                            —
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             </div>
-        </div>
 
-        {# ---- inspection form (when status == 'received') --------------------------------- #}
-        {% if return_request.status == 'received' and can_manage %}
-        <div class="rounded-2xl border-2 border-indigo-200 bg-white p-6 shadow-soft space-y-4">
-            <h2 class="text-base font-semibold text-slate-900">Record Inspection Results</h2>
-            <p class="text-xs text-slate-500">Inspect the returned parcel and enter accepted vs rejected counts, condition, and findings.</p>
-
-            <form method="post" action="{% url 'backoffice:return_action' return_request.number %}" class="space-y-4">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="inspect" />
-
-                <div class="space-y-4 divide-y divide-slate-100">
-                    {% for item in return_request.items.all %}
-                    <div class="pt-4 first:pt-0 space-y-2">
-                        <p class="text-sm font-semibold text-slate-900">{{ item.order_item.product_name }} ({{ item.quantity }} requested)</p>
-                        <div class="grid gap-3 sm:grid-cols-4 text-xs">
-                            <div>
-                                <label class="block font-medium text-slate-600" for="accepted_{{ item.pk }}">Accepted Qty</label>
-                                <input type="number" id="accepted_{{ item.pk }}" name="accepted_{{ item.pk }}" min="0" max="{{ item.quantity }}" value="{{ item.quantity }}" class="mt-1 w-full rounded border border-slate-300 p-1.5 focus:border-indigo-500 focus:outline-none" required />
-                            </div>
-                            <div>
-                                <label class="block font-medium text-slate-600" for="rejected_{{ item.pk }}">Rejected Qty</label>
-                                <input type="number" id="rejected_{{ item.pk }}" name="rejected_{{ item.pk }}" min="0" max="{{ item.quantity }}" value="0" class="mt-1 w-full rounded border border-slate-300 p-1.5 focus:border-indigo-500 focus:outline-none" required />
-                            </div>
-                            <div>
-                                <label class="block font-medium text-slate-600" for="condition_{{ item.pk }}">Condition</label>
-                                <select id="condition_{{ item.pk }}" name="condition_{{ item.pk }}" class="mt-1 w-full rounded border border-slate-300 p-1.5 focus:border-indigo-500 focus:outline-none">
-                                    {% for val, lab in condition_choices %}
-                                    <option value="{{ val }}">{{ lab }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block font-medium text-slate-600" for="notes_{{ item.pk }}">Inspection Note</label>
-                                <input type="text" id="notes_{{ item.pk }}" name="notes_{{ item.pk }}" placeholder="Optional condition notes" class="mt-1 w-full rounded border border-slate-300 p-1.5 focus:border-indigo-500 focus:outline-none" />
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-
-                <div class="border-t border-slate-100 pt-3">
-                    <label class="block text-xs font-medium text-slate-600" for="staff_note">Overall Staff Summary Note</label>
-                    <textarea id="staff_note" name="staff_note" rows="2" placeholder="Summary note on the inspection..." class="mt-1 w-full rounded-lg border border-slate-300 p-2 text-xs focus:border-indigo-500 focus:outline-none"></textarea>
-                </div>
-
-                <button type="submit" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 transition-colors">
-                    Complete Inspection
-                </button>
-            </form>
-        </div>
-        {% endif %}
-
-        {# ---- timeline / events ----------------------------------------------------------- #}
-        <div class="rounded-2xl border border-slate-200 bg-white shadow-soft">
-            <h2 class="border-b border-slate-100 px-5 py-4 text-base font-semibold text-slate-900">Audit & Lifecycle Timeline</h2>
-            <ol class="divide-y divide-slate-100">
-                {% for entry in return_request.events.all %}
-                <li class="px-5 py-3">
-                    <p class="text-sm">
-                        <span class="text-slate-400 tabular-nums">{{ entry.created_at|date:"Y-m-d H:i" }}</span>
-                        · <span class="font-medium text-slate-900">{{ entry.note }}</span>
-                        {% if entry.actor %}
-                        <span class="text-slate-500">by {{ entry.actor.get_full_name|default:entry.actor.email }}</span>
-                        {% endif %}
+            {# ---- inspection form (when status == 'received') --------------------------------- #}
+            {% if return_request.status == 'received' and can_manage %}
+                <div class="rounded-2xl border-2 border-indigo-200 bg-white p-6 shadow-soft space-y-4">
+                    <h2 class="text-base font-semibold text-slate-900">
+                        Record Inspection Results
+                    </h2>
+                    <p class="text-xs text-slate-500">
+                        Inspect the returned parcel and enter accepted vs rejected counts, condition, and findings.
                     </p>
-                </li>
-                {% empty %}
-                <li class="px-5 py-4 text-sm text-slate-500">No events recorded.</li>
-                {% endfor %}
-            </ol>
-        </div>
-    </section>
 
-    {# ---- sidebar --------------------------------------------------------------------- #}
-    <aside class="space-y-6">
-        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft space-y-3">
-            <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-500">Request Information</h2>
-            <dl class="space-y-2 text-sm">
-                <div class="flex justify-between"><dt class="text-slate-500">Reason</dt><dd class="font-medium text-slate-900">{{ return_request.get_reason_display }}</dd></div>
-                <div class="flex justify-between"><dt class="text-slate-500">Type</dt><dd class="font-medium text-slate-900">{{ return_request.get_return_type_display }}</dd></div>
-                {% if return_request.tracking_number %}
-                <div class="flex justify-between"><dt class="text-slate-500">Tracking</dt><dd class="font-mono text-xs text-slate-900">{{ return_request.tracking_number }}</dd></div>
-                {% endif %}
-            </dl>
-            {% if return_request.customer_note %}
-            <div class="border-t border-slate-100 pt-2 text-xs text-slate-600">
-                <span class="font-semibold text-slate-700">Customer Note:</span> {{ return_request.customer_note }}
+                    <form method="post" action="{% url 'backoffice:return_action' return_request.number %}" class="space-y-4">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="inspect" />
+
+                        <div class="space-y-4 divide-y divide-slate-100">
+                            {% for item in return_request.items.all %}
+                                <div class="pt-4 first:pt-0 space-y-2">
+                                    <p class="text-sm font-semibold text-slate-900">
+                                        {{ item.order_item.product_name }} ({{ item.quantity }} requested)
+                                    </p>
+                                    <div class="grid gap-3 sm:grid-cols-4 text-xs">
+                                        <div>
+                                            <label class="block font-medium text-slate-600" for="accepted_{{ item.pk }}">
+                                                Accepted Qty
+                                            </label>
+                                            <input type="number" id="accepted_{{ item.pk }}" name="accepted_{{ item.pk }}" min="0" max="{{ item.quantity }}" value="{{ item.quantity }}" class="mt-1 w-full rounded border border-slate-300 p-1.5 focus:border-indigo-500 focus:outline-none" required />
+                                        </div>
+                                        <div>
+                                            <label class="block font-medium text-slate-600" for="rejected_{{ item.pk }}">
+                                                Rejected Qty
+                                            </label>
+                                            <input type="number" id="rejected_{{ item.pk }}" name="rejected_{{ item.pk }}" min="0" max="{{ item.quantity }}" value="0" class="mt-1 w-full rounded border border-slate-300 p-1.5 focus:border-indigo-500 focus:outline-none" required />
+                                        </div>
+                                        <div>
+                                            <label class="block font-medium text-slate-600" for="condition_{{ item.pk }}">
+                                                Condition
+                                            </label>
+                                            <select id="condition_{{ item.pk }}" name="condition_{{ item.pk }}" class="mt-1 w-full rounded border border-slate-300 p-1.5 focus:border-indigo-500 focus:outline-none">
+                                                {% for val, lab in condition_choices %}
+                                                    <option value="{{ val }}">
+                                                        {{ lab }}
+                                                    </option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block font-medium text-slate-600" for="notes_{{ item.pk }}">
+                                                Inspection Note
+                                            </label>
+                                            <input type="text" id="notes_{{ item.pk }}" name="notes_{{ item.pk }}" placeholder="Optional condition notes" class="mt-1 w-full rounded border border-slate-300 p-1.5 focus:border-indigo-500 focus:outline-none" />
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="border-t border-slate-100 pt-3">
+                            <label class="block text-xs font-medium text-slate-600" for="staff_note">
+                                Overall Staff Summary Note
+                            </label>
+                            <textarea id="staff_note" name="staff_note" rows="2" placeholder="Summary note on the inspection..." class="mt-1 w-full rounded-lg border border-slate-300 p-2 text-xs focus:border-indigo-500 focus:outline-none"></textarea>
+                        </div>
+
+                        <button type="submit" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 transition-colors">
+                            Complete Inspection
+                        </button>
+                    </form>
+                </div>
+            {% endif %}
+
+            {# ---- timeline / events ----------------------------------------------------------- #}
+            <div class="rounded-2xl border border-slate-200 bg-white shadow-soft">
+                <h2 class="border-b border-slate-100 px-5 py-4 text-base font-semibold text-slate-900">
+                    Audit & Lifecycle Timeline
+                </h2>
+                <ol class="divide-y divide-slate-100">
+                    {% for entry in return_request.events.all %}
+                        <li class="px-5 py-3">
+                            <p class="text-sm">
+                                <span class="text-slate-400 tabular-nums">{{ entry.created_at|date:"Y-m-d H:i" }}</span>
+                                · <span class="font-medium text-slate-900">{{ entry.note }}</span>
+                                {% if entry.actor %}
+                                    <span class="text-slate-500">by {{ entry.actor.get_full_name|default:entry.actor.email }}</span>
+                                {% endif %}
+                            </p>
+                        </li>
+                    {% empty %}
+                        <li class="px-5 py-4 text-sm text-slate-500">
+                            No events recorded.
+                        </li>
+                    {% endfor %}
+                </ol>
             </div>
-            {% endif %}
-            {% if return_request.staff_note %}
-            <div class="border-t border-slate-100 pt-2 text-xs text-slate-600">
-                <span class="font-semibold text-slate-700">Staff Note:</span> {{ return_request.staff_note }}
-            </div>
-            {% endif %}
-        </div>
+        </section>
 
-        {# ---- actions --------------------------------------------------------------------- #}
-        {% if can_manage %}
-        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft space-y-4">
-            <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-500">Actions</h2>
-
-            {% if return_request.status == 'requested' %}
-            <form method="post" action="{% url 'backoffice:return_action' return_request.number %}" class="space-y-2">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="approve" />
-                <input type="text" name="note" placeholder="Approval note (optional)" class="w-full rounded border border-slate-300 p-1.5 text-xs focus:outline-none" />
-                <button type="submit" class="w-full rounded-lg bg-sky-600 py-2 text-xs font-semibold text-white shadow-sm hover:bg-sky-500">
-                    Approve Return Request
-                </button>
-            </form>
-
-            <form method="post" action="{% url 'backoffice:return_action' return_request.number %}" class="space-y-2 border-t border-slate-100 pt-3" data-confirm="Reject this return request?">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="reject" />
-                <input type="text" name="reason" placeholder="Rejection reason (required)" class="w-full rounded border border-slate-300 p-1.5 text-xs focus:outline-none" required />
-                <button type="submit" class="w-full rounded-lg bg-rose-600 py-2 text-xs font-semibold text-white shadow-sm hover:bg-rose-500">
-                    Reject Return Request
-                </button>
-            </form>
-
-            {% elif return_request.status == 'approved' %}
-            <form method="post" action="{% url 'backoffice:return_action' return_request.number %}" class="space-y-2">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="receive" />
-                <input type="text" name="tracking_number" placeholder="Inbound tracking number" class="w-full rounded border border-slate-300 p-1.5 text-xs focus:outline-none" />
-                <input type="text" name="note" placeholder="Receipt note" class="w-full rounded border border-slate-300 p-1.5 text-xs focus:outline-none" />
-                <button type="submit" class="w-full rounded-lg bg-indigo-600 py-2 text-xs font-semibold text-white shadow-sm hover:bg-indigo-500">
-                    Mark Parcel as Received
-                </button>
-            </form>
-
-            {% elif return_request.status == 'inspected' %}
-                {% if return_request.return_type == 'refund' %}
-                <form method="post" action="{% url 'backoffice:return_action' return_request.number %}" class="space-y-3">
-                    {% csrf_token %}
-                    <input type="hidden" name="action" value="refund" />
-                    <div class="flex items-center gap-2">
-                        <input type="checkbox" id="refund_shipping" name="refund_shipping" value="1" class="h-4 w-4 rounded border-slate-300 text-indigo-600" />
-                        <label for="refund_shipping" class="text-xs text-slate-700">Refund Shipping Fee ({{ return_request.order.currency }} {{ return_request.order.shipping_amount }})</label>
+        {# ---- sidebar --------------------------------------------------------------------- #}
+        <aside class="space-y-6">
+            <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft space-y-3">
+                <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    Request Information
+                </h2>
+                <dl class="space-y-2 text-sm">
+                    <div class="flex justify-between">
+                        <dt class="text-slate-500">
+                            Reason
+                        </dt>
+                        <dd class="font-medium text-slate-900">
+                            {{ return_request.get_reason_display }}
+                        </dd>
                     </div>
-                    <input type="text" name="note" placeholder="Refund note (optional)" class="w-full rounded border border-slate-300 p-1.5 text-xs focus:outline-none" />
-                    <button type="submit" class="w-full rounded-lg bg-emerald-600 py-2 text-xs font-semibold text-white shadow-sm hover:bg-emerald-500">
-                        Execute Refund
-                    </button>
-                </form>
-                {% elif return_request.return_type == 'exchange' %}
-                <form method="post" action="{% url 'backoffice:return_action' return_request.number %}" class="space-y-3">
-                    {% csrf_token %}
-                    <input type="hidden" name="action" value="exchange" />
-                    <input type="text" name="note" placeholder="Exchange note (optional)" class="w-full rounded border border-slate-300 p-1.5 text-xs focus:outline-none" />
-                    <button type="submit" class="w-full rounded-lg bg-indigo-600 py-2 text-xs font-semibold text-white shadow-sm hover:bg-indigo-500">
-                        Process Exchange & Allocate Replacement Stock
-                    </button>
-                </form>
+                    <div class="flex justify-between">
+                        <dt class="text-slate-500">
+                            Type
+                        </dt>
+                        <dd class="font-medium text-slate-900">
+                            {{ return_request.get_return_type_display }}
+                        </dd>
+                    </div>
+                    {% if return_request.tracking_number %}
+                        <div class="flex justify-between">
+                            <dt class="text-slate-500">
+                                Tracking
+                            </dt>
+                            <dd class="font-mono text-xs text-slate-900">
+                                {{ return_request.tracking_number }}
+                            </dd>
+                        </div>
+                    {% endif %}
+                </dl>
+                {% if return_request.customer_note %}
+                    <div class="border-t border-slate-100 pt-2 text-xs text-slate-600">
+                        <span class="font-semibold text-slate-700">Customer Note:</span> {{ return_request.customer_note }}
+                    </div>
                 {% endif %}
-            {% else %}
-            <p class="text-xs text-slate-500">No further staff transitions available for this status ({{ return_request.get_status_display }}).</p>
-            {% endif %}
-        </div>
-        {% endif %}
+                {% if return_request.staff_note %}
+                    <div class="border-t border-slate-100 pt-2 text-xs text-slate-600">
+                        <span class="font-semibold text-slate-700">Staff Note:</span> {{ return_request.staff_note }}
+                    </div>
+                {% endif %}
+            </div>
 
-        {# ---- refunds --------------------------------------------------------------------- #}
-        {% if return_request.refunds.exists %}
-        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft space-y-3">
-            <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-500">Refund Transactions</h2>
-            <div class="space-y-3 divide-y divide-slate-100">
-                {% for refund in return_request.refunds.all %}
-                <div class="pt-2 first:pt-0 text-xs">
-                    <div class="flex justify-between font-semibold text-slate-900">
-                        <span>{{ refund.number }}</span>
-                        <span class="text-emerald-700">{{ refund.currency }} {{ refund.amount }}</span>
-                    </div>
-                    <div class="text-slate-500 mt-0.5">
-                        Status: <span class="font-medium text-slate-800">{{ refund.get_status_display }}</span>
-                        · Provider: {{ refund.provider }}
-                    </div>
-                    {% if refund.provider_reference %}
-                    <div class="text-[11px] text-slate-400 font-mono">Ref: {{ refund.provider_reference }}</div>
+            {# ---- actions --------------------------------------------------------------------- #}
+            {% if can_manage %}
+                <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft space-y-4">
+                    <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                        Actions
+                    </h2>
+
+                    {% if return_request.status == 'requested' %}
+                        <form method="post" action="{% url 'backoffice:return_action' return_request.number %}" class="space-y-2">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="approve" />
+                            <input type="text" name="note" placeholder="Approval note (optional)" class="w-full rounded border border-slate-300 p-1.5 text-xs focus:outline-none" />
+                            <button type="submit" class="w-full rounded-lg bg-sky-600 py-2 text-xs font-semibold text-white shadow-sm hover:bg-sky-500">
+                                Approve Return Request
+                            </button>
+                        </form>
+
+                        <form method="post" action="{% url 'backoffice:return_action' return_request.number %}" class="space-y-2 border-t border-slate-100 pt-3" data-confirm="Reject this return request?">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="reject" />
+                            <input type="text" name="reason" placeholder="Rejection reason (required)" class="w-full rounded border border-slate-300 p-1.5 text-xs focus:outline-none" required />
+                            <button type="submit" class="w-full rounded-lg bg-rose-600 py-2 text-xs font-semibold text-white shadow-sm hover:bg-rose-500">
+                                Reject Return Request
+                            </button>
+                        </form>
+
+                    {% elif return_request.status == 'approved' %}
+                        <form method="post" action="{% url 'backoffice:return_action' return_request.number %}" class="space-y-2">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="receive" />
+                            <input type="text" name="tracking_number" placeholder="Inbound tracking number" class="w-full rounded border border-slate-300 p-1.5 text-xs focus:outline-none" />
+                            <input type="text" name="note" placeholder="Receipt note" class="w-full rounded border border-slate-300 p-1.5 text-xs focus:outline-none" />
+                            <button type="submit" class="w-full rounded-lg bg-indigo-600 py-2 text-xs font-semibold text-white shadow-sm hover:bg-indigo-500">
+                                Mark Parcel as Received
+                            </button>
+                        </form>
+
+                    {% elif return_request.status == 'inspected' %}
+                        {% if return_request.return_type == 'refund' %}
+                            <form method="post" action="{% url 'backoffice:return_action' return_request.number %}" class="space-y-3">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="refund" />
+                                <div class="flex items-center gap-2">
+                                    <input type="checkbox" id="refund_shipping" name="refund_shipping" value="1" class="h-4 w-4 rounded border-slate-300 text-indigo-600" />
+                                    <label for="refund_shipping" class="text-xs text-slate-700">
+                                        Refund Shipping Fee ({{ return_request.order.currency }} {{ return_request.order.shipping_amount }})
+                                    </label>
+                                </div>
+                                <input type="text" name="note" placeholder="Refund note (optional)" class="w-full rounded border border-slate-300 p-1.5 text-xs focus:outline-none" />
+                                <button type="submit" class="w-full rounded-lg bg-emerald-600 py-2 text-xs font-semibold text-white shadow-sm hover:bg-emerald-500">
+                                    Execute Refund
+                                </button>
+                            </form>
+                        {% elif return_request.return_type == 'exchange' %}
+                            <form method="post" action="{% url 'backoffice:return_action' return_request.number %}" class="space-y-3">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="exchange" />
+                                <input type="text" name="note" placeholder="Exchange note (optional)" class="w-full rounded border border-slate-300 p-1.5 text-xs focus:outline-none" />
+                                <button type="submit" class="w-full rounded-lg bg-indigo-600 py-2 text-xs font-semibold text-white shadow-sm hover:bg-indigo-500">
+                                    Process Exchange & Allocate Replacement Stock
+                                </button>
+                            </form>
+                        {% endif %}
+                    {% else %}
+                        <p class="text-xs text-slate-500">
+                            No further staff transitions available for this status ({{ return_request.get_status_display }}).
+                        </p>
                     {% endif %}
                 </div>
-                {% endfor %}
-            </div>
-        </div>
-        {% endif %}
-    </aside>
-</div>
+            {% endif %}
+
+            {# ---- refunds --------------------------------------------------------------------- #}
+            {% if return_request.refunds.exists %}
+                <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft space-y-3">
+                    <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                        Refund Transactions
+                    </h2>
+                    <div class="space-y-3 divide-y divide-slate-100">
+                        {% for refund in return_request.refunds.all %}
+                            <div class="pt-2 first:pt-0 text-xs">
+                                <div class="flex justify-between font-semibold text-slate-900">
+                                    <span>{{ refund.number }}</span>
+                                    <span class="text-emerald-700">{{ refund.currency }} {{ refund.amount }}</span>
+                                </div>
+                                <div class="text-slate-500 mt-0.5">
+                                    Status: <span class="font-medium text-slate-800">{{ refund.get_status_display }}</span>
+                                    · Provider: {{ refund.provider }}
+                                </div>
+                                {% if refund.provider_reference %}
+                                    <div class="text-[11px] text-slate-400 font-mono">
+                                        Ref: {{ refund.provider_reference }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endif %}
+        </aside>
+    </div>
 {% endblock content %}

@@ -2,12 +2,22 @@
 One form field, styled and labelled. Included with ``{% include "backoffice/_field.html" with field=... %}``.
 {% endcomment %}
 {% if field.is_hidden %}
-{{ field }}
-{% else %}
-<div class="mb-3">
-    <label class="block text-xs font-medium uppercase tracking-wider text-slate-500" for="{{ field.id_for_label }}">{{ field.label }}</label>
     {{ field }}
-    {% if field.help_text %}<p class="mt-1 text-xs text-slate-500">{{ field.help_text }}</p>{% endif %}
-    {% for error in field.errors %}<p class="mt-1 text-xs font-medium text-rose-600">{{ error }}</p>{% endfor %}
-</div>
+{% else %}
+    <div class="mb-3">
+        <label class="block text-xs font-medium uppercase tracking-wider text-slate-500" for="{{ field.id_for_label }}">
+            {{ field.label }}
+        </label>
+        {{ field }}
+        {% if field.help_text %}
+            <p class="mt-1 text-xs text-slate-500">
+                {{ field.help_text }}
+            </p>
+        {% endif %}
+        {% for error in field.errors %}
+            <p class="mt-1 text-xs font-medium text-rose-600">
+                {{ error }}
+            </p>
+        {% endfor %}
+    </div>
 {% endif %}
