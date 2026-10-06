@@ -138,3 +138,116 @@
     font-size: 11px;
     font-weight: 600;
 }
+
+/* Catalog Management Dashboard & Variant Styles */
+.stock-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 7px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+}
+.stock-badge-in {
+    background: #ecfdf5;
+    color: #059669;
+    border: 1px solid #a7f3d0;
+}
+.stock-badge-low {
+    background: #fffbeb;
+    color: #d97706;
+    border: 1px solid #fde68a;
+}
+.stock-badge-out {
+    background: #fef2f2;
+    color: #dc2626;
+    border: 1px solid #fecaca;
+}
+
+.readiness-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 7px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+}
+.readiness-badge-ready {
+    background: #ecfdf5;
+    color: #059669;
+}
+.readiness-badge-warn {
+    background: #fffbeb;
+    color: #b45309;
+}
+
+.admin-preview-btn {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 8px;
+    background: #f1f5f9;
+    color: #334155;
+    border-radius: 6px;
+    border: 1px solid #cbd5e1;
+    font-size: 11px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.15s ease;
+}
+.admin-preview-btn:hover {
+    background: #e2e8f0;
+    color: #0f172a;
+}
+
+.variant-matrix-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    margin-top: 8px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    overflow: hidden;
+}
+.variant-matrix-table th {
+    background: #f8fafc;
+    color: #475569;
+    font-weight: 600;
+    padding: 8px 12px;
+    text-align: left;
+    border-bottom: 1px solid #cbd5e1;
+}
+.variant-matrix-table td {
+    padding: 8px 12px;
+    border-bottom: 1px solid #f1f5f9;
+    color: #334155;
+}
+.variant-matrix-table tr:hover {
+    background: #f8fafc;
+}
+
+.seo-preview-box {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 16px;
+    max-width: 650px;
+    font-family: Arial, sans-serif;
+}
+.seo-preview-title {
+    color: #1a0dab;
+    font-size: 18px;
+    line-height: 1.3;
+    font-weight: 500;
+    text-decoration: none;
+}
+.seo-preview-url {
+    color: #202124;
+    font-size: 12px;
+    margin-top: 2px;
+}
+.seo-preview-desc {
+    color: #4d5156;
+    font-size: 13px;
+    line-height: 1.5;
+    margin-top: 4px;
+}

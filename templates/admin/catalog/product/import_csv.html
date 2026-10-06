@@ -1,0 +1,165 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block breadcrumbs %}
+    <div class="breadcrumbs">
+        <a href="{% url 'admin:index' %}">{% translate "Home" %}</a>
+        &rsaquo; <a href="{% url 'admin:app_list' app_label='catalog' %}">{% translate "Catalogue" %}</a>
+        &rsaquo; <a href="{% url 'admin:catalog_product_changelist' %}">{% translate "Products" %}</a>
+        &rsaquo; {% translate "CSV Import" %}
+    </div>
+{% endblock breadcrumbs %}
+
+{% block content %}
+    <div style="max-width: 1000px; margin: 0 auto; background: white; padding: 28px; border-radius: 8px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+        <h1 style="margin-top: 0; font-size: 22px; font-weight: 700; color: #0f172a;">
+            {% translate "Catalog CSV Import & Bulk Management" %}
+        </h1>
+        <p style="color: #475569; font-size: 14px; line-height: 1.6;">
+            {% translate "Upload a catalog CSV to bulk-create or update products, variants, SKUs, prices, categories, and inventory stock. All operations are dry-run validated before committing to database." %}
+        </p>
+
+        {% if not validation_result %}
+            <!-- STEP 1: Upload Form -->
+            <form method="post" enctype="multipart/form-data" style="margin-top: 24px;">
+                {% csrf_token %}
+                <div style="padding: 24px; border: 2px dashed #cbd5e1; border-radius: 8px; background: #f8fafc; text-align: center;">
+                    <label for="id_csv_file" style="display: block; font-weight: 600; color: #1e293b; margin-bottom: 8px; font-size: 15px;">
+                        {% translate "Choose CSV file to import" %}
+                    </label>
+                    <input type="file" name="csv_file" id="id_csv_file" accept=".csv" required style="margin: 12px 0;" />
+                    <p style="font-size: 12px; color: #64748b; margin-top: 8px;">
+                        {% translate "Required columns: product_name, category_slug, sku, price. Optional: slug, brand_name, short_description, description, tags, color_name, size_code, compare_at_price, cost_price, stock_on_hand, status." %}
+                    </p>
+                </div>
+
+                <div class="submit-row" style="margin-top: 24px; display: flex; gap: 12px;">
+                    <input type="submit" name="validate_only" value="{% translate "Preview & Validate CSV" %}" class="default" style="background: #0284c7; color: white; padding: 10px 24px; border-radius: 6px; font-weight: 600; cursor: pointer;" />
+                    <a class="button cancel-link" href="{% url 'admin:catalog_product_changelist' %}" style="padding: 10px 20px; text-decoration: none; color: #475569;">
+                        {% translate "Back to Products" %}
+                    </a>
+                </div>
+            </form>
+
+        {% else %}
+            <!-- STEP 2: Validation Results & Commit -->
+            <div style="margin: 24px 0;">
+                {% if validation_result.is_valid %}
+                    <div style="background: #ecfdf5; border: 1px solid #10b981; border-radius: 6px; padding: 16px; color: #065f46; margin-bottom: 20px;">
+                        <h3 style="margin-top: 0; font-size: 16px; font-weight: 700;">
+                            ✓ {% translate "Validation Succeeded" %} ({{ validation_result.valid_rows_count }} {% translate "valid rows ready for import" %})
+                        </h3>
+                        <p style="margin-bottom: 0; font-size: 14px;">
+                            {% translate "No formatting or uniqueness errors detected. Review the preview below and confirm to commit." %}
+                        </p>
+                    </div>
+                {% else %}
+                    <div style="background: #fef2f2; border: 1px solid #ef4444; border-radius: 6px; padding: 16px; color: #991b1b; margin-bottom: 20px;">
+                        <h3 style="margin-top: 0; font-size: 16px; font-weight: 700;">
+                            ✕ {% translate "Validation Failed" %} ({{ validation_result.error_count }} {% translate "error(s) found" %})
+                        </h3>
+                        <p style="margin-bottom: 12px; font-size: 14px;">
+                            {% translate "The import cannot be committed until the errors below are corrected in your CSV file:" %}
+                        </p>
+                        <ul style="margin: 0; padding-left: 20px; font-size: 13px;">
+                            {% for error in validation_result.errors %}
+                                <li style="margin-bottom: 4px;">
+                                    <strong>{% translate "Row" %} {{ error.row_number }}
+                                        {% if error.sku %}
+                                            (SKU: {{ error.sku }})
+                                        {% endif %}
+                                        :</strong> {{ error.message }}
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
+
+                    {% if validation_result.preview_rows %}
+                        <h3 style="font-size: 16px; font-weight: 600; color: #1e293b; margin-bottom: 12px;">
+                            {% translate "Import Preview" %} ({% translate "First" %} {{ validation_result.preview_rows|length }} {% translate "rows" %})
+                        </h3>
+                        <div style="overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 6px;">
+                            <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
+                                <thead>
+                                    <tr style="background: #f1f5f9; color: #334155; border-bottom: 1px solid #cbd5e1;">
+                                        <th style="padding: 8px 12px;">
+                                            Product
+                                        </th>
+                                        <th style="padding: 8px 12px;">
+                                            Category
+                                        </th>
+                                        <th style="padding: 8px 12px;">
+                                            SKU
+                                        </th>
+                                        <th style="padding: 8px 12px;">
+                                            Color
+                                        </th>
+                                        <th style="padding: 8px 12px;">
+                                            Size
+                                        </th>
+                                        <th style="padding: 8px 12px;">
+                                            Price
+                                        </th>
+                                        <th style="padding: 8px 12px;">
+                                            Stock
+                                        </th>
+                                        <th style="padding: 8px 12px;">
+                                            Status
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for r in validation_result.preview_rows %}
+                                        <tr style="border-bottom: 1px solid #e2e8f0;">
+                                            <td style="padding: 8px 12px; font-weight: 600;">
+                                                {{ r.product_name }}
+                                            </td>
+                                            <td style="padding: 8px 12px;">
+                                                {{ r.category_slug }}
+                                            </td>
+                                            <td style="padding: 8px 12px; font-family: monospace;">
+                                                {{ r.sku }}
+                                            </td>
+                                            <td style="padding: 8px 12px;">
+                                                {{ r.color_name|default:"—" }}
+                                            </td>
+                                            <td style="padding: 8px 12px;">
+                                                {{ r.size_code|default:"—" }}
+                                            </td>
+                                            <td style="padding: 8px 12px;">
+                                                {{ r.price }}
+                                            </td>
+                                            <td style="padding: 8px 12px;">
+                                                {{ r.stock_on_hand|default:"0" }}
+                                            </td>
+                                            <td style="padding: 8px 12px;">
+                                                {{ r.status|default:"draft" }}
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% endif %}
+
+                    <form method="post" action="" style="margin-top: 24px;">
+                        {% csrf_token %}
+                        <input type="hidden" name="raw_csv_data" value="{{ raw_csv_data }}" />
+
+                        <div class="submit-row" style="display: flex; gap: 12px; align-items: center;">
+                            {% if validation_result.is_valid %}
+                                <input type="submit" name="commit_import" value="{% translate "Commit Import to Database" %}" class="default" style="background: #059669; color: white; padding: 10px 24px; border-radius: 6px; font-weight: 600; cursor: pointer;" />
+                            {% endif %}
+                            <a class="button cancel-link" href="{% url 'admin:catalog_product_import_csv' %}" style="padding: 10px 20px; text-decoration: none; color: #475569;">
+                                {% translate "Upload Different CSV" %}
+                            </a>
+                            <a class="button cancel-link" href="{% url 'admin:catalog_product_changelist' %}" style="padding: 10px 20px; text-decoration: none; color: #475569;">
+                                {% translate "Cancel" %}
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            {% endif %}
+        </div>
+    {% endblock content %}

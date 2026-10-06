@@ -18,7 +18,14 @@ from __future__ import annotations
 from django import forms
 from django.utils.translation import gettext_lazy as _
 
-from apps.catalog.models import Product, ProductImage, ProductVariant
+from apps.catalog.models import (
+    Brand,
+    Category,
+    Collection,
+    Product,
+    ProductImage,
+    ProductVariant,
+)
 from apps.catalog.services import variant_conflict
 from apps.catalog.validators import validate_catalog_image
 
@@ -67,8 +74,16 @@ class ProductVariantForm(forms.ModelForm):
             "cost_price": forms.NumberInput(attrs={"step": "0.01", "min": "0"}),
         }
 
+    stock_adjustment = forms.IntegerField(
+        label=_("Adjust Stock"),
+        required=False,
+        widget=forms.NumberInput(attrs={"placeholder": "±0", "style": "width: 70px;"}),
+        help_text=_("Apply delta (+5, -2) to warehouse on-hand stock."),
+    )
+
     def __init__(self, *args, **kwargs):
         self._product = kwargs.pop("product", None)
+        self._user = kwargs.pop("user", None)
         super().__init__(*args, **kwargs)
         # Only active options are selectable, and both are genuinely optional (a belt has a size
         # but no colourway; a gift card has neither).
@@ -460,3 +475,67 @@ class ProductAdminForm(forms.ModelForm):
                 params={"slug": resolved},
             )
         return resolved
+
+
+# --------------------------------------------------------------------------------------
+# Bulk Action Forms for Admin Operations
+# --------------------------------------------------------------------------------------
+
+
+class BulkAssignCategoryForm(forms.Form):
+    """Form for bulk-reassigning category across selected products."""
+
+    category = forms.ModelChoiceField(
+        queryset=Category.objects.all(),
+        required=True,
+        label=_("Target Category"),
+        help_text=_("Select the new category to assign to all selected products."),
+    )
+
+
+class BulkAssignBrandForm(forms.Form):
+    """Form for bulk-assigning or clearing brand."""
+
+    brand = forms.ModelChoiceField(
+        queryset=Brand.objects.all(),
+        required=False,
+        label=_("Target Brand"),
+        help_text=_("Select brand, or leave empty to clear external brand."),
+    )
+
+
+class BulkAssignCollectionForm(forms.Form):
+    """Form for bulk adding or removing products to/from a collection."""
+
+    collection = forms.ModelChoiceField(
+        queryset=Collection.objects.all(),
+        required=True,
+        label=_("Target Collection"),
+    )
+    action_type = forms.ChoiceField(
+        choices=[("add", _("Add to collection")), ("remove", _("Remove from collection"))],
+        required=True,
+        label=_("Action"),
+    )
+
+
+class BulkUpdateTagsForm(forms.Form):
+    """Form for bulk tagging products."""
+
+    tags = forms.CharField(
+        required=True,
+        label=_("Tags to add"),
+        help_text=_("Enter comma-separated tag names (e.g. 'summer, trending, oversized')."),
+    )
+
+
+class BulkArchiveConfirmForm(forms.Form):
+    """Confirmation form for destructive archiving bulk action."""
+
+    confirm = forms.BooleanField(
+        required=True,
+        label=_(
+            "I understand this will retire and hide all selected products from the storefront."
+        ),
+    )
+

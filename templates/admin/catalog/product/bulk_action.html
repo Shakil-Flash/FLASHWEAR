@@ -1,0 +1,53 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block breadcrumbs %}
+    <div class="breadcrumbs">
+        <a href="{% url 'admin:index' %}">{% translate "Home" %}</a>
+        &rsaquo; <a href="{% url 'admin:app_list' app_label='catalog' %}">{% translate "Catalogue" %}</a>
+        &rsaquo; <a href="{% url 'admin:catalog_product_changelist' %}">{% translate "Products" %}</a>
+        &rsaquo; {{ title }}
+    </div>
+{% endblock breadcrumbs %}
+
+{% block content %}
+    <div class="module aligned" style="max-width: 800px; background: white; padding: 24px; border-radius: 8px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+        <h1 style="margin-top: 0; font-size: 20px; font-weight: 700; color: #0f172a;">
+            {{ title }}
+        </h1>
+        <p style="color: #475569; font-size: 14px; line-height: 1.5;">
+            {{ description }}
+        </p>
+
+        <form method="post" action="">
+            {% csrf_token %}
+
+            <div style="margin: 20px 0; padding: 16px; background: #f8fafc; border-radius: 6px; border: 1px solid #e2e8f0;">
+                {{ form.as_p }}
+            </div>
+
+            <h3 style="font-size: 15px; font-weight: 600; color: #1e293b; margin-top: 24px;">
+                {% translate "Target Products" %} ({{ queryset.count }})
+            </h3>
+            <ul style="max-height: 200px; overflow-y: auto; background: #f8fafc; padding: 12px 20px; border-radius: 6px; border: 1px solid #e2e8f0; font-size: 13px; color: #334155;">
+                {% for product in queryset %}
+                    <li style="margin-bottom: 4px;">
+                        <strong>{{ product.name }}</strong> (SKU count: {{ product.variants.count }}) — Status: {{ product.get_status_display }}
+                    </li>
+                {% endfor %}
+            </ul>
+
+            <input type="hidden" name="action" value="{{ action_name }}" />
+            {% for product in queryset %}
+                <input type="hidden" name="{{ action_checkbox_name }}" value="{{ product.pk }}" />
+            {% endfor %}
+
+            <div class="submit-row" style="margin-top: 24px; display: flex; gap: 12px; align-items: center;">
+                <input type="submit" name="apply" value="{% translate "Confirm & Apply" %}" class="default" style="background: #0284c7; color: white; padding: 10px 20px; border-radius: 6px; font-weight: 600; cursor: pointer;" />
+                <a class="button cancel-link" href="{% url 'admin:catalog_product_changelist' %}" style="padding: 10px 20px; text-decoration: none; color: #475569;">
+                    {% translate "Cancel" %}
+                </a>
+            </div>
+        </form>
+    </div>
+{% endblock content %}
