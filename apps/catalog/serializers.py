@@ -21,6 +21,8 @@ they are defined before it.
 
 from __future__ import annotations
 
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
 from apps.catalog.models import (
@@ -186,20 +188,86 @@ class ProductImageSerializer(serializers.ModelSerializer):
     right photography when a colourway is chosen.
     """
 
+    id = serializers.IntegerField(read_only=True)
     url = serializers.ImageField(source="image", read_only=True)
     width = serializers.SerializerMethodField()
     height = serializers.SerializerMethodField()
     color = ColorBriefSerializer(read_only=True)
+    image_source = serializers.CharField(read_only=True)
 
     class Meta:
         model = ProductImage
-        fields = ("url", "alt_text", "position", "is_primary", "width", "height", "color")
+        fields = (
+            "id",
+            "url",
+            "alt_text",
+            "position",
+            "is_primary",
+            "width",
+            "height",
+            "color",
+            "source_url",
+            "photographer",
+            "attribution",
+            "license",
+            "image_source",
+        )
 
     def get_width(self, image: ProductImage) -> int | None:
         return getattr(image.image, "width", None)
 
     def get_height(self, image: ProductImage) -> int | None:
         return getattr(image.image, "height", None)
+
+
+class ProductImageCreateSerializer(serializers.Serializer):
+    """Staff serializer for uploading or importing product images via API."""
+
+    image = serializers.ImageField(required=False, allow_null=True)
+    source_url = serializers.URLField(required=False, allow_blank=True)
+    candidate_image_url = serializers.URLField(required=False, allow_blank=True)
+    alt_text = serializers.CharField(max_length=200)
+    position = serializers.IntegerField(default=0, required=False)
+    is_primary = serializers.BooleanField(default=False, required=False)
+    variant_id = serializers.IntegerField(required=False, allow_null=True)
+    photographer = serializers.CharField(max_length=200, required=False, allow_blank=True)
+    attribution = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    license = serializers.CharField(max_length=200, required=False, allow_blank=True)
+
+    def validate_alt_text(self, value: str) -> str:
+        cleaned = value.strip()
+        if not cleaned:
+            raise serializers.ValidationError(_("Alt text is required."))
+        return cleaned
+
+    def validate(self, attrs):
+        from apps.catalog.image_fetcher import fetch_and_validate_image_file
+
+        image = attrs.get("image")
+        source_url = (attrs.get("source_url") or "").strip()
+        candidate_url = (attrs.get("candidate_image_url") or "").strip() or None
+
+        if not image and not source_url:
+            raise serializers.ValidationError(_("Provide an image file or an external image URL."))
+
+        if source_url and not image:
+            try:
+                downloaded = fetch_and_validate_image_file(
+                    source_url, candidate_url=candidate_url
+                )
+                attrs["image"] = downloaded.file
+                if not attrs.get("photographer") and downloaded.suggested_photographer:
+                    attrs["photographer"] = downloaded.suggested_photographer
+                if not attrs.get("attribution") and downloaded.suggested_attribution:
+                    attrs["attribution"] = downloaded.suggested_attribution
+            except DjangoValidationError as err:
+                msg = err.messages if hasattr(err, "messages") else str(err)
+                raise serializers.ValidationError({"source_url": msg}) from err
+            except Exception as err:
+                raise serializers.ValidationError({"source_url": str(err)}) from err
+
+        return attrs
+
 
 
 class ProductVariantSerializer(serializers.ModelSerializer):

@@ -131,18 +131,55 @@ class ProductVariantForm(forms.ModelForm):
 
 
 class ProductImageForm(forms.ModelForm):
-    """Admin form for one photograph.
+    """Admin form for one product photograph.
 
-    ``image`` and ``alt_text`` are both required. Alt text is not decoration: it is what a screen
-    reader announces and what a customer sees when the image fails to load, and "0" or "IMG_4021"
-    is not a description.
+    Supports both local file upload and direct/webpage image URLs.
+    Neither is required if the instance already has an image, but at least
+    one method must be chosen when adding a new image.
     """
 
-    image = CatalogueImageField()
+    image = CatalogueImageField(required=False, label=_("Upload image"))
+    source_url = forms.URLField(
+        required=False,
+        assume_scheme="https",
+        label=_("Image / Page URL"),
+        help_text=_("Direct image URL or supported webpage URL (e.g. iStock, Unsplash)."),
+        widget=forms.URLInput(
+            attrs={
+                "placeholder": "https://example.com/image.jpg or webpage URL",
+                "class": "image-url-input",
+            }
+        ),
+    )
+    candidate_image_url = forms.URLField(
+        required=False,
+        assume_scheme="https",
+        widget=forms.HiddenInput(),
+    )
 
     class Meta:
         model = ProductImage
-        fields = ("image", "alt_text", "variant", "position", "is_primary")
+        fields = (
+            "image",
+            "source_url",
+            "photographer",
+            "attribution",
+            "license",
+            "alt_text",
+            "variant",
+            "position",
+            "is_primary",
+        )
+        widgets = {
+            "alt_text": forms.TextInput(
+                attrs={"placeholder": _("Describe the image for accessibility")}
+            ),
+            "photographer": forms.TextInput(attrs={"placeholder": _("Photographer or creator")}),
+            "attribution": forms.TextInput(attrs={"placeholder": _("Attribution statement")}),
+            "license": forms.TextInput(
+                attrs={"placeholder": _("License terms (e.g. CC-BY, Unsplash)")}
+            ),
+        }
 
     def __init__(self, *args, **kwargs):
         self._product = kwargs.pop("product", None)
@@ -162,9 +199,15 @@ class ProductImageForm(forms.ModelForm):
         return alt_text
 
     def clean(self):
+        from apps.catalog.image_fetcher import fetch_and_validate_image_file
+
         cleaned = super().clean()
         variant = cleaned.get("variant")
         product = cleaned.get("product") or self.product
+        image = cleaned.get("image")
+        source_url = (cleaned.get("source_url") or "").strip()
+        candidate_url = (cleaned.get("candidate_image_url") or "").strip() or None
+
         if variant is not None and product is not None and variant.product_id != product.pk:
             self.add_error(
                 "variant",
@@ -173,7 +216,175 @@ class ProductImageForm(forms.ModelForm):
                     code="variant_product_mismatch",
                 ),
             )
+
+        # For existing instances that already have a file on disk, image is optional
+        has_existing_image = bool(self.instance.pk and self.instance.image)
+
+        if not image and not source_url and not has_existing_image:
+            raise forms.ValidationError(_("Provide an image file or an external URL."))
+
+        # If a source URL is provided and no new file was uploaded, fetch and validate from URL
+        if source_url and not image:
+            try:
+                downloaded = fetch_and_validate_image_file(
+                    source_url,
+                    candidate_url=candidate_url,
+                )
+                cleaned["image"] = downloaded.file
+                if not cleaned.get("photographer") and downloaded.suggested_photographer:
+                    cleaned["photographer"] = downloaded.suggested_photographer
+                if not cleaned.get("attribution") and downloaded.suggested_attribution:
+                    cleaned["attribution"] = downloaded.suggested_attribution
+            except forms.ValidationError as error:
+                self.add_error("source_url", error)
+            except Exception as error:
+                self.add_error(
+                    "source_url",
+                    forms.ValidationError(
+                        _("Could not fetch image from URL: %(error)s"),
+                        params={"error": str(error)},
+                        code="fetch_error",
+                    ),
+                )
+
         return cleaned
+
+
+class CollectionAdminForm(forms.ModelForm):
+    """Admin form for Collection with support for direct/webpage image URLs."""
+
+    hero_image = CatalogueImageField(required=False, label=_("Hero image"))
+    hero_image_url = forms.URLField(
+        required=False,
+        assume_scheme="https",
+        label=_("Hero image URL"),
+        help_text=_("Direct image URL or supported webpage URL for hero banner."),
+    )
+    banner_image = CatalogueImageField(required=False, label=_("Banner image"))
+    banner_image_url = forms.URLField(
+        required=False,
+        assume_scheme="https",
+        label=_("Banner image URL"),
+        help_text=_("Direct image URL or supported webpage URL for banner."),
+    )
+
+    class Meta:
+        from apps.catalog.models import Collection
+
+        model = Collection
+        fields = (
+            "name",
+            "slug",
+            "description",
+            "is_active",
+            "starts_at",
+            "ends_at",
+            "hero_image",
+            "banner_image",
+        )
+
+    def clean(self):
+        from apps.catalog.image_fetcher import fetch_and_validate_image_file
+
+        cleaned = super().clean()
+        hero_url = (cleaned.get("hero_image_url") or "").strip()
+        banner_url = (cleaned.get("banner_image_url") or "").strip()
+
+        if hero_url and not cleaned.get("hero_image"):
+            try:
+                downloaded = fetch_and_validate_image_file(hero_url)
+                cleaned["hero_image"] = downloaded.file
+            except forms.ValidationError as error:
+                self.add_error("hero_image_url", error)
+
+        if banner_url and not cleaned.get("banner_image"):
+            try:
+                downloaded = fetch_and_validate_image_file(banner_url)
+                cleaned["banner_image"] = downloaded.file
+            except forms.ValidationError as error:
+                self.add_error("banner_image_url", error)
+
+        return cleaned
+
+
+class CategoryAdminForm(forms.ModelForm):
+    """Admin form for Category with support for image URLs."""
+
+    image = CatalogueImageField(required=False, label=_("Image"))
+    image_url = forms.URLField(
+        required=False,
+        assume_scheme="https",
+        label=_("Image URL"),
+        help_text=_("Direct image URL or supported webpage URL."),
+    )
+
+    class Meta:
+        from apps.catalog.models import Category
+
+        model = Category
+        fields = (
+            "name",
+            "slug",
+            "parent",
+            "description",
+            "image",
+            "display_order",
+            "is_active",
+        )
+
+    def clean(self):
+        from apps.catalog.image_fetcher import fetch_and_validate_image_file
+
+        cleaned = super().clean()
+        image_url = (cleaned.get("image_url") or "").strip()
+        if image_url and not cleaned.get("image"):
+            try:
+                downloaded = fetch_and_validate_image_file(image_url)
+                cleaned["image"] = downloaded.file
+            except forms.ValidationError as error:
+                self.add_error("image_url", error)
+        return cleaned
+
+
+class BrandAdminForm(forms.ModelForm):
+    """Admin form for Brand with support for logo URLs."""
+
+    logo = CatalogueImageField(required=False, label=_("Logo"))
+    logo_url = forms.URLField(
+        required=False,
+        assume_scheme="https",
+        label=_("Logo URL"),
+        help_text=_("Direct image URL or supported webpage URL for brand logo."),
+    )
+
+    class Meta:
+        from apps.catalog.models import Brand
+
+        model = Brand
+        fields = (
+            "name",
+            "slug",
+            "website_url",
+            "logo",
+            "description",
+            "display_order",
+            "is_active",
+        )
+
+    def clean(self):
+        from apps.catalog.image_fetcher import fetch_and_validate_image_file
+
+        cleaned = super().clean()
+        logo_url = (cleaned.get("logo_url") or "").strip()
+        if logo_url and not cleaned.get("logo"):
+            try:
+                downloaded = fetch_and_validate_image_file(logo_url)
+                cleaned["logo"] = downloaded.file
+            except forms.ValidationError as error:
+                self.add_error("logo_url", error)
+        return cleaned
+
+
 
 
 class ProductAdminForm(forms.ModelForm):

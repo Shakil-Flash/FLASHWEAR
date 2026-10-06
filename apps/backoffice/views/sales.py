@@ -9,6 +9,7 @@ absent: that is a refund, and refunds are not this phase's business.
 from __future__ import annotations
 
 from django.contrib import messages
+from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect
 from django.views.decorators.http import require_POST
@@ -26,7 +27,22 @@ from apps.backoffice.permissions import (
 from apps.backoffice.services import audit as audit_service
 from apps.backoffice.services import operations
 from apps.backoffice.views.base import range_from_request, render_bo
-from apps.orders.models import Order, OrderEvent, Shipment
+from apps.orders.models import (
+    InvalidTransition,
+    Order,
+    OrderEvent,
+    ReturnItem,
+    ReturnRequest,
+    Shipment,
+)
+from apps.orders.returns_services import (
+    approve_return_request,
+    inspect_return,
+    mark_return_received,
+    process_exchange_for_return,
+    process_refund_for_return,
+    reject_return_request,
+)
 from apps.payments.models import Payment
 
 __all__ = [
@@ -37,6 +53,9 @@ __all__ = [
     "orders",
     "payment_detail",
     "payments",
+    "return_action",
+    "return_detail",
+    "returns",
     "shipments",
 ]
 
@@ -232,3 +251,188 @@ def customers(request):
             "sort": request.GET.get("sort", ""),
         },
     )
+
+
+@backoffice_access(ORDERS_VIEW)
+def returns(request):
+    """``/operations/returns/`` -- returns queue, filtered and paginated."""
+    date_range = range_from_request(request)
+    queryset = selectors.returns(
+        q=request.GET.get("q", ""),
+        status=request.GET.get("status", ""),
+        return_type=request.GET.get("return_type", ""),
+        date_range=date_range,
+        sort=request.GET.get("sort", ""),
+    )
+    return render_bo(
+        request,
+        "backoffice/returns/list.html",
+        active="returns",
+        page=selectors.paginate(request, queryset),
+        current_range=date_range.key,
+        filters={
+            "q": request.GET.get("q", ""),
+            "status": request.GET.get("status", ""),
+            "return_type": request.GET.get("return_type", ""),
+            "sort": request.GET.get("sort", ""),
+        },
+        status_choices=ReturnRequest.Status.choices,
+        type_choices=ReturnRequest.ReturnType.choices,
+        can_manage=has(request.user, ORDERS_MANAGE),
+    )
+
+
+@backoffice_access(ORDERS_VIEW)
+def return_detail(request, number: str):
+    """``/operations/returns/<number>/`` -- details, items inspection, actions."""
+    return_qs = selectors.return_detail(number)
+    return_request = get_object_or_404(return_qs)
+    return render_bo(
+        request,
+        "backoffice/returns/detail.html",
+        active="returns",
+        return_request=return_request,
+        can_manage=has(request.user, ORDERS_MANAGE),
+        condition_choices=ReturnItem.Condition.choices,
+    )
+
+
+@require_POST
+@backoffice_access(ORDERS_MANAGE)
+def return_action(request, number: str):
+    """Staff action on a return request: approve, reject, receive, inspect, refund, exchange."""
+    return_qs = selectors.return_detail(number)
+    return_request = get_object_or_404(return_qs)
+    action = request.POST.get("action", "")
+
+    try:
+        if action == "approve":
+            note = request.POST.get("note", "").strip()
+            approve_return_request(return_request, staff_user=request.user, note=note)
+            audit_service.record(
+                actor=request.user,
+                domain="orders",
+                action="return.approve",
+                object_type="return_request",
+                object_id=return_request.pk,
+                object_repr=return_request.number,
+                reason=note,
+            )
+            messages.success(request, f"Return {return_request.number} approved.")
+
+        elif action == "reject":
+            reason = request.POST.get("reason", "").strip()
+            if not reason:
+                messages.error(request, "Please provide a reason for rejecting the return.")
+                return redirect("backoffice:return_detail", number=number)
+            reject_return_request(return_request, staff_user=request.user, reason=reason)
+            audit_service.record(
+                actor=request.user,
+                domain="orders",
+                action="return.reject",
+                object_type="return_request",
+                object_id=return_request.pk,
+                object_repr=return_request.number,
+                reason=reason,
+            )
+            messages.success(request, f"Return {return_request.number} rejected.")
+
+        elif action == "receive":
+            tracking = request.POST.get("tracking_number", "").strip()
+            note = request.POST.get("note", "").strip()
+            mark_return_received(
+                return_request,
+                staff_user=request.user,
+                note=note,
+                tracking_number=tracking,
+            )
+            audit_service.record(
+                actor=request.user,
+                domain="orders",
+                action="return.receive",
+                object_type="return_request",
+                object_id=return_request.pk,
+                object_repr=return_request.number,
+                metadata={"tracking_number": tracking},
+            )
+            messages.success(request, f"Return {return_request.number} marked as received.")
+
+        elif action == "inspect":
+            inspections = []
+            for item in return_request.items.all():
+                accepted = int(request.POST.get(f"accepted_{item.pk}", 0) or 0)
+                rejected = int(request.POST.get(f"rejected_{item.pk}", 0) or 0)
+                cond = request.POST.get(f"condition_{item.pk}", ReturnItem.Condition.LIKE_NEW)
+                notes = request.POST.get(f"notes_{item.pk}", "").strip()
+                inspections.append(
+                    {
+                        "item_id": item.pk,
+                        "accepted_quantity": accepted,
+                        "rejected_quantity": rejected,
+                        "condition": cond,
+                        "inspection_notes": notes,
+                    }
+                )
+            staff_note = request.POST.get("staff_note", "").strip()
+            inspect_return(
+                return_request,
+                staff_user=request.user,
+                inspections=inspections,
+                staff_note=staff_note,
+            )
+            audit_service.record(
+                actor=request.user,
+                domain="orders",
+                action="return.inspect",
+                object_type="return_request",
+                object_id=return_request.pk,
+                object_repr=return_request.number,
+                metadata={"inspected_items": len(inspections)},
+            )
+            messages.success(request, f"Return {return_request.number} inspection recorded.")
+
+        elif action == "refund":
+            refund_shipping = request.POST.get("refund_shipping") == "1"
+            staff_note = request.POST.get("note", "").strip()
+            process_refund_for_return(
+                return_request,
+                staff_user=request.user,
+                refund_shipping=refund_shipping,
+                staff_note=staff_note,
+            )
+            audit_service.record(
+                actor=request.user,
+                domain="orders",
+                action="return.refund",
+                object_type="return_request",
+                object_id=return_request.pk,
+                object_repr=return_request.number,
+                metadata={"refund_shipping": refund_shipping},
+            )
+            messages.success(request, f"Refund completed for return {return_request.number}.")
+
+        elif action == "exchange":
+            staff_note = request.POST.get("note", "").strip()
+            process_exchange_for_return(
+                return_request,
+                staff_user=request.user,
+                staff_note=staff_note,
+            )
+            audit_service.record(
+                actor=request.user,
+                domain="orders",
+                action="return.exchange",
+                object_type="return_request",
+                object_id=return_request.pk,
+                object_repr=return_request.number,
+            )
+            messages.success(request, f"Exchange completed for return {return_request.number}.")
+
+        else:
+            messages.error(request, f"Unknown action: {action}")
+
+    except (ValidationError, InvalidTransition) as exc:
+        msg = exc.messages if hasattr(exc, "messages") else [str(exc)]
+        messages.error(request, " ".join(msg))
+
+    return redirect("backoffice:return_detail", number=number)

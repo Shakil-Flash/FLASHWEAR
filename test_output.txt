@@ -1,0 +1,475 @@
+
+=================================== ERRORS ====================================
+___________________ ERROR collecting tests/test_accounts.py ___________________
+'django_db' not found in `markers` configuration option
+_______________ ERROR collecting tests/test_accounts_phase2.py ________________
+tests\test_accounts_phase2.py:34: in <module>
+    from apps.accounts import services
+apps\accounts\services.py:33: in <module>
+    User = get_user_model()
+           ^^^^^^^^^^^^^^^^
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\__init__.py:283: in get_user_model
+    return django_apps.get_model(settings.AUTH_USER_MODEL, require_ready=False)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\apps\registry.py:203: in get_model
+    self.check_apps_ready()
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\apps\registry.py:138: in check_apps_ready
+    raise AppRegistryNotReady("Apps aren't loaded yet.")
+E   django.core.exceptions.AppRegistryNotReady: Apps aren't loaded yet.
+______________ ERROR collecting tests/test_analytics_phase20.py _______________
+tests\test_analytics_phase20.py:17: in <module>
+    from django.contrib.auth.models import Group
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\models.py:5: in <module>
+    from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\base_user.py:43: in <module>
+    class AbstractBaseUser(models.Model):
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\base.py:131: in __new__
+    app_config = apps.get_containing_app_config(module)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\apps\registry.py:260: in get_containing_app_config
+    self.check_apps_ready()
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\apps\registry.py:138: in check_apps_ready
+    raise AppRegistryNotReady("Apps aren't loaded yet.")
+E   django.core.exceptions.AppRegistryNotReady: Apps aren't loaded yet.
+_____________________ ERROR collecting tests/test_api.py ______________________
+'django_db' not found in `markers` configuration option
+______________ ERROR collecting tests/test_backoffice_phase16.py ______________
+tests\test_backoffice_phase16.py:19: in <module>
+    from django.contrib.auth.models import Group
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\models.py:5: in <module>
+    from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\base_user.py:43: in <module>
+    class AbstractBaseUser(models.Model):
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\base.py:131: in __new__
+    app_config = apps.get_containing_app_config(module)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\apps\registry.py:260: in get_containing_app_config
+    self.check_apps_ready()
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\apps\registry.py:138: in check_apps_ready
+    raise AppRegistryNotReady("Apps aren't loaded yet.")
+E   django.core.exceptions.AppRegistryNotReady: Apps aren't loaded yet.
+________________ ERROR collecting tests/test_catalog_admin.py _________________
+'django_db' not found in `markers` configuration option
+_________________ ERROR collecting tests/test_catalog_api.py __________________
+'django_db' not found in `markers` configuration option
+______________ ERROR collecting tests/test_catalog_attributes.py ______________
+tests\test_catalog_attributes.py:10: in <module>
+    from apps.catalog.models import Color, Fit, Material, ProductTag, Size
+apps\catalog\models\__init__.py:8: in <module>
+    from apps.catalog.models.attributes import Color, Fit, Material, ProductTag, Size
+apps\catalog\models\attributes.py:31: in <module>
+    from apps.catalog.models.base import SluggedModel
+apps\catalog\models\base.py:21: in <module>
+    class TimestampedModel(models.Model):
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\base.py:131: in __new__
+    app_config = apps.get_containing_app_config(module)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\apps\registry.py:260: in get_containing_app_config
+    self.check_apps_ready()
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\apps\registry.py:138: in check_apps_ready
+    raise AppRegistryNotReady("Apps aren't loaded yet.")
+E   django.core.exceptions.AppRegistryNotReady: Apps aren't loaded yet.
+________________ ERROR collecting tests/test_catalog_images.py ________________
+'django_db' not found in `markers` configuration option
+________________ ERROR collecting tests/test_catalog_models.py ________________
+tests\test_catalog_models.py:18: in <module>
+    from apps.catalog import services
+apps\catalog\services.py:21: in <module>
+    from apps.catalog.models import Category, Product, ProductImage, ProductVariant
+apps\catalog\models\__init__.py:8: in <module>
+    from apps.catalog.models.attributes import Color, Fit, Material, ProductTag, Size
+apps\catalog\models\attributes.py:31: in <module>
+    from apps.catalog.models.base import SluggedModel
+apps\catalog\models\base.py:21: in <module>
+    class TimestampedModel(models.Model):
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\base.py:131: in __new__
+    app_config = apps.get_containing_app_config(module)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\apps\registry.py:260: in get_containing_app_config
+    self.check_apps_ready()
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\apps\registry.py:138: in check_apps_ready
+    raise AppRegistryNotReady("Apps aren't loaded yet.")
+E   django.core.exceptions.AppRegistryNotReady: Apps aren't loaded yet.
+______________ ERROR collecting tests/test_catalog_selectors.py _______________
+tests\test_catalog_selectors.py:13: in <module>
+    from apps.catalog import selectors
+apps\catalog\selectors.py:21: in <module>
+    from apps.catalog.models import (
+apps\catalog\models\__init__.py:8: in <module>
+    from apps.catalog.models.attributes import Color, Fit, Material, ProductTag, Size
+apps\catalog\models\attributes.py:31: in <module>
+    from apps.catalog.models.base import SluggedModel
+apps\catalog\models\base.py:21: in <module>
+    class TimestampedModel(models.Model):
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\base.py:131: in __new__
+    app_config = apps.get_containing_app_config(module)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\apps\registry.py:260: in get_containing_app_config
+    self.check_apps_ready()
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\apps\registry.py:138: in check_apps_ready
+    raise AppRegistryNotReady("Apps aren't loaded yet.")
+E   django.core.exceptions.AppRegistryNotReady: Apps aren't loaded yet.
+______________ ERROR collecting tests/test_catalog_storefront.py ______________
+'django_db' not found in `markers` configuration option
+__________ ERROR collecting tests/test_checkout_discounts_phase7.py ___________
+tests\test_checkout_discounts_phase7.py:16: in <module>
+    from apps.engagement.models import PointsReservation, PromotionUsage
+apps\engagement\models\__init__.py:8: in <module>
+    from apps.engagement.models.loyalty import PointsReservation, PointsTransaction
+apps\engagement\models\loyalty.py:32: in <module>
+    from apps.catalog.models.base import TimestampedModel
+apps\catalog\models\__init__.py:8: in <module>
+    from apps.catalog.models.attributes import Color, Fit, Material, ProductTag, Size
+apps\catalog\models\attributes.py:31: in <module>
+    from apps.catalog.models.base import SluggedModel
+apps\catalog\models\base.py:21: in <module>
+    class TimestampedModel(models.Model):
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\base.py:131: in __new__
+    app_config = apps.get_containing_app_config(module)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\apps\registry.py:260: in get_containing_app_config
+    self.check_apps_ready()
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\apps\registry.py:138: in check_apps_ready
+    raise AppRegistryNotReady("Apps aren't loaded yet.")
+E   django.core.exceptions.AppRegistryNotReady: Apps aren't loaded yet.
+_____________________ ERROR collecting tests/test_core.py _____________________
+'django_db' not found in `markers` configuration option
+______________ ERROR collecting tests/test_frontend_and_admin.py ______________
+'django_db' not found in `markers` configuration option
+_______________ ERROR collecting tests/test_inventory_phase6.py _______________
+tests\test_inventory_phase6.py:22: in <module>
+    from apps.inventory.models import InventoryMovement, Reservation, Stock
+apps\inventory\models.py:28: in <module>
+    from apps.catalog.models.base import TimestampedModel
+apps\catalog\models\__init__.py:8: in <module>
+    from apps.catalog.models.attributes import Color, Fit, Material, ProductTag, Size
+apps\catalog\models\attributes.py:31: in <module>
+    from apps.catalog.models.base import SluggedModel
+apps\catalog\models\base.py:21: in <module>
+    class TimestampedModel(models.Model):
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\base.py:131: in __new__
+    app_config = apps.get_containing_app_config(module)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\apps\registry.py:260: in get_containing_app_config
+    self.check_apps_ready()
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\apps\registry.py:138: in check_apps_ready
+    raise AppRegistryNotReady("Apps aren't loaded yet.")
+E   django.core.exceptions.AppRegistryNotReady: Apps aren't loaded yet.
+_________________ ERROR collecting tests/test_loop_phase13.py _________________
+tests\test_loop_phase13.py:36: in <module>
+    from apps.inventory.models import Stock
+apps\inventory\models.py:28: in <module>
+    from apps.catalog.models.base import TimestampedModel
+apps\catalog\models\__init__.py:8: in <module>
+    from apps.catalog.models.attributes import Color, Fit, Material, ProductTag, Size
+apps\catalog\models\attributes.py:31: in <module>
+    from apps.catalog.models.base import SluggedModel
+apps\catalog\models\base.py:21: in <module>
+    class TimestampedModel(models.Model):
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\base.py:131: in __new__
+    app_config = apps.get_containing_app_config(module)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\apps\registry.py:260: in get_containing_app_config
+    self.check_apps_ready()
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\apps\registry.py:138: in check_apps_ready
+    raise AppRegistryNotReady("Apps aren't loaded yet.")
+E   django.core.exceptions.AppRegistryNotReady: Apps aren't loaded yet.
+________________ ERROR collecting tests/test_loyalty_phase7.py ________________
+tests\test_loyalty_phase7.py:18: in <module>
+    from apps.engagement.models import PointsReservation, PointsTransaction
+apps\engagement\models\__init__.py:8: in <module>
+    from apps.engagement.models.loyalty import PointsReservation, PointsTransaction
+apps\engagement\models\loyalty.py:32: in <module>
+    from apps.catalog.models.base import TimestampedModel
+apps\catalog\models\__init__.py:8: in <module>
+    from apps.catalog.models.attributes import Color, Fit, Material, ProductTag, Size
+apps\catalog\models\attributes.py:31: in <module>
+    from apps.catalog.models.base import SluggedModel
+apps\catalog\models\base.py:21: in <module>
+    class TimestampedModel(models.Model):
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\base.py:131: in __new__
+    app_config = apps.get_containing_app_config(module)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\apps\registry.py:260: in get_containing_app_config
+    self.check_apps_ready()
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\apps\registry.py:138: in check_apps_ready
+    raise AppRegistryNotReady("Apps aren't loaded yet.")
+E   django.core.exceptions.AppRegistryNotReady: Apps aren't loaded yet.
+____________ ERROR collecting tests/test_notifications_phase17.py _____________
+tests\test_notifications_phase17.py:36: in <module>
+    from apps.notifications import selectors, tasks
+apps\notifications\selectors.py:18: in <module>
+    from apps.notifications.models import Channel, Notification
+apps\notifications\models.py:177: in <module>
+    class Notification(models.Model):
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\base.py:131: in __new__
+    app_config = apps.get_containing_app_config(module)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\apps\registry.py:260: in get_containing_app_config
+    self.check_apps_ready()
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\apps\registry.py:138: in check_apps_ready
+    raise AppRegistryNotReady("Apps aren't loaded yet.")
+E   django.core.exceptions.AppRegistryNotReady: Apps aren't loaded yet.
+________________ ERROR collecting tests/test_orders_phase6.py _________________
+tests\test_orders_phase6.py:19: in <module>
+    from apps.inventory.models import Reservation, Stock
+apps\inventory\models.py:28: in <module>
+    from apps.catalog.models.base import TimestampedModel
+apps\catalog\models\__init__.py:8: in <module>
+    from apps.catalog.models.attributes import Color, Fit, Material, ProductTag, Size
+apps\catalog\models\attributes.py:31: in <module>
+    from apps.catalog.models.base import SluggedModel
+apps\catalog\models\base.py:21: in <module>
+    class TimestampedModel(models.Model):
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\base.py:131: in __new__
+    app_config = apps.get_containing_app_config(module)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\apps\registry.py:260: in get_containing_app_config
+    self.check_apps_ready()
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\apps\registry.py:138: in check_apps_ready
+    raise AppRegistryNotReady("Apps aren't loaded yet.")
+E   django.core.exceptions.AppRegistryNotReady: Apps aren't loaded yet.
+_______________ ERROR collecting tests/test_payments_phase6.py ________________
+tests\test_payments_phase6.py:20: in <module>
+    from apps.inventory.models import Reservation, Stock
+apps\inventory\models.py:28: in <module>
+    from apps.catalog.models.base import TimestampedModel
+apps\catalog\models\__init__.py:8: in <module>
+    from apps.catalog.models.attributes import Color, Fit, Material, ProductTag, Size
+apps\catalog\models\attributes.py:31: in <module>
+    from apps.catalog.models.base import SluggedModel
+apps\catalog\models\base.py:21: in <module>
+    class TimestampedModel(models.Model):
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\base.py:131: in __new__
+    app_config = apps.get_containing_app_config(module)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\apps\registry.py:260: in get_containing_app_config
+    self.check_apps_ready()
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\apps\registry.py:138: in check_apps_ready
+    raise AppRegistryNotReady("Apps aren't loaded yet.")
+E   django.core.exceptions.AppRegistryNotReady: Apps aren't loaded yet.
+_____________ ERROR collecting tests/test_performance_baseline.py _____________
+tests\test_performance_baseline.py:14: in <module>
+    from django.contrib.auth.models import Group
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\models.py:5: in <module>
+    from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\base_user.py:43: in <module>
+    class AbstractBaseUser(models.Model):
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\base.py:131: in __new__
+    app_config = apps.get_containing_app_config(module)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\apps\registry.py:260: in get_containing_app_config
+    self.check_apps_ready()
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\apps\registry.py:138: in check_apps_ready
+    raise AppRegistryNotReady("Apps aren't loaded yet.")
+E   django.core.exceptions.AppRegistryNotReady: Apps aren't loaded yet.
+____________ ERROR collecting tests/test_phase18_infrastructure.py ____________
+'django_db' not found in `markers` configuration option
+_____________ ERROR collecting tests/test_phase19_query_counts.py _____________
+tests\test_phase19_query_counts.py:18: in <module>
+    from django.contrib.auth.models import Group
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\models.py:5: in <module>
+    from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\base_user.py:43: in <module>
+    class AbstractBaseUser(models.Model):
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\base.py:131: in __new__
+    app_config = apps.get_containing_app_config(module)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\apps\registry.py:260: in get_containing_app_config
+    self.check_apps_ready()
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\apps\registry.py:138: in check_apps_ready
+    raise AppRegistryNotReady("Apps aren't loaded yet.")
+E   django.core.exceptions.AppRegistryNotReady: Apps aren't loaded yet.
+______________ ERROR collecting tests/test_phase1_acceptance.py _______________
+'django_db' not found in `markers` configuration option
+________________ ERROR collecting tests/test_project_config.py ________________
+'django_db' not found in `markers` configuration option
+______________ ERROR collecting tests/test_promotions_phase7.py _______________
+tests\test_promotions_phase7.py:18: in <module>
+    from apps.engagement.models import Promotion, PromotionUsage
+apps\engagement\models\__init__.py:8: in <module>
+    from apps.engagement.models.loyalty import PointsReservation, PointsTransaction
+apps\engagement\models\loyalty.py:32: in <module>
+    from apps.catalog.models.base import TimestampedModel
+apps\catalog\models\__init__.py:8: in <module>
+    from apps.catalog.models.attributes import Color, Fit, Material, ProductTag, Size
+apps\catalog\models\attributes.py:31: in <module>
+    from apps.catalog.models.base import SluggedModel
+apps\catalog\models\base.py:21: in <module>
+    class TimestampedModel(models.Model):
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\base.py:131: in __new__
+    app_config = apps.get_containing_app_config(module)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\apps\registry.py:260: in get_containing_app_config
+    self.check_apps_ready()
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\apps\registry.py:138: in check_apps_ready
+    raise AppRegistryNotReady("Apps aren't loaded yet.")
+E   django.core.exceptions.AppRegistryNotReady: Apps aren't loaded yet.
+________________ ERROR collecting tests/test_quests_phase14.py ________________
+tests\test_quests_phase14.py:37: in <module>
+    from apps.closet.models import ClosetItem, Outfit
+apps\closet\models\__init__.py:7: in <module>
+    from apps.closet.models.items import ClosetItem
+apps\closet\models\items.py:31: in <module>
+    from apps.catalog.models.base import TimestampedModel
+apps\catalog\models\__init__.py:8: in <module>
+    from apps.catalog.models.attributes import Color, Fit, Material, ProductTag, Size
+apps\catalog\models\attributes.py:31: in <module>
+    from apps.catalog.models.base import SluggedModel
+apps\catalog\models\base.py:21: in <module>
+    class TimestampedModel(models.Model):
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\base.py:131: in __new__
+    app_config = apps.get_containing_app_config(module)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\apps\registry.py:260: in get_containing_app_config
+    self.check_apps_ready()
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\apps\registry.py:138: in check_apps_ready
+    raise AppRegistryNotReady("Apps aren't loaded yet.")
+E   django.core.exceptions.AppRegistryNotReady: Apps aren't loaded yet.
+_______________ ERROR collecting tests/test_returns_phase23.py ________________
+tests\test_returns_phase23.py:24: in <module>
+    from django.contrib.auth.models import Group
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\models.py:5: in <module>
+    from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\base_user.py:43: in <module>
+    class AbstractBaseUser(models.Model):
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\base.py:131: in __new__
+    app_config = apps.get_containing_app_config(module)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\apps\registry.py:260: in get_containing_app_config
+    self.check_apps_ready()
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\apps\registry.py:138: in check_apps_ready
+    raise AppRegistryNotReady("Apps aren't loaded yet.")
+E   django.core.exceptions.AppRegistryNotReady: Apps aren't loaded yet.
+________________ ERROR collecting tests/test_reviews_phase7.py ________________
+tests\test_reviews_phase7.py:13: in <module>
+    from django.contrib.auth.models import AnonymousUser
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\models.py:5: in <module>
+    from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\base_user.py:43: in <module>
+    class AbstractBaseUser(models.Model):
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\base.py:131: in __new__
+    app_config = apps.get_containing_app_config(module)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\apps\registry.py:260: in get_containing_app_config
+    self.check_apps_ready()
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\apps\registry.py:138: in check_apps_ready
+    raise AppRegistryNotReady("Apps aren't loaded yet.")
+E   django.core.exceptions.AppRegistryNotReady: Apps aren't loaded yet.
+_________________ ERROR collecting tests/test_seo_phase20.py __________________
+tests\test_seo_phase20.py:16: in <module>
+    from apps.catalog.seo import listing_metadata, taxonomy_metadata
+apps\catalog\seo.py:19: in <module>
+    from apps.catalog.models import Product
+apps\catalog\models\__init__.py:8: in <module>
+    from apps.catalog.models.attributes import Color, Fit, Material, ProductTag, Size
+apps\catalog\models\attributes.py:31: in <module>
+    from apps.catalog.models.base import SluggedModel
+apps\catalog\models\base.py:21: in <module>
+    class TimestampedModel(models.Model):
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\base.py:131: in __new__
+    app_config = apps.get_containing_app_config(module)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\apps\registry.py:260: in get_containing_app_config
+    self.check_apps_ready()
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\apps\registry.py:138: in check_apps_ready
+    raise AppRegistryNotReady("Apps aren't loaded yet.")
+E   django.core.exceptions.AppRegistryNotReady: Apps aren't loaded yet.
+_________________ ERROR collecting tests/test_shop_phase5.py __________________
+tests\test_shop_phase5.py:18: in <module>
+    from apps.accounts.models import Address
+apps\accounts\models.py:14: in <module>
+    from django.contrib.auth.models import AbstractUser, BaseUserManager
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\models.py:5: in <module>
+    from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\base_user.py:43: in <module>
+    class AbstractBaseUser(models.Model):
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\base.py:131: in __new__
+    app_config = apps.get_containing_app_config(module)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\apps\registry.py:260: in get_containing_app_config
+    self.check_apps_ready()
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\apps\registry.py:138: in check_apps_ready
+    raise AppRegistryNotReady("Apps aren't loaded yet.")
+E   django.core.exceptions.AppRegistryNotReady: Apps aren't loaded yet.
+_______________ ERROR collecting tests/test_styling_phase21.py ________________
+tests\test_styling_phase21.py:19: in <module>
+    from apps.analytics.models import Event
+apps\analytics\models.py:20: in <module>
+    class Event(models.Model):
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\base.py:131: in __new__
+    app_config = apps.get_containing_app_config(module)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\apps\registry.py:260: in get_containing_app_config
+    self.check_apps_ready()
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\apps\registry.py:138: in check_apps_ready
+    raise AppRegistryNotReady("Apps aren't loaded yet.")
+E   django.core.exceptions.AppRegistryNotReady: Apps aren't loaded yet.
+_______________ ERROR collecting tests/test_support_phase15.py ________________
+tests\test_support_phase15.py:40: in <module>
+    from django.contrib.auth.models import Group
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\models.py:5: in <module>
+    from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\base_user.py:43: in <module>
+    class AbstractBaseUser(models.Model):
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\base.py:131: in __new__
+    app_config = apps.get_containing_app_config(module)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\apps\registry.py:260: in get_containing_app_config
+    self.check_apps_ready()
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\apps\registry.py:138: in check_apps_ready
+    raise AppRegistryNotReady("Apps aren't loaded yet.")
+E   django.core.exceptions.AppRegistryNotReady: Apps aren't loaded yet.
+___________ ERROR collecting tests/test_visual_discovery_phase22.py ___________
+tests\test_visual_discovery_phase22.py:26: in <module>
+    from apps.analytics.models import Event
+apps\analytics\models.py:20: in <module>
+    class Event(models.Model):
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\base.py:131: in __new__
+    app_config = apps.get_containing_app_config(module)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\apps\registry.py:260: in get_containing_app_config
+    self.check_apps_ready()
+C:\Users\flash\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\apps\registry.py:138: in check_apps_ready
+    raise AppRegistryNotReady("Apps aren't loaded yet.")
+E   django.core.exceptions.AppRegistryNotReady: Apps aren't loaded yet.
+=========================== short test summary info ===========================
+ERROR tests/test_accounts.py - Failed: 'django_db' not found in `markers` con...
+ERROR tests/test_accounts_phase2.py - django.core.exceptions.AppRegistryNotRe...
+ERROR tests/test_analytics_phase20.py - django.core.exceptions.AppRegistryNot...
+ERROR tests/test_api.py - Failed: 'django_db' not found in `markers` configur...
+ERROR tests/test_backoffice_phase16.py - django.core.exceptions.AppRegistryNo...
+ERROR tests/test_catalog_admin.py - Failed: 'django_db' not found in `markers...
+ERROR tests/test_catalog_api.py - Failed: 'django_db' not found in `markers` ...
+ERROR tests/test_catalog_attributes.py - django.core.exceptions.AppRegistryNo...
+ERROR tests/test_catalog_images.py - Failed: 'django_db' not found in `marker...
+ERROR tests/test_catalog_models.py - django.core.exceptions.AppRegistryNotRea...
+ERROR tests/test_catalog_selectors.py - django.core.exceptions.AppRegistryNot...
+ERROR tests/test_catalog_storefront.py - Failed: 'django_db' not found in `ma...
+ERROR tests/test_checkout_discounts_phase7.py - django.core.exceptions.AppReg...
+ERROR tests/test_core.py - Failed: 'django_db' not found in `markers` configu...
+ERROR tests/test_frontend_and_admin.py - Failed: 'django_db' not found in `ma...
+ERROR tests/test_inventory_phase6.py - django.core.exceptions.AppRegistryNotR...
+ERROR tests/test_loop_phase13.py - django.core.exceptions.AppRegistryNotReady...
+ERROR tests/test_loyalty_phase7.py - django.core.exceptions.AppRegistryNotRea...
+ERROR tests/test_notifications_phase17.py - django.core.exceptions.AppRegistr...
+ERROR tests/test_orders_phase6.py - django.core.exceptions.AppRegistryNotRead...
+ERROR tests/test_payments_phase6.py - django.core.exceptions.AppRegistryNotRe...
+ERROR tests/test_performance_baseline.py - django.core.exceptions.AppRegistry...
+ERROR tests/test_phase18_infrastructure.py - Failed: 'django_db' not found in...
+ERROR tests/test_phase19_query_counts.py - django.core.exceptions.AppRegistry...
+ERROR tests/test_phase1_acceptance.py - Failed: 'django_db' not found in `mar...
+ERROR tests/test_project_config.py - Failed: 'django_db' not found in `marker...
+ERROR tests/test_promotions_phase7.py - django.core.exceptions.AppRegistryNot...
+ERROR tests/test_quests_phase14.py - django.core.exceptions.AppRegistryNotRea...
+ERROR tests/test_returns_phase23.py - django.core.exceptions.AppRegistryNotRe...
+ERROR tests/test_reviews_phase7.py - django.core.exceptions.AppRegistryNotRea...
+ERROR tests/test_seo_phase20.py - django.core.exceptions.AppRegistryNotReady:...
+ERROR tests/test_shop_phase5.py - django.core.exceptions.AppRegistryNotReady:...
+ERROR tests/test_styling_phase21.py - django.core.exceptions.AppRegistryNotRe...
+ERROR tests/test_support_phase15.py - django.core.exceptions.AppRegistryNotRe...
+ERROR tests/test_visual_discovery_phase22.py - django.core.exceptions.AppRegi...
+35 errors in 1.55s
+ERROR: Unknown config option: DJANGO_SETTINGS_MODULE
+
+

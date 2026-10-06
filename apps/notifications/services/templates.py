@@ -255,6 +255,68 @@ def registry() -> dict[str, TypeSpec]:
             email_html="emails/orders/order_cancelled.html",
             email_text="emails/orders/order_cancelled.txt",
         ),
+        # -- returns & exchanges (Phase 23) -------------------------------------
+        _spec(
+            NotificationType.RETURN_REQUESTED,
+            NotificationCategory.ORDERS,
+            _EMAIL_AND_APP,
+            _('Return requested for order {{ order_number|default:"" }}'),
+            _(
+                'We received your return request {{ return_number|default:"" }}. '
+                "We will review it shortly."
+            ),
+        ),
+        _spec(
+            NotificationType.RETURN_APPROVED,
+            NotificationCategory.ORDERS,
+            _EMAIL_AND_APP,
+            _('Return approved for order {{ order_number|default:"" }}'),
+            _(
+                'Your return request {{ return_number|default:"" }} was approved. '
+                "Please ship the items back to us."
+            ),
+        ),
+        _spec(
+            NotificationType.RETURN_REJECTED,
+            NotificationCategory.ORDERS,
+            _EMAIL_AND_APP,
+            _('Return update for order {{ order_number|default:"" }}'),
+            _(
+                "Your return request was rejected{% if reason %}: {{ reason }}{% endif %}. "
+                "Contact support if you have questions."
+            ),
+        ),
+        _spec(
+            NotificationType.RETURN_RECEIVED,
+            NotificationCategory.ORDERS,
+            _EMAIL_AND_APP,
+            _('Returned items received for order {{ order_number|default:"" }}'),
+            _(
+                'We received your returned items for {{ return_number|default:"" }} '
+                "and are inspecting them."
+            ),
+        ),
+        _spec(
+            NotificationType.INSPECTION_COMPLETED,
+            NotificationCategory.ORDERS,
+            _EMAIL_AND_APP,
+            _('Inspection completed for return {{ return_number|default:"" }}'),
+            _(
+                "Your returned items have been inspected. "
+                "Accepted: {{ accepted_quantity|default:0 }}, "
+                "Rejected: {{ rejected_quantity|default:0 }}."
+            ),
+        ),
+        _spec(
+            NotificationType.EXCHANGE_PROCESSED,
+            NotificationCategory.ORDERS,
+            _EMAIL_AND_APP,
+            _('Exchange processed for order {{ order_number|default:"" }}'),
+            _(
+                'Your exchange replacement for order {{ order_number|default:"" }} '
+                "has been prepared and will ship soon."
+            ),
+        ),
         # -- payments -----------------------------------------------------------
         _spec(
             NotificationType.PAYMENT_PENDING,
@@ -298,6 +360,35 @@ def registry() -> dict[str, TypeSpec]:
                 'We refunded {{ amount|default:"your payment" }} for order '
                 '{{ order_number|default:"" }}.'
             ),
+        ),
+        _spec(
+            NotificationType.REFUND_INITIATED,
+            NotificationCategory.PAYMENTS,
+            _EMAIL_AND_APP,
+            _('Refund initiated for order {{ order_number|default:"" }}'),
+            _(
+                'We initiated a refund of {{ amount|default:"" }} for order '
+                '{{ order_number|default:"" }}.'
+            ),
+        ),
+        _spec(
+            NotificationType.REFUND_COMPLETED,
+            NotificationCategory.PAYMENTS,
+            _EMAIL_AND_APP,
+            _('Refund completed for order {{ order_number|default:"" }}'),
+            _('Your refund of {{ amount|default:"" }} has completed successfully.'),
+        ),
+        _spec(
+            NotificationType.REFUND_FAILED,
+            NotificationCategory.PAYMENTS,
+            _EMAIL_AND_APP,
+            _('Refund failed for order {{ order_number|default:"" }}'),
+            _(
+                'We could not process your refund of {{ amount|default:"" }}'
+                "{% if failure_reason %}: {{ failure_reason }}{% endif %}. "
+                "Our team will assist you."
+            ),
+            priority=Priority.HIGH,
         ),
         # -- delivery / carrier events (reserved: order lifecycle covers the happy path)
         _spec(

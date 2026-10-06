@@ -29,18 +29,20 @@ from rest_framework import status
 from rest_framework.generics import ListAPIView, RetrieveAPIView
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.parsers import FormParser, MultiPartParser
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAdminUser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.analytics.services import record_event
 from apps.catalog import selectors
-from apps.catalog.models import Brand, Category, Product
+from apps.catalog.models import Brand, Category, Product, ProductImage, ProductVariant
 from apps.catalog.serializers import (
     BrandSerializer,
     CategorySerializer,
     CollectionSerializer,
     ProductDetailSerializer,
+    ProductImageCreateSerializer,
+    ProductImageSerializer,
     ProductListSerializer,
     VisualSearchResultSerializer,
 )
@@ -561,3 +563,86 @@ class VisualProductClickView(APIView):
             object_id=prod_pk,
         )
         return Response({"status": "ok"}, status=status.HTTP_200_OK)
+
+
+class AdminImageInspectUrlView(APIView):
+    """``GET/POST /api/v1/catalog/admin/images/inspect-url/`` -- staff URL inspection.
+
+    SSRF-safe inspection of an external image or webpage URL.
+    Returns metadata and candidate image URLs if the target is a webpage.
+    """
+
+    permission_classes = [IsAdminUser]
+
+    def get(self, request, *args, **kwargs):
+        url = request.query_params.get("url", "").strip()
+        return self._inspect(url)
+
+    def post(self, request, *args, **kwargs):
+        url = (request.data.get("url") or request.query_params.get("url") or "").strip()
+        return self._inspect(url)
+
+    def _inspect(self, url: str) -> Response:
+        from apps.catalog.image_fetcher import inspect_image_url
+
+        if not url:
+            return Response(
+                {"error": "url parameter is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            result = inspect_image_url(url)
+            return Response(result, status=status.HTTP_200_OK)
+        except ValidationError as error:
+            msg = error.messages[0] if hasattr(error, "messages") and error.messages else str(error)
+            return Response({"error": msg}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as error:
+            return Response({"error": str(error)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class AdminProductImageCreateView(APIView):
+    """``POST /api/v1/catalog/admin/products/<id>/images/`` -- staff image upload/import.
+
+    Supports multipart file upload or external URL import with SSRF protection.
+    Requires staff permissions.
+    """
+
+    permission_classes = [IsAdminUser]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request, product_id: int, *args, **kwargs):
+        product = get_object_or_404(Product, pk=product_id)
+        serializer = ProductImageCreateSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        data = serializer.validated_data
+        variant_id = data.get("variant_id")
+        variant = None
+        if variant_id:
+            try:
+                variant = ProductVariant.objects.get(pk=variant_id, product_id=product.pk)
+            except ProductVariant.DoesNotExist:
+                return Response(
+                    {"variant_id": ["Variant belongs to a different product or does not exist."]},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        image_instance = ProductImage.objects.create(
+            product=product,
+            image=data["image"],
+            variant=variant,
+            alt_text=data["alt_text"],
+            position=data.get("position", 0),
+            is_primary=data.get("is_primary", False),
+            source_url=data.get("source_url") or "",
+            photographer=data.get("photographer", ""),
+            attribution=data.get("attribution", ""),
+            license=data.get("license", ""),
+        )
+
+        return Response(
+            ProductImageSerializer(image_instance).data,
+            status=status.HTTP_201_CREATED,
+        )
+

@@ -172,3 +172,12 @@ class DevelopmentProvider(PaymentProvider):
             raise WebhookError("Webhook timestamp outside the accepted tolerance.")
 
         return _parse_body(request.body)
+
+    def refund_payment(
+        self, payment: Payment, amount: Decimal, *, reason: str = "", idempotency_key: str = ""
+    ) -> ProviderIntent:
+        ref_suffix = idempotency_key or f"{payment.pk}-{amount}"
+        return ProviderIntent(
+            reference=f"dev-ref-{payment.pk}-{ref_suffix}",
+            status=Payment.Status.REFUNDED,
+        )

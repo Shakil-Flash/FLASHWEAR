@@ -21,6 +21,8 @@ from apps.backoffice.api import (
     BackOfficeRootView,
 )
 from apps.catalog.api import (
+    AdminImageInspectUrlView,
+    AdminProductImageCreateView,
     BrandDetailView,
     BrandListView,
     CategoryDetailView,
@@ -67,7 +69,15 @@ from apps.notifications.api import (
     NotificationReadAllView,
     NotificationReadView,
 )
-from apps.orders.api import OrderDetailView, OrderListView
+from apps.orders.api import (
+    OrderDetailView,
+    OrderListView,
+    OrderReturnCreateView,
+    OrderReturnEligibilityView,
+    ReturnCancelView,
+    ReturnDetailView,
+    ReturnListView,
+)
 from apps.quests.api import (
     QuestDetailAPIView,
     QuestListAPIView,
@@ -158,15 +168,44 @@ urlpatterns = [
     path("collections/<slug:slug>/", CollectionDetailView.as_view(), name="collection-detail"),
     path("brands/", BrandListView.as_view(), name="brand-list"),
     path("brands/<slug:slug>/", BrandDetailView.as_view(), name="brand-detail"),
+    # Catalogue staff image endpoints
+    path(
+        "catalog/admin/images/inspect-url/",
+        AdminImageInspectUrlView.as_view(),
+        name="catalog-admin-image-inspect",
+    ),
+    path(
+        "catalog/admin/products/<int:product_id>/images/",
+        AdminProductImageCreateView.as_view(),
+        name="catalog-admin-product-image-create",
+    ),
+
     # Accounts: session-authenticated and customer-scoped (Phase 2).
     path("accounts/", AccountRegisterView.as_view(), name="account-register"),
     path("accounts/me/", AccountMeView.as_view(), name="account-me"),
     path("accounts/password/", ChangePasswordView.as_view(), name="account-password"),
     path("addresses/", AddressListCreateView.as_view(), name="address-list"),
     path("addresses/<int:pk>/", AddressDetailView.as_view(), name="address-detail"),
-    # Orders: session-authenticated and customer-scoped (Phase 6).
+    # Orders & Returns (Phase 6 & Phase 23): session-authenticated and customer-scoped.
     path("orders/", OrderListView.as_view(), name="order-list"),
     path("orders/<str:number>/", OrderDetailView.as_view(), name="order-detail"),
+    path(
+        "orders/<str:number>/return-eligibility/",
+        OrderReturnEligibilityView.as_view(),
+        name="order-return-eligibility",
+    ),
+    path(
+        "orders/<str:number>/returns/",
+        OrderReturnCreateView.as_view(),
+        name="order-return-create",
+    ),
+    path("returns/", ReturnListView.as_view(), name="return-list"),
+    path("returns/<str:number>/", ReturnDetailView.as_view(), name="return-detail"),
+    path(
+        "returns/<str:number>/cancel/",
+        ReturnCancelView.as_view(),
+        name="return-cancel",
+    ),
     # Phase 17: the notification center (session-authenticated, customer-scoped; writes
     # are throttled by DRF scope and the sliding-window NotificationThrottle).
     path("notifications/", NotificationListView.as_view(), name="notification-list"),

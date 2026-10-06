@@ -91,6 +91,7 @@ class InventoryMovement(models.Model):
         RELEASED = "released", _("Released")
         EXPIRED = "expired", _("Hold expired")
         SOLD = "sold", _("Sold")
+        RETURNED = "returned", _("Returned")
 
     variant = models.ForeignKey(
         "catalog.ProductVariant",

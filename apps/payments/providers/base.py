@@ -98,3 +98,9 @@ class PaymentProvider(ABC):
             InvalidSignature: authentication failed.
             WebhookError: authenticated but malformed / unsupported.
         """
+
+    @abstractmethod
+    def refund_payment(
+        self, payment, amount: Decimal, *, reason: str = "", idempotency_key: str = ""
+    ) -> ProviderIntent:
+        """Issue a refund against a succeeded payment. Never called inside a transaction."""

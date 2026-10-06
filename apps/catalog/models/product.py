@@ -640,6 +640,30 @@ class ProductImage(TimestampedModel):
         default=False,
         help_text=_("Used on product cards. Exactly one per product once images exist."),
     )
+    source_url = models.URLField(
+        _("source URL"),
+        blank=True,
+        default="",
+        help_text=_("Original external image URL, if imported from the web."),
+    )
+    photographer = models.CharField(
+        _("photographer"),
+        max_length=200,
+        blank=True,
+        help_text=_("Credit for the image source."),
+    )
+    attribution = models.CharField(
+        _("attribution"),
+        max_length=255,
+        blank=True,
+        help_text=_("Attribution statement or copyright notice for external image."),
+    )
+    license = models.CharField(
+        _("license"),
+        max_length=200,
+        blank=True,
+        help_text=_("License or usage terms for the external image."),
+    )
 
     class Meta:
         verbose_name = _("product image")
@@ -673,6 +697,11 @@ class ProductImage(TimestampedModel):
         if variant is not None:
             return variant.color_id
         return self.variant.color_id if self.variant_id else None
+
+    @property
+    def image_source(self) -> str:
+        """Indicator showing whether image was uploaded directly or from an external URL."""
+        return "External URL" if bool(self.source_url) else "Uploaded File"
 
     def clean(self):
         super().clean()

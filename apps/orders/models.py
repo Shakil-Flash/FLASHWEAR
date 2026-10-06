@@ -27,7 +27,18 @@ from django.utils.translation import gettext_lazy as _
 
 from apps.catalog.models.base import TimestampedModel
 
-__all__ = ["Order", "OrderAddress", "OrderEvent", "OrderItem", "Shipment", "ShipmentEvent"]
+__all__ = [
+    "InvalidTransition",
+    "Order",
+    "OrderAddress",
+    "OrderEvent",
+    "OrderItem",
+    "ReturnEvent",
+    "ReturnItem",
+    "ReturnRequest",
+    "Shipment",
+    "ShipmentEvent",
+]
 
 
 class InvalidTransition(Exception):
@@ -487,3 +498,262 @@ class ShipmentEvent(models.Model):
 
     def __str__(self) -> str:
         return f"{self.shipment_id}: {self.event_type}"
+
+
+# =============================================================================
+# Returns & Exchanges (Phase 23)
+# =============================================================================
+
+
+class ReturnRequest(TimestampedModel):
+    """Customer-initiated return or exchange for items on an eligible order."""
+
+    class Status(models.TextChoices):
+        REQUESTED = "requested", _("Requested")
+        APPROVED = "approved", _("Approved")
+        RECEIVED = "received", _("Received")
+        INSPECTED = "inspected", _("Inspected")
+        REFUNDED = "refunded", _("Refunded")
+        COMPLETED = "completed", _("Completed")
+        REJECTED = "rejected", _("Rejected")
+        CANCELLED = "cancelled", _("Cancelled")
+
+    ALLOWED_TRANSITIONS: dict[str, tuple[str, ...]] = {
+        Status.REQUESTED: (Status.APPROVED, Status.REJECTED, Status.CANCELLED),
+        Status.APPROVED: (Status.RECEIVED, Status.CANCELLED),
+        Status.RECEIVED: (Status.INSPECTED,),
+        Status.INSPECTED: (Status.REFUNDED, Status.COMPLETED, Status.REJECTED),
+        Status.REFUNDED: (),
+        Status.COMPLETED: (),
+        Status.REJECTED: (),
+        Status.CANCELLED: (),
+    }
+
+    class ReturnType(models.TextChoices):
+        REFUND = "refund", _("Refund")
+        EXCHANGE = "exchange", _("Exchange")
+
+    class Reason(models.TextChoices):
+        SIZE_FIT = "size_fit", _("Size or fit issue")
+        DEFECTIVE = "defective", _("Defective or damaged")
+        NOT_AS_DESCRIBED = "not_as_described", _("Item not as described")
+        CHANGED_MIND = "changed_mind", _("Changed mind")
+        WRONG_ITEM = "wrong_item", _("Wrong item received")
+        OTHER = "other", _("Other")
+
+    number = models.CharField(
+        _("return number"),
+        max_length=32,
+        unique=True,
+        db_index=True,
+        help_text=_("Public handle: RET-<date>-<random>."),
+    )
+    order = models.ForeignKey(
+        Order,
+        on_delete=models.PROTECT,
+        related_name="returns",
+        verbose_name=_("order"),
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="returns",
+        verbose_name=_("user"),
+    )
+    status = models.CharField(
+        _("status"),
+        max_length=24,
+        choices=Status.choices,
+        default=Status.REQUESTED,
+        db_index=True,
+    )
+    return_type = models.CharField(
+        _("return type"),
+        max_length=16,
+        choices=ReturnType.choices,
+        default=ReturnType.REFUND,
+    )
+    reason = models.CharField(
+        _("primary reason"),
+        max_length=32,
+        choices=Reason.choices,
+        default=Reason.SIZE_FIT,
+    )
+    customer_note = models.TextField(_("customer note"), blank=True)
+    staff_note = models.TextField(_("staff note"), blank=True)
+    tracking_number = models.CharField(_("return tracking number"), max_length=64, blank=True)
+
+    # Lifecycle timestamps
+    approved_at = models.DateTimeField(_("approved at"), null=True, blank=True)
+    received_at = models.DateTimeField(_("received at"), null=True, blank=True)
+    inspected_at = models.DateTimeField(_("inspected at"), null=True, blank=True)
+    refunded_at = models.DateTimeField(_("refunded at"), null=True, blank=True)
+    completed_at = models.DateTimeField(_("completed at"), null=True, blank=True)
+    rejected_at = models.DateTimeField(_("rejected at"), null=True, blank=True)
+    cancelled_at = models.DateTimeField(_("cancelled at"), null=True, blank=True)
+
+    class Meta:
+        verbose_name = _("return request")
+        verbose_name_plural = _("return requests")
+        ordering = ("-created_at",)
+        indexes = [
+            models.Index(fields=["order", "-created_at"]),
+            models.Index(fields=["user", "-created_at"]),
+            models.Index(fields=["status", "-created_at"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.number} ({self.order.number}) -> {self.status}"
+
+    @property
+    def is_cancellable_by_customer(self) -> bool:
+        """Customer may cancel their return while it is in REQUESTED state."""
+        return self.status == self.Status.REQUESTED
+
+    def can_transition_to(self, target: str) -> bool:
+        return target in self.ALLOWED_TRANSITIONS.get(self.status, ())
+
+    def transition_to(
+        self,
+        target: str,
+        *,
+        actor=None,
+        note: str = "",
+        event_type: str = "status_changed",
+        metadata: dict | None = None,
+        save: bool = True,
+    ) -> ReturnRequest:
+        if target == self.status:
+            return self
+        if not self.can_transition_to(target):
+            raise InvalidTransition("return request", self.status, target)
+
+        previous = self.status
+        self.status = target
+        stamp_attr = f"{target}_at"
+        if hasattr(self, stamp_attr) and getattr(self, stamp_attr) is None:
+            setattr(self, stamp_attr, timezone.now())
+
+        if save:
+            update_fields = {"status", "updated_at"}
+            if hasattr(self, stamp_attr):
+                update_fields.add(stamp_attr)
+            self.save(update_fields=sorted(update_fields))
+
+        ReturnEvent.objects.create(
+            return_request=self,
+            event_type=event_type,
+            actor=actor,
+            note=note
+            or _("Status changed from %(from)s to %(to)s.") % {"from": previous, "to": target},
+            metadata={"from": previous, "to": target, **(metadata or {})},
+        )
+        return self
+
+
+class ReturnItem(models.Model):
+    """Specific line item and quantity included in a return request."""
+
+    class Condition(models.TextChoices):
+        UNOPENED = "unopened", _("Unopened / Original packaging")
+        LIKE_NEW = "like_new", _("Like new / Unworn")
+        OPENED_UNUSED = "opened_unused", _("Opened but unused")
+        DAMAGED_CUSTOMER = "damaged_customer", _("Customer damaged")
+        DEFECTIVE = "defective", _("Defective item")
+        WORN = "worn", _("Worn or washed")
+
+    return_request = models.ForeignKey(
+        ReturnRequest,
+        on_delete=models.CASCADE,
+        related_name="items",
+        verbose_name=_("return request"),
+    )
+    order_item = models.ForeignKey(
+        OrderItem,
+        on_delete=models.PROTECT,
+        related_name="return_items",
+        verbose_name=_("order item"),
+    )
+    quantity = models.PositiveIntegerField(_("requested quantity"))
+    reason = models.CharField(
+        _("reason"),
+        max_length=32,
+        choices=ReturnRequest.Reason.choices,
+        blank=True,
+    )
+    customer_note = models.CharField(_("customer note"), max_length=300, blank=True)
+
+    # For exchanges
+    replacement_variant = models.ForeignKey(
+        "catalog.ProductVariant",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="replacement_return_items",
+        verbose_name=_("replacement variant"),
+    )
+    price_difference = models.DecimalField(
+        _("price difference"),
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        help_text=_("Replacement variant total minus original line price."),
+    )
+
+    # For inspection
+    received_quantity = models.PositiveIntegerField(_("received quantity"), default=0)
+    accepted_quantity = models.PositiveIntegerField(_("accepted quantity"), default=0)
+    rejected_quantity = models.PositiveIntegerField(_("rejected quantity"), default=0)
+    condition = models.CharField(
+        _("condition"),
+        max_length=32,
+        choices=Condition.choices,
+        blank=True,
+    )
+    inspection_notes = models.TextField(_("inspection notes"), blank=True)
+    refund_amount = models.DecimalField(
+        _("refund amount"),
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal("0.00"),
+    )
+    is_restocked = models.BooleanField(_("is restocked"), default=False)
+
+    class Meta:
+        verbose_name = _("return item")
+        verbose_name_plural = _("return items")
+        ordering = ("pk",)
+
+    def __str__(self) -> str:
+        return f"{self.order_item.product_name} x{self.quantity}"
+
+
+class ReturnEvent(models.Model):
+    """Append-only audit trail for a return request."""
+
+    return_request = models.ForeignKey(
+        ReturnRequest,
+        on_delete=models.CASCADE,
+        related_name="events",
+        verbose_name=_("return request"),
+    )
+    event_type = models.CharField(_("event type"), max_length=32)
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name=_("actor"),
+    )
+    note = models.CharField(_("note"), max_length=300, blank=True)
+    metadata = models.JSONField(_("metadata"), default=dict, blank=True)
+    created_at = models.DateTimeField(_("created at"), auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("return event")
+        verbose_name_plural = _("return events")
+        ordering = ("-created_at", "-pk")
+
+    def __str__(self) -> str:
+        return f"{self.return_request.number}: {self.event_type}"

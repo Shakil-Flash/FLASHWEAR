@@ -123,6 +123,9 @@ LOCAL_APPS = [
     "apps.backoffice",
 ]
 
+
+
+
 INSTALLED_APPS = [*LOCAL_APPS, *THIRD_PARTY_APPS, *DJANGO_APPS]
 
 SITE_ID = 1
@@ -541,6 +544,9 @@ CATALOG_IMAGE_ALLOWED_FORMATS = tuple(
     item.strip().upper()
     for item in env.list("CATALOG_IMAGE_ALLOWED_FORMATS", default=["JPEG", "PNG", "WEBP"])
 )
+
+# Forward-compatibility: assume https for forms.URLField
+FORMS_URLFIELD_ASSUME_HTTPS = True
 
 # Server-rendered storefront grid size, and the API defaults. The API caps ``?page_size`` at
 # ``CATALOG_API_MAX_PAGE_SIZE`` so a client cannot ask for the whole catalog in one response.
@@ -990,3 +996,9 @@ MESSAGE_TAGS = {
     30: "warning",
     40: "danger",
 }
+
+# --------------------------------------------------------------------------------------
+# Phase 23: Returns, Exchanges & Refunds
+# --------------------------------------------------------------------------------------
+
+RETURN_WINDOW_DAYS = env.int("RETURN_WINDOW_DAYS", default=30)

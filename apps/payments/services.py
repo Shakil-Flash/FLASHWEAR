@@ -26,20 +26,30 @@ Lock order: payment -> order -> reservation -> stock rows (ascending variant id)
 from __future__ import annotations
 
 import logging
+import secrets
+import string
+from decimal import Decimal
 
 from django.db import IntegrityError, transaction
+from django.utils import timezone
 
 from apps.inventory.services import consume_holds
 from apps.orders.models import Order, OrderEvent
 from apps.orders.services import cancel_order
 from apps.orders.signals import order_paid
-from apps.payments.models import Payment, PaymentEvent
+from apps.payments.models import Payment, PaymentEvent, Refund
 from apps.payments.providers import get_provider, provider_name
 from apps.payments.providers.base import ProviderEvent, ProviderIntent, WebhookError
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["cancel_payment", "handle_provider_event", "start_payment"]
+__all__ = [
+    "cancel_payment",
+    "generate_refund_number",
+    "handle_provider_event",
+    "process_refund",
+    "start_payment",
+]
 
 
 # =============================================================================
@@ -336,3 +346,170 @@ def _on_unpaid(payment: Payment, event: ProviderEvent, event_type: str, note: st
             note=note,
             metadata={"event": event.event_id, "order_status": order.status},
         )
+
+
+# =============================================================================
+# Refunds (Phase 23)
+# =============================================================================
+
+
+def generate_refund_number() -> str:
+    """Generate public handle: REF-<yyyymmdd>-<8 random chars>."""
+    stamp = timezone.now().strftime("%Y%m%d")
+    alphabet = string.ascii_uppercase + string.digits
+    suffix = "".join(secrets.choice(alphabet) for _ in range(8))
+    return f"REF-{stamp}-{suffix}"
+
+
+@transaction.atomic
+def process_refund(
+    order: Order,
+    amount: Decimal,
+    *,
+    reason: str = "return",
+    return_request=None,
+    refund_shipping: bool = False,
+    note: str = "",
+    actor=None,
+    idempotency_key: str = "",
+) -> Refund:
+    """Issue a refund against the order's succeeded payment.
+
+    Idempotent: if a refund matching the idempotency key already exists,
+    returns the existing refund.
+    """
+    if amount <= Decimal("0.00"):
+        raise ValueError("Refund amount must be strictly greater than zero.")
+
+    # 1. Lock payment and order
+    payment = Payment.objects.select_for_update().get(order=order)
+    order = Order.objects.select_for_update().get(pk=order.pk)
+
+    if payment.status not in (Payment.Status.SUCCEEDED, Payment.Status.REFUNDED):
+        raise ValueError(f"Cannot refund payment in status {payment.status!r}.")
+
+    # 2. Check for idempotency
+    if idempotency_key:
+        existing = Refund.objects.filter(
+            payment=payment,
+            provider_reference__endswith=idempotency_key,
+            status=Refund.Status.SUCCEEDED,
+        ).first()
+        if existing is not None:
+            return existing
+
+    # 3. Verify total refunded does not exceed payment amount
+    succeeded_refunds = payment.refunds.filter(status=Refund.Status.SUCCEEDED)
+    total_already_refunded = sum((r.amount for r in succeeded_refunds), Decimal("0.00"))
+    if total_already_refunded + amount > payment.amount:
+        raise ValueError(
+            f"Refund amount {amount} exceeds remaining refundable amount "
+            f"({payment.amount - total_already_refunded})."
+        )
+
+    # 4. Invoke payment provider refund
+    refund_number = generate_refund_number()
+    provider = get_provider()
+    provider_intent = provider.refund_payment(
+        payment,
+        amount,
+        reason=reason,
+        idempotency_key=idempotency_key or refund_number,
+    )
+
+    # 5. Create immutable Refund record
+    refund = Refund.objects.create(
+        number=refund_number,
+        order=order,
+        payment=payment,
+        return_request=return_request,
+        amount=amount,
+        currency=order.currency,
+        status=Refund.Status.SUCCEEDED,
+        reason=reason,
+        provider=payment.provider,
+        provider_reference=provider_intent.reference,
+        is_shipping_refunded=refund_shipping,
+        note=note,
+        processed_at=timezone.now(),
+    )
+
+    # 6. Record PaymentEvent
+    PaymentEvent.objects.create(
+        payment=payment,
+        provider=payment.provider,
+        event_id=f"refund-{refund.number}",
+        event_type=Payment.Status.REFUNDED,
+        payload={
+            "refund_number": refund.number,
+            "amount": str(amount),
+            "currency": order.currency,
+            "reason": reason,
+        },
+    )
+
+    # 7. Check if full or partial refund
+    new_total_refunded = total_already_refunded + amount
+    is_full_refund = new_total_refunded >= payment.amount
+
+    if is_full_refund:
+        if payment.status != Payment.Status.REFUNDED:
+            payment.transition_to(Payment.Status.REFUNDED)
+        if order.can_transition_to(Order.Status.REFUNDED):
+            order.transition_to(
+                Order.Status.REFUNDED,
+                actor=actor,
+                note=note or f"Order fully refunded ({amount} {order.currency}).",
+                metadata={"refund_number": refund.number, "amount": str(amount)},
+            )
+        # Reverse loyalty points earned
+        from apps.engagement.services.loyalty import reverse_earn_for_order
+
+        reverse_earn_for_order(order, note=f"Points reversed after full refund {refund.number}.")
+    else:
+        # Partial refund: record event on order
+        OrderEvent.objects.create(
+            order=order,
+            event_type=OrderEvent.Type.STATUS_CHANGED,
+            actor=actor,
+            note=f"Partial refund issued: {amount} {order.currency} ({refund.number}).",
+            metadata={"refund_number": refund.number, "amount": str(amount)},
+        )
+        # Reverse proportional loyalty points if any were earned
+        from apps.engagement.models import PointsTransaction
+
+        earn = PointsTransaction.objects.filter(
+            order=order,
+            transaction_type=PointsTransaction.TransactionType.PURCHASE_EARN,
+        ).first()
+        merch_total = order.subtotal - order.discount_amount
+        if earn and merch_total > Decimal("0.00"):
+            ratio = min(Decimal("1.0"), amount / merch_total)
+            proportional_points = int(ratio * Decimal(earn.amount))
+            if proportional_points > 0:
+                PointsTransaction.objects.get_or_create(
+                    reference=f"refund:{refund.pk}:partial",
+                    transaction_type=PointsTransaction.TransactionType.REFUND_REVERSAL,
+                    defaults={
+                        "user_id": order.user_id,
+                        "amount": -proportional_points,
+                        "order": order,
+                        "note": f"Points reversed for refund {refund.number}.",
+                    },
+                )
+
+    # 8. Notify customer
+    from apps.notifications.models import NotificationType
+
+    _notify(
+        order,
+        NotificationType.REFUND_COMPLETED,
+        f"refund:{refund.number}",
+        context={
+            "amount": f"{amount} {order.currency}",
+            "order_number": order.number,
+            "refund_number": refund.number,
+        },
+    )
+
+    return refund

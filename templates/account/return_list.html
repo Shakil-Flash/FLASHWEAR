@@ -1,0 +1,72 @@
+{% extends "account/base_account.html" %}
+{% load catalog_extras %}
+
+{% block account_title %}Returns & Exchanges{% endblock account_title %}
+{% block account_heading %}Returns & Exchanges{% endblock account_heading %}
+{% block account_intro %}Track your return and exchange requests, parcel receipts, inspections, and refund progress.{% endblock account_intro %}
+
+{% block account_content %}
+<div class="max-w-3xl">
+    {% if not returns %}
+    <div class="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center">
+        <p class="text-sm font-medium text-slate-900">No return requests yet</p>
+        <p class="mt-1 text-sm text-slate-600">
+            If you need to return or exchange an item from an eligible order, go to your
+            <a href="{% url 'account:orders' %}" class="font-medium text-slate-900 underline-offset-4 hover:underline">order history</a>.
+        </p>
+    </div>
+    {% else %}
+    <ul class="space-y-4">
+        {% for ret in returns %}
+        <li class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
+            <div class="flex flex-wrap items-start justify-between gap-4">
+                <div class="min-w-0">
+                    <a href="{% url 'account:return-detail' ret.number %}" class="text-sm font-semibold text-slate-900 underline-offset-4 hover:underline">
+                        {{ ret.number }}
+                    </a>
+                    <p class="mt-1 text-xs text-slate-500">
+                        Requested {{ ret.created_at|date:"N j, Y" }} · Order
+                        <a href="{% url 'account:order-detail' ret.order.number %}" class="font-medium text-slate-700 hover:underline">{{ ret.order.number }}</a>
+                        · {{ ret.items.all|length }} item{{ ret.items.all|length|pluralize }}
+                    </p>
+                    <p class="mt-1 text-xs font-medium text-slate-600">
+                        Type: <span class="uppercase tracking-wider text-[11px] font-semibold text-slate-800">{{ ret.get_return_type_display }}</span>
+                        · Reason: {{ ret.get_reason_display }}
+                    </p>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="rounded-full px-3 py-1 text-xs font-semibold
+                        {% if ret.status == 'requested' %}bg-amber-50 text-amber-800
+                        {% elif ret.status == 'approved' %}bg-sky-50 text-sky-800
+                        {% elif ret.status == 'received' %}bg-indigo-50 text-indigo-800
+                        {% elif ret.status == 'inspected' %}bg-purple-50 text-purple-800
+                        {% elif ret.status == 'refunded' or ret.status == 'completed' %}bg-emerald-50 text-emerald-800
+                        {% elif ret.status == 'rejected' or ret.status == 'cancelled' %}bg-rose-50 text-rose-800
+                        {% else %}bg-slate-100 text-slate-700{% endif %}">
+                        {{ ret.get_status_display }}
+                    </span>
+                    <a href="{% url 'account:return-detail' ret.number %}" class="inline-flex items-center text-xs font-medium text-indigo-600 hover:underline">
+                        View details →
+                    </a>
+                </div>
+            </div>
+        </li>
+        {% endfor %}
+    </ul>
+
+    {% if is_paginated %}
+    <nav class="mt-6 flex items-center justify-between text-sm" aria-label="Return pages">
+        {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}" class="font-medium text-slate-900 underline-offset-4 hover:underline">Newer returns</a>
+        <span class="text-slate-500">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+        {% else %}
+        <span class="text-slate-500">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+        {% endif %}
+        {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}" class="font-medium text-slate-900 underline-offset-4 hover:underline">Older returns</a>
+        {% endif %}
+    </nav>
+    {% endif %}
+    {% endif %}
+</div>
+{% endblock account_content %}

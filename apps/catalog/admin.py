@@ -24,7 +24,14 @@ from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 
 from apps.catalog import services
-from apps.catalog.forms import ProductAdminForm, ProductImageForm, ProductVariantForm
+from apps.catalog.forms import (
+    BrandAdminForm,
+    CategoryAdminForm,
+    CollectionAdminForm,
+    ProductAdminForm,
+    ProductImageForm,
+    ProductVariantForm,
+)
 from apps.catalog.models import (
     Brand,
     Category,
@@ -46,9 +53,22 @@ class ProductImageInline(admin.TabularInline):
     model = ProductImage
     form = ProductImageForm
     extra = 1
-    fields = ("image", "alt_text", "variant", "position", "is_primary")
+    fields = (
+        "preview",
+        "image",
+        "source_url",
+        "candidate_image_url",
+        "alt_text",
+        "variant",
+        "position",
+        "is_primary",
+        "photographer",
+        "attribution",
+        "license",
+        "source_badge",
+    )
     ordering = ("position", "id")
-    readonly_fields = ("color_name", "preview")
+    readonly_fields = ("color_name", "preview", "source_badge")
     autocomplete_fields = ("variant",)
 
     @admin.display(description=_("Colour"))
@@ -60,11 +80,45 @@ class ProductImageInline(admin.TabularInline):
     @admin.display(description=_("Preview"))
     def preview(self, image: ProductImage):
         if not image.pk or not image.image:
+            return format_html('<span style="color:#9ca3af;font-size:12px;">{}</span>', "—")
+        try:
+            url = image.image.url
+        except Exception:
             return "—"
+        img_style = (
+            "max-height:75px;max-width:90px;object-fit:cover;"
+            "border-radius:6px;border:1px solid #e5e7eb;"
+        )
         return format_html(
-            '<img src="{}" style="max-height:80px;border-radius:8px" alt="{}" />',
-            image.image.url,
-            image.alt_text,
+            '<a href="{url}" target="_blank" rel="noopener noreferrer">'
+            '<img src="{url}" style="{style}" alt="{alt}" />'
+            '</a>',
+            url=url,
+            style=img_style,
+            alt=image.alt_text or "Preview",
+        )
+
+    @admin.display(description=_("Source"))
+    def source_badge(self, image: ProductImage):
+        if not image.pk:
+            return "—"
+        if image.source_url:
+            from urllib.parse import urlsplit
+
+            domain = urlsplit(image.source_url).netloc or "external"
+            link_style = "color:#0284c7;text-decoration:underline;"
+            return format_html(
+                '<span class="source-badge-external">'
+                '🌐 External (<a href="{url}" target="_blank" rel="noopener noreferrer"'
+                ' style="{link_style}">{domain}</a>)'
+                '</span>',
+                url=image.source_url,
+                domain=domain,
+                link_style=link_style,
+            )
+        return format_html(
+            '<span class="source-badge-upload">{}</span>',
+            _("📁 Uploaded File"),
         )
 
 
@@ -126,6 +180,11 @@ class ProductAdmin(admin.ModelAdmin):
     # One click on Save creates or updates every variant and image above.
     save_on_top = True
     readonly_fields = ("created_at", "updated_at", "published_at_preview")
+
+    class Media:
+        css = {"all": ("admin/css/image_url_manager.css",)}
+        js = ("admin/js/image_url_manager.js",)
+
     fieldsets = (
         (None, {"fields": ("name", "slug", "short_description", "description")}),
         (
@@ -312,21 +371,71 @@ class ProductVariantAdmin(admin.ModelAdmin):
 @admin.register(ProductImage)
 class ProductImageAdmin(admin.ModelAdmin):
     form = ProductImageForm
-    list_display = ("preview_thumb", "product", "alt_text", "color_name", "position", "is_primary")
+    list_display = (
+        "preview_thumb",
+        "product",
+        "alt_text",
+        "color_name",
+        "position",
+        "is_primary",
+        "source_badge",
+    )
     list_filter = ("is_primary", "variant__color__name", "product__category")
-    search_fields = ("alt_text", "product__name")
+    search_fields = ("alt_text", "product__name", "source_url", "photographer")
     autocomplete_fields = ("product", "variant")
-    readonly_fields = ("preview_thumb", "color_name")
+    readonly_fields = ("preview_thumb", "color_name", "source_badge")
     actions = ("make_primary",)
+
+    fieldsets = (
+        (None, {"fields": ("product", "image", "source_url", "candidate_image_url")}),
+        (_("Gallery & Variation"), {"fields": ("alt_text", "variant", "position", "is_primary")}),
+        (_("Attribution & Licensing"), {"fields": ("photographer", "attribution", "license")}),
+        (_("Overview"), {"fields": ("preview_thumb", "source_badge")}),
+    )
+
+    class Media:
+        css = {"all": ("admin/css/image_url_manager.css",)}
+        js = ("admin/js/image_url_manager.js",)
 
     @admin.display(description=_("Image"))
     def preview_thumb(self, image: ProductImage):
         if not image.pk or not image.image:
+            return format_html('<span style="color:#9ca3af;font-size:12px;">—</span>')
+        try:
+            url = image.image.url
+        except Exception:
             return "—"
+        img_style = "max-height:80px;border-radius:8px;border:1px solid #e5e7eb;"
         return format_html(
-            '<img src="{}" style="max-height:80px;border-radius:8px" alt="{}" />',
-            image.image.url,
-            image.alt_text,
+            '<a href="{url}" target="_blank" rel="noopener noreferrer">'
+            '<img src="{url}" style="{style}" alt="{alt}" />'
+            '</a>',
+            url=url,
+            style=img_style,
+            alt=image.alt_text or "Preview",
+        )
+
+    @admin.display(description=_("Source"))
+    def source_badge(self, image: ProductImage):
+        if not image.pk:
+            return "—"
+        if image.source_url:
+            from urllib.parse import urlsplit
+
+            domain = urlsplit(image.source_url).netloc or "external"
+            link_style = "color:#0284c7;text-decoration:underline;"
+            return format_html(
+                '<span class="source-badge-external">'
+                '🌐 External (<a href="{url}" target="_blank" rel="noopener noreferrer"'
+                ' style="{link_style}">{domain}</a>)'
+                '</span>',
+                url=image.source_url,
+                domain=domain,
+                link_style=link_style,
+            )
+        return format_html(
+            '<span class="source-badge-upload">{}</span>',
+            _("📁 Uploaded File"),
         )
 
     @admin.display(description=_("Colour"), ordering="variant__color__name")
@@ -357,6 +466,7 @@ class ProductImageAdmin(admin.ModelAdmin):
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
+    form = CategoryAdminForm
     list_display = (
         "name",
         "parent",
@@ -372,11 +482,28 @@ class CategoryAdmin(admin.ModelAdmin):
     autocomplete_fields = ("parent",)
 
     fieldsets = (
-        (None, {"fields": ("name", "slug", "parent", "description", "image", "display_order")}),
+        (
+            None,
+            {
+                "fields": (
+                    "name",
+                    "slug",
+                    "parent",
+                    "description",
+                    "image",
+                    "image_url",
+                    "display_order",
+                )
+            },
+        ),
         (_("Visibility"), {"fields": ("is_active",)}),
         (_("Checks"), {"classes": ("collapse",), "fields": ("depth",)}),
         (_("Timestamps"), {"classes": ("collapse",), "fields": ("created_at", "updated_at")}),
     )
+
+    class Media:
+        css = {"all": ("admin/css/image_url_manager.css",)}
+        js = ("admin/js/image_url_manager.js",)
 
     def get_queryset(self, request):
         return (
@@ -419,11 +546,35 @@ def _published_in_subtree(category: Category) -> int:
 
 @admin.register(Brand)
 class BrandAdmin(admin.ModelAdmin):
+    form = BrandAdminForm
     list_display = ("name", "website_url", "is_active", "display_order", "product_count")
     list_filter = ("is_active",)
     search_fields = ("name", "slug", "description")
     prepopulated_fields = {"slug": ("name",)}
     readonly_fields = ("created_at", "updated_at")
+
+    fieldsets = (
+        (
+            None,
+            {
+                "fields": (
+                    "name",
+                    "slug",
+                    "website_url",
+                    "logo",
+                    "logo_url",
+                    "description",
+                    "display_order",
+                )
+            },
+        ),
+        (_("Visibility"), {"fields": ("is_active",)}),
+        (_("Timestamps"), {"classes": ("collapse",), "fields": ("created_at", "updated_at")}),
+    )
+
+    class Media:
+        css = {"all": ("admin/css/image_url_manager.css",)}
+        js = ("admin/js/image_url_manager.js",)
 
     def get_queryset(self, request):
         # ``product_total`` rather than ``products``: ``Brand.products`` is the reverse
@@ -439,6 +590,7 @@ class BrandAdmin(admin.ModelAdmin):
 
 @admin.register(Collection)
 class CollectionAdmin(admin.ModelAdmin):
+    form = CollectionAdminForm
     list_display = (
         "name",
         "window",
@@ -460,7 +612,9 @@ class CollectionAdmin(admin.ModelAdmin):
                     "slug",
                     "description",
                     "hero_image",
+                    "hero_image_url",
                     "banner_image",
+                    "banner_image_url",
                     "display_order",
                     "is_active",
                     "is_featured",
@@ -488,8 +642,19 @@ class CollectionAdmin(admin.ModelAdmin):
                 ),
             },
         ),
-        (_("Timestamps"), {"classes": ("collapse",), "fields": ("created_at", "updated_at")}),
+        (
+            _("Timestamps"),
+            {
+                "classes": ("collapse",),
+                "fields": ("created_at", "updated_at"),
+            },
+        ),
     )
+
+    class Media:
+        css = {"all": ("admin/css/image_url_manager.css",)}
+        js = ("admin/js/image_url_manager.js",)
+
 
     def get_queryset(self, request):
         # ``product_total`` rather than ``products``: ``Brand.products`` is the reverse

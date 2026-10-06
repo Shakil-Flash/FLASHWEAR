@@ -16,6 +16,7 @@ ACCOUNT_SECTIONS: list[tuple[str, str | None, bool]] = [
     (_("Overview"), "account:dashboard", True),
     (_("Profile"), "account:profile", True),
     (_("Orders"), "account:orders", True),
+    (_("Returns"), "account:returns", True),
     (_("Wishlist"), None, False),
     (_("Addresses"), "account:addresses", True),
     (_("Reviews"), None, False),

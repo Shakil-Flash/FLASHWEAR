@@ -18,11 +18,84 @@ from apps.orders.models import (
     OrderAddress,
     OrderEvent,
     OrderItem,
+    ReturnEvent,
+    ReturnItem,
+    ReturnRequest,
     Shipment,
     ShipmentEvent,
 )
 
-__all__ = ["OrderAdmin", "ShipmentAdmin"]
+__all__ = ["OrderAdmin", "ReturnRequestAdmin", "ShipmentAdmin"]
+
+
+class ReturnItemInline(admin.TabularInline):
+    model = ReturnItem
+    extra = 0
+    can_delete = False
+    fields = (
+        "order_item",
+        "quantity",
+        "reason",
+        "replacement_variant",
+        "price_difference",
+        "received_quantity",
+        "accepted_quantity",
+        "rejected_quantity",
+        "condition",
+        "refund_amount",
+        "is_restocked",
+    )
+    readonly_fields = fields
+    ordering = ("pk",)
+
+
+class ReturnEventInline(admin.TabularInline):
+    model = ReturnEvent
+    extra = 0
+    can_delete = False
+    fields = ("created_at", "event_type", "actor", "note")
+    readonly_fields = fields
+    ordering = ("-created_at",)
+    show_change_link = True
+
+
+@admin.register(ReturnRequest)
+class ReturnRequestAdmin(admin.ModelAdmin):
+    """Admin management for customer returns and exchanges."""
+
+    list_display = (
+        "number",
+        "order",
+        "user",
+        "status",
+        "return_type",
+        "reason",
+        "created_at",
+    )
+    list_filter = ("status", "return_type", "reason", ("created_at", admin.DateFieldListFilter))
+    search_fields = ("number", "order__number", "user__email")
+    list_select_related = ("order", "user")
+    date_hierarchy = "created_at"
+    inlines = (ReturnItemInline, ReturnEventInline)
+    readonly_fields = (
+        "number",
+        "order",
+        "user",
+        "status",
+        "return_type",
+        "reason",
+        "customer_note",
+        "tracking_number",
+        "approved_at",
+        "received_at",
+        "inspected_at",
+        "refunded_at",
+        "completed_at",
+        "rejected_at",
+        "cancelled_at",
+        "created_at",
+        "updated_at",
+    )
 
 
 class OrderItemInline(admin.TabularInline):

@@ -1,0 +1,115 @@
+{% extends "account/base_account.html" %}
+{% load catalog_extras %}
+
+{% block account_title %}Request Return or Exchange — Order {{ order.number }}{% endblock account_title %}
+{% block account_heading %}Return or Exchange{% endblock account_heading %}
+{% block account_intro %}Select items from order {{ order.number }} to return for a refund or exchange for a replacement.{% endblock account_intro %}
+
+{% block account_content %}
+<div class="max-w-3xl space-y-6">
+    <div class="rounded-2xl border border-indigo-100 bg-indigo-50/50 p-5 text-sm text-indigo-900">
+        <p class="font-semibold text-indigo-950">Return Policy & Eligibility</p>
+        <p class="mt-1 text-xs text-indigo-800">
+            Items must be in original condition, unworn, and unwashed.
+            Your {{ eligibility.window_days }}-day return window closes on {{ eligibility.deadline|date:"N j, Y" }}
+            ({{ eligibility.days_remaining }} day{{ eligibility.days_remaining|pluralize }} remaining).
+        </p>
+    </div>
+
+    <form method="post" action="{% url 'account:order-return-request' order.number %}" class="space-y-6">
+        {% csrf_token %}
+
+        <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft space-y-4">
+            <h2 class="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500">Request Type & Reason</h2>
+
+            <div class="grid gap-4 sm:grid-cols-2">
+                <div>
+                    <label for="return_type" class="block text-xs font-semibold uppercase tracking-wider text-slate-700">Type</label>
+                    <select id="return_type" name="return_type" class="mt-1 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                        {% for code, label in return_types %}
+                        <option value="{{ code }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                    <p class="mt-1 text-[11px] text-slate-500">Choose Exchange to swap for a different size/color, or Refund to receive your payment back.</p>
+                </div>
+
+                <div>
+                    <label for="reason" class="block text-xs font-semibold uppercase tracking-wider text-slate-700">Primary Reason</label>
+                    <select id="reason" name="reason" class="mt-1 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                        {% for code, label in reasons %}
+                        <option value="{{ code }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div>
+                <label for="customer_note" class="block text-xs font-semibold uppercase tracking-wider text-slate-700">Notes / Comments (Optional)</label>
+                <textarea id="customer_note" name="customer_note" rows="3" placeholder="Tell us more about the fit or reason for returning..." class="mt-1 block w-full rounded-xl border border-slate-300 p-3 text-sm text-slate-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"></textarea>
+            </div>
+        </section>
+
+        <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
+            <h2 class="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500">Select Items to Return</h2>
+            <p class="mt-1 text-xs text-slate-500">Check each item you wish to return and adjust the quantity if needed.</p>
+
+            <div class="mt-4 divide-y divide-slate-100">
+                {% for item in eligibility.items %}
+                <div class="py-4 first:pt-0 last:pb-0">
+                    {% if item.is_eligible %}
+                    <div class="flex items-start gap-3">
+                        <input type="checkbox" id="item_{{ item.order_item_id }}_selected" name="item_{{ item.order_item_id }}_selected" value="1" class="mt-1 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
+                        <div class="flex-1 min-w-0">
+                            <label for="item_{{ item.order_item_id }}_selected" class="block text-sm font-medium text-slate-900 cursor-pointer">
+                                {{ item.product_name }}
+                                {% if item.option_label %}· {{ item.option_label }}{% endif %}
+                            </label>
+                            <p class="text-xs text-slate-500">SKU: {{ item.sku }} · Unit Price: {{ item.unit_price|money }}</p>
+                            <p class="text-xs text-indigo-700 font-medium">Eligible return quantity: {{ item.remaining_quantity }} of {{ item.purchased_quantity }}</p>
+
+                            <div class="mt-3 grid gap-3 sm:grid-cols-2">
+                                <div>
+                                    <label for="item_{{ item.order_item_id }}_quantity" class="block text-[11px] font-semibold text-slate-600">Quantity to return</label>
+                                    <input type="number" id="item_{{ item.order_item_id }}_quantity" name="item_{{ item.order_item_id }}_quantity" min="1" max="{{ item.remaining_quantity }}" value="1" class="mt-1 block w-24 rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs text-slate-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                                </div>
+
+                                <div class="exchange-variant-container">
+                                    <label for="item_{{ item.order_item_id }}_replacement_variant" class="block text-[11px] font-semibold text-slate-600">Replacement Variant (For Exchange)</label>
+                                    <select id="item_{{ item.order_item_id }}_replacement_variant" name="item_{{ item.order_item_id }}_replacement_variant" class="mt-1 block w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs text-slate-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                                        <option value="">— Select replacement variant —</option>
+                                        {% for sib in exchange_variants_by_item|get_item:item.order_item_id %}
+                                        <option value="{{ sib.id }}">{{ sib.label }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="opacity-60 flex items-start gap-3">
+                        <div class="h-4 w-4 mt-1 rounded bg-slate-200"></div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-medium text-slate-700">
+                                {{ item.product_name }}
+                                {% if item.option_label %}· {{ item.option_label }}{% endif %}
+                            </p>
+                            <p class="text-xs text-slate-400">All purchased units ({{ item.purchased_quantity }}) have already been returned or requested.</p>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+
+        <div class="flex items-center justify-between pt-2">
+            <a href="{% url 'account:order-detail' order.number %}" class="text-sm font-medium text-slate-600 hover:text-slate-900">
+                ← Back to Order
+            </a>
+            <button type="submit" class="inline-flex items-center justify-center rounded-xl bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                Submit Return Request
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock account_content %}

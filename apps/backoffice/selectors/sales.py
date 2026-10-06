@@ -24,20 +24,24 @@ from django.utils.translation import gettext_lazy as _
 
 from apps.backoffice.selectors.common import DateRange, sort_queryset
 from apps.engagement.models import PointsTransaction
-from apps.orders.models import Order, Shipment, ShipmentEvent
+from apps.orders.models import Order, ReturnRequest, Shipment, ShipmentEvent
 from apps.payments.models import Payment
 from apps.support.models import SupportTicket
 
 __all__ = [
     "ORDER_SORTS",
+    "RETURN_SORTS",
     "customer_search",
     "order_detail",
+    "order_events",
     "order_timeline",
     "orders",
     "payment_detail",
     "payment_events",
     "payments",
     "points_ledger",
+    "return_detail",
+    "returns",
     "shipments",
 ]
 
@@ -64,6 +68,11 @@ CUSTOMER_SORTS = {
 SHIPMENT_SORTS = {"-created_at": ["-created_at", "-pk"], "created_at": ["created_at", "pk"]}
 PAYMENT_SORTS = {"-created_at": ["-created_at", "-pk"], "created_at": ["created_at", "pk"]}
 LEDGER_SORTS = {"-created_at": ["-created_at", "-pk"], "created_at": ["created_at", "pk"]}
+RETURN_SORTS = {
+    "-created_at": ["-created_at", "-pk"],
+    "created_at": ["created_at", "pk"],
+    "number": ["number"],
+}
 
 
 def _clean_choice(value: str | None, allowed) -> str:
@@ -325,3 +334,47 @@ def points_ledger(
 def order_events(order: Order) -> QuerySet:
     """Order timeline rows only (used where the other sources are not wanted)."""
     return order.events.select_related("actor")
+
+
+def returns(
+    *,
+    q: str = "",
+    status: str = "",
+    return_type: str = "",
+    date_range: DateRange | None = None,
+    sort: str = "",
+) -> QuerySet:
+    """Return requests list for the back-office queue."""
+    qs = ReturnRequest.objects.select_related("order", "user").prefetch_related(
+        "items__order_item", "refunds"
+    )
+    needle = (q or "").strip()
+    if needle:
+        qs = qs.filter(
+            Q(number__icontains=needle)
+            | Q(order__number__icontains=needle)
+            | Q(user__email__icontains=needle)
+        )
+    clean_status = _clean_choice(status, ReturnRequest.Status.values)
+    if clean_status:
+        qs = qs.filter(status=clean_status)
+    clean_type = _clean_choice(return_type, ReturnRequest.ReturnType.values)
+    if clean_type:
+        qs = qs.filter(return_type=clean_type)
+    if date_range is not None and not date_range.is_all_time:
+        qs = qs.filter(**date_range.as_query)
+    return sort_queryset(qs, sort, RETURN_SORTS, "-created_at")[0]
+
+
+def return_detail(number: str) -> QuerySet:
+    """Single return request with items, refunds and events eagerly joined."""
+    return (
+        ReturnRequest.objects.select_related("order", "user")
+        .prefetch_related(
+            "items__order_item",
+            "items__replacement_variant__product",
+            "refunds",
+            "events__actor",
+        )
+        .filter(number=number)
+    )

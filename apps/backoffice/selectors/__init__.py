@@ -71,6 +71,8 @@ from apps.backoffice.selectors.sales import (
     payments,
     points_ledger,
     provider_label,
+    return_detail,
+    returns,
     shipments,
 )
 
@@ -118,6 +120,8 @@ __all__ = [
     "recent_movements",
     "resale_listings",
     "resolve_range",
+    "return_detail",
+    "returns",
     "review_queue",
     "shipments",
     "sort_queryset",

@@ -192,13 +192,13 @@ class CreatorApplication(models.Model):
         verbose_name_plural = _("creator applications")
         constraints = [
             models.UniqueConstraint(
-                fields=["user"],
+                fields=["applicant"],
                 name="one_active_application_per_user",
                 condition=models.Q(status__in=["pending", "approved"]),
             ),
         ]
         indexes = [
-            models.Index(fields=["user"], name="creator_app_user_idx"),
+            models.Index(fields=["applicant"], name="creator_app_user_idx"),
             models.Index(fields=["status"], name="creator_app_status_idx"),
             models.Index(fields=["reviewer"], name="creator_app_reviewer_idx"),
         ]

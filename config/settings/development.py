@@ -15,8 +15,43 @@ DEBUG = env.bool("DEBUG", default=True)
 
 ALLOWED_HOSTS = env.list(
     "ALLOWED_HOSTS",
-    default=["localhost", "127.0.0.1", "[::1]", "0.0.0.0", "testserver", "web"],
+    default=[
+        "localhost",
+        "127.0.0.1",
+        "[::1]",
+        "0.0.0.0",
+        "testserver",
+        "web",
+        ".ngrok-free.dev",
+        ".ngrok.io",
+        ".ngrok-free.app",
+    ],
 )
+for _host in (".ngrok-free.dev", ".ngrok.io", ".ngrok-free.app"):
+    if _host not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(_host)
+
+CSRF_TRUSTED_ORIGINS = env.list(
+    "CSRF_TRUSTED_ORIGINS",
+    default=[
+        "https://*.ngrok-free.dev",
+        "https://*.ngrok.io",
+        "https://*.ngrok-free.app",
+        "http://*.ngrok-free.dev",
+        "http://*.ngrok.io",
+        "http://*.ngrok-free.app",
+    ],
+)
+for _origin in (
+    "https://*.ngrok-free.dev",
+    "https://*.ngrok.io",
+    "https://*.ngrok-free.app",
+):
+    if _origin not in CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS.append(_origin)
+
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
 
 EMAIL_BACKEND = env(
     "EMAIL_BACKEND",

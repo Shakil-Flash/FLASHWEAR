@@ -103,6 +103,40 @@
         </section>
     </div>
 
+    {% if return_eligibility.is_eligible %}
+    <div class="rounded-2xl border border-indigo-200 bg-indigo-50/60 p-5 flex flex-wrap items-center justify-between gap-4">
+        <div>
+            <p class="text-sm font-semibold text-indigo-950">Returns & Exchanges</p>
+            <p class="text-xs text-indigo-800 mt-0.5">Eligible items can be returned or exchanged within {{ return_eligibility.window_days }} days ({{ return_eligibility.days_remaining }} days remaining).</p>
+        </div>
+        <a href="{% url 'account:order-return-request' order.number %}" class="inline-flex items-center justify-center rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 transition-colors">
+            Start Return or Exchange
+        </a>
+    </div>
+    {% endif %}
+
+    {% if order_returns %}
+    <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
+        <h2 class="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500">Return & Exchange Requests</h2>
+        <ul class="mt-4 divide-y divide-slate-100">
+            {% for ret in order_returns %}
+            <li class="flex items-center justify-between py-3 text-sm">
+                <div>
+                    <a href="{% url 'account:return-detail' ret.number %}" class="font-medium text-indigo-600 hover:underline">{{ ret.number }}</a>
+                    <span class="text-slate-400 text-xs ml-2">{{ ret.get_return_type_display }} · {{ ret.created_at|date:"N j, Y" }}</span>
+                </div>
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
+                    {% if ret.status == 'refunded' or ret.status == 'completed' %}bg-emerald-100 text-emerald-800
+                    {% elif ret.status == 'rejected' or ret.status == 'cancelled' %}bg-rose-100 text-rose-800
+                    {% else %}bg-amber-100 text-amber-800{% endif %}">
+                    {{ ret.get_status_display }}
+                </span>
+            </li>
+            {% endfor %}
+        </ul>
+    </section>
+    {% endif %}
+
     {% if order.is_cancellable %}
     <form method="post" action="{% url 'account:order-cancel' order.number %}" data-confirm="Cancel this order? Your held items go back to the shop floor.">
         {% csrf_token %}

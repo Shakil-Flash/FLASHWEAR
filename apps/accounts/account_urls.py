@@ -20,7 +20,15 @@ from apps.closet import views as closet_views
 from apps.engagement.views import loyalty_dashboard
 from apps.loop import views as loop_views
 from apps.notifications.views import preferences_view as notification_preferences
-from apps.orders.views import OrderDetailView, OrderListView, order_cancel
+from apps.orders.views import (
+    CustomerReturnDetailView,
+    CustomerReturnListView,
+    OrderDetailView,
+    OrderListView,
+    order_cancel,
+    order_return_request,
+    return_cancel,
+)
 from apps.quests import views as quest_views
 from apps.styling import views as styling_views
 
@@ -84,10 +92,14 @@ urlpatterns += [
         "address-set-default",
     ),
     protected("delete/", views.AccountDeleteView.as_view(), "delete"),
-    # Phase 6: order history (views live in apps.orders; the account area owns the URLs).
+    # Phase 6 & Phase 23: order history, returns and exchanges.
     protected("orders/", OrderListView.as_view(), "orders"),
     protected("orders/<str:number>/", OrderDetailView.as_view(), "order-detail"),
     protected("orders/<str:number>/cancel/", order_cancel, "order-cancel"),
+    protected("orders/<str:number>/return/", order_return_request, "order-return-request"),
+    protected("returns/", CustomerReturnListView.as_view(), "returns"),
+    protected("returns/<str:number>/", CustomerReturnDetailView.as_view(), "return-detail"),
+    protected("returns/<str:number>/cancel/", return_cancel, "return-cancel"),
     # Phase 7: FLASH Points dashboard (view lives in apps.engagement).
     protected("loyalty/", loyalty_dashboard, "loyalty"),
     # Phase 8: FLASH Closet and the outfit builder (views live in apps.closet).

@@ -355,6 +355,7 @@ NAVIGATION = (
         "Sales",
         (
             ("orders", "Orders", "backoffice:orders", ORDERS_VIEW),
+            ("returns", "Returns", "backoffice:returns", ORDERS_VIEW),
             ("payments", "Payments", "backoffice:payments", PAYMENTS_VIEW),
             ("shipments", "Shipments", "backoffice:shipments", ORDERS_VIEW),
             ("customers", "Customers", "backoffice:customers", CUSTOMERS_VIEW),

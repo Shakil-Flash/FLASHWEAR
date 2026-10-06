@@ -25,7 +25,7 @@ from django.utils.translation import gettext_lazy as _
 
 from apps.catalog.models.base import TimestampedModel
 
-__all__ = ["Payment", "PaymentEvent"]
+__all__ = ["Payment", "PaymentEvent", "Refund"]
 
 
 class Payment(TimestampedModel):
@@ -157,3 +157,93 @@ class PaymentEvent(models.Model):
 def payment_amount_matches(payment: Payment, amount: Decimal) -> bool:
     """A provider event for a different amount is not this payment's business."""
     return payment.amount == amount
+
+
+class Refund(TimestampedModel):
+    """One refund transaction issued against a payment.
+
+    Amounts and statuses only -- card/credential data is never stored.
+    """
+
+    class Status(models.TextChoices):
+        PENDING = "pending", _("Pending")
+        SUCCEEDED = "succeeded", _("Succeeded")
+        FAILED = "failed", _("Failed")
+        CANCELLED = "cancelled", _("Cancelled")
+
+    class Reason(models.TextChoices):
+        RETURN = "return", _("Return")
+        DEFECTIVE = "defective", _("Defective item")
+        EXCHANGE_DIFFERENCE = "exchange_difference", _("Exchange price difference")
+        CANCELLATION = "cancellation", _("Order cancellation")
+        GOODWILL = "goodwill", _("Customer goodwill")
+        SHIPPING = "shipping", _("Shipping fee")
+        OTHER = "other", _("Other")
+
+    number = models.CharField(
+        _("refund number"),
+        max_length=32,
+        unique=True,
+        db_index=True,
+        help_text=_("Public handle: REF-<date>-<random>."),
+    )
+    payment = models.ForeignKey(
+        Payment,
+        on_delete=models.PROTECT,
+        related_name="refunds",
+        verbose_name=_("payment"),
+    )
+    order = models.ForeignKey(
+        "orders.Order",
+        on_delete=models.PROTECT,
+        related_name="refunds",
+        verbose_name=_("order"),
+    )
+    return_request = models.ForeignKey(
+        "orders.ReturnRequest",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="refunds",
+        verbose_name=_("return request"),
+    )
+    amount = models.DecimalField(_("amount"), max_digits=10, decimal_places=2)
+    currency = models.CharField(_("currency"), max_length=3)
+    status = models.CharField(
+        _("status"),
+        max_length=16,
+        choices=Status.choices,
+        default=Status.PENDING,
+        db_index=True,
+    )
+    reason = models.CharField(
+        _("reason"),
+        max_length=32,
+        choices=Reason.choices,
+        default=Reason.RETURN,
+    )
+    provider = models.CharField(_("provider"), max_length=32)
+    provider_reference = models.CharField(
+        _("provider reference"),
+        max_length=64,
+        blank=True,
+        db_index=True,
+        help_text=_("The provider's id for this refund."),
+    )
+    is_shipping_refunded = models.BooleanField(_("shipping refunded"), default=False)
+    note = models.CharField(_("note"), max_length=300, blank=True)
+    failure_code = models.CharField(_("failure code"), max_length=32, blank=True)
+    failure_message = models.CharField(_("failure message"), max_length=200, blank=True)
+    processed_at = models.DateTimeField(_("processed at"), null=True, blank=True)
+
+    class Meta:
+        verbose_name = _("refund")
+        verbose_name_plural = _("refunds")
+        ordering = ("-created_at",)
+        indexes = [
+            models.Index(fields=["order", "-created_at"]),
+            models.Index(fields=["status", "-created_at"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.number} ({self.amount} {self.currency}) -> {self.status}"

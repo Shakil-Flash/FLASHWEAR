@@ -48,6 +48,9 @@ from apps.backoffice.views.sales import (
     orders,
     payment_detail,
     payments,
+    return_action,
+    return_detail,
+    returns,
     shipments,
 )
 
@@ -78,6 +81,9 @@ __all__ = [
     "products_bulk",
     "promotions",
     "quests",
+    "return_action",
+    "return_detail",
+    "returns",
     "reviews",
     "reviews_bulk",
     "shipments",
