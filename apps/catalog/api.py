@@ -19,16 +19,21 @@ from __future__ import annotations
 from decimal import Decimal
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db.models import Count, Prefetch, Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
+from rest_framework import status
 from rest_framework.generics import ListAPIView, RetrieveAPIView
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
+from apps.analytics.services import record_event
 from apps.catalog import selectors
 from apps.catalog.models import Brand, Category, Product
 from apps.catalog.serializers import (
@@ -37,6 +42,11 @@ from apps.catalog.serializers import (
     CollectionSerializer,
     ProductDetailSerializer,
     ProductListSerializer,
+    VisualSearchResultSerializer,
+)
+from apps.catalog.visual_discovery import (
+    find_similar_to_product,
+    find_visually_similar_products,
 )
 
 # Reused everywhere a client might want to narrow the list. Slugs, not ids: a client that stores a
@@ -391,3 +401,163 @@ class ProductSearchView(ListAPIView):
         view.request = self.request
         view.format_kwarg = self.format_kwarg
         return view.get_queryset()
+
+
+class ProductVisualSearchView(APIView):
+    """``POST /api/v1/products/visual-search/`` -- search catalog by uploaded image."""
+
+    permission_classes = [AllowAny]
+    throttle_scope = "expensive"
+    parser_classes = [MultiPartParser, FormParser]
+
+    @method_decorator(never_cache)
+    def post(self, request, *args, **kwargs):
+        record_event(
+            "image_search_started",
+            request=request,
+            metadata={"source": "api"},
+        )
+        image_file = request.FILES.get("image")
+        if not image_file:
+            record_event(
+                "image_search_failed",
+                request=request,
+                metadata={"error_code": "empty_upload", "reason": "No image file provided"},
+            )
+            return Response(
+                {"detail": "No image file was provided."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        category_slug = (request.data.get("category") or "").strip() or None
+        limit_param = request.data.get("limit")
+        limit = None
+        if limit_param:
+            try:
+                limit = min(max(1, int(limit_param)), settings.CATALOG_API_MAX_PAGE_SIZE)
+            except (ValueError, TypeError):
+                pass
+
+        try:
+            results, features = find_visually_similar_products(
+                image_file,
+                category_slug=category_slug,
+                user=request.user,
+                limit=limit,
+            )
+            record_event(
+                "image_search_completed",
+                request=request,
+                metadata={
+                    "results_count": len(results),
+                    "dominant_colors": features.dominant_colors,
+                    "matched_colors": features.matched_catalog_colors,
+                    "tone": features.tone,
+                },
+            )
+            return Response(
+                {
+                    "count": len(results),
+                    "features": {
+                        "dominant_colors": features.dominant_colors,
+                        "matched_catalog_colors": features.matched_catalog_colors,
+                        "brightness": features.brightness,
+                        "tone": features.tone,
+                        "aspect_ratio": features.aspect_ratio,
+                    },
+                    "results": VisualSearchResultSerializer(results, many=True).data,
+                },
+                status=status.HTTP_200_OK,
+            )
+        except ValidationError as error:
+            msg = getattr(error, "message", str(error))
+            code = getattr(error, "code", "invalid_image")
+            record_event(
+                "image_search_failed",
+                request=request,
+                metadata={"error_code": code, "reason": msg},
+            )
+            return Response(
+                {"detail": msg, "code": code},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except Exception:
+            record_event(
+                "image_search_failed",
+                request=request,
+                metadata={"error_code": "server_error", "reason": "Processing failure"},
+            )
+            return Response(
+                {"detail": "Could not analyze image.", "code": "server_error"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class ProductSimilarView(APIView):
+    """``GET /api/v1/products/<slug>/similar/`` -- find similar products by product slug."""
+
+    permission_classes = [AllowAny]
+    throttle_scope = "expensive"
+
+    @method_decorator(never_cache)
+    def get(self, request, slug: str, *args, **kwargs):
+        product = get_object_or_404(Product.objects.published(), slug=slug)
+        record_event(
+            "find_similar_used",
+            request=request,
+            object_type="product",
+            object_id=product.pk,
+            metadata={"product_slug": product.slug},
+        )
+        limit_param = request.query_params.get("limit")
+        limit = 8
+        if limit_param:
+            try:
+                limit = min(max(1, int(limit_param)), settings.CATALOG_API_MAX_PAGE_SIZE)
+            except (ValueError, TypeError):
+                pass
+
+        results = find_similar_to_product(product, user=request.user, limit=limit)
+        return Response(
+            {
+                "source_product": {
+                    "id": product.pk,
+                    "name": product.name,
+                    "slug": product.slug,
+                    "category": product.category.name,
+                },
+                "count": len(results),
+                "results": VisualSearchResultSerializer(results, many=True).data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class VisualProductClickView(APIView):
+    """``POST /api/v1/products/visual-search/click/`` -- record visual product click."""
+
+    permission_classes = [AllowAny]
+    throttle_scope = "expensive"
+
+    def post(self, request, *args, **kwargs):
+        product_id = request.data.get("product_id") or request.query_params.get("product_id")
+        if not product_id:
+            return Response(
+                {"detail": "product_id is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            prod_pk = int(product_id)
+        except (ValueError, TypeError):
+            return Response(
+                {"detail": "Invalid product_id."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        record_event(
+            "visual_product_clicked",
+            request=request,
+            object_type="product",
+            object_id=prod_pk,
+        )
+        return Response({"status": "ok"}, status=status.HTTP_200_OK)

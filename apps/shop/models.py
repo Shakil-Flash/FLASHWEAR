@@ -146,8 +146,19 @@ class Cart(TimestampedModel):
         return self.status == self.Status.ACTIVE
 
     def get_items(self):
-        """Return all items with their variants eager-loaded."""
-        return self.items.select_related("variant__product", "variant__color", "variant__size")
+        """Return all items with their variants eager-loaded.
+
+        The full chain a cart row touches is pulled in one query: the variant, its colour
+        and size, the product, and the product's category and brand (eligibility walks all
+        of them). Missing any of those turns the eligibility check into one query per line.
+        """
+        return self.items.select_related(
+            "variant__product",
+            "variant__product__category",
+            "variant__product__brand",
+            "variant__color",
+            "variant__size",
+        )
 
     def get_item_count(self) -> int:
         """Total quantity of all items in the cart."""

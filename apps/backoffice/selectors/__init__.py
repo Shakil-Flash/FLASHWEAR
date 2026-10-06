@@ -16,6 +16,7 @@ time rather than on a screen nobody has opened yet.
 
 from __future__ import annotations
 
+from apps.backoffice.selectors.analytics import funnel_summary
 from apps.backoffice.selectors.audit import AUDIT_ACTIONS, audit_events
 from apps.backoffice.selectors.catalog import (
     PRODUCT_SORTS,
@@ -92,6 +93,7 @@ __all__ = [
     "customer_search",
     "dashboard_summary",
     "drops",
+    "funnel_summary",
     "loop_items",
     "low_stock_rows",
     "notification_detail",

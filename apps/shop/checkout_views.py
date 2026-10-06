@@ -19,6 +19,7 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
 
 from apps.accounts.models import Address
+from apps.analytics.services import record_event
 from apps.orders.models import Order
 from apps.shop.checkout import (
     cart_matches_snapshot,
@@ -65,6 +66,14 @@ def checkout_detail(request):
 
     checkout = get_or_create_checkout(request.user, cart)
 
+    record_event(
+        "checkout_started",
+        request=request,
+        object_type="checkout",
+        object_id=checkout.pk,
+        idempotency_key=f"checkout_started:{checkout.pk}",
+    )
+
     # Editing the bag after validation invalidates the frozen totals: reopen rather
     # than let a stale total be charged later.
     if checkout.is_validated and not cart_matches_snapshot(cart, checkout.snapshot):
@@ -73,7 +82,10 @@ def checkout_detail(request):
         checkout.snapshot = {}
         checkout.save(update_fields=["status", "validated_at", "snapshot", "updated_at"])
 
-    totals = get_cart_totals(cart)
+    # The bag's rows are fetched once and shared by totals, validation, the price-change
+    # diff and the template loop -- four consumers that used to query the same list.
+    items = list(cart.get_items())
+    totals = get_cart_totals(cart, items=items)
     subtotal = totals["subtotal"]
     methods = get_shipping_methods(subtotal)
     selected = next((m for m in methods if m.code == checkout.shipping_method_code), methods[0])
@@ -81,7 +93,7 @@ def checkout_detail(request):
     # Phase 7: resolve the current discounts for the pre-validation estimate. An ineligible
     # code/points combination lands in ``errors`` (which also disables the validate button)
     # rather than silently pricing without it -- the customer sees *why* before continuing.
-    errors = [] if checkout.is_validated else _cart_errors(cart)
+    errors = [] if checkout.is_validated else _cart_errors(cart, items=items)
     promo_discount = Decimal("0.00")
     loyalty_discount = Decimal("0.00")
     if not checkout.is_validated and (checkout.promotion_code or checkout.loyalty_points):
@@ -109,10 +121,12 @@ def checkout_detail(request):
     loyalty_max = loyalty_services.max_redeemable_points(
         request.user,
         eligible_subtotal=max(subtotal - promo_discount, Decimal("0.00")),
+        balance=loyalty_balance,
     )
 
     context = {
         "cart": cart,
+        "items": items,
         "checkout": checkout,
         "totals": totals,
         "addresses": _addresses_for(request.user),
@@ -121,7 +135,7 @@ def checkout_detail(request):
         "shipping_amount": selected.amount,
         "total": total,
         "errors": errors,
-        "price_changes": get_price_changes(cart),
+        "price_changes": get_price_changes(cart, items=items),
         "snapshot": checkout.snapshot,
         "promo_discount": promo_discount,
         "loyalty_discount": loyalty_discount,
@@ -340,6 +354,14 @@ def checkout_place(request):
         )
         return redirect("shop:checkout")
 
+    record_event(
+        "checkout_completed",
+        request=request,
+        object_type="order",
+        object_id=order.pk,
+        idempotency_key=f"checkout_completed:{order.pk}",
+    )
+
     return redirect("shop:checkout-payment", number=order.number)
 
 
@@ -348,10 +370,10 @@ def checkout_place(request):
 # =============================================================================
 
 
-def _cart_errors(cart) -> list[str]:
+def _cart_errors(cart, *, items=None) -> list[str]:
     from apps.shop.services import validate_cart_items
 
-    return validate_cart_items(cart)
+    return validate_cart_items(cart, items=items)
 
 
 def _message_text(err: ValidationError) -> str:

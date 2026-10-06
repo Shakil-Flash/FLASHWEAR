@@ -22,6 +22,8 @@ ACCOUNT_SECTIONS: list[tuple[str, str | None, bool]] = [
     (_("FLASH DNA"), None, False),
     (_("FLASH Closet"), "account:closet", True),
     (_("Outfits"), "account:outfits", True),
+    # Phase 21: the smart styling studio (occasion, mood and style-goal driven looks).
+    (_("Style Studio"), "account:studio", True),
     (_("FLASH Loop"), "account:loop", True),
     (_("Loyalty"), "account:loyalty", True),
     (_("Quests"), "account:quests", True),

@@ -73,12 +73,14 @@ def product_metadata(product: Product, *, request=None) -> dict:
 
 
 def taxonomy_metadata(
-    obj, *, request=None, kind: str = "website", fallback_description: str = ""
+    obj, *, request=None, kind: str = "website", fallback_description: str = "", page: int = 1
 ) -> dict:
     """Metadata for a category, collection or brand page.
 
     ``fallback_description`` lets a view supply a generated sentence (a product count, say) instead
     of the generic one, which is what makes an unconfigured category page still worth indexing.
+    Page 2+ of a paginated taxonomy reads ``noindex, follow``: same products, different slice,
+    and page one already carries them.
     """
     title = obj.seo_title or _page_title(obj.name)
     description = (
@@ -99,14 +101,23 @@ def taxonomy_metadata(
         "og_type": kind,
         "og_image": _absolute(request, image.url) if image else "",
         "og_url": canonical,
-        "seo_robots": "index, follow",
+        "seo_robots": "index, follow" if page <= 1 else "noindex, follow",
     }
 
 
 def listing_metadata(
-    title: str, description: str, *, request=None, path: str | None = None
+    title: str, description: str, *, request=None, path: str | None = None, page: int = 1
 ) -> dict:
-    """Metadata for the paginated listing pages."""
+    """Metadata for the paginated listing pages.
+
+    ``/search/`` is an alias for ``/products/?q=...``: whichever URL served the request is the
+    canonical for it, so the two never compete for the same results. Query permutations
+    (?sort=price_asc) canonicalise onto the clean path as before; page 2+ is ``noindex, follow``
+    so a deep slice never shadows page one.
+    """
+    if path is None and request is not None and getattr(request, "resolver_match", None):
+        if request.resolver_match.url_name == "product-search":
+            path = reverse("catalog:product-search")
     canonical = _absolute(request, path or reverse("catalog:product-list"))
     return {
         "seo_title": _truncate(title, 70),
@@ -117,10 +128,10 @@ def listing_metadata(
         "og_type": "website",
         "og_image": "",
         "og_url": canonical,
-        # Paginated listings stay indexed, but the query permutations (?sort=price_asc, ?page=3)
-        # are canonicalised onto the clean path: same products, different order, and indexing both
-        # would have them compete with page one.
-        "seo_robots": "index, follow",
+        # Paginated listings stay indexed on page one, but the query permutations
+        # (?sort=price_asc, ?page=3) are canonicalised onto the clean path: same products,
+        # different order, and indexing both would have them compete with page one.
+        "seo_robots": "index, follow" if page <= 1 else "noindex, follow",
     }
 
 

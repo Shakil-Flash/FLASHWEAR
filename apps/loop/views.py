@@ -29,6 +29,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_POST
 
+from apps.analytics.services import record_event
 from apps.core.utils import storefront_open
 from apps.loop import selectors
 from apps.loop.forms import LoopItemCreateForm, LoopPhotoForm
@@ -122,6 +123,10 @@ def resale_detail(request, slug: str):
 
     item = listing.loop_item
     product = item.product
+    # One honest hero image for og:image/twitter:image and the JSON-LD payload: the
+    # listing's own photo first, the linked product's otherwise, nothing when there is none.
+    hero = item.images.first() or (product.primary_image if product else None)
+    hero_url = request.build_absolute_uri(hero.image.url) if hero else ""
     context = {
         "listing": listing,
         "loop_item": item,
@@ -129,15 +134,24 @@ def resale_detail(request, slug: str):
         "variant": item.variant,
         "images": list(item.images.all()),
         "circularity": circularity_info(item),
-        "seo_title": f"{item.display_title} — pre-loved | FLASH Loop",
+        "seo_title": f"{item.display_title} - pre-loved | FLASH Loop",
         "seo_description": (
             f"{item.display_title} in {item.get_condition_display().lower()} "
             f"condition. {listing.asking_price} {settings.CATALOG_CURRENCY_CODE}."
         ),
         "canonical_url": request.build_absolute_uri(listing.get_absolute_url()),
         "og_url": request.build_absolute_uri(listing.get_absolute_url()),
+        "og_image": hero_url,
+        "item_image_url": hero_url,
         "currency_code": settings.CATALOG_CURRENCY_CODE,
     }
+    record_event(
+        "loop_item_view",
+        request=request,
+        object_type="loop_item",
+        object_id=item.pk,
+        metadata={"surface": "resale_detail"},
+    )
     return render(request, "loop/resale_detail.html", context)
 
 
@@ -252,6 +266,13 @@ def loop_item_detail(request, pk: int):
         "listing": listing,
         "circularity": circularity_info(item),
     }
+    record_event(
+        "loop_item_view",
+        request=request,
+        object_type="loop_item",
+        object_id=item.pk,
+        metadata={"surface": "account_detail"},
+    )
     return render(request, "account/loop_item_detail.html", context)
 
 
@@ -292,6 +313,13 @@ def loop_item_submit(request, pk: int):
         messages.error(request, exc.message)
     else:
         messages.success(request, "Submitted for review. We'll be in touch.")
+        record_event(
+            "loop_item_action",
+            request=request,
+            object_type="loop_item",
+            object_id=item.pk,
+            metadata={"action": "submit"},
+        )
     return redirect("account:loop-item-detail", pk=pk)
 
 
@@ -306,4 +334,11 @@ def loop_item_cancel(request, pk: int):
         messages.error(request, exc.message)
     else:
         messages.info(request, "The loop request was cancelled.")
+        record_event(
+            "loop_item_action",
+            request=request,
+            object_type="loop_item",
+            object_id=item.pk,
+            metadata={"action": "cancel"},
+        )
     return redirect("account:loop")

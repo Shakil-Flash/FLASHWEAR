@@ -32,6 +32,7 @@ from datetime import datetime
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
+from apps.analytics.services import record_event
 from apps.quests.models import Quest, UserQuest
 from apps.quests.services import rewards as reward_service
 from apps.quests.services.errors import QuestNotEligibleError
@@ -155,6 +156,15 @@ def _sync_quest(user, quest: Quest, now, row: UserQuest | None = None) -> UserQu
                 # Only the racer that flipped the status pays out; issue_rewards is itself
                 # idempotent, so this is belt *and* braces.
                 reward_service.issue_rewards(row)
+                # The completion is one row per attempt; a replayed sync is a no-op read.
+                record_event(
+                    "quest_completion",
+                    user=user,
+                    object_type="quest",
+                    object_id=quest.pk,
+                    metadata={"quest_type": quest.quest_type},
+                    idempotency_key=f"quest_completion:{row.pk}",
+                )
             return row
 
         if row.progress != progress:

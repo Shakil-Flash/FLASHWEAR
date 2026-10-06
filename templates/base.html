@@ -21,6 +21,14 @@
     {% if og_image %}<meta property="og:image" content="{{ og_image }}" />{% endif %}
     <meta property="og:locale" content="en_US" />
 
+    <!-- Twitter reads the Open Graph values but wants its own tags; the card degrades to
+         "summary" when the page has no image, because a summary_large_image card that is
+         served without one gets dropped. -->
+    <meta name="twitter:card" content="{{ og_image|yesno:'summary_large_image,summary' }}" />
+    <meta name="twitter:title" content="{{ og_title|default:seo_title|default:'FLASHWEAR | Fashion Beyond Ordinary' }}" />
+    <meta name="twitter:description" content="{{ og_description|default:seo_description }}" />
+    {% if og_image %}<meta name="twitter:image" content="{{ og_image }}" />{% endif %}
+
     <title>{% block title %}{{ seo_title|default:'FLASHWEAR | Fashion Beyond Ordinary' }}{% endblock title %}</title>
 
     {% block extra_meta %}{% endblock extra_meta %}

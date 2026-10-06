@@ -72,7 +72,18 @@
         <div class="grid grid-cols-2 gap-4">
             {% for item in available %}
             <div class="border rounded bg-slate-50 p-3 flex flex-col items-center gap-2">
-                <img src="{% if item.display_image %}{{ item.display_image.url }}{% else %}{{ item.name|slice:":1"|upper }}{% endif %}" alt="{{ item.name }}" class="w-16 h-16 object-cover rounded" />
+                {% if item.display_image %}
+                    <img src="{{ item.display_image.url }}"
+                         alt="{{ item.name }}"
+                         width="64"
+                         height="64"
+                         loading="lazy"
+                         decoding="async"
+                         class="h-16 w-16 rounded object-cover" />
+                {% else %}
+                    <span aria-hidden="true"
+                          class="flex h-16 w-16 items-center justify-center rounded bg-slate-200 text-lg font-semibold text-slate-500">{{ item.name|slice:":1"|upper }}</span>
+                {% endif %}
                 <p class="truncate text-center line-clamp-1 text-sm font-medium text-slate-900" title="{{ item.name }}">{{ item.name }}</p>
                 <form method="post" action="{% url 'account:outfit-item-add' outfit.pk %}">
                     {% csrf_token %}

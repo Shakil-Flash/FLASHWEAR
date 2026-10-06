@@ -18,7 +18,7 @@
         <h2 id="profile-photo" class="text-sm font-semibold text-slate-900">Profile photo</h2>
         <div class="mt-4 flex items-start gap-5">
             {% if profile.avatar %}
-            <img src="{{ profile.avatar.url }}" alt="" width="72" height="72" class="h-18 w-18 shrink-0 rounded-full object-cover ring-1 ring-slate-200" />
+            <img src="{{ profile.avatar.url }}" alt="" width="72" height="72" decoding="async" class="h-18 w-18 shrink-0 rounded-full object-cover ring-1 ring-slate-200" />
             {% else %}
             <span aria-hidden="true" class="inline-flex h-[4.5rem] w-[4.5rem] shrink-0 items-center justify-center rounded-full bg-flash-600 text-2xl font-semibold text-white shadow-soft">{{ user.get_short_name|slice:":1"|upper }}</span>
             {% endif %}

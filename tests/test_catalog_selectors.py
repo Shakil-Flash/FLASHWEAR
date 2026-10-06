@@ -212,11 +212,15 @@ class TestEagerLoading:
     def test_related_products_are_a_single_extra_query(
         self, product, make_product, django_assert_num_queries
     ):
-        """The "you may also like" strip is merchandising: one query, then nothing."""
+        """The "you may also like" strip is merchandising: three queries, then nothing.
+
+        Phase 19 dropped the collections prefetch (the product card never reads it), so the
+        strip costs rows + images + variants and nothing more.
+        """
         for index in range(3):
             make_product(name=f"Related {index}", slug=f"related-{index}", brand=product.brand)
 
-        with django_assert_num_queries(4):
+        with django_assert_num_queries(3):
             cards = list(selectors.related_products(product))
             assert len(cards) == 3
 

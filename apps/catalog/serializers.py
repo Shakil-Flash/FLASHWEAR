@@ -309,6 +309,28 @@ class ProductDetailSerializer(ProductListSerializer):
         )
 
 
+class VisualSearchResultSerializer(serializers.Serializer):
+    """Card and matching information for visual discovery results."""
+
+    id = serializers.IntegerField(source="product.pk")
+    name = serializers.CharField(source="product.name")
+    slug = serializers.CharField(source="product.slug")
+    url = serializers.SerializerMethodField()
+    primary_image_url = serializers.SerializerMethodField()
+    category = serializers.CharField(source="product.category.name", default="")
+    brand = serializers.CharField(source="product.brand.name", default="")
+    score = serializers.FloatField()
+    reasons = serializers.ListField(child=serializers.CharField())
+    matched_signals = serializers.DictField(default=dict)
+
+    def get_url(self, obj) -> str:
+        return obj.product.get_absolute_url()
+
+    def get_primary_image_url(self, obj) -> str | None:
+        img = obj.product.primary_image
+        return img.image.url if img and img.image else None
+
+
 __all__ = [
     "BrandBriefSerializer",
     "BrandSerializer",
@@ -321,4 +343,5 @@ __all__ = [
     "ProductListSerializer",
     "ProductVariantSerializer",
     "SizeBriefSerializer",
+    "VisualSearchResultSerializer",
 ]

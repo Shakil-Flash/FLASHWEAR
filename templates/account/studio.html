@@ -1,0 +1,103 @@
+{% extends "account/base_account.html" %}
+
+{% block account_title %}Style Studio{% endblock account_title %}
+{% block account_heading %}Style Studio{% endblock account_heading %}
+{% block account_intro %}
+    Tell us the occasion and we will build a look from your closet and the shop — every
+    piece comes with a reason, and you can swap, regenerate or save the result.
+{% endblock account_intro %}
+{% block meta_robots %}noindex, nofollow{% endblock meta_robots %}
+
+{% block account_content %}
+<div class="space-y-6">
+    {% comment %}
+    Native GET form first (works with JavaScript off); htmx upgrades it to swap only the
+    result region, with a polite loading indicator and an inline error panel for failures.
+    {% endcomment %}
+    <form action="{% url 'account:studio' %}" method="get"
+          hx-get="{% url 'account:studio' %}"
+          hx-target="#studio-result"
+          hx-swap="innerHTML"
+          hx-indicator="#studio-spinner"
+          hx-on::htmx:beforeRequest="document.getElementById('studio-error').hidden = true; document.getElementById('studio-result').setAttribute('aria-busy', 'true')"
+          hx-on::htmx:afterRequest="document.getElementById('studio-result').removeAttribute('aria-busy')"
+          hx-on::htmx:responseError="document.getElementById('studio-error').hidden = false"
+          hx-on::htmx:sendError="document.getElementById('studio-error').hidden = false"
+          class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
+        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div>
+                <label for="occasion" class="block text-sm font-medium text-slate-700">Occasion</label>
+                <select id="occasion" name="occasion"
+                        class="mt-1 block w-full rounded-lg border border-slate-300 bg-white py-2 pl-3 pr-8 text-sm text-slate-900 focus:border-flash-500 focus:outline-none focus:ring-2 focus:ring-flash-500/30">
+                    {% for code, label in occasion_choices %}
+                    <option value="{{ code }}" {% if values.occasion == code %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="season" class="block text-sm font-medium text-slate-700">Season</label>
+                <select id="season" name="season"
+                        class="mt-1 block w-full rounded-lg border border-slate-300 bg-white py-2 pl-3 pr-8 text-sm text-slate-900 focus:border-flash-500 focus:outline-none focus:ring-2 focus:ring-flash-500/30">
+                    {% for code, label in season_choices %}
+                    <option value="{{ code }}" {% if values.season == code %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="mood" class="block text-sm font-medium text-slate-700">Mood</label>
+                <select id="mood" name="mood"
+                        class="mt-1 block w-full rounded-lg border border-slate-300 bg-white py-2 pl-3 pr-8 text-sm text-slate-900 focus:border-flash-500 focus:outline-none focus:ring-2 focus:ring-flash-500/30">
+                    {% for code, label in mood_choices %}
+                    <option value="{{ code }}" {% if values.mood == code %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="budget" class="block text-sm font-medium text-slate-700">Budget per piece (optional)</label>
+                <input type="number" id="budget" name="budget" min="1" step="1" inputmode="decimal" placeholder="Any budget" value="{{ values.budget }}"
+                       class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-flash-500 focus:outline-none focus:ring-2 focus:ring-flash-500/30" />
+            </div>
+            <fieldset class="sm:col-span-2">
+                <legend class="text-sm font-medium text-slate-700">Weather (optional)</legend>
+                <div class="mt-1 grid grid-cols-2 gap-3">
+                    <div>
+                        <label for="weather-temp" class="block text-xs font-medium text-slate-500">Temperature (°C)</label>
+                        <input type="number" id="weather-temp" name="weather_temp" min="-60" max="60" step="1" inputmode="numeric" placeholder="e.g. 8" value="{{ values.weather_temp }}"
+                               class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-flash-500 focus:outline-none focus:ring-2 focus:ring-flash-500/30" />
+                    </div>
+                    <div>
+                        <label for="weather-cond" class="block text-xs font-medium text-slate-500">Conditions</label>
+                        <select id="weather-cond" name="weather_cond"
+                                class="mt-1 block w-full rounded-lg border border-slate-300 bg-white py-2 pl-3 pr-8 text-sm text-slate-900 focus:border-flash-500 focus:outline-none focus:ring-2 focus:ring-flash-500/30">
+                            {% for code, label in weather_choices %}
+                            <option value="{{ code }}" {% if values.weather_cond == code %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </fieldset>
+        </div>
+
+        <input type="hidden" name="seed" value="{{ seed }}" />
+        <div class="mt-5 flex flex-wrap items-center gap-3">
+            <button type="submit" class="inline-flex items-center justify-center rounded-full bg-flash-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-flash-700 focus:outline-none focus:ring-2 focus:ring-flash-500/30 focus:ring-offset-2 focus:ring-offset-white">
+                Build this look
+            </button>
+            <p class="text-xs text-slate-500">Prefer a vibe? <a href="{% url 'account:studio-mood' %}" class="font-medium text-slate-700 underline-offset-4 hover:underline">Try Mood → Outfit</a>.</p>
+        </div>
+
+        <p id="studio-spinner" role="status" aria-live="polite"
+           class="htmx-indicator opacity-0 mt-3 text-sm text-slate-500">Building your look…</p>
+    </form>
+
+    <div id="studio-error" hidden
+         class="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"
+         role="alert">
+        We could not build a look right now. Please try again.
+    </div>
+
+    <div id="studio-result" class="space-y-6">
+        {% include "account/_studio_look.html" %}
+    </div>
+</div>
+{% endblock account_content %}

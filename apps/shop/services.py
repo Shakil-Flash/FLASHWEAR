@@ -45,13 +45,15 @@ class CartMergeError(CartError):
 # =============================================================================
 
 
-def validate_cart_items(cart) -> list[str]:
+def validate_cart_items(cart, *, items=None) -> list[str]:
     """Validate all items in a cart.
 
     Returns a list of error messages. Empty list means the cart is valid.
+    ``items`` lets a view that already fetched the rows pass them in, so the cart page
+    validates against the same list it renders instead of querying a second time.
     """
     errors = []
-    for item in cart.get_items():
+    for item in items if items is not None else cart.get_items():
         if not item.variant_is_eligible:
             errors.append(
                 _("Variant %(variant)s is no longer available.") % {"variant": item.variant}
@@ -77,6 +79,12 @@ def get_or_create_cart(request) -> Cart:
     """
     from apps.shop.models import Cart
 
+    # The context processor already resolved the cart for this request; reuse it
+    # instead of issuing an identical get_or_create lookup.
+    cached = getattr(request, "_fw_cart", None)
+    if cached is not None and getattr(cached, "pk", None) and cached.status == Cart.Status.ACTIVE:
+        return cached
+
     if request.user.is_authenticated:
         cart, _ = Cart.objects.get_or_create(
             user=request.user,
@@ -96,6 +104,10 @@ def get_or_create_cart(request) -> Cart:
         # cycles the session key. The session *data* survives the cycle; the key
         # string on the Cart row does not.
         request.session["guest_cart_id"] = cart.pk
+    try:
+        request._fw_cart = cart
+    except AttributeError:  # pragma: no cover - synthesised requests
+        pass
     return cart
 
 
@@ -295,16 +307,16 @@ def recalculate_price_snapshots(cart) -> int:
     return updated
 
 
-def get_cart_totals(cart) -> dict:
+def get_cart_totals(cart, *, items=None) -> dict:
     """Calculate cart totals.
 
     Returns:
         dict with keys: subtotal, item_count, total_quantity, currency
     """
-    items = cart.get_items()
-    subtotal = sum((item.line_total for item in items), start=Decimal("0.00"))
-    item_count = cart.items.count()
-    total_quantity = sum(item.quantity for item in items)
+    resolved = list(items) if items is not None else list(cart.get_items())
+    subtotal = sum((item.line_total for item in resolved), start=Decimal("0.00"))
+    item_count = len(resolved)
+    total_quantity = sum(item.quantity for item in resolved)
 
     return {
         "subtotal": subtotal,
@@ -323,20 +335,32 @@ def get_cart_for_request(request) -> Cart | None:
     """Get the current cart for a request (user or session)."""
     from apps.shop.models import Cart
 
+    # Memoised on the request: the context processor and the view ask this same
+    # question on every storefront page, and both want the same row.
+    if hasattr(request, "_fw_cart"):
+        return request._fw_cart
+
     if request.user.is_authenticated:
-        return Cart.objects.filter(user=request.user, status="active").first()
+        cart: Cart | None = Cart.objects.filter(user=request.user, status="active").first()
     elif request.session.session_key:
-        return Cart.objects.filter(session_key=request.session.session_key, status="active").first()
-    return None
+        cart = Cart.objects.filter(session_key=request.session.session_key, status="active").first()
+    else:
+        cart = None
+    try:
+        request._fw_cart = cart
+    except AttributeError:  # pragma: no cover - synthesised requests
+        pass
+    return cart
 
 
-def get_price_changes(cart) -> list[dict]:
+def get_price_changes(cart, *, items=None) -> list[dict]:
     """Return list of items whose price has changed since snapshot.
 
     Each dict contains: item, old_price, new_price, difference.
     """
     changes = []
-    for item in cart.items.select_related("variant").all():
+    source = items if items is not None else cart.items.select_related("variant").all()
+    for item in source:
         if item.price_snapshot != item.variant.price:
             changes.append(
                 {

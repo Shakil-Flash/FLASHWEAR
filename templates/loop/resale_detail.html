@@ -143,17 +143,17 @@ words are the item's moderation state (text labels, never colour-only);
 
         <script type="application/ld+json">
         {
-            "@context": "https://schema.org/",
+            "@context": "https://schema.org",
             "@type": "Product",
             "name": "{{ loop_item.display_title|escapejs }}",
             "description": "{{ seo_description|escapejs }}",
-            "image": "{{ canonical_url }}",
+            {% if item_image_url %}"image": "{{ item_image_url|escapejs }}",{% endif %}
+            "url": "{{ canonical_url|escapejs }}",
             "itemCondition": "https://schema.org/UsedCondition",
             "offers": {
                 "@type": "Offer",
                 "price": "{{ listing.asking_price }}",
-                "priceCurrency": "{{ currency_code }}",
-                "availability": "https://schema.org/InStock"
+                "priceCurrency": "{{ currency_code }}"
             }
         }
         </script>

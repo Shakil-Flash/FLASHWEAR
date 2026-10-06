@@ -19,6 +19,7 @@ from django.utils.translation import gettext_lazy as _
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
 
+from apps.analytics.services import record_event
 from apps.catalog.models import Product, ProductVariant
 from apps.shop.models import Wishlist, WishlistItem
 from apps.shop.services import (
@@ -82,11 +83,13 @@ def _handle_error(request, error: Exception):
 def cart_detail(request):
     """Display the cart page with all items, totals and validation problems."""
     cart = get_or_create_cart(request)
+    items = list(cart.get_items())
     context = {
         "cart": cart,
-        "totals": get_cart_totals(cart),
-        "errors": validate_cart_items(cart),
-        "price_changes": get_price_changes(cart),
+        "items": items,
+        "totals": get_cart_totals(cart, items=items),
+        "errors": validate_cart_items(cart, items=items),
+        "price_changes": get_price_changes(cart, items=items),
     }
     return render(request, "shop/cart.html", context)
 
@@ -110,6 +113,14 @@ def cart_add(request):
         add_to_cart(cart, variant, quantity=quantity)
     except ValidationError as err:
         return _handle_error(request, err)
+
+    record_event(
+        "cart_add",
+        request=request,
+        object_type="variant",
+        object_id=variant.pk,
+        metadata={"quantity": quantity, "product": variant.product_id},
+    )
 
     if _is_htmx(request):
         return JsonResponse(_cart_payload(cart))
@@ -148,6 +159,13 @@ def cart_remove(request, item_pk: int):
         remove_from_cart(cart, item_pk)
     except ValidationError as err:
         return _handle_error(request, err)
+
+    record_event(
+        "cart_remove",
+        request=request,
+        object_type="cart_item",
+        object_id=item_pk,
+    )
 
     if _is_htmx(request):
         return JsonResponse(_cart_payload(cart))
@@ -232,6 +250,14 @@ def wishlist_add(request):
         # Duplicate created concurrently; it is already on the wishlist.
         pass
 
+    record_event(
+        "wishlist_add",
+        request=request,
+        object_type="product",
+        object_id=product.pk,
+        metadata={"variant": variant.pk if variant else None},
+    )
+
     if _is_htmx(request):
         return JsonResponse({"count": wishlist.get_item_count()})
 
@@ -245,6 +271,12 @@ def wishlist_remove(request, item_pk: int):
     """Remove an item from the wishlist."""
     wishlist = get_object_or_404(Wishlist, user=request.user)
     item = get_object_or_404(WishlistItem, pk=item_pk, wishlist=wishlist)
+    record_event(
+        "wishlist_remove",
+        request=request,
+        object_type="product",
+        object_id=item.product_id,
+    )
     item.delete()
 
     if _is_htmx(request):

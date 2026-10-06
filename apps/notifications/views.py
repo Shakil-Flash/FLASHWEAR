@@ -56,6 +56,14 @@ def center(request: HttpRequest) -> HttpResponse:
     paginator = Paginator(qs, PER_PAGE)
     page_obj = paginator.get_page(request.GET.get("page"))
 
+    counts = selectors.status_counts(request.user)
+    # The bell badge (context processor) would otherwise run its own unread COUNT a
+    # second time during this same render.
+    try:
+        request._fw_unread_count = counts["unread"]
+    except AttributeError:  # pragma: no cover - synthesised requests
+        pass
+
     return render(
         request,
         "notifications/center.html",
@@ -65,7 +73,7 @@ def center(request: HttpRequest) -> HttpResponse:
             "unread_only": unread_only,
             "active_category": category,
             "categories": [(value, label) for value, label in NotificationCategory.choices],
-            "counts": selectors.status_counts(request.user),
+            "counts": counts,
         },
     )
 

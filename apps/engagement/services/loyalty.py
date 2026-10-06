@@ -172,19 +172,27 @@ def redeem_discount(points: int) -> Decimal:
     )
 
 
-def max_redeemable_points(user, *, eligible_subtotal: Decimal, excluding_checkout=None) -> int:
+def max_redeemable_points(
+    user, *, eligible_subtotal: Decimal, excluding_checkout=None, balance: int | None = None
+) -> int:
     """Largest increment-aligned point count redeemable on ``eligible_subtotal``.
 
     Three caps, all floors: the customer's spendable balance (optionally ignoring one
     checkout's own hold), ``LOYALTY_MAX_REDEEM_PERCENT`` of the eligible subtotal, and the
     increment grid. Returns 0 when the configured minimum order amount is not reached or the
     balance is empty.
+
+    ``balance`` lets a caller that already resolved the balance (the checkout page shows
+    it in the panel) hand it over instead of re-aggregating the ledger a second time in
+    the same render.
     """
     if eligible_subtotal < Decimal(settings.LOYALTY_MIN_ORDER_AMOUNT):
         return 0
 
     increment = int(settings.LOYALTY_REDEEM_INCREMENT)
-    balance_cap = max(0, balance_for(user, excluding_checkout=excluding_checkout))
+    if balance is None:
+        balance = balance_for(user, excluding_checkout=excluding_checkout)
+    balance_cap = max(0, balance)
     balance_points = (balance_cap // increment) * increment
 
     percent_cap = eligible_subtotal * Decimal(settings.LOYALTY_MAX_REDEEM_PERCENT) / Decimal("100")

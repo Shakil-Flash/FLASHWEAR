@@ -7,6 +7,12 @@ import sys
 
 def main() -> None:
     """Run administrative tasks."""
+    venv_site = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), ".venv", "Lib", "site-packages"
+    )
+    if os.path.isdir(venv_site) and venv_site not in sys.path:
+        sys.path.insert(0, venv_site)
+
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.development")
     try:
         from django.core.management import execute_from_command_line

@@ -118,6 +118,9 @@ READ_SCREENS = [
     # Delivery inspection (Phase 17): the ops floor/orders desk read the queue; finance
     # holds no notifications.view capability and must get a 404.
     ("notifications", ORDERS_GROUP, FINANCE_GROUP),
+    # Analytics (Phase 20): operator/marketing/finance/admin only -- and the exclusion
+    # matters just as much: a moderator must not read how the shop is trading.
+    ("analytics", OPERATOR_GROUP, MODERATOR_GROUP),
 ]
 
 ALL_SCREEN_NAMES = [name for name, _allowed, _denied in READ_SCREENS] + [

@@ -204,7 +204,7 @@
             <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft" aria-labelledby="review-heading">
                 <h2 id="review-heading" class="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500">3. Review your bag</h2>
                 <ul class="mt-4 divide-y divide-slate-100">
-                    {% for item in cart.get_items %}
+                    {% for item in items %}
                     <li class="flex items-baseline justify-between gap-4 py-3 text-sm">
                         <span class="text-slate-700">
                             {{ item.variant.product.name }} · {{ item.variant.option_label|default:item.variant }}
@@ -342,3 +342,4 @@
     {% endif %}
 </div>
 {% endblock content %}
+

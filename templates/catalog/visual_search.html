@@ -1,0 +1,337 @@
+{% extends "base.html" %}
+{% load catalog_extras %}
+
+{% block meta_title %}Visual Product Discovery — {{ site_name|default:'FLASHWEAR' }}{% endblock meta_title %}
+{% block meta_description %}Upload an image or outfit inspiration to discover visually similar FLASHWEAR pieces instantly.{% endblock meta_description %}
+
+{% block content %}
+<div class="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8"
+     x-data="{
+         file: null,
+         previewUrl: null,
+         isDragging: false,
+         isSubmitting: false,
+         handleFile(e) {
+             const files = e.target.files || e.dataTransfer.files;
+             if (files && files.length > 0) {
+                 this.file = files[0];
+                 this.previewUrl = URL.createObjectURL(this.file);
+             }
+         },
+         clearFile() {
+             this.file = null;
+             if (this.previewUrl) {
+                 URL.revokeObjectURL(this.previewUrl);
+                 this.previewUrl = null;
+             }
+             if (this.$refs.fileInput) {
+                 this.$refs.fileInput.value = '';
+             }
+         }
+     }">
+
+    <!-- Breadcrumb -->
+    <nav class="text-sm text-slate-500" aria-label="Breadcrumb">
+        <ol class="flex flex-wrap items-center gap-2">
+            <li><a href="{% url 'core:home' %}" class="hover:text-slate-900">Home</a></li>
+            <li aria-hidden="true">/</li>
+            <li><a href="{% url 'catalog:product-list' %}" class="hover:text-slate-900">Shop</a></li>
+            <li aria-hidden="true">/</li>
+            <li aria-current="page" class="font-medium text-slate-900">Visual Discovery</li>
+        </ol>
+    </nav>
+
+    <!-- Header -->
+    <header class="mt-6 max-w-3xl">
+        <h1 class="text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
+            {% if mode == "similar_product" %}
+                Pieces Similar to {{ source_product.name }}
+            {% else %}
+                Visual Product Discovery
+            {% endif %}
+        </h1>
+        <p class="mt-3 text-base leading-relaxed text-slate-600">
+            {% if mode == "similar_product" %}
+                Curated garments matching the silhouette, colorway, material, and aesthetic of this piece.
+            {% else %}
+                Upload a camera shot, outfit inspiration, or garment photo to discover matching FLASHWEAR styles.
+            {% endif %}
+        </p>
+    </header>
+
+    {% if mode == "similar_product" %}
+        <!-- Source Product Banner -->
+        <div class="mt-8 flex flex-wrap items-center justify-between gap-6 rounded-2xl border border-slate-200 bg-slate-50/70 p-6 shadow-soft">
+            <div class="flex items-center gap-4">
+                {% if source_product.primary_image %}
+                    <img src="{{ source_product.primary_image.image.url }}"
+                         alt="{{ source_product.name }}"
+                         class="h-20 w-16 rounded-xl object-cover ring-1 ring-slate-200" />
+                {% endif %}
+                <div>
+                    <span class="text-xs font-semibold uppercase tracking-wider text-flash-600">Source Piece</span>
+                    <h2 class="text-lg font-semibold text-slate-900">{{ source_product.name }}</h2>
+                    <p class="text-xs text-slate-500">{{ source_product.category.name }}{% if source_product.brand %} · {{ source_product.brand.name }}{% endif %}</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <a href="{{ source_product.get_absolute_url }}"
+                   class="rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition hover:border-slate-900 hover:text-slate-900">
+                    View product
+                </a>
+                <a href="{% url 'catalog:visual-search' %}"
+                   class="rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow-soft transition hover:bg-slate-800">
+                    Upload an image instead
+                </a>
+            </div>
+        </div>
+    {% else %}
+        <!-- Image Upload Form -->
+        <section class="mt-8 rounded-3xl border border-slate-200 bg-white p-6 shadow-soft sm:p-8" aria-labelledby="upload-heading">
+            <h2 id="upload-heading" class="sr-only">Upload an image to search</h2>
+
+            {% if mode == "error" and error %}
+                <div role="alert" class="mb-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+                    <div class="flex items-center gap-3">
+                        <svg class="h-5 w-5 shrink-0 text-red-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                        </svg>
+                        <p class="font-medium">{{ error }}</p>
+                    </div>
+                </div>
+            {% endif %}
+
+            <form method="post"
+                  action="{% url 'catalog:visual-search' %}"
+                  enctype="multipart/form-data"
+                  @submit="isSubmitting = true">
+                {% csrf_token %}
+
+                <!-- Dropzone area -->
+                <div class="relative flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-8 text-center transition"
+                     :class="isDragging ? 'border-flash-600 bg-flash-50/50' : 'border-slate-300 hover:border-slate-400 bg-slate-50/50'"
+                     @dragover.prevent="isDragging = true"
+                     @dragleave.prevent="isDragging = false"
+                     @drop.prevent="isDragging = false; handleFile($event)">
+
+                    <template x-if="!previewUrl">
+                        <div class="flex flex-col items-center">
+                            <span class="inline-flex h-14 w-14 items-center justify-center rounded-full bg-white shadow-soft ring-1 ring-slate-200">
+                                <svg class="h-7 w-7 text-slate-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" />
+                                </svg>
+                            </span>
+                            <p class="mt-4 text-sm font-semibold text-slate-900">Drag and drop your photo here, or click to browse</p>
+                            <p class="mt-1 text-xs text-slate-500">Supports JPEG, PNG, or WebP up to 6MB. Images are never stored.</p>
+                            <label class="mt-4 inline-flex cursor-pointer items-center rounded-full bg-white px-5 py-2.5 text-xs font-semibold text-slate-900 shadow-soft ring-1 ring-slate-300 transition hover:bg-slate-50">
+                                Select from device
+                                <input type="file"
+                                       name="image"
+                                       x-ref="fileInput"
+                                       accept="image/jpeg,image/png,image/webp"
+                                       class="sr-only"
+                                       @change="handleFile($event)"
+                                       required />
+                            </label>
+                        </div>
+                    </template>
+
+                    <!-- Preview Mode -->
+                    <template x-if="previewUrl">
+                        <div class="flex flex-col items-center gap-4">
+                            <div class="relative">
+                                <img :src="previewUrl"
+                                     alt="Selected image preview"
+                                     class="max-h-64 rounded-2xl object-contain shadow-soft ring-1 ring-slate-200" />
+                                <button type="button"
+                                        @click="clearFile()"
+                                        class="absolute -right-2 -top-2 inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-900 text-white shadow hover:bg-slate-800"
+                                        aria-label="Remove image">
+                                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
+                            <p class="text-xs text-slate-600" x-text="file ? file.name : ''"></p>
+                        </div>
+                    </template>
+                </div>
+
+                <!-- Department / Category Filter & Submit button -->
+                <div class="mt-6 flex flex-wrap items-center justify-between gap-4">
+                    <div class="flex items-center gap-2">
+                        <label for="category-select" class="text-xs font-medium text-slate-600">Narrow by category:</label>
+                        <select name="category" id="category-select" class="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 focus:border-slate-900 focus:outline-none">
+                            <option value="">All Categories</option>
+                            {% for cat in categories %}
+                                <option value="{{ cat.slug }}" {% if selected_category == cat.slug %}selected{% endif %}>{{ cat.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="flex items-center gap-3">
+                        <button type="button"
+                                x-show="previewUrl"
+                                @click="clearFile()"
+                                class="rounded-full border border-slate-300 px-5 py-2.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50">
+                            Clear
+                        </button>
+                        <button type="submit"
+                                :disabled="!file || isSubmitting"
+                                class="inline-flex items-center justify-center rounded-full bg-flash-600 px-6 py-2.5 text-xs font-semibold text-white shadow-soft transition hover:bg-flash-700 disabled:cursor-not-allowed disabled:opacity-50">
+                            <span x-show="!isSubmitting">Discover Matching Products</span>
+                            <span x-show="isSubmitting" class="flex items-center gap-2" role="status" aria-live="polite">
+                                <svg class="h-4 w-4 animate-spin text-white" viewBox="0 0 24 24" fill="none">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                                </svg>
+                                <span>Analyzing image...</span>
+                            </span>
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </section>
+    {% endif %}
+
+    <!-- Extracted Features Summary -->
+    {% if features %}
+        <section class="mt-8 rounded-2xl border border-slate-200 bg-slate-50/60 p-4" aria-label="Visual Analysis Summary">
+            <div class="flex flex-wrap items-center justify-between gap-4 text-xs text-slate-700">
+                <div class="flex items-center gap-2">
+                    <span class="font-semibold text-slate-900">Detected Palette:</span>
+                    <div class="flex items-center gap-1.5">
+                        {% for color_hex in features.dominant_colors %}
+                            <span class="h-4 w-4 rounded-full ring-1 ring-slate-300 ring-offset-1"
+                                  style="background-color: {{ color_hex }};"
+                                  title="{{ color_hex }}"></span>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-3">
+                    <span class="rounded-full bg-white px-2.5 py-1 font-medium ring-1 ring-slate-200">
+                        Tone: {{ features.tone|capfirst }}
+                    </span>
+                    {% if features.matched_catalog_colors %}
+                        <span class="rounded-full bg-white px-2.5 py-1 font-medium ring-1 ring-slate-200">
+                            Colors: {{ features.matched_catalog_colors|join:", "|title }}
+                        </span>
+                    {% endif %}
+                </div>
+            </div>
+        </section>
+    {% endif %}
+
+    <!-- Results Grid -->
+    <section class="mt-10" aria-label="Visual Discovery Results">
+        <div class="flex items-center justify-between border-b border-slate-200 pb-4">
+            <h2 class="text-xl font-semibold tracking-tight text-slate-950">
+                {% if results %}
+                    Discovered Pieces ({{ result_count }})
+                {% else %}
+                    Results
+                {% endif %}
+            </h2>
+            {% if results %}
+                <span class="text-xs text-slate-500">Ranked deterministically by visual &amp; stylistic similarity</span>
+            {% endif %}
+        </div>
+
+        {% if results %}
+            <div class="mt-8 grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-3 xl:grid-cols-4">
+                {% for item in results %}
+                    <article class="group relative flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft transition hover:-translate-y-0.5 hover:shadow-elevated">
+                        <!-- Click tracking link -->
+                        <a href="{% url 'catalog:visual-click' %}?product_id={{ item.product.pk }}&amp;next={{ item.product.get_absolute_url|urlencode }}"
+                           class="block aspect-[4/5] overflow-hidden bg-slate-100">
+                            {% with image=item.product.primary_image %}
+                                {% if image %}
+                                    <img src="{{ image.image.url }}"
+                                         alt="{{ image.alt_text }}"
+                                         width="640"
+                                         height="800"
+                                         loading="lazy"
+                                         decoding="async"
+                                         class="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+                                {% else %}
+                                    <span class="flex h-full w-full items-center justify-center text-sm text-slate-400">
+                                        No image yet
+                                    </span>
+                                {% endif %}
+                            {% endwith %}
+                        </a>
+
+                        <!-- Similarity Badge -->
+                        <span class="absolute left-3 top-3 rounded-full bg-slate-900/80 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur">
+                            {{ item.score|floatformat:0 }} pts
+                        </span>
+
+                        <div class="flex flex-1 flex-col gap-1 p-4">
+                            {% if item.product.brand %}
+                                <p class="text-xs font-medium uppercase tracking-[0.08em] text-slate-500">{{ item.product.brand.name }}</p>
+                            {% endif %}
+                            <h3 class="text-sm font-semibold text-slate-900">
+                                <a href="{% url 'catalog:visual-click' %}?product_id={{ item.product.pk }}&amp;next={{ item.product.get_absolute_url|urlencode }}"
+                                   class="focus:outline-none">
+                                    {{ item.product.name }}
+                                </a>
+                            </h3>
+
+                            <!-- Price -->
+                            {% with low=item.product.price_range.0 high=item.product.price_range.1 %}
+                                <p class="mt-1 text-sm text-slate-700">
+                                    {% if low is None %}
+                                        <span class="text-slate-400">Price on request</span>
+                                    {% else %}
+                                        <span class="font-semibold">{{ low|money }}</span>
+                                        {% if high and high != low %}
+                                            <span class="text-slate-500">– {{ high|money }}</span>
+                                        {% endif %}
+                                    {% endif %}
+                                </p>
+                            {% endwith %}
+
+                            <!-- Match Reason -->
+                            {% if item.reasons %}
+                                <div class="mt-2 border-t border-slate-100 pt-2">
+                                    <p class="line-clamp-1 text-[11px] font-medium text-flash-700">
+                                        {{ item.reasons.0 }}
+                                    </p>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </article>
+                {% endfor %}
+            </div>
+        {% elif mode == "image_search" or mode == "similar_product" %}
+            <!-- Empty state -->
+            <div class="mt-8 rounded-2xl border border-dashed border-slate-300 bg-white/70 p-10 text-center">
+                <svg class="mx-auto h-10 w-10 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <h3 class="mt-3 text-base font-semibold text-slate-900">No visually similar products found</h3>
+                <p class="mt-1 text-sm text-slate-600">
+                    Try uploading another image with clearer lighting, or explore our curated departments below.
+                </p>
+                <div class="mt-6 flex flex-wrap justify-center gap-3">
+                    <a href="{% url 'catalog:visual-search' %}"
+                       class="inline-flex items-center rounded-full bg-slate-900 px-5 py-2.5 text-xs font-semibold text-white shadow-soft transition hover:bg-slate-800">
+                        Try another image
+                    </a>
+                    <a href="{% url 'catalog:product-list' %}"
+                       class="inline-flex items-center rounded-full border border-slate-300 bg-white px-5 py-2.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900 hover:text-slate-900">
+                        Browse all products
+                    </a>
+                </div>
+            </div>
+        {% else %}
+            <!-- Initial State prompt -->
+            <div class="mt-8 rounded-2xl border border-slate-200 bg-slate-50/50 p-8 text-center text-sm text-slate-500">
+                Upload a photo above to begin discovery, or discover items from our catalog.
+            </div>
+        {% endif %}
+    </section>
+</div>
+{% endblock content %}

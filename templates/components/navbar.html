@@ -59,6 +59,14 @@
                 <span class="hidden sm:inline">Search</span>
             </button>
 
+            <a href="{% url 'catalog:visual-search' %}" class="group inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-soft transition hover:border-slate-300 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-flash-500/20 focus:ring-offset-2 focus:ring-offset-white" title="Search by Image" aria-label="Search by image">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-4 w-4 text-slate-500 transition group-hover:text-slate-700">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" />
+                </svg>
+                <span class="hidden sm:inline">Image</span>
+            </a>
+
             {% if user.is_authenticated %}
             <a href="{% url 'notifications:center' %}" class="group inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-soft transition hover:border-slate-300 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-flash-500/20 focus:ring-offset-2 focus:ring-offset-white" aria-label="Notifications{% if notifications_unread %}, {{ notifications_unread }} unread{% endif %}">
                 <span class="relative inline-flex">
@@ -113,6 +121,7 @@
             <a href="{% url 'catalog:product-list' %}" class="block rounded-xl px-3 py-2 text-base font-medium text-slate-700 transition hover:bg-slate-50">Shop</a>
             <a href="{% url 'catalog:category-list' %}" class="block rounded-xl px-3 py-2 text-base font-medium text-slate-700 transition hover:bg-slate-50">Categories</a>
             <a href="{% url 'catalog:collection-list' %}" class="block rounded-xl px-3 py-2 text-base font-medium text-slate-700 transition hover:bg-slate-50">Collections</a>
+            <a href="{% url 'catalog:visual-search' %}" class="block rounded-xl px-3 py-2 text-base font-medium text-slate-700 transition hover:bg-slate-50">Search by Image</a>
             <a href="{% url 'shop:cart' %}" class="block rounded-xl px-3 py-2 text-base font-medium text-slate-700 transition hover:bg-slate-50">Bag{% if cart_count %} <span class="text-xs text-slate-500">({{ cart_count }})</span>{% endif %}</a>
             <a href="{% url 'shop:wishlist' %}" class="block rounded-xl px-3 py-2 text-base font-medium text-slate-700 transition hover:bg-slate-50">Wishlist{% if wishlist_count %} <span class="text-xs text-slate-500">({{ wishlist_count }})</span>{% endif %}</a>
             {% if user.is_authenticated %}

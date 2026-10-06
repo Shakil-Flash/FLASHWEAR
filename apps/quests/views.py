@@ -26,6 +26,7 @@ from django.urls import NoReverseMatch, reverse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
 
+from apps.analytics.services import record_event
 from apps.engagement.services import loyalty
 from apps.quests import selectors
 from apps.quests.models import Quest, UserQuest
@@ -106,6 +107,12 @@ def quest_detail(request, slug: str):
         "cta": _cta_for(quest.quest_type),
         "can_start": view.state == Quest.State.ACTIVE and not view.is_started,
     }
+    record_event(
+        "quest_view",
+        request=request,
+        object_type="quest",
+        object_id=quest.pk,
+    )
     return render(request, "account/quest_detail.html", context)
 
 

@@ -1,6 +1,8 @@
 {% extends "catalog/listing_base.html" %}
 {% load catalog_extras %}
 
+{% block extra_meta %}{{ breadcrumb_schema|json_script:"ld-breadcrumb" }}{% endblock extra_meta %}
+
 {% block breadcrumbs %}
     <li><a href="{% url 'core:home' %}" class="hover:text-slate-900">Home</a></li>
     <li aria-hidden="true">/</li>
@@ -12,7 +14,7 @@
 {% block heading %}
     <span class="flex items-center gap-3">
         {% if brand.logo %}
-            <img src="{{ brand.logo.url }}" alt="{{ brand.name }}" width="48" height="48" class="h-12 w-12 rounded-xl object-contain" />
+            <img src="{{ brand.logo.url }}" alt="{{ brand.name }}" width="48" height="48" decoding="async" class="h-12 w-12 rounded-xl object-contain" />
         {% endif %}
         {{ brand.name }}
     </span>

@@ -56,7 +56,7 @@
     {% else %}
     <div class="mt-8 grid gap-8 lg:grid-cols-[1fr_20rem]">
         <ul class="space-y-4">
-            {% for item in cart.get_items %}
+            {% for item in items %}
             <li class="rounded-2xl border border-slate-200 bg-white p-4 shadow-soft sm:p-5">
                 <div class="flex gap-4">
                     <a href="{{ item.variant.get_absolute_url }}" class="block h-24 w-20 shrink-0 overflow-hidden rounded-xl bg-slate-100 sm:h-28 sm:w-24">
@@ -154,3 +154,4 @@
     {% endif %}
 </div>
 {% endblock content %}
+

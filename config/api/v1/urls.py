@@ -31,6 +31,9 @@ from apps.catalog.api import (
     ProductListView,
     ProductSearchSuggestionsView,
     ProductSearchView,
+    ProductSimilarView,
+    ProductVisualSearchView,
+    VisualProductClickView,
 )
 from apps.closet.api import (
     ClosetItemDetailView,
@@ -83,6 +86,10 @@ from apps.recommendations.api import (
 from apps.styling.api import (
     FlashDNACheckView,
     FlashDNAView,
+    StudioCompleteLookView,
+    StudioGenerateView,
+    StudioGoalView,
+    StudioSaveView,
     StylistRecommendView,
     StylistSaveOutfitView,
     StylistStyleProductView,
@@ -115,7 +122,22 @@ urlpatterns = [
     path("products/", ProductListView.as_view(), name="product-list"),
     path("products/search/", ProductSearchView.as_view(), name="product-search"),
     path(
+        "products/visual-search/",
+        ProductVisualSearchView.as_view(),
+        name="product-visual-search",
+    ),
+    path(
+        "products/visual-search/click/",
+        VisualProductClickView.as_view(),
+        name="visual-product-click",
+    ),
+    path(
         "products/suggestions/", ProductSearchSuggestionsView.as_view(), name="product-suggestions"
+    ),
+    path(
+        "products/<slug:slug>/similar/",
+        ProductSimilarView.as_view(),
+        name="product-similar",
     ),
     # Engagement (Phase 7): reviews live under their product; writes are session-authenticated.
     path(
@@ -174,6 +196,16 @@ urlpatterns = [
     path("stylist/recommend/", StylistRecommendView.as_view(), name="stylist-recommend"),
     path("stylist/style-product/", StylistStyleProductView.as_view(), name="stylist-style-product"),
     path("stylist/save-outfit/", StylistSaveOutfitView.as_view(), name="stylist-save-outfit"),
+    # Phase 21: Style Studio API (the deterministic generator behind the studio pages;
+    # the complete-look mirror is public because the PDP widget it answers is public).
+    path("studio/outfit/", StudioGenerateView.as_view(), name="studio-outfit"),
+    path("studio/outfit/save/", StudioSaveView.as_view(), name="studio-outfit-save"),
+    path("studio/goal/", StudioGoalView.as_view(), name="studio-goal"),
+    path(
+        "studio/complete-look/<slug:slug>/",
+        StudioCompleteLookView.as_view(),
+        name="studio-complete-look",
+    ),
     # Phase 10: personalized discovery and recommendations (session-authenticated).
     path("recommendations/", RecommendationRootView.as_view(), name="recommendations-root"),
     path("recommendations/for-you/", ForYouView.as_view(), name="for-you"),

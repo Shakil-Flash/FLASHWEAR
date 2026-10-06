@@ -17,7 +17,7 @@ than as links, so the account area is honest about what exists without looking b
         <nav class="mb-8 lg:mb-0" aria-label="Account sections">
             <div class="flex items-center gap-3">
                 {% if user.profile.avatar %}
-                    <img src="{{ user.profile.avatar.url }}" alt="" width="48" height="48" class="h-12 w-12 rounded-full object-cover ring-1 ring-slate-200" />
+                    <img src="{{ user.profile.avatar.url }}" alt="" width="48" height="48" decoding="async" class="h-12 w-12 rounded-full object-cover ring-1 ring-slate-200" />
                 {% else %}
                     <span aria-hidden="true" class="inline-flex h-12 w-12 items-center justify-center rounded-full bg-flash-600 text-lg font-semibold text-white shadow-soft">{{ user.get_short_name|slice:":1"|upper }}</span>
                 {% endif %}

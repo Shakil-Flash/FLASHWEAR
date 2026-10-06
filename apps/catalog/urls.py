@@ -12,6 +12,7 @@ from django.urls import path
 
 from apps.catalog import views
 from apps.engagement.views import review_create
+from apps.styling.views import complete_look_fragment, recommendation_click
 
 app_name = "catalog"
 
@@ -20,9 +21,19 @@ urlpatterns = [
     # prefix, so order here is only for readability.
     path("products/", views.product_list, name="product-list"),
     path("search/", views.product_search, name="product-search"),
+    path("search/visual/", views.visual_search, name="visual-search"),
+    path("search/visual/click/", views.track_visual_click, name="visual-click"),
     # Phase 7: the review form lives on the product page and posts here (view in engagement,
     # URL in the namespace the page itself belongs to -- same split as the account area).
     path("products/<slug:slug>/review/", review_create, name="review-create"),
+    # Phase 21: Complete the Look is an htmx fragment the product page loads lazily, so the
+    # product detail view keeps its query budget; the tracker attributes outbound clicks.
+    path(
+        "products/<slug:slug>/complete-look/",
+        complete_look_fragment,
+        name="complete-look",
+    ),
+    path("track/look/", recommendation_click, name="track-click"),
     path("products/<slug:slug>/", views.product_detail, name="product-detail"),
     path("categories/", views.category_list, name="category-list"),
     path("categories/<slug:slug>/", views.category_detail, name="category-detail"),

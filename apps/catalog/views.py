@@ -23,14 +23,17 @@ from __future__ import annotations
 from decimal import Decimal
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.http import Http404
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET
 
+from apps.analytics.services import record_event
 from apps.catalog import selectors, services
 from apps.catalog.models import Brand, Category, Collection, Color, Product, Size
 from apps.catalog.seo import (
@@ -102,7 +105,7 @@ def product_list(request):
     filters = _parse_filters(request)
 
     # Build the queryset using the new discovery selectors
-    queryset = selectors.storefront_products(sort=selectors.resolve_sort(request.GET.get("sort")))
+    queryset = selectors.storefront_products(sort=sort)
 
     # Apply search
     if filters["query"]:
@@ -121,6 +124,16 @@ def product_list(request):
 
     paginator, page = _paginate(request, queryset)
 
+    if filters["query"]:
+        record_event(
+            "product_search",
+            request=request,
+            metadata={"query": filters["query"][:100], "result_count": paginator.count},
+        )
+    applied_filters = [key for key, value in filters.items() if key != "query" and value]
+    if applied_filters:
+        record_event("filter_used", request=request, metadata={"filters": applied_filters})
+
     context = {
         "page_obj": page,
         "paginator": paginator,
@@ -128,9 +141,10 @@ def product_list(request):
         "sort": sort,
         "sort_choices": Product.Sort.choices,
         "total_count": paginator.count,
-        "category_rail": selectors.storefront_categories(limit=NAV_CATEGORY_LIMIT),
+        "category_rail": selectors.storefront_categories(
+            limit=NAV_CATEGORY_LIMIT, with_children=False
+        ),
         "filters": filters,
-        "facet_counts": selectors.get_facet_counts(queryset, {}),
         **listing_metadata(
             f"{_('All products')} | FLASHWEAR",
             _(
@@ -138,6 +152,7 @@ def product_list(request):
                 "cargo pants, denim and accessories."
             ),
             request=request,
+            page=page.number,
         ),
     }
     return render(request, "catalog/product_list.html", context)
@@ -161,10 +176,15 @@ def product_detail(request, slug: str):
     """``/products/<slug>/`` -- one garment, with its variants and gallery."""
     product = get_object_or_404(selectors.product_detail_queryset().published(), slug=slug)
 
+    # Only look up the option rows when the query string actually asked for one: an empty
+    # slug never matches anything, and two guaranteed-miss SELECTs on every product page
+    # is two more than needed.
+    color_slug = request.GET.get("color", "")
+    size_code = request.GET.get("size", "").upper()
     matrix = services.build_variant_matrix(
         product,
-        color=Color.objects.filter(slug=request.GET.get("color", ""), is_active=True).first(),
-        size=Size.objects.filter(code=request.GET.get("size", "").upper(), is_active=True).first(),
+        color=Color.objects.filter(slug=color_slug, is_active=True).first() if color_slug else None,
+        size=Size.objects.filter(code=size_code, is_active=True).first() if size_code else None,
     )
     selected = matrix.selected
     gallery = services.product_gallery(product)
@@ -240,6 +260,13 @@ def product_detail(request, slug: str):
         else "",
         **product_metadata(product, request=request),
     }
+    record_event(
+        "product_view",
+        request=request,
+        object_type="product",
+        object_id=product.pk,
+        metadata={"slug": product.slug, "category": product.category.slug},
+    )
     return render(request, "catalog/product_detail.html", context)
 
 
@@ -256,7 +283,7 @@ def category_list(request):
     categories = selectors.storefront_categories()
     context = {
         "categories": categories,
-        "breadcrumbs": _trail_schema(
+        "breadcrumb_schema": _trail_schema(
             request,
             [{"name": _("Categories"), "url": request.build_absolute_uri("/categories/")}],
         ),
@@ -304,7 +331,9 @@ def category_detail(request, slug: str):
         "sort": sort,
         "sort_choices": Product.Sort.choices,
         "breadcrumb_schema": _trail_schema(request, trail_nodes),
-        **taxonomy_metadata(category, request=request, fallback_description=str(summary)),
+        **taxonomy_metadata(
+            category, request=request, fallback_description=str(summary), page=page.number
+        ),
     }
     return render(request, "catalog/category_detail.html", context)
 
@@ -360,7 +389,7 @@ def collection_detail(request, slug: str):
                 },
             ],
         ),
-        **taxonomy_metadata(collection, request=request, kind="website"),
+        **taxonomy_metadata(collection, request=request, kind="website", page=page.number),
     }
     return render(request, "catalog/collection_detail.html", context)
 
@@ -386,6 +415,197 @@ def brand_detail(request, slug: str):
             request,
             [{"name": brand.name, "url": request.build_absolute_uri(brand.get_absolute_url())}],
         ),
-        **taxonomy_metadata(brand, request=request, kind="website"),
+        **taxonomy_metadata(brand, request=request, kind="website", page=page.number),
     }
     return render(request, "catalog/brand_detail.html", context)
+
+
+@storefront_open
+@never_cache
+def visual_search(request):
+    """Customer-facing visual product discovery (Phase 22).
+
+    Supports:
+    1. 'Search by Image' via file upload (POST).
+    2. 'Find Similar' to a specified product via `?product=<slug>` (GET).
+    3. Standalone upload landing state (GET).
+    """
+    from apps.catalog.visual_discovery import (
+        find_similar_to_product,
+        find_visually_similar_products,
+    )
+
+    # Mode 1: "Find Similar" from an existing product
+    product_slug = request.GET.get("product") or request.GET.get("similar_to")
+    if product_slug and request.method == "GET":
+        source_product = get_object_or_404(Product.objects.published(), slug=product_slug)
+        results = find_similar_to_product(source_product, user=request.user)
+
+        record_event(
+            "find_similar_used",
+            request=request,
+            object_type="product",
+            object_id=source_product.pk,
+            metadata={"product_slug": source_product.slug},
+        )
+
+        categories = Category.objects.filter(is_active=True, parent__isnull=True).order_by(
+            "display_order", "name"
+        )
+
+        context = {
+            "mode": "similar_product",
+            "source_product": source_product,
+            "results": results,
+            "result_count": len(results),
+            "categories": categories,
+        }
+        return render(request, "catalog/visual_search.html", context)
+
+    # Mode 2: "Search by Image" upload
+    if request.method == "POST":
+        image_file = request.FILES.get("image")
+        category_slug = (request.POST.get("category") or "").strip() or None
+
+        record_event(
+            "image_search_started",
+            request=request,
+            metadata={"source": "storefront"},
+        )
+
+        if not image_file:
+            error_msg = _("Please select an image to search.")
+            record_event(
+                "image_search_failed",
+                request=request,
+                metadata={"error_code": "empty_upload", "reason": "No image selected"},
+            )
+            categories = Category.objects.filter(is_active=True, parent__isnull=True).order_by(
+                "display_order", "name"
+            )
+            return render(
+                request,
+                "catalog/visual_search.html",
+                {
+                    "mode": "error",
+                    "error": error_msg,
+                    "categories": categories,
+                },
+                status=400,
+            )
+
+        try:
+            results, features = find_visually_similar_products(
+                image_file,
+                category_slug=category_slug,
+                user=request.user,
+            )
+
+            record_event(
+                "image_search_completed",
+                request=request,
+                metadata={
+                    "results_count": len(results),
+                    "dominant_colors": features.dominant_colors,
+                    "matched_colors": features.matched_catalog_colors,
+                    "tone": features.tone,
+                },
+            )
+
+            categories = Category.objects.filter(is_active=True, parent__isnull=True).order_by(
+                "display_order", "name"
+            )
+
+            context = {
+                "mode": "image_search",
+                "features": features,
+                "results": results,
+                "result_count": len(results),
+                "selected_category": category_slug,
+                "categories": categories,
+            }
+            return render(request, "catalog/visual_search.html", context)
+
+        except ValidationError as error:
+            msg = getattr(error, "message", str(error))
+            code = getattr(error, "code", "invalid_image")
+            record_event(
+                "image_search_failed",
+                request=request,
+                metadata={"error_code": code, "reason": msg},
+            )
+            categories = Category.objects.filter(is_active=True, parent__isnull=True).order_by(
+                "display_order", "name"
+            )
+            return render(
+                request,
+                "catalog/visual_search.html",
+                {
+                    "mode": "error",
+                    "error": msg,
+                    "categories": categories,
+                },
+                status=400,
+            )
+        except Exception:
+            record_event(
+                "image_search_failed",
+                request=request,
+                metadata={"error_code": "server_error", "reason": "Processing failure"},
+            )
+            categories = Category.objects.filter(is_active=True, parent__isnull=True).order_by(
+                "display_order", "name"
+            )
+            return render(
+                request,
+                "catalog/visual_search.html",
+                {
+                    "mode": "error",
+                    "error": _("We could not analyze that image. Please try another photo."),
+                    "categories": categories,
+                },
+                status=400,
+            )
+
+    # Mode 3: Initial upload landing page
+    categories = Category.objects.filter(is_active=True, parent__isnull=True).order_by(
+        "display_order", "name"
+    )
+    return render(
+        request,
+        "catalog/visual_search.html",
+        {
+            "mode": "upload",
+            "categories": categories,
+        },
+    )
+
+
+@storefront_open
+@never_cache
+def track_visual_click(request):
+    """Track outbound clicks on visual search results and redirect."""
+    product_id = request.GET.get("product_id") or request.POST.get("product_id")
+    target_url = request.GET.get("next") or ""
+
+    if product_id:
+        try:
+            prod_pk = int(product_id)
+            record_event(
+                "visual_product_clicked",
+                request=request,
+                object_type="product",
+                object_id=prod_pk,
+            )
+            if not target_url:
+                prod = Product.objects.filter(pk=prod_pk).first()
+                if prod:
+                    target_url = prod.get_absolute_url()
+        except (ValueError, TypeError):
+            pass
+
+    if target_url and url_has_allowed_host_and_scheme(
+        target_url, allowed_hosts={request.get_host()}
+    ):
+        return redirect(target_url)
+    return redirect("catalog:product-list")

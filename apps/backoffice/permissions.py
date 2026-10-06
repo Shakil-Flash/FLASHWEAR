@@ -37,6 +37,7 @@ from apps.support.permissions import MANAGER_GROUP as SUPPORT_MANAGER_GROUP
 
 __all__ = [
     "ADMIN_GROUP",
+    "ANALYTICS_VIEW",
     "AUDIT_VIEW",
     "BACKOFFICE_GROUPS",
     "CAPABILITIES",
@@ -103,6 +104,7 @@ SUPPORT_MANAGE = "support.manage"
 NOTIFICATIONS_VIEW = "notifications.view"
 NOTIFICATIONS_MANAGE = "notifications.manage"
 AUDIT_VIEW = "audit.view"
+ANALYTICS_VIEW = "analytics.view"
 STAFF_MANAGE = "staff.manage"
 
 CAPABILITIES = (
@@ -126,6 +128,7 @@ CAPABILITIES = (
     NOTIFICATIONS_VIEW,
     NOTIFICATIONS_MANAGE,
     AUDIT_VIEW,
+    ANALYTICS_VIEW,
     STAFF_MANAGE,
 )
 
@@ -224,15 +227,33 @@ CAPABILITY_GROUPS: dict[str, frozenset[str]] = {
     ),
     NOTIFICATIONS_MANAGE: frozenset({OPERATOR_GROUP, ADMIN_GROUP}),
     AUDIT_VIEW: MANAGER_GROUPS,
+    # The funnel screen shows aggregates only, but it describes how the business is
+    # trading: the floor and the campaign owner read it, finance reconciles it against
+    # the orders screen, and moderators/content staff have no reason to.
+    ANALYTICS_VIEW: frozenset({OPERATOR_GROUP, MARKETING_GROUP, FINANCE_GROUP, ADMIN_GROUP}),
     STAFF_MANAGE: frozenset({ADMIN_GROUP}),
 }
 
 
 def group_names_for(user) -> frozenset[str]:
-    """The group names this user belongs to (empty for anonymous/missing users)."""
+    """The group names this user belongs to (empty for anonymous/missing users).
+
+    Cached on the user instance for the lifetime of the request: the dashboard asks the
+    same question a dozen times (every ``has()`` call), and one membership query per
+    capability check is a query per capability. Django's own ``has_perm`` caches the
+    same way on the instance. Groups rarely change mid-request, and when they do (a
+    test adding one) the instance is recreated by the next fetch.
+    """
     if user is None or not getattr(user, "is_authenticated", False):
         return frozenset()
-    return frozenset(user.groups.values_list("name", flat=True))
+    cached = getattr(user, "_fw_group_names", None)
+    if cached is None:
+        cached = frozenset(user.groups.values_list("name", flat=True))
+        try:
+            user._fw_group_names = cached
+        except AttributeError:  # pragma: no cover - exotic user objects
+            pass
+    return cached
 
 
 def has(user, capability: str) -> bool:
@@ -327,6 +348,7 @@ NAVIGATION = (
             ("alerts", "Alerts", "backoffice:alerts", OPS_VIEW),
             ("health", "System health", "backoffice:health", OPS_VIEW),
             ("notifications", "Notifications", "backoffice:notifications", NOTIFICATIONS_VIEW),
+            ("analytics", "Analytics", "backoffice:analytics", ANALYTICS_VIEW),
         ),
     ),
     (

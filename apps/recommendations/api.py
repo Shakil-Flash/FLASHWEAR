@@ -17,6 +17,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.analytics.services import record_event
 from apps.recommendations.services import (
     get_recommendations,
 )
@@ -86,6 +87,12 @@ class ForYouView(APIView):
                 {"detail": "Could not generate recommendations at this time."},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
+        record_event(
+            "recommendation_view",
+            request=request,
+            object_type="surface",
+            metadata={"surface": "for_you"},
+        )
         return Response(result)
 
 

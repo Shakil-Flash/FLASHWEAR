@@ -502,12 +502,23 @@ def product_detail_queryset():
 def related_products(product, *, limit: int | None = None):
     """A small "you may also like" strip: same category first, then same brand.
 
-    Merchandising, not search: one extra query, four rows, never the thing a shopper is waiting on.
+    Merchandising, not search: one extra query, four rows, never the thing a shopper is
+    waiting on. The prefetch mirrors what the product card actually reads (image, price,
+    brand) without the collections relation the card never touches.
     """
     limit = limit or settings.CATALOG_RELATED_PRODUCTS_LIMIT
     queryset = (
         Product.objects.published()
-        .with_storefront_data()
+        .select_related("brand", "category")
+        .prefetch_related(
+            Prefetch("images", queryset=ProductImage.objects.select_related("variant__color")),
+            Prefetch(
+                "variants",
+                queryset=ProductVariant.objects.filter(is_active=True).select_related(
+                    "color", "size"
+                ),
+            ),
+        )
         .filter(Q(category=product.category) | Q(brand=product.brand))
         .exclude(pk=product.pk)
         .order_by("-is_featured", "-published_at", "-id")
@@ -537,14 +548,21 @@ def homepage_new_arrivals(*, limit: int = 8):
     )
 
 
-def storefront_categories(*, limit: int | None = None):
-    """Active top-level categories, children first, for the homepage and navigation."""
-    queryset = Category.objects.filter(is_active=True, parent__isnull=True).prefetch_related(
-        Prefetch(
-            "children",
-            queryset=Category.objects.filter(is_active=True).order_by("display_order", "name"),
+def storefront_categories(*, limit: int | None = None, with_children: bool = True):
+    """Active top-level categories, children first, for the homepage and navigation.
+
+    ``with_children=False`` skips the second-level prefetch for callers that render only
+    the department chips (home nav, product-list rail) -- the children query is then not
+    issued at all.
+    """
+    queryset = Category.objects.filter(is_active=True, parent__isnull=True)
+    if with_children:
+        queryset = queryset.prefetch_related(
+            Prefetch(
+                "children",
+                queryset=Category.objects.filter(is_active=True).order_by("display_order", "name"),
+            )
         )
-    )
     return queryset[:limit] if limit else queryset
 
 

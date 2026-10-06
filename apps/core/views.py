@@ -9,10 +9,12 @@ from __future__ import annotations
 from django.conf import settings
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import render
+from django.urls import reverse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET
 
 from apps.core.context_processors import get_site_configuration
+from apps.core.seo import organization_schema, website_schema
 
 
 @never_cache
@@ -76,15 +78,41 @@ def home(request: HttpRequest) -> HttpResponse:
     from apps.catalog import selectors
 
     context = {
-        "seo_title": f"{site.site_name} — {site.tagline}",
+        "seo_title": f"{site.site_name} - {site.tagline}",
         "seo_description": site.default_seo_description,
         "is_development": settings.DEBUG,
-        "nav_categories": selectors.storefront_categories(limit=6),
+        "nav_categories": selectors.storefront_categories(limit=6, with_children=False),
         "featured_products": selectors.homepage_featured(limit=4),
         "new_arrivals": selectors.homepage_new_arrivals(limit=8),
         "featured_collections": list(selectors.live_collections(featured_only=True)[:3]),
+        # Phase 20: who runs this site and how to search it, from the real config row.
+        "organization_schema": organization_schema(request),
+        "website_schema": website_schema(request),
     }
     return render(request, "pages/home.html", context)
+
+
+@require_GET
+def robots(request: HttpRequest) -> HttpResponse:
+    """``/robots.txt`` -- crawl rules and the sitemap pointer (Phase 20).
+
+    Disallow is for private or machine-only surfaces where a crawler has nothing to index
+    (and everything customer-facing stays open); the sitemap is absolute so it survives any
+    proxy in front of the app.
+    """
+    lines = [
+        "User-Agent: *",
+        "Allow: /",
+        "Disallow: /operations/",
+        "Disallow: /admin/",
+        "Disallow: /account/",
+        "Disallow: /cart/",
+        "Disallow: /shop/checkout",
+        "Disallow: /api/",
+        "",
+        f"Sitemap: {request.build_absolute_uri(reverse('core:sitemap'))}",
+    ]
+    return HttpResponse("\n".join(lines), content_type="text/plain")
 
 
 def page_not_found(request: HttpRequest, exception) -> HttpResponse:

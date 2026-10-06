@@ -16,6 +16,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.analytics.services import record_event
 from apps.drops.models import DropStatus, FlashDrop
 
 logger = logging.getLogger(__name__)
@@ -70,6 +71,14 @@ class DropDetailView(APIView):
             )
 
         products = drop.available_products
+
+        record_event(
+            "drop_view",
+            request=request,
+            object_type="drop",
+            object_id=drop.pk,
+            metadata={"slug": drop.slug, "status": drop.status},
+        )
 
         return Response(
             {

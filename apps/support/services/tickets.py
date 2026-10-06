@@ -22,6 +22,7 @@ from django.db.models import Q
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
+from apps.analytics.services import record_event
 from apps.notifications.models import NotificationType
 from apps.support.models import SupportMessage, SupportTicket, SupportTicketEvent
 from apps.support.permissions import SUPPORT_AGENT, SUPPORT_MANAGER, has_capability
@@ -215,6 +216,15 @@ def open_ticket(
         request=request,
     )
     notify_ticket(ticket, NotificationType.SUPPORT_TICKET_CREATED, "created")
+    record_event(
+        "support_ticket_created",
+        request=request,
+        user=customer,
+        object_type="support_ticket",
+        object_id=ticket.pk,
+        metadata={"category": category, "priority": priority},
+        idempotency_key=f"support_ticket_created:{ticket.pk}",
+    )
     return ticket
 
 

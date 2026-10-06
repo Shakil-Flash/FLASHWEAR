@@ -1,0 +1,55 @@
+{% extends "account/base_account.html" %}
+
+{% block account_title %}Style Goals{% endblock account_title %}
+{% block account_heading %}Style Goals{% endblock account_heading %}
+{% block account_intro %}
+    A style goal is a standing instruction for every look the studio builds. Pick one and
+    your generated outfits lean toward it automatically.
+{% endblock account_intro %}
+{% block meta_robots %}noindex, nofollow{% endblock meta_robots %}
+
+{% block account_content %}
+<div class="space-y-6">
+    <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
+        <p class="text-sm text-slate-600">Current goal</p>
+        <p class="mt-1 text-base font-semibold text-slate-950">
+            {% if current_goal %}
+                {{ current_goal_label }}
+            {% else %}
+                None yet — choose one below.
+            {% endif %}
+        </p>
+    </div>
+
+    <form method="post" action="{% url 'account:studio-goals' %}">
+        {% csrf_token %}
+        <fieldset>
+            <legend class="text-sm font-semibold text-slate-900">Choose your style goal</legend>
+            <div class="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {% for code, label in goal_choices %}
+                <label class="flex cursor-pointer items-start gap-3 rounded-2xl border p-4 shadow-soft transition focus-within:ring-2 focus-within:ring-flash-500/30 {% if current_goal == code %}border-flash-600 ring-2 ring-flash-600{% else %}border-slate-200 bg-white hover:border-slate-300{% endif %}">
+                    <input type="radio" name="goal" value="{{ code }}" {% if current_goal == code %}checked{% endif %}
+                           class="mt-1 h-4 w-4 border-slate-300 text-flash-600 focus:ring-flash-500/30" />
+                    <span class="min-w-0">
+                        <span class="block text-sm font-semibold text-slate-900">{{ label }}</span>
+                        <span class="mt-0.5 block text-xs leading-relaxed text-slate-500">Studio looks will lean this way.</span>
+                    </span>
+                </label>
+                {% endfor %}
+            </div>
+        </fieldset>
+
+        <div class="mt-5">
+            <button type="submit" class="inline-flex items-center justify-center rounded-full bg-flash-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-flash-700 focus:outline-none focus:ring-2 focus:ring-flash-500/30 focus:ring-offset-2 focus:ring-offset-white">
+                Save goal
+            </button>
+        </div>
+    </form>
+
+    <p class="text-sm text-slate-600">
+        Goals combine with your FLASH DNA and the occasion you pick in the
+        <a href="{% url 'account:studio' %}" class="font-medium text-slate-700 underline-offset-4 hover:underline">Style Studio</a>
+        — nothing is applied behind the scenes without a reason you can read on the look.
+    </p>
+</div>
+{% endblock account_content %}

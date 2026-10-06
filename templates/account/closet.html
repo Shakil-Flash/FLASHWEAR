@@ -80,7 +80,7 @@
         <li class="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft transition hover:border-slate-300">
             <div class="relative aspect-[4/5] bg-slate-100">
                 {% if item.display_image %}
-                <img src="{{ item.display_image.url }}" alt="{{ item.name }}" loading="lazy" class="h-full w-full object-cover" />
+                <img src="{{ item.display_image.url }}" alt="{{ item.name }}" width="640" height="800" loading="lazy" decoding="async" class="h-full w-full object-cover" />
                 {% else %}
                 <span aria-hidden="true" class="flex h-full w-full items-center justify-center text-3xl font-semibold text-slate-300">{{ item.name|slice:":1"|upper }}</span>
                 {% endif %}

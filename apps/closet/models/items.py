@@ -231,7 +231,7 @@ class ClosetItem(TimestampedModel):
         if self.image:
             return self.image
         if self.variant_id:
-            primary = self.variant.product.primary_image()
+            primary = self.variant.product.primary_image
             if primary is not None:
                 return primary.image
         return None

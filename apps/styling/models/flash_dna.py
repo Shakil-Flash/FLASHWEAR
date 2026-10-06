@@ -18,7 +18,7 @@ from django.utils.translation import gettext_lazy as _
 from apps.catalog.models.attributes import Color, Fit, Material
 from apps.closet.models.items import ClosetItem
 
-__all__ = ["DNA_OCCASIONS", "DNA_SEASONS", "DNA_STYLES", "FlashDNA"]
+__all__ = ["DNA_OCCASIONS", "DNA_SEASONS", "DNA_STYLES", "STYLE_GOALS", "FlashDNA"]
 
 
 # ---------------------------------------------------------------------------
@@ -34,6 +34,19 @@ DNA_STYLES = [
     ("sporty", "Sporty"),
     ("oversized", "Oversized"),
     ("classic", "Classic"),
+]
+
+# Phase 21 style goals: a single optional direction the customer is dressing towards.
+# Kept separate from ``DNA_STYLES`` on purpose -- a goal is a *direction*, not a liked
+# style, so choosing one must never rewrite the preference list the stylist already reads.
+STYLE_GOALS = [
+    ("minimal", "Minimal"),
+    ("streetwear", "Streetwear"),
+    ("smart_casual", "Smart casual"),
+    ("formal", "Formal"),
+    ("trendy", "Trendy"),
+    ("classic", "Classic"),
+    ("athleisure", "Athleisure"),
 ]
 
 DNA_OCCASIONS = [
@@ -221,6 +234,20 @@ class FlashDNA(models.Model):
         ),
     )
 
+    # --- Style goal (Phase 21) ----------------------------------------------
+
+    style_goal = models.CharField(
+        _("style goal"),
+        max_length=20,
+        blank=True,
+        choices=STYLE_GOALS,
+        help_text=_(
+            "Optional single style direction (Minimal, Streetwear, ...). "
+            "Additive: it weights generation and recommendations without touching "
+            "the preferred-styles list above."
+        ),
+    )
+
     # --- Audit ------------------------------------------------------------
 
     created_at = models.DateTimeField(_("created at"), auto_now_add=True)
@@ -248,6 +275,7 @@ class FlashDNA(models.Model):
                 + bool(self.preferred_seasons)
                 + (1 if self.preferred_price_range else 0)
                 + bool(self.fashion_goal)
+                + (1 if self.style_goal else 0)
             )
         else:
             # At least some preferences should be set; a profile with zero fields is unhelpful.
@@ -266,6 +294,7 @@ class FlashDNA(models.Model):
                 + (1 if self.preferred_price_range else 0)
                 + bool(self.preferred_brands.exists())
                 + bool(self.fashion_goal)
+                + (1 if self.style_goal else 0)
             )
         if total_fields == 0:
             raise ValidationError(
@@ -292,6 +321,7 @@ class FlashDNA(models.Model):
             self.preferred_seasons,
             self.preferred_price_range,
             self.fashion_goal,
+            self.style_goal,
         )
         if any(scalars):
             return True
@@ -315,11 +345,17 @@ class FlashDNA(models.Model):
 
 
 def get_flash_dna(user) -> FlashDNA | None:
-    """Return the user's DNA profile, or None if one does not exist yet."""
-    try:
-        return user.flash_dna
-    except FlashDNA.DoesNotExist:
+    """Return the user's DNA profile, or None if one does not exist yet.
+
+    Anonymous visitors (the storefront's default) have no profile relation at all, so the
+    authentication check comes first. The row is read from the table rather than through
+    ``user.flash_dna``: that reverse descriptor caches a miss, so code that looked before
+    the first profile existed (a goal save, say) would keep seeing None on the same
+    instance even after the row was written.
+    """
+    if user is None or not getattr(user, "is_authenticated", False):
         return None
+    return FlashDNA.objects.filter(user=user.pk).first()
 
 
 def dna_style_list(dna: FlashDNA) -> list[str]:

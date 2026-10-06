@@ -1,6 +1,11 @@
 {% extends "base.html" %}
 {% load catalog_extras %}
 
+{% block extra_meta %}
+{{ organization_schema|json_script:"ld-organization" }}
+{{ website_schema|json_script:"ld-website" }}
+{% endblock extra_meta %}
+
 {% block content %}
 <section class="relative isolate overflow-hidden bg-gradient-to-b from-white via-slate-50/60 to-white">
     <div class="mx-auto grid max-w-7xl items-center gap-12 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-2 lg:px-8">

@@ -7,7 +7,7 @@
 <div class="mx-auto w-full max-w-4xl px-4 py-12 sm:px-6 lg:px-8">
     <div class="flex flex-wrap items-center gap-4">
         {% if user.profile.avatar %}
-            <img src="{{ user.profile.avatar.url }}" alt="" width="64" height="64" class="h-16 w-16 rounded-full object-cover ring-1 ring-slate-200" />
+            <img src="{{ user.profile.avatar.url }}" alt="" width="64" height="64" decoding="async" class="h-16 w-16 rounded-full object-cover ring-1 ring-slate-200" />
         {% else %}
             <span aria-hidden="true" class="inline-flex h-16 w-16 items-center justify-center rounded-full bg-flash-600 text-2xl font-semibold text-white shadow-soft">{{ user.get_short_name|slice:":1"|upper }}</span>
         {% endif %}

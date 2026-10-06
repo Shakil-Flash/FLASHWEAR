@@ -22,6 +22,7 @@ from apps.loop import views as loop_views
 from apps.notifications.views import preferences_view as notification_preferences
 from apps.orders.views import OrderDetailView, OrderListView, order_cancel
 from apps.quests import views as quest_views
+from apps.styling import views as styling_views
 
 app_name = "account"
 
@@ -144,4 +145,8 @@ urlpatterns += [
     protected("rewards/", quest_views.rewards_dashboard, "rewards"),
     # Phase 17: notification preferences (the center itself mounts at /notifications/).
     protected("notifications/", notification_preferences, "notifications"),
+    # Phase 21: the smart styling studio (views live in apps.styling).
+    protected("studio/", styling_views.studio, "studio"),
+    protected("studio/mood/", styling_views.studio_mood, "studio-mood"),
+    protected("studio/goals/", styling_views.studio_goals, "studio-goals"),
 ]

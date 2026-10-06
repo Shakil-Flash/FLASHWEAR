@@ -68,6 +68,7 @@ DJANGO_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django.contrib.sites",
+    "django.contrib.sitemaps",
     "django.contrib.humanize",
 ]
 
@@ -113,6 +114,10 @@ LOCAL_APPS = [
     # The last leaf: it references every domain above so a ticket can point at the row it
     # is about, and nothing imports it back.
     "apps.support",
+    # Phase 20: analytics -- an append-only event log plus per-visitor attribution. Written
+    # through its own service from every domain below (never the other way round), read by
+    # the back office; only foreign key is the user.
+    "apps.analytics",
     # Phase 16: FLASHWEAR Back Office -- /operations/. Reads every domain above and calls
     # their services; its only table is the staff audit log, and nothing imports it back.
     "apps.backoffice",
@@ -142,6 +147,10 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    # After AuthenticationMiddleware: resolves the first-party visitor id cookie and persists
+    # UTM/referrer attribution for storefront GETs. Never writes for /api/, /static/ or the
+    # back office, and a failure degrades to "no analytics row", never a broken page.
+    "apps.analytics.middleware.AnalyticsMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -542,6 +551,13 @@ CATALOG_API_MAX_PAGE_SIZE = env.int("CATALOG_API_MAX_PAGE_SIZE", default=100)
 # How many sibling products the product page offers underneath the main one. "You may also like"
 # is merchandising, not search, so it stays a small, cheap query.
 CATALOG_RELATED_PRODUCTS_LIMIT = env.int("CATALOG_RELATED_PRODUCTS_LIMIT", default=4)
+
+# Visual discovery (Phase 22)
+VISUAL_SEARCH_PROVIDER = env(
+    "VISUAL_SEARCH_PROVIDER",
+    default="apps.catalog.visual_discovery.LocalDeterministicVisualProvider",
+)
+VISUAL_SEARCH_MAX_RESULTS = env.int("VISUAL_SEARCH_MAX_RESULTS", default=24)
 
 # Phase 3 prices are plain Decimal amounts with no per-product currency column: one storefront
 # trades in one currency until multi-currency pricing arrives with checkout. A customer can still

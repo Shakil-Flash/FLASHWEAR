@@ -13,7 +13,7 @@ enforced *in the query*, never as a post-fetch check:
 
 from __future__ import annotations
 
-from django.db.models import QuerySet
+from django.db.models import Count, Q, QuerySet
 
 from apps.notifications.models import Channel, Notification
 
@@ -52,9 +52,13 @@ def user_notification(user, pk: int) -> Notification | None:
 
 
 def status_counts(user) -> dict[str, int]:
-    """Unread/total counters for the center header and the bell badge."""
-    qs = Notification.objects.filter(user=user, channel=Channel.IN_APP)
-    return {
-        "unread": qs.filter(read_at__isnull=True).count(),
-        "total": qs.count(),
-    }
+    """Unread/total counters for the center header and the bell badge.
+
+    One aggregate instead of two counts: the header wants both numbers from the same
+    filter, and two COUNT() round trips for one header is one too many.
+    """
+    row = Notification.objects.filter(user=user, channel=Channel.IN_APP).aggregate(
+        unread=Count("id", filter=Q(read_at__isnull=True)),
+        total=Count("id"),
+    )
+    return {"unread": row["unread"], "total": row["total"]}

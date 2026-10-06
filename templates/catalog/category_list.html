@@ -1,6 +1,8 @@
 {% extends "base.html" %}
 {% load catalog_extras %}
 
+{% block extra_meta %}{{ breadcrumb_schema|json_script:"ld-breadcrumb" }}{% endblock extra_meta %}
+
 {% comment %}
 The department index.
 

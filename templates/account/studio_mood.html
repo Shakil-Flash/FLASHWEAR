@@ -1,0 +1,48 @@
+{% extends "account/base_account.html" %}
+
+{% block account_title %}Mood → Outfit{% endblock account_title %}
+{% block account_heading %}Mood → Outfit{% endblock account_heading %}
+{% block account_intro %}
+    Start from how you want to feel. Each mood carries its own palette and style bias, and
+    the look it builds stays fully explainable.
+{% endblock account_intro %}
+{% block meta_robots %}noindex, nofollow{% endblock meta_robots %}
+
+{% block account_content %}
+<div class="space-y-6">
+    <nav aria-label="Pick a mood">
+        <ul class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {% for code, label, phrase in mood_cards %}
+            <li>
+                <a href="{% url 'account:studio-mood' %}?mood={{ code }}{% if occasion and occasion != 'everyday' %}&amp;occasion={{ occasion }}{% endif %}"
+                   {% if selected_mood == code %}aria-current="true"{% endif %}
+                   class="flex h-full flex-col rounded-2xl border p-4 shadow-soft transition focus:outline-none focus:ring-2 focus:ring-flash-500/30 focus:ring-offset-2 focus:ring-offset-white {% if selected_mood == code %}border-flash-600 ring-2 ring-flash-600{% else %}border-slate-200 bg-white hover:border-slate-300{% endif %}">
+                    <span class="text-sm font-semibold text-slate-900">{{ label }}</span>
+                    <span class="mt-1 text-xs leading-relaxed text-slate-500">{{ phrase }}</span>
+                </a>
+            </li>
+            {% endfor %}
+        </ul>
+    </nav>
+
+    {% if suggestion %}
+        {% if selected_mood %}
+        <div class="flex items-center gap-3">
+            <span class="text-sm text-slate-600">Feeling</span>
+            <span class="inline-flex items-center gap-2 rounded-full bg-flash-600 px-3 py-1 text-xs font-semibold text-white shadow-soft">
+                {{ selected_mood|capfirst }}
+                <a href="{% url 'account:studio-mood' %}" class="rounded-full hover:bg-flash-700 focus:outline-none focus:ring-2 focus:ring-white" aria-label="Clear mood">×</a>
+            </span>
+        </div>
+        {% endif %}
+        <div class="space-y-6">
+            {% include "account/_studio_look.html" %}
+        </div>
+    {% else %}
+        <div class="rounded-2xl border border-dashed border-slate-300 p-8 text-center">
+            <p class="text-sm font-semibold text-slate-900">Pick a mood to build a look</p>
+            <p class="mt-1 text-sm text-slate-600">You can refine occasion, season and weather on the <a href="{% url 'account:studio' %}" class="font-medium text-slate-700 underline-offset-4 hover:underline">Style Studio</a>.</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock account_content %}

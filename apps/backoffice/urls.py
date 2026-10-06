@@ -19,6 +19,8 @@ urlpatterns = [
     path("", views.dashboard, name="dashboard"),
     path("alerts/", views.alerts, name="alerts"),
     path("health/", views.health, name="health"),
+    # Phase 20: the funnel (aggregates only, gated by analytics.view)
+    path("analytics/", views.analytics, name="analytics"),
     # Notifications (Phase 17)
     path("notifications/", views.notifications, name="notifications"),
     path("notifications/<int:pk>/", views.notification_detail, name="notification_detail"),

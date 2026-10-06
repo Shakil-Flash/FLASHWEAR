@@ -1,0 +1,164 @@
+{% load catalog_extras %}
+{% comment %}
+One generated look: warnings, explainable reasons, piece cards (cartable when the piece is
+a catalogue product) and the replace/save actions.
+
+Included by the studio and the mood page; ``page_back`` tells the replace form which page
+to return to, ``keep_all``/``context_fields`` replay the exact look, and ``regenerate_url``
+advances the seed. Everything here also renders with JavaScript disabled (plain POSTs).
+{% endcomment %}
+
+{% if suggestion.pieces %}
+    {% if suggestion.warnings %}
+    <ul class="space-y-1 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800" role="status">
+        {% for warning in suggestion.warnings %}
+        <li>{{ warning }}</li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+
+    <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-2">
+            <h2 class="text-lg font-semibold tracking-tight text-slate-950">Your look</h2>
+            <span class="rounded-full bg-flash-50 px-2.5 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-flash-700 ring-1 ring-flash-200">{{ suggestion.shape }}</span>
+            {% if suggestion.season %}
+            <span class="rounded-full bg-slate-100 px-2.5 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-slate-600 ring-1 ring-slate-200">{{ suggestion.season }}</span>
+            {% endif %}
+        </div>
+        <a href="{{ regenerate_url }}"
+           class="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-soft transition hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-flash-500/30 focus:ring-offset-2 focus:ring-offset-white">
+            Regenerate
+        </a>
+    </div>
+
+    {% if suggestion.reasons %}
+    <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
+        <h3 class="text-sm font-semibold text-slate-900">Why this look</h3>
+        <ul class="mt-2 space-y-1.5 text-sm text-slate-600">
+            {% for reason in suggestion.reasons %}
+            <li class="flex gap-2"><span aria-hidden="true" class="text-flash-600">•</span><span>{{ reason }}</span></li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    <ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {% for piece in suggestion.pieces %}
+        <li class="flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
+            <div class="flex items-start justify-between gap-2">
+                <span class="rounded-full bg-slate-100 px-2.5 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-slate-600 ring-1 ring-slate-200">{{ piece.role|capfirst }}</span>
+                <span class="rounded-full px-2.5 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide ring-1 {% if piece.source == 'closet' %}bg-emerald-50 text-emerald-700 ring-emerald-200{% else %}bg-flash-50 text-flash-700 ring-flash-200{% endif %}">{% if piece.source == 'closet' %}In your closet{% else %}In the shop{% endif %}</span>
+            </div>
+
+            <div class="mt-3 flex gap-3">
+                {% if piece.source == 'closet' and piece.closet_item.display_image %}
+                <span class="block w-20 shrink-0 overflow-hidden rounded-lg bg-slate-100">
+                    <img src="{{ piece.closet_item.display_image.url }}" alt="{{ piece.closet_item.name }}" width="160" height="200" loading="lazy" decoding="async" class="aspect-[4/5] h-full w-full object-cover" />
+                </span>
+                {% elif piece.product.primary_image %}
+                <span class="block w-20 shrink-0 overflow-hidden rounded-lg bg-slate-100">
+                    <img src="{{ piece.product.primary_image.image.url }}" alt="{{ piece.product.name }}" width="160" height="200" loading="lazy" decoding="async" class="aspect-[4/5] h-full w-full object-cover" />
+                </span>
+                {% endif %}
+                <div class="min-w-0">
+                    <p class="text-sm font-semibold text-slate-900">{% if piece.source == 'closet' %}{{ piece.closet_item.name }}{% else %}{{ piece.product.name }}{% endif %}</p>
+                    <p class="mt-0.5 text-xs text-slate-500">
+                        {% if piece.source == 'closet' %}
+                            {{ piece.closet_item.brand|default:"Your piece" }}{% if piece.closet_item.color %} · {{ piece.closet_item.color }}{% endif %}
+                        {% else %}
+                            {{ piece.product.brand.name|default:"FLASHWEAR" }}
+                        {% endif %}
+                    </p>
+                    {% if piece.source == 'catalog' and piece.price %}
+                    <p class="mt-1 text-sm font-medium text-slate-900">{{ piece.price|money }}</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if piece.reasons %}
+            <ul class="mt-3 space-y-1 text-xs leading-relaxed text-slate-600">
+                {% for reason in piece.reasons %}
+                <li>{{ reason }}</li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+
+            <div class="mt-auto space-y-3 border-t border-slate-100 pt-4">
+                {% if piece.source == 'catalog' %}
+                <form method="post" action="{% url 'shop:cart-add' %}" class="flex items-end gap-2">
+                    {% csrf_token %}
+                    <input type="hidden" name="quantity" value="1" />
+                    <div class="min-w-0 flex-1">
+                        <label for="variant-{{ piece.pk }}" class="block text-xs font-medium text-slate-500">Size / option</label>
+                        <select id="variant-{{ piece.pk }}" name="variant_id"
+                                class="mt-1 block w-full rounded-lg border border-slate-300 bg-white py-2 pl-3 pr-8 text-sm text-slate-900 focus:border-flash-500 focus:outline-none focus:ring-2 focus:ring-flash-500/30">
+                            {% for variant in piece.product.purchasable_variants %}
+                            <option value="{{ variant.pk }}">{{ variant.option_label }} — {{ variant.price|money }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <button type="submit" class="inline-flex items-center justify-center rounded-full bg-flash-600 px-4 py-2 text-sm font-semibold text-white shadow-soft transition hover:bg-flash-700 focus:outline-none focus:ring-2 focus:ring-flash-500/30 focus:ring-offset-2 focus:ring-offset-white">Add to bag</button>
+                </form>
+                <a href="{% url 'catalog:track-click' %}?next={{ piece.product.get_absolute_url|urlencode }}&amp;src={{ click_src|default:'studio' }}"
+                   class="text-sm font-medium text-slate-700 underline-offset-4 hover:underline focus:outline-none focus:ring-2 focus:ring-flash-500/30 rounded">View details</a>
+                {% else %}
+                <a href="{% url 'account:closet' %}" class="text-sm font-medium text-slate-700 underline-offset-4 hover:underline focus:outline-none focus:ring-2 focus:ring-flash-500/30 rounded">Open your closet</a>
+                {% endif %}
+
+                <form method="post" action="{% url 'account:studio' %}" class="pt-1">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="replace" />
+                    <input type="hidden" name="role" value="{{ piece.role }}" />
+                    <input type="hidden" name="piece" value="{{ piece.token }}" />
+                    <input type="hidden" name="keep" value="{{ keep_all }}" />
+                    {% for field_name, field_value in context_fields %}
+                        {% if field_name != 'keep' %}
+                        <input type="hidden" name="{{ field_name }}" value="{{ field_value }}" />
+                        {% endif %}
+                    {% endfor %}
+                    <input type="hidden" name="back" value="{{ page_back|default:'studio' }}" />
+                    <button type="submit" class="text-sm font-medium text-slate-500 underline-offset-4 hover:text-slate-700 hover:underline focus:outline-none focus:ring-2 focus:ring-flash-500/30 rounded">Replace this piece</button>
+                </form>
+            </div>
+        </li>
+        {% endfor %}
+    </ul>
+
+    <form method="post" action="{% url 'account:studio' %}"
+          class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="save" />
+        <input type="hidden" name="keep" value="{{ keep_all }}" />
+        {% for field_name, field_value in context_fields %}
+            {% if field_name != 'keep' %}
+            <input type="hidden" name="{{ field_name }}" value="{{ field_value }}" />
+            {% endif %}
+        {% endfor %}
+        <div class="flex flex-wrap items-end justify-between gap-3">
+            <div class="min-w-0 flex-1">
+                <label for="look-name" class="block text-sm font-medium text-slate-700">Name this look</label>
+                <input type="text" id="look-name" name="name" maxlength="120" placeholder="e.g. Friday at the office"
+                       class="mt-1 block w-full max-w-sm rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-flash-500 focus:outline-none focus:ring-2 focus:ring-flash-500/30" />
+            </div>
+            <button type="submit" class="inline-flex items-center justify-center rounded-full bg-flash-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-flash-700 focus:outline-none focus:ring-2 focus:ring-flash-500/30 focus:ring-offset-2 focus:ring-offset-white">Save look</button>
+        </div>
+    </form>
+
+{% else %}
+    <div class="rounded-2xl border border-dashed border-slate-300 p-10 text-center">
+        <p class="text-base font-semibold text-slate-900">No look yet</p>
+        {% if suggestion.warnings %}
+        <div class="mx-auto mt-2 max-w-md space-y-1 text-sm text-slate-600">
+            {% for warning in suggestion.warnings %}
+            <p>{{ warning }}</p>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="mt-2 text-sm text-slate-600">Pick an occasion above and we will build a look from your closet and the shop.</p>
+        {% endif %}
+        <div class="mt-5 flex flex-wrap items-center justify-center gap-4">
+            <a href="{% url 'account:closet' %}" class="inline-flex items-center justify-center rounded-full bg-flash-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-flash-700 focus:outline-none focus:ring-2 focus:ring-flash-500/30">Add pieces to your closet</a>
+            <a href="{% url 'catalog:product-list' %}" class="text-sm font-medium text-slate-700 underline-offset-4 hover:underline focus:outline-none focus:ring-2 focus:ring-flash-500/30 rounded">Browse the shop</a>
+        </div>
+    </div>
+{% endif %}
