@@ -1342,21 +1342,13 @@ class Command(BaseCommand):
 
         created = 0
         for product in products:
-            existing = product.images.filter(is_primary=True).first()
-            if existing and existing.image:
-                try:
-                    if existing.image.storage.exists(existing.image.name):
-                        continue
-                except Exception:
-                    pass
-
+            images = list(product.images.all())
             color = Color.objects.filter(
                 pk__in=product.variants.values_list("color_id", flat=True)
             ).first()
             buffer = _solid_png(hex_code=color.hex_code if color else "#e2e8f0")
-            if existing:
-                existing.image.save(f"{product.slug}.png", ContentFile(buffer), save=True)
-            else:
+
+            if not images:
                 ProductImage.objects.create(
                     product=product,
                     image=ContentFile(buffer, name=f"{product.slug}.png"),
@@ -1364,7 +1356,20 @@ class Command(BaseCommand):
                     position=0,
                     is_primary=True,
                 )
-            created += 1
+                created += 1
+            else:
+                for img in images:
+                    if not img.image or not img.image.name:
+                        img.image.save(f"{product.slug}.png", ContentFile(buffer), save=True)
+                        created += 1
+                    else:
+                        try:
+                            if not img.image.storage.exists(img.image.name):
+                                img.image.storage.save(img.image.name, ContentFile(buffer))
+                                created += 1
+                        except Exception:
+                            img.image.save(f"{product.slug}.png", ContentFile(buffer), save=True)
+                            created += 1
         self._say(quiet, f"  images: {created} placeholder(s)")
 
 

@@ -53,11 +53,14 @@ urlpatterns = [
 
 # Serve user-uploaded media files in development and container deployments without S3.
 if settings.DEBUG or not getattr(settings, "AWS_STORAGE_BUCKET_NAME", None):
+    import re
+
     from django.urls import re_path
     from django.views.static import serve
 
+    media_prefix = re.escape(settings.MEDIA_URL.lstrip("/"))
     urlpatterns += [
-        re_path(r"^media/(?P<path>.*)$", serve, {"document_root": settings.MEDIA_ROOT}),
+        re_path(rf"^{media_prefix}(?P<path>.*)$", serve, {"document_root": str(settings.MEDIA_ROOT)}),
     ]
 
 handler400 = "apps.core.views.bad_request"
