@@ -38,7 +38,10 @@ def status_badge(status, label: str | None = None) -> str:
         "success",
         "resolved",
     ):
-        badge_cls = "border-emerald-200/80 bg-emerald-50 text-emerald-700"
+        badge_cls = (
+            "border-emerald-200/80 bg-emerald-50 text-emerald-700 "
+            "dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300"
+        )
         dot_cls = "bg-emerald-500"
     elif s in (
         "pending",
@@ -52,7 +55,10 @@ def status_badge(status, label: str | None = None) -> str:
         "partial",
         "warning",
     ):
-        badge_cls = "border-amber-200/80 bg-amber-50 text-amber-700"
+        badge_cls = (
+            "border-amber-200/80 bg-amber-50 text-amber-700 "
+            "dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-300"
+        )
         dot_cls = "bg-amber-500"
     elif s in (
         "failed",
@@ -69,14 +75,23 @@ def status_badge(status, label: str | None = None) -> str:
         "danger",
         "error",
     ):
-        badge_cls = "border-rose-200/80 bg-rose-50 text-rose-700"
+        badge_cls = (
+            "border-rose-200/80 bg-rose-50 text-rose-700 "
+            "dark:border-rose-800/60 dark:bg-rose-950/40 dark:text-rose-300"
+        )
         dot_cls = "bg-rose-500"
     elif s in ("shipped", "dispatched", "in_transit", "transit", "info"):
-        badge_cls = "border-sky-200/80 bg-sky-50 text-sky-700"
+        badge_cls = (
+            "border-sky-200/80 bg-sky-50 text-sky-700 "
+            "dark:border-sky-800/60 dark:bg-sky-950/40 dark:text-sky-300"
+        )
         dot_cls = "bg-sky-500"
     else:
-        badge_cls = "border-slate-200 bg-slate-100 text-slate-700"
-        dot_cls = "bg-slate-400"
+        badge_cls = (
+            "border-slate-200 bg-slate-100 text-slate-700 "
+            "dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-300"
+        )
+        dot_cls = "bg-slate-400 dark:bg-slate-500"
 
     return format_html(
         '<span class="inline-flex items-center gap-1.5 rounded-full border '

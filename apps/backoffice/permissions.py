@@ -351,17 +351,27 @@ NAVIGATION = (
         ),
     ),
     (
-        "Content",
-
+        "Orders & Sales",
         (
-            ("content_homepage", "Homepage", "backoffice:content_homepage", MARKETING_VIEW),
-            ("content_editorial", "Editorial", "backoffice:content_editorial", MARKETING_VIEW),
-            ("content_campaigns", "Campaigns", "backoffice:content_campaigns", MARKETING_VIEW),
+            ("orders", "Orders", "backoffice:orders", ORDERS_VIEW),
+            ("payments", "Payments", "backoffice:payments", PAYMENTS_VIEW),
+            ("shipments", "Shipments", "backoffice:shipments", ORDERS_VIEW),
+            ("returns", "Returns", "backoffice:returns", ORDERS_VIEW),
+        ),
+    ),
+    (
+        "Catalog & Stock",
+        (
+            ("products", "Products", "backoffice:products", CATALOG_VIEW),
+            ("inventory", "Inventory", "backoffice:inventory", INVENTORY_VIEW),
+            ("categories", "Categories", "admin:catalog_category_changelist", CATALOG_VIEW),
+            ("collections", "Collections", "admin:catalog_collection_changelist", CATALOG_VIEW),
         ),
     ),
     (
         "Merchandising",
         (
+            ("promotions", "Promotions", "backoffice:promotions", MARKETING_VIEW),
             (
                 "merch_featured_products",
                 "Featured Products",
@@ -383,32 +393,28 @@ NAVIGATION = (
         ),
     ),
     (
-        "Commerce",
-
+        "Content Studio",
         (
-            ("orders", "Orders", "backoffice:orders", ORDERS_VIEW),
-            ("products", "Products", "backoffice:products", CATALOG_VIEW),
-            ("categories", "Categories", "admin:catalog_category_changelist", CATALOG_VIEW),
-            ("collections", "Collections", "admin:catalog_collection_changelist", CATALOG_VIEW),
-            ("inventory", "Inventory", "backoffice:inventory", INVENTORY_VIEW),
-            ("promotions", "Promotions", "backoffice:promotions", MARKETING_VIEW),
-            ("payments", "Payments", "backoffice:payments", PAYMENTS_VIEW),
-            ("shipments", "Shipments", "backoffice:shipments", ORDERS_VIEW),
-            ("returns", "Returns", "backoffice:returns", ORDERS_VIEW),
+            ("content_homepage", "Homepage", "backoffice:content_homepage", MARKETING_VIEW),
+            ("content_editorial", "Editorial", "backoffice:content_editorial", MARKETING_VIEW),
+            ("content_campaigns", "Campaigns", "backoffice:content_campaigns", MARKETING_VIEW),
         ),
     ),
     (
-        "Customers",
+        "Customers & Care",
         (
             ("customers", "Customers", "backoffice:customers", CUSTOMERS_VIEW),
+            ("support", "Support", "backoffice:support", SUPPORT_VIEW),
             ("reviews", "Reviews", "backoffice:reviews", MODERATION_VIEW),
             ("loyalty", "Loyalty", "backoffice:points", LOYALTY_VIEW),
-            ("support", "Support", "backoffice:support", SUPPORT_VIEW),
         ),
     ),
     (
-        "Fashion",
+        "Fashion & Community",
         (
+            ("drops", "Drops", "backoffice:drops", MARKETING_VIEW),
+            ("loop", "FLASH Loop", "backoffice:loop", MODERATION_VIEW),
+            ("quests", "Quests", "backoffice:quests", MARKETING_VIEW),
             ("flash_dna", "FLASH DNA", "admin:styling_flashdna_changelist", CATALOG_VIEW),
             ("closet", "Closet", "admin:closet_closetitem_changelist", CATALOG_VIEW),
             ("outfits", "Outfits", "admin:closet_outfit_changelist", CATALOG_VIEW),
@@ -418,9 +424,6 @@ NAVIGATION = (
                 "admin:recommendations_recommendationsignal_changelist",
                 CATALOG_VIEW,
             ),
-            ("drops", "Drops", "backoffice:drops", MARKETING_VIEW),
-            ("loop", "FLASH Loop", "backoffice:loop", MODERATION_VIEW),
-            ("quests", "Quests", "backoffice:quests", MARKETING_VIEW),
         ),
     ),
     (

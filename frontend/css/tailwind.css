@@ -15,6 +15,11 @@
 @layer base {
     :root {
         --flash-ring: 94 123 255;
+        color-scheme: light;
+    }
+
+    html.dark {
+        color-scheme: dark;
     }
 
     html {
@@ -219,5 +224,122 @@
     .htmx-request .htmx-indicator,
     .htmx-request.htmx-indicator {
         opacity: 1;
+    }
+
+    /* -----------------------------------------------------------------------
+     * Back Office Centralized Theme Tokens & Styles
+     * ----------------------------------------------------------------------- */
+    html.dark {
+        --bo-bg: #020617;
+        --bo-card-bg: #0f172a;
+        --bo-card-border: #1e293b;
+        --bo-card-hover: #334155;
+        --bo-text-primary: #f8fafc;
+        --bo-text-secondary: #94a3b8;
+        --bo-text-muted: #64748b;
+        --bo-input-bg: #1e293b;
+        --bo-input-border: #334155;
+        --bo-table-header-bg: #1e293b;
+        --bo-table-row-hover: rgba(30, 41, 59, 0.5);
+    }
+
+    /* Backoffice Dark Mode Overrides for consistent contrast */
+    html.dark #bo-content .bg-white,
+    html.dark #bo-content .bg-white\/95 {
+        background-color: var(--bo-card-bg) !important;
+    }
+
+    html.dark #bo-content .border-slate-200,
+    html.dark #bo-content .border-slate-200\/80,
+    html.dark #bo-content .border-slate-100 {
+        border-color: var(--bo-card-border) !important;
+    }
+
+    html.dark #bo-content .divide-slate-100 > :not([hidden]) ~ :not([hidden]),
+    html.dark #bo-content .divide-slate-200 > :not([hidden]) ~ :not([hidden]),
+    html.dark #bo-content .divide-slate-200\/80 > :not([hidden]) ~ :not([hidden]) {
+        border-color: var(--bo-card-border) !important;
+    }
+
+    html.dark #bo-content thead,
+    html.dark #bo-content thead.bg-slate-50,
+    html.dark #bo-content thead tr {
+        background-color: var(--bo-table-header-bg) !important;
+        color: var(--bo-text-secondary) !important;
+    }
+
+    html.dark #bo-content tbody.bg-white {
+        background-color: var(--bo-card-bg) !important;
+    }
+
+    html.dark #bo-content tr.hover\:bg-slate-50\/80:hover,
+    html.dark #bo-content tr.hover\:bg-slate-50:hover,
+    html.dark #bo-content tbody tr:hover {
+        background-color: var(--bo-table-row-hover) !important;
+    }
+
+    html.dark #bo-content .text-slate-900 {
+        color: var(--bo-text-primary) !important;
+    }
+
+    html.dark #bo-content .text-slate-800 {
+        color: #f1f5f9 !important;
+    }
+
+    html.dark #bo-content .text-slate-700 {
+        color: #e2e8f0 !important;
+    }
+
+    html.dark #bo-content .text-slate-600 {
+        color: #cbd5e1 !important;
+    }
+
+    html.dark #bo-content .text-slate-500 {
+        color: var(--bo-text-secondary) !important;
+    }
+
+    html.dark #bo-content input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]),
+    html.dark #bo-content select,
+    html.dark #bo-content textarea {
+        background-color: var(--bo-input-bg) !important;
+        border-color: var(--bo-input-border) !important;
+        color: var(--bo-text-primary) !important;
+    }
+
+    html.dark #bo-content input::placeholder,
+    html.dark #bo-content textarea::placeholder {
+        color: var(--bo-text-muted) !important;
+    }
+
+    html.dark #bo-content input[type="checkbox"],
+    html.dark #bo-content input[type="radio"] {
+        background-color: var(--bo-input-bg) !important;
+        border-color: var(--bo-input-border) !important;
+    }
+
+    /* Buttons in Backoffice dark mode */
+    html.dark #bo-content a.bg-slate-900,
+    html.dark #bo-content button.bg-slate-900 {
+        background-color: #f8fafc !important;
+        color: #0f172a !important;
+    }
+
+    html.dark #bo-content a.bg-slate-900:hover,
+    html.dark #bo-content button.bg-slate-900:hover {
+        background-color: #e2e8f0 !important;
+    }
+
+    html.dark #bo-content a.border-slate-300.bg-white,
+    html.dark #bo-content button.border-slate-300.bg-white {
+        background-color: var(--bo-input-bg) !important;
+        border-color: var(--bo-input-border) !important;
+        color: #e2e8f0 !important;
+    }
+
+    html.dark #bo-content a.border-slate-300.bg-white:hover,
+    html.dark #bo-content button.border-slate-300.bg-white:hover {
+        background-color: var(--bo-card-hover) !important;
+        border-color: #475569 !important;
+        color: #f8fafc !important;
     }
 }

@@ -60,7 +60,11 @@ if settings.DEBUG or not getattr(settings, "AWS_STORAGE_BUCKET_NAME", None):
 
     media_prefix = re.escape(settings.MEDIA_URL.lstrip("/"))
     urlpatterns += [
-        re_path(rf"^{media_prefix}(?P<path>.*)$", serve, {"document_root": str(settings.MEDIA_ROOT)}),
+        re_path(
+            rf"^{media_prefix}(?P<path>.*)$",
+            serve,
+            {"document_root": str(settings.MEDIA_ROOT)},
+        ),
     ]
 
 handler400 = "apps.core.views.bad_request"

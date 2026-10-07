@@ -5,36 +5,36 @@ Severity is rendered as a *word* (``alert.label``) as well as a colour, so the p
 readable in greyscale and for a colour-blind operator. Each row links to the screen that
 owns the rows behind the count -- never to a placeholder.
 {% endcomment %}
-<section aria-labelledby="alerts-heading" class="rounded-2xl border border-slate-200 bg-white shadow-soft">
-    <header class="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+<section aria-labelledby="alerts-heading" class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-soft">
+    <header class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 px-5 py-4">
         <div>
-            <h2 id="alerts-heading" class="text-base font-semibold text-slate-900">
+            <h2 id="alerts-heading" class="text-base font-semibold text-slate-900 dark:text-slate-100">
                 Alerts
             </h2>
-            <p class="text-sm text-slate-500">
+            <p class="text-sm text-slate-500 dark:text-slate-400">
                 Counts against configured thresholds — no forecasts.
             </p>
         </div>
-        <a class="text-sm font-medium text-flash-700 hover:underline" href="{% url 'backoffice:alerts' %}">All alerts</a>
+        <a class="text-sm font-medium text-flash-700 dark:text-amber-400 hover:underline" href="{% url 'backoffice:alerts' %}">All alerts</a>
     </header>
-    <ul class="divide-y divide-slate-100">
+    <ul class="divide-y divide-slate-100 dark:divide-slate-800">
         {% for alert in alerts %}
             <li class="flex items-start gap-4 px-5 py-3">
-                <span class="mt-0.5 inline-flex min-w-[5.5rem] justify-center rounded-full px-2 py-0.5 text-xs font-semibold {% if alert.severity == 'critical' %}bg-rose-100 text-rose-800 {% elif alert.severity == 'warning' %}bg-amber-100 text-amber-800 {% else %}bg-slate-100 text-slate-700{% endif %}">
+                <span class="mt-0.5 inline-flex min-w-[5.5rem] justify-center rounded-full px-2 py-0.5 text-xs font-semibold {% if alert.severity == 'critical' %}bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300 {% elif alert.severity == 'warning' %}bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 {% else %}bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300{% endif %}">
                     {{ alert.label }}
                 </span>
                 <div class="min-w-0 flex-1">
-                    <p class="text-sm font-medium text-slate-900">
+                    <p class="text-sm font-medium text-slate-900 dark:text-slate-100">
                         <span class="tabular-nums">{{ alert.count }}</span>
-                        <a class="text-flash-700 hover:underline" href="{% url alert.url_name %}">{{ alert.title }}</a>
+                        <a class="text-flash-700 dark:text-amber-400 hover:underline" href="{% url alert.url_name %}">{{ alert.title }}</a>
                     </p>
-                    <p class="text-sm text-slate-500">
+                    <p class="text-sm text-slate-500 dark:text-slate-400">
                         {{ alert.detail }}
                     </p>
                 </div>
             </li>
         {% empty %}
-            <li class="px-5 py-6 text-sm text-slate-500">
+            <li class="px-5 py-6 text-sm text-slate-500 dark:text-slate-400">
                 Nothing needs attention right now.
             </li>
         {% endfor %}

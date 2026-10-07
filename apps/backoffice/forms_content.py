@@ -18,15 +18,22 @@ from apps.core.models import Campaign, EditorialStory, HomepageSection, SectionP
 from apps.core.services.content import validate_cta_destination
 
 _INPUT = (
-    "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm "
-    "focus:border-slate-900 focus:outline-none"
+    "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 "
+    "placeholder-slate-400 focus:border-slate-900 focus:outline-none "
+    "dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder-slate-500 "
+    "dark:focus:border-slate-100"
 )
 _SELECT = (
-    "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm "
-    "focus:border-slate-900 focus:outline-none"
+    "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 "
+    "focus:border-slate-900 focus:outline-none "
+    "dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 "
+    "dark:focus:border-slate-100"
 )
 _TEXTAREA = _INPUT
-_CHECKBOX = "h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900"
+_CHECKBOX = (
+    "h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900 "
+    "dark:border-slate-700 dark:bg-slate-800 dark:text-amber-500 dark:focus:ring-amber-500"
+)
 
 
 class StyledModelForm(forms.ModelForm):

@@ -111,7 +111,11 @@
                 <thead class="bg-slate-50 text-left text-xs font-bold uppercase tracking-wider text-slate-500">
                     <tr>
                         <th scope="col" class="px-5 py-3.5 w-10">
-                            <span class="sr-only">Select</span>
+                            {% if can_manage %}
+                                <input type="checkbox" id="select-all-products" @change="$el.closest('table').querySelectorAll('tbody input[type=checkbox][name=selected]').forEach(cb => cb.checked = $el.checked)" aria-label="Select all products" class="h-4 w-4 rounded border-slate-300 dark:border-slate-600 dark:bg-slate-800 text-slate-900 focus:ring-slate-900 cursor-pointer" />
+                            {% else %}
+                                <span class="sr-only">Select</span>
+                            {% endif %}
                         </th>
                         <th scope="col" class="px-5 py-3.5">
                             Product

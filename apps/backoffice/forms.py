@@ -30,11 +30,16 @@ class _LabelledModelChoiceField(forms.ModelChoiceField):
 
 
 _INPUT = (
-    "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm "
-    "focus:border-slate-900 focus:outline-none"
+    "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 "
+    "placeholder-slate-400 focus:border-slate-900 focus:outline-none "
+    "dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder-slate-500 "
+    "dark:focus:border-slate-100"
 )
 _SELECT = (
-    "rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none"
+    "rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 "
+    "focus:border-slate-900 focus:outline-none "
+    "dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 "
+    "dark:focus:border-slate-100"
 )
 _TEXTAREA = _INPUT
 
