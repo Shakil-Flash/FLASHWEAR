@@ -14,6 +14,8 @@ RUN npm ci
 
 COPY tailwind.config.js ./
 COPY frontend/ ./frontend/
+COPY templates/ ./templates/
+COPY apps/ ./apps/
 
 RUN npm run build:css
 
