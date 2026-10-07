@@ -16,16 +16,15 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   // ---------------------------------------------------------------------------
-  // Phase 27: scroll-reveal animation system.
+  // Phase 27: Reliable, fail-safe scroll-reveal system
   //
-  // Every element with class `reveal` fades in (and optionally slides) when it
-  // enters the viewport. The observer fires once per element, so the animation
-  // is a one-shot entrance — revisiting an element after scrolling past it does
-  // not replay.
+  // Every element with class `reveal` starts 100% visible by default in CSS.
+  // When this script initializes, `js-reveal-active` is added to <html>,
+  // arming the animation.
   //
-  // Respects prefers-reduced-motion: if the user has reduced motion enabled,
-  // elements are already visible via CSS (see tailwind.css) and the observer
-  // simply adds the class immediately without waiting for intersection.
+  // Elements already in or near the viewport trigger immediately without waiting.
+  // A 1.5s fail-safe guarantees all content is revealed even on edge-case browsers.
+  // Respects prefers-reduced-motion completely.
   // ---------------------------------------------------------------------------
   const prefersReducedMotion = window.matchMedia(
     "(prefers-reduced-motion: reduce)"
@@ -33,10 +32,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const reveals = document.querySelectorAll(".reveal");
 
-  if (prefersReducedMotion) {
-    // Immediately make everything visible — no animation.
-    reveals.forEach((el) => el.classList.add("is-visible"));
-  } else if ("IntersectionObserver" in window) {
+  if (!prefersReducedMotion && "IntersectionObserver" in window && reveals.length > 0) {
+    // Arm reveal animations now that JS is confirmed running
+    document.documentElement.classList.add("js-reveal-active");
+
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
@@ -46,11 +45,25 @@ document.addEventListener("DOMContentLoaded", () => {
           }
         });
       },
-      { threshold: 0.12, rootMargin: "0px 0px -40px 0px" }
+      { threshold: 0.05, rootMargin: "0px 0px 80px 0px" }
     );
-    reveals.forEach((el) => observer.observe(el));
+
+    reveals.forEach((el) => {
+      // Check if already in viewport
+      const rect = el.getBoundingClientRect();
+      if (rect.top < window.innerHeight) {
+        el.classList.add("is-visible");
+      } else {
+        observer.observe(el);
+      }
+    });
+
+    // 1.5s fail-safe guarantee
+    setTimeout(() => {
+      reveals.forEach((el) => el.classList.add("is-visible"));
+    }, 1500);
   } else {
-    // Fallback: no IntersectionObserver, show everything immediately.
+    // Immediate fallback: ensure all elements are visible
     reveals.forEach((el) => el.classList.add("is-visible"));
   }
 });

@@ -8,7 +8,7 @@ never claims availability -- that is Phase 4's job once quantities exist.
 Phase 27: quieter metadata, larger visual presence, subtle interactions.
 {% endcomment %}
 {% load catalog_extras %}
-<article class="group relative flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft transition hover:shadow-elevated">
+<article class="group relative flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft hover-lift hover:shadow-elevated">
     <a href="{{ product.get_absolute_url }}" class="block aspect-[4/5] overflow-hidden bg-slate-100">
         {% with image=product.primary_image %}
             {% if image %}
@@ -42,7 +42,7 @@ Phase 27: quieter metadata, larger visual presence, subtle interactions.
             {% endif %}
         </div>
 
-        <div class="pointer-events-auto opacity-0 transition group-hover:opacity-100">
+        <div class="pointer-events-auto opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100">
             {% if request.user.is_authenticated %}
                 <form method="post" action="{% url 'shop:wishlist-add' %}">
                     {% csrf_token %}

@@ -44,10 +44,19 @@
             scroll-behavior: auto !important;
         }
 
-        /* Scroll-reveal elements are always visible when motion is reduced. */
-        .reveal {
+        /* Scroll-reveal and hero elements are always visible when motion is reduced. */
+        .reveal,
+        .hero-anim-bg,
+        .hero-anim-eyebrow,
+        .hero-anim-title,
+        .hero-anim-desc,
+        .hero-anim-cta,
+        .hero-anim-pills,
+        .hero-anim-visual {
             opacity: 1 !important;
             transform: none !important;
+            animation: none !important;
+            transition: none !important;
         }
     }
 }
@@ -61,51 +70,116 @@
     }
 
     /* -----------------------------------------------------------------------
-     * Phase 27: scroll-reveal animation system.
+     * Phase 27: Hero coordinated load animation system (Pure CSS keyframes)
+     * Runs immediately on page load, 100% visible, never leaves hero dark/blank.
+     * ----------------------------------------------------------------------- */
+    @keyframes heroFadeSlideUp {
+        0% {
+            opacity: 0;
+            transform: translateY(1.5rem);
+        }
+        100% {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @keyframes heroScaleFadeIn {
+        0% {
+            opacity: 0;
+            transform: scale(0.96) translateY(1rem);
+        }
+        100% {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+        }
+    }
+
+    .hero-anim-bg {
+        animation: heroScaleFadeIn 1s cubic-bezier(0.16, 1, 0.3, 1) 0s both;
+    }
+    .hero-anim-eyebrow {
+        animation: heroFadeSlideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.05s both;
+    }
+    .hero-anim-title {
+        animation: heroFadeSlideUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
+    }
+    .hero-anim-desc {
+        animation: heroFadeSlideUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.4s both;
+    }
+    .hero-anim-cta {
+        animation: heroFadeSlideUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.6s both;
+    }
+    .hero-anim-pills {
+        animation: heroFadeSlideUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.75s both;
+    }
+    .hero-anim-visual {
+        animation: heroScaleFadeIn 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.3s both;
+    }
+
+    /* -----------------------------------------------------------------------
+     * Phase 27: Fail-safe Scroll-Reveal System
      *
-     * Usage: add `class="reveal"` (or `reveal reveal-up`, `reveal-scale`)
-     * to any element. The IntersectionObserver in app.js adds `.is-visible`
-     * when the element enters the viewport, triggering the transition.
-     *
-     * Every reveal respects prefers-reduced-motion via the @media block above.
+     * Elements are fully visible (opacity: 1) by default.
+     * When JS initializes on load, it adds `js-reveal-active` to <html>.
+     * Only then do un-revealed elements take opacity: 0 and wait for
+     * the IntersectionObserver. If JS ever fails, content remains 100% visible!
      * ----------------------------------------------------------------------- */
     .reveal {
-        opacity: 0;
-        transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
-                    transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
-        will-change: opacity, transform;
-    }
-
-    .reveal.reveal-up {
-        transform: translateY(2rem);
-    }
-
-    .reveal.reveal-scale {
-        transform: scale(0.97);
-    }
-
-    .reveal.reveal-left {
-        transform: translateX(-2rem);
-    }
-
-    .reveal.reveal-right {
-        transform: translateX(2rem);
-    }
-
-    .reveal.is-visible {
         opacity: 1;
         transform: none;
     }
 
-    /* Stagger children inside a reveal group: each child delays slightly more. */
-    .reveal-stagger > .reveal:nth-child(1) { transition-delay: 0ms; }
-    .reveal-stagger > .reveal:nth-child(2) { transition-delay: 80ms; }
-    .reveal-stagger > .reveal:nth-child(3) { transition-delay: 160ms; }
-    .reveal-stagger > .reveal:nth-child(4) { transition-delay: 240ms; }
-    .reveal-stagger > .reveal:nth-child(5) { transition-delay: 320ms; }
-    .reveal-stagger > .reveal:nth-child(6) { transition-delay: 400ms; }
-    .reveal-stagger > .reveal:nth-child(7) { transition-delay: 480ms; }
-    .reveal-stagger > .reveal:nth-child(8) { transition-delay: 560ms; }
+    html.js-reveal-active .reveal {
+        opacity: 0;
+        transition: opacity 0.65s cubic-bezier(0.16, 1, 0.3, 1),
+                    transform 0.65s cubic-bezier(0.16, 1, 0.3, 1);
+        will-change: opacity, transform;
+    }
+
+    html.js-reveal-active .reveal.reveal-up {
+        transform: translateY(1.5rem);
+    }
+
+    html.js-reveal-active .reveal.reveal-scale {
+        transform: scale(0.97);
+    }
+
+    html.js-reveal-active .reveal.reveal-left {
+        transform: translateX(-1.25rem);
+    }
+
+    html.js-reveal-active .reveal.reveal-right {
+        transform: translateX(1.25rem);
+    }
+
+    html.js-reveal-active .reveal.is-visible {
+        opacity: 1 !important;
+        transform: none !important;
+    }
+
+    /* Stagger children inside a reveal group */
+    .reveal-stagger > .reveal:nth-child(1),
+    .reveal-stagger > * > .reveal:nth-child(1) { transition-delay: 0ms; }
+    .reveal-stagger > .reveal:nth-child(2),
+    .reveal-stagger > * > .reveal:nth-child(2) { transition-delay: 80ms; }
+    .reveal-stagger > .reveal:nth-child(3),
+    .reveal-stagger > * > .reveal:nth-child(3) { transition-delay: 160ms; }
+    .reveal-stagger > .reveal:nth-child(4),
+    .reveal-stagger > * > .reveal:nth-child(4) { transition-delay: 240ms; }
+    .reveal-stagger > .reveal:nth-child(5),
+    .reveal-stagger > * > .reveal:nth-child(5) { transition-delay: 320ms; }
+    .reveal-stagger > .reveal:nth-child(6),
+    .reveal-stagger > * > .reveal:nth-child(6) { transition-delay: 400ms; }
+
+    /* Interaction animations (Product card, buttons, etc.) */
+    .hover-lift {
+        transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+                    box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .hover-lift:hover {
+        transform: translateY(-3px);
+    }
 
     /* -----------------------------------------------------------------------
      * Phase 27: editorial typography helpers.

@@ -2,6 +2,7 @@
 
 <header x-data="{
     open: false,
+    discoverOpen: false,
     searchOpen: false,
     searchQuery: '',
     suggestions: [],
@@ -38,97 +39,109 @@
                 </div>
             </a>
 
-            <div class="hidden items-center gap-6 md:flex">
-                <a href="{% url 'core:home' %}" class="text-sm font-medium text-slate-600 transition hover:text-slate-900 {% active_url request 'core:home' %}">Home</a>
-                <a href="{% url 'catalog:product-list' %}" class="text-sm font-medium text-slate-600 transition hover:text-slate-900 {% active_url request 'catalog:product-list' %}">Shop</a>
-                <a href="{% url 'catalog:category-list' %}" class="text-sm font-medium text-slate-600 transition hover:text-slate-900 {% active_url request 'catalog:category-list' %}">Categories</a>
-                <a href="{% url 'catalog:collection-list' %}" class="text-sm font-medium text-slate-600 transition hover:text-slate-900 {% active_url request 'catalog:collection-list' %}">Collections</a>
-                <a href="{% url 'account:studio' %}" class="text-sm font-medium text-slate-600 transition hover:text-slate-900">Styling</a>
-                <a href="{% url 'loop:resale-list' %}" class="text-sm font-medium text-slate-600 transition hover:text-slate-900">Loop Resale</a>
+            <div class="hidden items-center gap-6 lg:flex">
+                <a href="{% url 'core:home' %}" class="text-sm font-medium text-slate-700 transition hover:text-slate-950 {% active_url request 'core:home' %}">Home</a>
+                <a href="{% url 'catalog:product-list' %}" class="text-sm font-medium text-slate-700 transition hover:text-slate-950 {% active_url request 'catalog:product-list' %}">Shop</a>
+                <a href="{% url 'catalog:collection-list' %}" class="text-sm font-medium text-slate-700 transition hover:text-slate-950 {% active_url request 'catalog:collection-list' %}">Collections</a>
+                <a href="{% url 'account:studio' %}" class="text-sm font-medium text-slate-700 transition hover:text-slate-950">Styling</a>
+
+                <!-- Discover Dropdown -->
+                <div class="relative" @click.away="discoverOpen = false">
+                    <button type="button" @click="discoverOpen = !discoverOpen" class="inline-flex items-center gap-1 text-sm font-medium text-slate-700 transition hover:text-slate-950">
+                        <span>Discover</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-4 w-4 text-slate-400 transition" :class="discoverOpen ? 'rotate-180' : ''">
+                            <path fill-rule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
+                    <div x-show="discoverOpen" x-transition.opacity.duration.150ms x-cloak class="absolute left-0 mt-3 w-56 origin-top-left rounded-2xl border border-slate-200 bg-white p-2 shadow-elevated">
+                        <a href="{% url 'catalog:category-list' %}" class="block rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:text-slate-950">
+                            Categories
+                        </a>
+                        <a href="{% url 'loop:resale-list' %}" class="block rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:text-slate-950">
+                            Loop Resale
+                        </a>
+                        <a href="{% url 'catalog:visual-search' %}" class="block rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:text-slate-950">
+                            Search by Image
+                        </a>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <div class="flex items-center gap-3">
-            <a href="{% url 'shop:cart' %}" class="group inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-soft transition hover:border-slate-300 hover:text-slate-900" aria-label="Bag, {{ cart_count }} item{{ cart_count|pluralize }}">
-                <span class="relative inline-flex">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-4 w-4 text-slate-500 transition group-hover:text-slate-700">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007z" />
-                    </svg>
-                    {% if cart_count %}
-                    <span class="absolute -right-2 -top-2 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-flash-600 px-1 text-[10px] font-bold leading-none text-white">{{ cart_count }}</span>
-                    {% endif %}
-                </span>
-                <span class="hidden sm:inline">Bag</span>
-            </a>
-
-            <a href="{% url 'shop:wishlist' %}" class="group inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-soft transition hover:border-slate-300 hover:text-slate-900" aria-label="Wishlist, {{ wishlist_count }} item{{ wishlist_count|pluralize }}">
-                <span class="relative inline-flex">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-4 w-4 text-slate-500 transition group-hover:text-slate-700">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
-                    </svg>
-                    {% if wishlist_count %}
-                    <span class="absolute -right-2 -top-2 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-slate-900 px-1 text-[10px] font-bold leading-none text-white">{{ wishlist_count }}</span>
-                    {% endif %}
-                </span>
-                <span class="hidden sm:inline">Wishlist</span>
-            </a>
-
+        <div class="flex items-center gap-2.5 sm:gap-3">
+            <!-- Search Trigger -->
             <button type="button"
                     @click="searchOpen = true; $nextTick(() => $refs.searchInput?.focus())"
-                    class="group inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-soft transition hover:border-slate-300 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-flash-500/20 focus:ring-offset-2 focus:ring-offset-white"
-                    aria-label="Search catalogue"
-                    aria-haspopup="dialog">
+                    class="group inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-soft transition hover:border-slate-300 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-flash-500/20"
+                    aria-label="Search catalogue">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-4 w-4 text-slate-500 transition group-hover:text-slate-700">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
                 </svg>
-                <span class="hidden sm:inline">Search</span>
-                <kbd class="hidden text-[10px] font-semibold text-slate-400 lg:inline-block rounded bg-slate-100 px-1 py-0.5">⌘K</kbd>
+                <span class="hidden xl:inline text-xs font-semibold">Search</span>
+                <kbd class="hidden xl:inline-block rounded bg-slate-100 px-1 py-0.5 text-[10px] font-semibold text-slate-400">⌘K</kbd>
             </button>
 
-            <a href="{% url 'catalog:visual-search' %}" class="group inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-soft transition hover:border-slate-300 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-flash-500/20 focus:ring-offset-2 focus:ring-offset-white" title="Search by Image" aria-label="Search by image">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-4 w-4 text-slate-500 transition group-hover:text-slate-700">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" />
+            <!-- Wishlist -->
+            <a href="{% url 'shop:wishlist' %}" class="group relative inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-soft transition hover:border-slate-300 hover:text-slate-900" aria-label="Wishlist, {{ wishlist_count }} item{{ wishlist_count|pluralize }}">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-4 w-4 text-slate-500 transition group-hover:text-rose-600">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
                 </svg>
-                <span class="hidden sm:inline">Image</span>
+                {% if wishlist_count %}
+                <span class="absolute -right-1 -top-1 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-slate-900 px-1 text-[10px] font-bold leading-none text-white">{{ wishlist_count }}</span>
+                {% endif %}
             </a>
 
+            <!-- Bag -->
+            <a href="{% url 'shop:cart' %}" class="group relative inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-soft transition hover:border-slate-300 hover:text-slate-900" aria-label="Bag, {{ cart_count }} item{{ cart_count|pluralize }}">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-4 w-4 text-slate-500 transition group-hover:text-slate-900">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007z" />
+                </svg>
+                {% if cart_count %}
+                <span class="absolute -right-1 -top-1 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-flash-600 px-1 text-[10px] font-bold leading-none text-white">{{ cart_count }}</span>
+                {% endif %}
+            </a>
+
+            <!-- Notifications (if authenticated) -->
             {% if user.is_authenticated %}
-            <a href="{% url 'notifications:center' %}" class="group inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-soft transition hover:border-slate-300 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-flash-500/20 focus:ring-offset-2 focus:ring-offset-white" aria-label="Notifications{% if notifications_unread %}, {{ notifications_unread }} unread{% endif %}">
-                <span class="relative inline-flex">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-4 w-4 text-slate-500 transition group-hover:text-slate-700">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
-                    </svg>
-                    {% if notifications_unread %}
-                    <span class="absolute -right-2 -top-2 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-flash-600 px-1 text-[10px] font-bold leading-none text-white">{{ notifications_unread }}</span>
-                    {% endif %}
-                </span>
-                <span class="hidden sm:inline">Notifications</span>
+            <a href="{% url 'notifications:center' %}" class="group relative inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-soft transition hover:border-slate-300 hover:text-slate-900" aria-label="Notifications{% if notifications_unread %}, {{ notifications_unread }} unread{% endif %}">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-4 w-4 text-slate-500 transition group-hover:text-slate-900">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
+                </svg>
+                {% if notifications_unread %}
+                <span class="absolute -right-1 -top-1 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-flash-600 px-1 text-[10px] font-bold leading-none text-white">{{ notifications_unread }}</span>
+                {% endif %}
             </a>
             {% endif %}
 
-            <div class="hidden items-center gap-1 sm:flex">
+            <!-- Account Controls -->
+            <div class="hidden items-center gap-2 sm:flex">
                 {% if user.is_authenticated %}
-                <a href="{% url 'account:dashboard' %}" class="inline-flex items-center rounded-full px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50 hover:text-slate-900">My account</a>
-                {% if user.is_staff %}
-                <a href="{% url 'admin:index' %}" class="inline-flex items-center rounded-full px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50 hover:text-slate-900">Admin</a>
-                {% endif %}
-                <form method="post" action="{% url 'accounts:logout' %}">
-                    {% csrf_token %}
-                    <button type="submit" class="inline-flex items-center justify-center rounded-full px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-flash-500/20">Sign out</button>
-                </form>
+                    <a href="{% url 'account:dashboard' %}" class="inline-flex items-center rounded-full px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 hover:text-slate-950">
+                        My account
+                    </a>
+                    {% if user.is_staff %}
+                    <a href="{% url 'admin:index' %}" class="inline-flex items-center rounded-full px-2.5 py-1.5 text-xs font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-slate-950">
+                        Admin
+                    </a>
+                    {% endif %}
+                    <form method="post" action="{% url 'accounts:logout' %}">
+                        {% csrf_token %}
+                        <button type="submit" class="inline-flex items-center rounded-full px-2.5 py-1.5 text-xs font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-950">
+                            Sign out
+                        </button>
+                    </form>
                 {% else %}
-                <a href="{% url 'accounts:login' %}" class="inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50 hover:text-slate-900">
-                    Sign in
-                </a>
-                <a href="{% url 'account:register' %}" class="inline-flex items-center justify-center rounded-full bg-flash-600 px-4 py-2 text-sm font-semibold text-white shadow-soft transition hover:bg-flash-700 focus:outline-none focus:ring-2 focus:ring-flash-500/30 focus:ring-offset-2 focus:ring-offset-white">
-                    Get started
-                </a>
+                    <a href="{% url 'accounts:login' %}" class="inline-flex items-center rounded-full px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 hover:text-slate-950">
+                        Sign in
+                    </a>
+                    <a href="{% url 'account:register' %}" class="inline-flex items-center justify-center rounded-full bg-flash-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-soft transition hover:bg-flash-700">
+                        Get started
+                    </a>
                 {% endif %}
             </div>
 
             <!-- Mobile menu button -->
-            <button type="button" @click="open = !open" class="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white p-2 text-slate-700 shadow-soft transition hover:border-slate-300 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-flash-500/20 focus:ring-offset-2 focus:ring-offset-white md:hidden" aria-controls="mobile-nav" :aria-expanded="open">
+            <button type="button" @click="open = !open" class="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white p-2 text-slate-700 shadow-soft transition hover:border-slate-300 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-flash-500/20 lg:hidden" aria-controls="mobile-nav" :aria-expanded="open">
                 <span class="sr-only">Toggle navigation</span>
                 <svg x-show="!open" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-5 w-5">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
