@@ -57,16 +57,132 @@ class OrderDetailView(DetailView):
 
     def get_queryset(self):
         return self.request.user.orders.prefetch_related(
-            "items", "events", "shipments", "returns"
-        ).select_related("payment")
+            "items__variant__product", "events", "shipments__events", "returns"
+        ).select_related("payment", "shipping_address")
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         order = self.object
+        context["payment"] = getattr(order, "payment", None)
         context["events"] = list(order.events.all()[:20])
-        context["shipment"] = order.shipments.first()
+        shipments = list(order.shipments.all())
+        context["shipments"] = shipments
+        context["shipment"] = shipments[0] if shipments else None
         context["return_eligibility"] = check_order_return_eligibility(order)
         context["order_returns"] = list(order.returns.all())
+
+        # Review integration (Requirement #9)
+        from apps.engagement.models import Review
+        from apps.engagement.services import reviews as review_services
+
+        product_ids = [
+            item.variant.product_id
+            for item in order.items.all()
+            if item.variant and item.variant.product_id
+        ]
+        user_reviews = {
+            r.product_id: r
+            for r in Review.objects.filter(
+                author=self.request.user, product_id__in=product_ids
+            )
+        }
+
+        item_review_info = {}
+        for item in order.items.all():
+            if not item.variant or not item.variant.product:
+                continue
+            prod = item.variant.product
+            existing = user_reviews.get(prod.id)
+            if existing:
+                item_review_info[item.id] = {
+                    "is_reviewed": True,
+                    "review": existing,
+                }
+            else:
+                is_eligible, reason = review_services.eligibility(self.request.user, prod)
+                item_review_info[item.id] = {
+                    "is_reviewed": False,
+                    "is_eligible": is_eligible,
+                    "reason": reason,
+                    "review_url": f"{prod.get_absolute_url()}#review",
+                }
+        context["item_review_info"] = item_review_info
+
+        # FLASH Loop integration (Requirement #10)
+        from apps.loop.services.eligibility import active_loop_item_for
+        from apps.loop.services.ownership import find_ownership_evidence
+
+        item_loop_info = {}
+        if order.status == Order.Status.DELIVERED:
+            for item in order.items.all():
+                evidence = find_ownership_evidence(self.request.user, order_item_id=item.pk)
+                if evidence:
+                    active_item = active_loop_item_for(evidence)
+                    item_loop_info[item.id] = {
+                        "eligible": active_item is None,
+                        "active_loop_item": active_item,
+                    }
+        context["item_loop_info"] = item_loop_info
+
+        # Order timeline nodes with authoritative timestamps (Requirement #4)
+        timeline = [
+            {
+                "key": "placed",
+                "label": "Order Placed",
+                "completed": True,
+                "current": order.status == Order.Status.PENDING_PAYMENT,
+                "timestamp": order.created_at,
+            },
+            {
+                "key": "paid",
+                "label": "Payment Confirmed",
+                "completed": order.status in {
+                    Order.Status.PAID,
+                    Order.Status.PROCESSING,
+                    Order.Status.SHIPPED,
+                    Order.Status.DELIVERED,
+                },
+                "current": order.status == Order.Status.PAID,
+                "timestamp": order.paid_at,
+            },
+            {
+                "key": "processing",
+                "label": "Processing",
+                "completed": order.status in {
+                    Order.Status.PROCESSING,
+                    Order.Status.SHIPPED,
+                    Order.Status.DELIVERED,
+                },
+                "current": order.status == Order.Status.PROCESSING,
+                "timestamp": None,
+            },
+            {
+                "key": "shipped",
+                "label": "Shipped",
+                "completed": order.status in {
+                    Order.Status.SHIPPED,
+                    Order.Status.DELIVERED,
+                },
+                "current": order.status == Order.Status.SHIPPED,
+                "timestamp": order.shipped_at,
+            },
+            {
+                "key": "delivered",
+                "label": "Delivered",
+                "completed": order.status == Order.Status.DELIVERED,
+                "current": order.status == Order.Status.DELIVERED,
+                "timestamp": order.delivered_at,
+            },
+        ]
+        context["timeline"] = timeline
+
+        # Notifications tied to this order (Requirement #7)
+        context["order_notifications"] = list(
+            self.request.user.notifications.filter(
+                related_object_type="order", related_object_id=str(order.pk)
+            ).order_by("-created_at")[:5]
+        )
+
         return context
 
 

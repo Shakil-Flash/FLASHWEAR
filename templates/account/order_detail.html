@@ -1,177 +1,373 @@
 {% extends "account/base_account.html" %}
 {% load catalog_extras %}
 
-{% block account_title %}Order {{ order.number }}{% endblock account_title %}
-{% block account_heading %}Order {{ order.number }}{% endblock account_heading %}
-{% block account_intro %}Placed {{ order.created_at|date:"N j, Y, H:i" }} · {{ order.get_status_display }}{% endblock account_intro %}
+{% block account_title %}Order {{ order.number }} · FLASHWEAR{% endblock account_title %}
+{% block account_heading %}Order #{{ order.number }}{% endblock account_heading %}
+{% block account_intro %}Placed {{ order.created_at|date:"F j, Y" }} at {{ order.created_at|date:"H:i" }} · {{ order.get_status_display }}{% endblock account_intro %}
 
 {% block account_content %}
-<div class="max-w-3xl space-y-6">
+<div class="max-w-4xl space-y-8">
+    <!-- Top Status Banner -->
     {% if order.status == "pending_payment" %}
-    <div class="rounded-2xl border border-amber-300 bg-amber-50 p-5" role="status">
-        <p class="text-sm font-semibold text-amber-900">Waiting for payment</p>
-        <p class="mt-1 text-sm text-amber-800">
-            Your items are held while this order is unpaid.
-            <a href="{% url 'shop:checkout-payment' order.number %}" class="font-medium underline-offset-4 hover:underline">Complete payment</a>
-            or cancel it below.
-        </p>
+    <div class="rounded-2xl border border-amber-300 bg-amber-50 p-5 shadow-soft dark:border-amber-900/60 dark:bg-amber-950/40" role="status">
+        <div class="flex flex-wrap items-center justify-between gap-4">
+            <div>
+                <p class="text-sm font-bold text-amber-900 dark:text-amber-200">Waiting for payment</p>
+                <p class="mt-1 text-xs text-amber-800 dark:text-amber-300">
+                    Your items are held while this order is unpaid. Complete payment to confirm order fulfillment.
+                </p>
+            </div>
+            <div class="flex items-center gap-3">
+                <a href="{% url 'shop:checkout-payment' order.number %}"
+                   class="inline-flex items-center justify-center rounded-full bg-amber-600 px-4 py-2 text-xs font-semibold text-white shadow-soft transition hover:bg-amber-700">
+                    Complete Payment →
+                </a>
+            </div>
+        </div>
     </div>
     {% elif order.status == "cancelled" %}
-    <div class="rounded-2xl border border-slate-200 bg-slate-50 p-5" role="status">
-        <p class="text-sm font-semibold text-slate-800">This order was cancelled</p>
-        {% if payment and payment.failure_message %}
-        <p class="mt-1 text-sm text-slate-600">{{ payment.failure_message }}</p>
-        {% endif %}
+    <div class="rounded-2xl border border-slate-200 bg-slate-50 p-5 shadow-soft dark:border-slate-800 dark:bg-slate-900" role="status">
+        <p class="text-sm font-bold text-slate-800 dark:text-slate-200">This order was cancelled</p>
+        <p class="mt-1 text-xs text-slate-600 dark:text-slate-400">
+            {% if payment and payment.failure_message %}
+                {{ payment.failure_message }}
+            {% else %}
+                Your held items have been returned to available inventory.
+            {% endif %}
+            If you need assistance, our support team is available.
+        </p>
     </div>
     {% elif order.status == "delivered" %}
-    <div class="rounded-2xl border border-emerald-300 bg-emerald-50 p-5" role="status">
-        <p class="text-sm font-semibold text-emerald-900">Delivered {{ order.delivered_at|date:"N j, Y" }}</p>
-        <p class="mt-1 text-sm text-emerald-800">Hope it fits. Returns open for 30 days.</p>
-    </div>
-    {% endif %}
-
-    {% if order.status != "cancelled" %}
-    <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
-        <h2 class="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 mb-6">Order Status Progression</h2>
-        <div class="relative flex items-center justify-between">
-            <div class="absolute left-0 top-4 h-1 w-full bg-slate-100 z-0"></div>
-            <div class="absolute left-0 top-4 h-1 bg-flash-600 z-0 transition-all duration-500"
-                 style="width: {% if order.status == 'delivered' %}100%{% elif order.status == 'shipped' %}70%{% elif order.status == 'processing' or order.status == 'paid' %}35%{% else %}10%{% endif %};"></div>
-
-            <!-- Step 1: Placed -->
-            <div class="relative z-10 flex flex-col items-center">
-                <div class="flex h-8 w-8 items-center justify-center rounded-full {% if order.status == 'pending_payment' %}border-2 border-flash-600 bg-white text-flash-600 font-bold{% else %}bg-flash-600 text-white{% endif %} text-xs shadow-sm">
-                    ✓
-                </div>
-                <span class="mt-2 text-xs font-semibold text-slate-900">Placed</span>
+    <div class="rounded-2xl border border-emerald-300 bg-emerald-50 p-5 shadow-soft dark:border-emerald-900/60 dark:bg-emerald-950/40" role="status">
+        <div class="flex flex-wrap items-center justify-between gap-4">
+            <div>
+                <p class="text-sm font-bold text-emerald-900 dark:text-emerald-200">
+                    Delivered{% if order.delivered_at %} on {{ order.delivered_at|date:"F j, Y" }}{% endif %}
+                </p>
+                <p class="mt-1 text-xs text-emerald-800 dark:text-emerald-300">
+                    We hope you love your new wardrobe addition. Returns and exchanges remain open for 30 days.
+                </p>
             </div>
-
-            <!-- Step 2: Processing -->
-            <div class="relative z-10 flex flex-col items-center">
-                <div class="flex h-8 w-8 items-center justify-center rounded-full {% if order.status == 'delivered' or order.status == 'shipped' %}bg-flash-600 text-white text-xs{% elif order.status == 'processing' or order.status == 'paid' %}border-2 border-flash-600 bg-white text-flash-600 font-bold text-xs{% else %}border border-slate-200 bg-white text-slate-400 text-xs{% endif %} shadow-sm">
-                    {% if order.status == 'delivered' or order.status == 'shipped' %}✓{% else %}2{% endif %}
-                </div>
-                <span class="mt-2 text-xs font-medium {% if order.status == 'processing' or order.status == 'paid' or order.status == 'shipped' or order.status == 'delivered' %}text-slate-900{% else %}text-slate-400{% endif %}">Processing</span>
-            </div>
-
-            <!-- Step 3: Shipped -->
-            <div class="relative z-10 flex flex-col items-center">
-                <div class="flex h-8 w-8 items-center justify-center rounded-full {% if order.status == 'delivered' %}bg-flash-600 text-white text-xs{% elif order.status == 'shipped' %}border-2 border-flash-600 bg-white text-flash-600 font-bold text-xs{% else %}border border-slate-200 bg-white text-slate-400 text-xs{% endif %} shadow-sm">
-                    {% if order.status == 'delivered' %}✓{% else %}3{% endif %}
-                </div>
-                <span class="mt-2 text-xs font-medium {% if order.status == 'shipped' or order.status == 'delivered' %}text-slate-900{% else %}text-slate-400{% endif %}">Shipped</span>
-            </div>
-
-            <!-- Step 4: Delivered -->
-            <div class="relative z-10 flex flex-col items-center">
-                <div class="flex h-8 w-8 items-center justify-center rounded-full {% if order.status == 'delivered' %}bg-emerald-600 text-white text-xs{% else %}border border-slate-200 bg-white text-slate-400 text-xs{% endif %} shadow-sm">
-                    {% if order.status == 'delivered' %}✓{% else %}4{% endif %}
-                </div>
-                <span class="mt-2 text-xs font-medium {% if order.status == 'delivered' %}text-emerald-700 font-semibold{% else %}text-slate-400{% endif %}">Delivered</span>
-            </div>
+            {% if return_eligibility.is_eligible %}
+            <a href="{% url 'account:order-return-request' order.number %}"
+               class="inline-flex items-center justify-center rounded-full bg-emerald-700 px-4 py-2 text-xs font-semibold text-white shadow-soft transition hover:bg-emerald-800">
+                Return or Exchange
+            </a>
+            {% endif %}
         </div>
     </div>
     {% endif %}
 
-    <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
-        <h2 class="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500">Items</h2>
-        <ul class="mt-4 divide-y divide-slate-100">
+    <!-- Visual Order Timeline (authoritative state) -->
+    {% if order.status != "cancelled" %}
+    <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft dark:border-slate-800 dark:bg-slate-900 sm:p-8" aria-label="Order fulfillment progress">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-4 dark:border-slate-800">
+            <h2 class="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">Order Progress</h2>
+            <span class="text-xs font-medium text-slate-500 dark:text-slate-400">Status: <strong class="text-slate-900 dark:text-white">{{ order.get_status_display }}</strong></span>
+        </div>
+
+        <div class="mt-8">
+            <div class="relative">
+                <!-- Progress connector line -->
+                <div class="absolute left-4 top-4 hidden h-0.5 w-[calc(100%-2rem)] bg-slate-100 dark:bg-slate-800 sm:block" aria-hidden="true"></div>
+                <div class="absolute left-4 top-4 hidden h-0.5 bg-flash-600 transition-all duration-500 sm:block"
+                     style="width: {% if order.status == 'delivered' %}calc(100% - 2rem){% elif order.status == 'shipped' %}75%{% elif order.status == 'processing' %}50%{% elif order.status == 'paid' %}25%{% else %}0%{% endif %};"
+                     aria-hidden="true"></div>
+
+                <!-- Steps grid -->
+                <ol class="grid grid-cols-1 gap-6 sm:grid-cols-5 sm:gap-2">
+                    {% for step in timeline %}
+                    <li class="flex items-start gap-4 sm:flex-col sm:items-center sm:text-center">
+                        <div class="relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold shadow-sm transition
+                            {% if step.completed %}bg-flash-600 text-white dark:bg-flash-500
+                            {% elif step.current %}border-2 border-flash-600 bg-white text-flash-600 dark:bg-slate-900 dark:text-flash-400
+                            {% else %}border border-slate-200 bg-slate-50 text-slate-400 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-500{% endif %}">
+                            {% if step.completed %}✓{% else %}{{ forloop.counter }}{% endif %}
+                        </div>
+                        <div class="min-w-0">
+                            <p class="text-xs font-semibold {% if step.completed or step.current %}text-slate-900 dark:text-white{% else %}text-slate-400 dark:text-slate-500{% endif %}">
+                                {{ step.label }}
+                            </p>
+                            {% if step.timestamp %}
+                            <p class="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
+                                {{ step.timestamp|date:"M j" }}
+                            </p>
+                            {% endif %}
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ol>
+            </div>
+        </div>
+    </section>
+    {% endif %}
+
+    <!-- Items Section with Review & FLASH Loop Integration -->
+    <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft dark:border-slate-800 dark:bg-slate-900 sm:p-8">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-4 dark:border-slate-800">
+            <h2 class="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">Items Ordered</h2>
+            <span class="text-xs text-slate-500 dark:text-slate-400">{{ order.items.all|length }} item{{ order.items.all|length|pluralize }}</span>
+        </div>
+
+        <ul class="mt-4 divide-y divide-slate-100 dark:divide-slate-800" role="list">
             {% for item in order.items.all %}
-            <li class="flex items-baseline justify-between gap-4 py-3 text-sm">
-                <span class="text-slate-700">
-                    {{ item.product_name }}
-                    {% if item.option_label %}· {{ item.option_label }}{% endif %}
-                    <span class="text-slate-400">× {{ item.quantity }}</span>
-                    <span class="block text-xs text-slate-400">{{ item.sku }}</span>
-                </span>
-                <span class="font-medium text-slate-900">{{ item.line_total|money }}</span>
+            {% with review_data=item_review_info|get_item:item.id loop_data=item_loop_info|get_item:item.id %}
+            <li class="py-5">
+                <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <!-- Item Identity -->
+                    <div class="flex items-start gap-3.5 min-w-0">
+                        <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-slate-100 text-xs font-bold text-slate-700 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300">
+                            {{ item.quantity }}×
+                        </div>
+                        <div class="min-w-0">
+                            <h3 class="text-sm font-semibold text-slate-900 dark:text-white">
+                                {% if item.variant and item.variant.product %}
+                                <a href="{{ item.variant.product.get_absolute_url }}" class="hover:underline">
+                                    {{ item.product_name }}
+                                </a>
+                                {% else %}
+                                    {{ item.product_name }}
+                                {% endif %}
+                            </h3>
+                            <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                                {% if item.option_label %}{{ item.option_label }} · {% endif %}
+                                <span class="font-mono text-[11px]">{{ item.sku }}</span>
+                            </p>
+                            <p class="mt-1 text-xs text-slate-600 dark:text-slate-400">
+                                {{ item.unit_price|money }} each
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Line Total -->
+                    <div class="text-left sm:text-right">
+                        <p class="text-sm font-bold text-slate-900 dark:text-white">{{ item.line_total|money }}</p>
+                    </div>
+                </div>
+
+                <!-- Post-Purchase Item Actions: Reviews & FLASH Loop -->
+                <div class="mt-3.5 flex flex-wrap items-center gap-2.5 border-t border-slate-50 pt-3 dark:border-slate-800/60">
+                    <!-- Review Integration -->
+                    {% if review_data %}
+                        {% if review_data.is_reviewed %}
+                        <span class="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
+                            ★ Reviewed ({{ review_data.review.rating }}/5)
+                        </span>
+                        {% elif review_data.is_eligible %}
+                        <a href="{{ review_data.review_url }}"
+                           class="inline-flex items-center gap-1 rounded-full bg-flash-50 px-3 py-1 text-xs font-semibold text-flash-700 transition hover:bg-flash-100 dark:bg-flash-900/40 dark:text-flash-300 dark:hover:bg-flash-900/60">
+                            ★ How was it? Leave a review →
+                        </a>
+                        {% endif %}
+                    {% endif %}
+
+                    <!-- FLASH Loop Integration -->
+                    {% if loop_data %}
+                        {% if loop_data.active_loop_item %}
+                        <a href="{% url 'account:loop-item-detail' loop_data.active_loop_item.pk %}"
+                           class="inline-flex items-center gap-1 rounded-full bg-purple-50 px-2.5 py-1 text-xs font-medium text-purple-800 dark:bg-purple-950/40 dark:text-purple-300 hover:underline">
+                            ♻ Loop: {{ loop_data.active_loop_item.get_status_display }}
+                        </a>
+                        {% elif loop_data.eligible %}
+                        <a href="{% url 'account:loop-create' %}?order_item={{ item.pk }}"
+                           class="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700">
+                            ♻ Circulate on Loop
+                        </a>
+                        {% endif %}
+                    {% endif %}
+                </div>
             </li>
+            {% endwith %}
             {% endfor %}
         </ul>
-        <dl class="mt-4 space-y-2 border-t border-slate-200 pt-4 text-sm">
-            <div class="flex items-baseline justify-between gap-4">
-                <dt class="text-slate-600">Subtotal</dt>
-                <dd class="font-medium text-slate-900">{{ order.subtotal|money }}</dd>
-            </div>
-            <div class="flex items-baseline justify-between gap-4">
-                <dt class="text-slate-600">Shipping ({{ order.shipping_name }})</dt>
-                <dd class="font-medium text-slate-900">{{ order.shipping_amount|money }}</dd>
-            </div>
-            <div class="flex items-baseline justify-between gap-4 border-t border-slate-200 pt-2">
-                <dt class="font-semibold text-slate-950">Total</dt>
-                <dd class="font-semibold text-slate-950">{{ order.total|money }}</dd>
-            </div>
-        </dl>
+
+        <!-- Financial Summary -->
+        <div class="mt-6 border-t border-slate-200 pt-5 dark:border-slate-800">
+            <dl class="space-y-2 text-sm">
+                <div class="flex items-baseline justify-between gap-4">
+                    <dt class="text-slate-600 dark:text-slate-400">Subtotal</dt>
+                    <dd class="font-medium text-slate-900 dark:text-white">{{ order.subtotal|money }}</dd>
+                </div>
+                {% if order.discount_amount > 0 %}
+                <div class="flex items-baseline justify-between gap-4 text-emerald-700 dark:text-emerald-400">
+                    <dt>
+                        Discount
+                        {% if order.promotion_code %}(code: {{ order.promotion_code }}){% endif %}
+                        {% if order.loyalty_points %}({{ order.loyalty_points }} points){% endif %}
+                    </dt>
+                    <dd class="font-semibold">-{{ order.discount_amount|money }}</dd>
+                </div>
+                {% endif %}
+                <div class="flex items-baseline justify-between gap-4">
+                    <dt class="text-slate-600 dark:text-slate-400">Shipping ({{ order.shipping_name }})</dt>
+                    <dd class="font-medium text-slate-900 dark:text-white">
+                        {% if order.shipping_amount == 0 %}
+                            <span class="text-emerald-700 dark:text-emerald-400 font-semibold">Free</span>
+                        {% else %}
+                            {{ order.shipping_amount|money }}
+                        {% endif %}
+                    </dd>
+                </div>
+                <div class="flex items-baseline justify-between gap-4 border-t border-slate-200 pt-3 dark:border-slate-800">
+                    <dt class="text-base font-bold text-slate-950 dark:text-white">Total</dt>
+                    <dd class="text-base font-bold text-slate-950 dark:text-white">{{ order.total|money }}</dd>
+                </div>
+            </dl>
+        </div>
     </section>
 
+    <!-- Delivery & Payment Grid -->
     <div class="grid gap-6 sm:grid-cols-2">
-        <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
-            <h2 class="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500">Delivery</h2>
-            <address class="mt-3 text-sm not-italic text-slate-700">
-                <span class="font-semibold text-slate-900">{{ order.shipping_address.full_name }}</span><br />
+        <!-- Delivery Card -->
+        <section id="shipment" class="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft dark:border-slate-800 dark:bg-slate-900">
+            <h2 class="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">Delivery Details</h2>
+            
+            <address class="mt-4 text-sm not-italic leading-relaxed text-slate-700 dark:text-slate-300">
+                <span class="font-bold text-slate-900 dark:text-white">{{ order.shipping_address.full_name }}</span><br />
                 {{ order.shipping_address.line1 }}{% if order.shipping_address.line2 %}, {{ order.shipping_address.line2 }}{% endif %}<br />
                 {{ order.shipping_address.city }}, {{ order.shipping_address.region }} {{ order.shipping_address.postal_code }}<br />
                 {{ order.shipping_address.country }}
+                {% if order.shipping_address.phone %}
+                <br /><span class="text-xs text-slate-500 dark:text-slate-400">Phone: {{ order.shipping_address.phone }}</span>
+                {% endif %}
             </address>
-            {% if shipment %}
-            <p class="mt-3 text-sm text-slate-600">
-                {{ shipment.get_status_display }}
-                {% if shipment.tracking_number %}· tracking {{ shipment.tracking_number }}{% endif %}
-            </p>
-            {% endif %}
+
+            <!-- Shipment Tracking Section -->
+            <div class="mt-6 border-t border-slate-100 pt-4 dark:border-slate-800">
+                <h3 class="text-xs font-semibold text-slate-800 dark:text-slate-200">Shipment Status</h3>
+                {% if shipment %}
+                <div class="mt-2 space-y-2 text-xs text-slate-600 dark:text-slate-300">
+                    <p class="flex items-center gap-2">
+                        <span class="font-semibold text-slate-900 dark:text-white">{{ shipment.get_status_display }}</span>
+                        {% if shipment.carrier %}via <span class="font-medium text-slate-800 dark:text-slate-200">{{ shipment.carrier }}</span>{% endif %}
+                    </p>
+                    {% if shipment.tracking_number %}
+                    <p class="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+                        <span>Tracking:</span>
+                        <code class="rounded bg-slate-100 px-2 py-0.5 font-mono text-[11px] dark:bg-slate-800">{{ shipment.tracking_number }}</code>
+                    </p>
+                    {% endif %}
+                    {% if shipment.estimated_delivery %}
+                    <p class="text-slate-500 dark:text-slate-400">
+                        Estimated delivery: {{ shipment.estimated_delivery|date:"F j, Y" }}
+                    </p>
+                    {% endif %}
+
+                    {% if shipment.events.exists %}
+                    <div class="mt-3 border-t border-slate-100 pt-2 dark:border-slate-800/80">
+                        <p class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Recent Carrier Scans</p>
+                        <ul class="mt-2 space-y-1.5 text-[11px]">
+                            {% for sev in shipment.events.all|slice:":3" %}
+                            <li class="flex items-baseline justify-between gap-2 text-slate-600 dark:text-slate-400">
+                                <span>{{ sev.note|default:sev.get_event_type_display }}</span>
+                                <span class="shrink-0 text-slate-400 dark:text-slate-500">{{ sev.created_at|date:"M j, H:i" }}</span>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                </div>
+                {% else %}
+                <p class="mt-2 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+                    Tracking information will appear when your shipment is dispatched.
+                </p>
+                {% endif %}
+            </div>
         </section>
 
-        <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
-            <h2 class="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500">Payment</h2>
+        <!-- Payment Card -->
+        <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft dark:border-slate-800 dark:bg-slate-900">
+            <h2 class="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">Payment Information</h2>
             {% if payment %}
-            <dl class="mt-3 space-y-2 text-sm">
+            <dl class="mt-4 space-y-3 text-sm">
                 <div class="flex items-baseline justify-between gap-4">
-                    <dt class="text-slate-600">Status</dt>
-                    <dd class="font-medium text-slate-900">{{ payment.get_status_display }}</dd>
+                    <dt class="text-slate-600 dark:text-slate-400">Payment Status</dt>
+                    <dd class="font-semibold text-slate-900 dark:text-white">
+                        <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold
+                            {% if payment.status == 'succeeded' %}bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300
+                            {% elif payment.status == 'failed' %}bg-rose-50 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300
+                            {% elif payment.status == 'cancelled' %}bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300
+                            {% elif payment.status == 'refunded' %}bg-purple-50 text-purple-800 dark:bg-purple-950/40 dark:text-purple-300
+                            {% else %}bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300{% endif %}">
+                            {{ payment.get_status_display }}
+                        </span>
+                    </dd>
                 </div>
                 <div class="flex items-baseline justify-between gap-4">
-                    <dt class="text-slate-600">Method</dt>
-                    <dd class="font-medium text-slate-900">{{ payment.provider }}</dd>
+                    <dt class="text-slate-600 dark:text-slate-400">Payment Method</dt>
+                    <dd class="font-medium text-slate-900 capitalize dark:text-white">{{ payment.provider }}</dd>
+                </div>
+                <div class="flex items-baseline justify-between gap-4">
+                    <dt class="text-slate-600 dark:text-slate-400">Amount Charged</dt>
+                    <dd class="font-bold text-slate-900 dark:text-white">{{ payment.amount|money }} {{ payment.currency }}</dd>
                 </div>
                 {% if payment.paid_at %}
                 <div class="flex items-baseline justify-between gap-4">
-                    <dt class="text-slate-600">Paid</dt>
-                    <dd class="font-medium text-slate-900">{{ payment.paid_at|date:"N j, Y, H:i" }}</dd>
+                    <dt class="text-slate-600 dark:text-slate-400">Confirmed At</dt>
+                    <dd class="text-xs text-slate-700 dark:text-slate-300">{{ payment.paid_at|date:"F j, Y, H:i" }}</dd>
                 </div>
                 {% endif %}
             </dl>
-            {% else %}
-            <p class="mt-3 text-sm text-slate-600">No payment was started for this order.</p>
+
+            {% if payment.status == 'failed' %}
+            <div class="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-900 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-200">
+                <p class="font-semibold">Payment attempt did not complete</p>
+                {% if payment.failure_message %}<p class="mt-0.5">{{ payment.failure_message }}</p>{% endif %}
+                <a href="{% url 'shop:checkout-payment' order.number %}"
+                   class="mt-2.5 inline-flex items-center rounded-full bg-rose-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-soft transition hover:bg-rose-700">
+                    Retry Payment →
+                </a>
+            </div>
             {% endif %}
+            {% else %}
+            <p class="mt-4 text-xs text-slate-500 dark:text-slate-400">No payment transaction recorded for this order.</p>
+            {% endif %}
+
+            <!-- Support Deep Link -->
+            <div class="mt-6 border-t border-slate-100 pt-4 dark:border-slate-800">
+                <p class="text-xs text-slate-500 dark:text-slate-400">
+                    Need help with this order?
+                </p>
+                <a href="{% url 'support:ticket-create' %}?order={{ order.number|urlencode }}"
+                   class="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-flash-600 underline-offset-4 hover:underline dark:text-flash-400">
+                    Contact Concierge &amp; Support →
+                </a>
+            </div>
         </section>
     </div>
 
+    <!-- Returns & Exchanges -->
     {% if return_eligibility.is_eligible %}
-    <div class="rounded-2xl border border-indigo-200 bg-indigo-50/60 p-5 flex flex-wrap items-center justify-between gap-4">
-        <div>
-            <p class="text-sm font-semibold text-indigo-950">Returns & Exchanges</p>
-            <p class="text-xs text-indigo-800 mt-0.5">Eligible items can be returned or exchanged within {{ return_eligibility.window_days }} days ({{ return_eligibility.days_remaining }} days remaining).</p>
+    <div class="rounded-3xl border border-indigo-200 bg-indigo-50/60 p-6 dark:border-indigo-900/60 dark:bg-indigo-950/30">
+        <div class="flex flex-wrap items-center justify-between gap-4">
+            <div>
+                <h3 class="text-sm font-bold text-indigo-950 dark:text-indigo-200">Returns &amp; Exchanges</h3>
+                <p class="mt-0.5 text-xs text-indigo-800 dark:text-indigo-300">
+                    Eligible items can be returned or exchanged within {{ return_eligibility.window_days }} days ({{ return_eligibility.days_remaining }} days remaining).
+                </p>
+            </div>
+            <a href="{% url 'account:order-return-request' order.number %}"
+               class="inline-flex items-center justify-center rounded-full bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-soft transition hover:bg-indigo-700">
+                Start Return or Exchange →
+            </a>
         </div>
-        <a href="{% url 'account:order-return-request' order.number %}" class="inline-flex items-center justify-center rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 transition-colors">
-            Start Return or Exchange
-        </a>
     </div>
     {% endif %}
 
     {% if order_returns %}
-    <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
-        <h2 class="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500">Return & Exchange Requests</h2>
-        <ul class="mt-4 divide-y divide-slate-100">
+    <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft dark:border-slate-800 dark:bg-slate-900">
+        <h2 class="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">Return &amp; Exchange Requests</h2>
+        <ul class="mt-4 divide-y divide-slate-100 dark:divide-slate-800" role="list">
             {% for ret in order_returns %}
             <li class="flex items-center justify-between py-3 text-sm">
                 <div>
-                    <a href="{% url 'account:return-detail' ret.number %}" class="font-medium text-indigo-600 hover:underline">{{ ret.number }}</a>
+                    <a href="{% url 'account:return-detail' ret.number %}" class="font-medium text-indigo-600 hover:underline dark:text-indigo-400">{{ ret.number }}</a>
                     <span class="text-slate-400 text-xs ml-2">{{ ret.get_return_type_display }} · {{ ret.created_at|date:"N j, Y" }}</span>
                 </div>
                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
-                    {% if ret.status == 'refunded' or ret.status == 'completed' %}bg-emerald-100 text-emerald-800
-                    {% elif ret.status == 'rejected' or ret.status == 'cancelled' %}bg-rose-100 text-rose-800
-                    {% else %}bg-amber-100 text-amber-800{% endif %}">
+                    {% if ret.status == 'refunded' or ret.status == 'completed' %}bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300
+                    {% elif ret.status == 'rejected' or ret.status == 'cancelled' %}bg-rose-100 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300
+                    {% else %}bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300{% endif %}">
                     {{ ret.get_status_display }}
                 </span>
             </li>
@@ -180,36 +376,51 @@
     </section>
     {% endif %}
 
+    <!-- Cancellation action for unpaid orders -->
     {% if order.is_cancellable %}
-    <form method="post" action="{% url 'account:order-cancel' order.number %}" data-confirm="Cancel this order? Your held items go back to the shop floor.">
-        {% csrf_token %}
-        <button type="submit" class="font-medium text-red-700 underline-offset-4 hover:underline">Cancel this order</button>
-    </form>
+    <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900">
+        <form method="post" action="{% url 'account:order-cancel' order.number %}" data-confirm="Cancel this order? Your held items go back to available stock.">
+            {% csrf_token %}
+            <button type="submit" class="text-xs font-semibold text-rose-600 underline-offset-4 hover:underline dark:text-rose-400">
+                Cancel this order
+            </button>
+        </form>
+    </div>
     {% endif %}
 
-    {% comment %}
-    The "Need help?" path: carrying the order number in the query string means the ticket
-    form opens already pointing at this order, and ``_prefill`` re-checks it belongs to the
-    person following the link before it is echoed back.
-    {% endcomment %}
-    <p class="text-sm text-slate-600">
-        Something not right?
-        <a href="{% url 'support:ticket-create' %}?order={{ order.number|urlencode }}"
-           class="font-medium text-slate-900 underline-offset-4 hover:underline">Open a support ticket about this order</a>.
-    </p>
-
+    <!-- Audit Event History -->
     {% if events %}
-    <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
-        <h2 class="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500">History</h2>
-        <ol class="mt-3 space-y-3">
+    <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft dark:border-slate-800 dark:bg-slate-900">
+        <h2 class="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">Order Audit History</h2>
+        <ol class="mt-4 divide-y divide-slate-100 dark:divide-slate-800">
             {% for event in events %}
-            <li class="flex flex-wrap items-baseline justify-between gap-2 text-sm">
-                <span class="text-slate-700">{{ event.note|default:event.get_event_type_display }}</span>
-                <span class="text-xs text-slate-400">{{ event.created_at|date:"N j, Y, H:i" }}</span>
+            <li class="flex flex-wrap items-baseline justify-between gap-2 py-2.5 text-xs">
+                <span class="text-slate-700 dark:text-slate-300">{{ event.note|default:event.get_event_type_display }}</span>
+                <span class="text-[11px] text-slate-400 dark:text-slate-500">{{ event.created_at|date:"M j, Y, H:i" }}</span>
             </li>
             {% endfor %}
         </ol>
     </section>
     {% endif %}
+
+    <!-- Tasteful Continue Shopping & Discovery Actions (Requirement #11) -->
+    <div class="rounded-3xl border border-slate-200 bg-slate-50/70 p-6 dark:border-slate-800 dark:bg-slate-900/60 sm:p-8">
+        <h3 class="text-sm font-bold text-slate-900 dark:text-white">Continue Your Fashion Journey</h3>
+        <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Explore new drops, manage your wardrobe items, or return to your bag.</p>
+        <div class="mt-4 flex flex-wrap items-center gap-3">
+            <a href="{% url 'catalog:product-list' %}"
+               class="inline-flex items-center justify-center rounded-full bg-flash-600 px-4 py-2 text-xs font-semibold text-white shadow-soft transition hover:bg-flash-700">
+                Discover New Arrivals →
+            </a>
+            <a href="{% url 'account:closet' %}"
+               class="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
+                Explore Your Closet
+            </a>
+            <a href="{% url 'shop:wishlist' %}"
+               class="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
+                View Saved Wishlist
+            </a>
+        </div>
+    </div>
 </div>
 {% endblock account_content %}

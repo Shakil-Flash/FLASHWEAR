@@ -206,7 +206,12 @@ def loop_create(request):
                 )
                 return redirect("account:loop-item-detail", pk=item.pk)
     else:
-        form = LoopItemCreateForm(user=request.user)
+        initial = {}
+        if request.GET.get("order_item", "").isdigit():
+            initial["owned_item"] = f"order:{request.GET['order_item']}"
+        elif request.GET.get("closet_item", "").isdigit():
+            initial["owned_item"] = f"closet:{request.GET['closet_item']}"
+        form = LoopItemCreateForm(user=request.user, initial=initial)
 
     if not owned_items_exist(form):
         messages.info(

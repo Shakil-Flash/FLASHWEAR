@@ -1,42 +1,155 @@
 {% extends "account/base_account.html" %}
 {% load catalog_extras %}
 
-{% block account_title %}Orders{% endblock account_title %}
-{% block account_heading %}Orders{% endblock account_heading %}
-{% block account_intro %}Everything you have ordered, with its current status and what happens next.{% endblock account_intro %}
+{% block account_title %}Orders · FLASHWEAR{% endblock account_title %}
+{% block account_heading %}Your Orders{% endblock account_heading %}
+{% block account_intro %}Track fulfillment, review shipments, and manage post-purchase actions for your wardrobe.{% endblock account_intro %}
 
 {% block account_content %}
-<div class="max-w-3xl">
+<div class="max-w-4xl space-y-6">
     {% if not orders %}
-    <div class="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center">
-        <p class="text-sm font-medium text-slate-900">No orders yet</p>
-        <p class="mt-1 text-sm text-slate-600">
-            Your orders will appear here the moment you place one.
-            <a href="{% url 'shop:cart' %}" class="font-medium text-slate-900 underline-offset-4 hover:underline">Start with your bag</a>.
+    <div class="rounded-3xl border border-dashed border-slate-200 bg-white p-12 text-center shadow-soft dark:border-slate-800 dark:bg-slate-900">
+        <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500">
+            <svg class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+            </svg>
+        </div>
+        <h3 class="mt-4 text-base font-semibold text-slate-900 dark:text-white">Your first FLASHWEAR order is waiting to happen</h3>
+        <p class="mx-auto mt-2 max-w-sm text-sm text-slate-600 dark:text-slate-400">
+            Explore our curated collections to find your next signature piece. When you order, full tracking and delivery updates will appear here.
         </p>
+        <div class="mt-6 flex flex-wrap items-center justify-center gap-3">
+            <a href="{% url 'catalog:product-list' %}"
+               class="inline-flex items-center justify-center rounded-full bg-flash-600 px-5 py-2.5 text-xs font-semibold text-white shadow-soft transition hover:bg-flash-700 focus:outline-none focus:ring-2 focus:ring-flash-500/20">
+                Explore Collection →
+            </a>
+            <a href="{% url 'shop:cart' %}"
+               class="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-5 py-2.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
+                View Bag
+            </a>
+        </div>
     </div>
     {% else %}
-    <ul class="space-y-4">
+    <ul class="space-y-4" role="list">
         {% for order in orders %}
-        <li class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
-            <div class="flex flex-wrap items-start justify-between gap-4">
-                <div class="min-w-0">
-                    <a href="{% url 'account:order-detail' order.number %}" class="text-sm font-semibold text-slate-900 underline-offset-4 hover:underline">
-                        {{ order.number }}
-                    </a>
-                    <p class="mt-1 text-xs text-slate-500">
-                        Placed {{ order.created_at|date:"N j, Y" }} ·
+        <li class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft transition hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700 sm:p-6">
+            <!-- Header Row -->
+            <div class="flex flex-wrap items-start justify-between gap-4 border-b border-slate-100 pb-4 dark:border-slate-800/80">
+                <div>
+                    <div class="flex flex-wrap items-center gap-2.5">
+                        <a href="{% url 'account:order-detail' order.number %}"
+                           class="text-base font-bold tracking-tight text-slate-900 underline-offset-4 hover:underline dark:text-white">
+                            Order #{{ order.number }}
+                        </a>
+                        <!-- Order Status Badge -->
+                        <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold
+                            {% if order.status == 'pending_payment' %}bg-amber-100 text-amber-900 dark:bg-amber-950/60 dark:text-amber-300
+                            {% elif order.status == 'cancelled' %}bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300
+                            {% elif order.status == 'delivered' %}bg-emerald-100 text-emerald-900 dark:bg-emerald-950/60 dark:text-emerald-300
+                            {% elif order.status == 'shipped' %}bg-blue-100 text-blue-900 dark:bg-blue-950/60 dark:text-blue-300
+                            {% elif order.status == 'refunded' %}bg-purple-100 text-purple-900 dark:bg-purple-950/60 dark:text-purple-300
+                            {% else %}bg-flash-100 text-flash-900 dark:bg-flash-900/50 dark:text-flash-300{% endif %}">
+                            {{ order.get_status_display }}
+                        </span>
+                        <!-- Payment Status Badge -->
+                        {% if order.payment %}
+                        <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium
+                            {% if order.payment.status == 'succeeded' %}bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400
+                            {% elif order.payment.status == 'failed' %}bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400
+                            {% elif order.payment.status == 'pending' or order.payment.status == 'created' %}bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400
+                            {% else %}bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400{% endif %}">
+                            Payment: {{ order.payment.get_status_display }}
+                        </span>
+                        {% endif %}
+                    </div>
+                    <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                        Placed on {{ order.created_at|date:"F j, Y" }} at {{ order.created_at|date:"H:i" }}
+                    </p>
+                </div>
+                <div class="text-right">
+                    <p class="text-base font-bold text-slate-900 dark:text-white">{{ order.total|money }}</p>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">
                         {{ order.items.all|length }} item{{ order.items.all|length|pluralize }}
                     </p>
                 </div>
+            </div>
+
+            <!-- Product Preview Section -->
+            <div class="mt-4">
+                <div class="space-y-2">
+                    {% for item in order.items.all|slice:":3" %}
+                    <div class="flex items-center justify-between gap-4 text-xs">
+                        <div class="flex items-center gap-2 truncate">
+                            <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-slate-100 text-[10px] font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                                {{ item.quantity }}×
+                            </span>
+                            <span class="font-medium text-slate-800 dark:text-slate-200 truncate">{{ item.product_name }}</span>
+                            {% if item.option_label %}
+                            <span class="text-slate-400 dark:text-slate-500">· {{ item.option_label }}</span>
+                            {% endif %}
+                        </div>
+                        <span class="shrink-0 font-medium text-slate-700 dark:text-slate-300">{{ item.line_total|money }}</span>
+                    </div>
+                    {% endfor %}
+                    {% if order.items.all|length > 3 %}
+                    <p class="text-[11px] font-medium text-slate-400 dark:text-slate-500">
+                        + {{ order.items.all|length|add:"-3" }} more item{{ order.items.all|length|add:"-3"|pluralize }}
+                    </p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Shipment & Tracking Info if available -->
+            {% if order.status == 'shipped' or order.status == 'delivered' %}
+            {% with shipment=order.shipments.first %}
+            {% if shipment %}
+            <div class="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-slate-50 px-3.5 py-2.5 text-xs text-slate-600 dark:bg-slate-800/60 dark:text-slate-300">
+                <div class="flex items-center gap-2">
+                    <svg class="h-4 w-4 text-slate-500 dark:text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" />
+                    </svg>
+                    <span>
+                        <strong class="font-semibold text-slate-800 dark:text-slate-200">{{ shipment.get_status_display }}</strong>
+                        {% if shipment.carrier %} via {{ shipment.carrier }}{% endif %}
+                        {% if shipment.tracking_number %} · Tracking: <code class="font-mono">{{ shipment.tracking_number }}</code>{% endif %}
+                    </span>
+                </div>
+                {% if shipment.estimated_delivery %}
+                <span class="text-slate-500 dark:text-slate-400">Est. delivery: {{ shipment.estimated_delivery|date:"M j, Y" }}</span>
+                {% endif %}
+            </div>
+            {% endif %}
+            {% endwith %}
+            {% endif %}
+
+            <!-- Actions Row -->
+            <div class="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4 dark:border-slate-800/80">
                 <div class="flex flex-wrap items-center gap-2">
-                    <span class="rounded-full
-                        {% if order.status == 'pending_payment' %}bg-amber-50 text-amber-800
-                        {% elif order.status == 'cancelled' %}bg-slate-100 text-slate-600
-                        {% elif order.status == 'delivered' %}bg-emerald-50 text-emerald-800
-                        {% else %}bg-flash-50 text-flash-800{% endif %}
-                        px-3 py-1 text-xs font-semibold">{{ order.get_status_display }}</span>
-                    <span class="text-sm font-semibold text-slate-900">{{ order.total|money }}</span>
+                    {% if order.status == 'pending_payment' %}
+                    <a href="{% url 'shop:checkout-payment' order.number %}"
+                       class="inline-flex items-center justify-center rounded-full bg-flash-600 px-4 py-2 text-xs font-semibold text-white shadow-soft transition hover:bg-flash-700">
+                        Complete Payment →
+                    </a>
+                    {% else %}
+                    <a href="{% url 'account:order-detail' order.number %}"
+                       class="inline-flex items-center justify-center rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow-soft transition hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100">
+                        View Details →
+                    </a>
+                    {% endif %}
+
+                    {% if order.status == 'shipped' or order.status == 'delivered' %}
+                    <a href="{% url 'account:order-detail' order.number %}#shipment"
+                       class="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
+                        Track Shipment
+                    </a>
+                    {% endif %}
+                </div>
+
+                <div class="flex items-center gap-3 text-xs">
+                    <a href="{% url 'support:ticket-create' %}?order={{ order.number|urlencode }}"
+                       class="font-medium text-slate-500 hover:text-slate-900 hover:underline dark:text-slate-400 dark:hover:text-white">
+                        Need Help?
+                    </a>
                 </div>
             </div>
         </li>
@@ -44,15 +157,27 @@
     </ul>
 
     {% if is_paginated %}
-    <nav class="mt-6 flex items-center justify-between text-sm" aria-label="Order pages">
+    <nav class="mt-8 flex items-center justify-between border-t border-slate-200 pt-4 text-sm dark:border-slate-800" aria-label="Order pages">
         {% if page_obj.has_previous %}
-        <a href="?page={{ page_obj.previous_page_number }}" class="font-medium text-slate-900 underline-offset-4 hover:underline">Newer orders</a>
-        <span class="text-slate-500">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+        <a href="?page={{ page_obj.previous_page_number }}"
+           class="inline-flex items-center gap-1 font-medium text-slate-700 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white">
+            ← Newer orders
+        </a>
         {% else %}
-        <span class="text-slate-500">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+        <span class="text-slate-400 dark:text-slate-600">← Newer orders</span>
         {% endif %}
+
+        <span class="text-xs font-medium text-slate-500 dark:text-slate-400">
+            Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+        </span>
+
         {% if page_obj.has_next %}
-        <a href="?page={{ page_obj.next_page_number }}" class="font-medium text-slate-900 underline-offset-4 hover:underline">Older orders</a>
+        <a href="?page={{ page_obj.next_page_number }}"
+           class="inline-flex items-center gap-1 font-medium text-slate-700 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white">
+            Older orders →
+        </a>
+        {% else %}
+        <span class="text-slate-400 dark:text-slate-600">Older orders →</span>
         {% endif %}
     </nav>
     {% endif %}
