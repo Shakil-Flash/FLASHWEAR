@@ -51,11 +51,14 @@ urlpatterns = [
     path("inspiration/", include("apps.creator.inspiration_urls")),
 ]
 
-# Development-only convenience: Django's runserver does not serve media files.
-if settings.DEBUG:
-    from django.conf.urls.static import static
+# Serve user-uploaded media files in development and container deployments without S3.
+if settings.DEBUG or not getattr(settings, "AWS_STORAGE_BUCKET_NAME", None):
+    from django.urls import re_path
+    from django.views.static import serve
 
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    urlpatterns += [
+        re_path(r"^media/(?P<path>.*)$", serve, {"document_root": settings.MEDIA_ROOT}),
+    ]
 
 handler400 = "apps.core.views.bad_request"
 handler403 = "apps.core.views.permission_denied"
