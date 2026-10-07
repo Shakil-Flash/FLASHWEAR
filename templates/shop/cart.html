@@ -1,36 +1,72 @@
 {% extends "base.html" %}
 {% load catalog_extras %}
 
-{% block title %}Your bag{% endblock title %}
+{% block title %}Your bag · FLASHWEAR{% endblock title %}
 {% block meta_robots %}noindex, follow{% endblock meta_robots %}
 
 {% block content %}
-<div class="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-    <div class="flex flex-wrap items-end justify-between gap-4">
+<div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <!-- Checkout Progress Stepper -->
+    <nav aria-label="Checkout progress" class="mb-8">
+        <ol class="flex flex-wrap items-center gap-2 text-xs font-medium text-slate-500 sm:text-sm">
+            <li class="flex items-center font-bold text-flash-600 dark:text-flash-400">
+                <span class="flex h-5 w-5 items-center justify-center rounded-full bg-flash-100 text-[11px] text-flash-700 dark:bg-flash-900/50 dark:text-flash-300 mr-1.5">1</span>
+                <span>Bag</span>
+                <svg class="ml-2 h-3.5 w-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+            </li>
+            <li class="flex items-center text-slate-400 dark:text-slate-500">
+                <span class="flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 text-[11px] text-slate-500 dark:bg-slate-800 mr-1.5">2</span>
+                <span>Delivery</span>
+                <svg class="ml-2 h-3.5 w-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+            </li>
+            <li class="flex items-center text-slate-400 dark:text-slate-500">
+                <span class="flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 text-[11px] text-slate-500 dark:bg-slate-800 mr-1.5">3</span>
+                <span>Payment</span>
+                <svg class="ml-2 h-3.5 w-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+            </li>
+            <li class="flex items-center text-slate-400 dark:text-slate-500">
+                <span class="flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 text-[11px] text-slate-500 dark:bg-slate-800 mr-1.5">4</span>
+                <span>Confirmation</span>
+            </li>
+        </ol>
+    </nav>
+
+    <!-- Header -->
+    <div class="flex flex-wrap items-end justify-between gap-4 border-b border-slate-200/80 pb-5 dark:border-slate-800">
         <div>
-            <h1 class="text-2xl font-semibold tracking-tight text-slate-950">Your bag</h1>
-            <p class="mt-1 text-sm text-slate-600">
+            <h1 class="text-2xl font-bold tracking-tight text-slate-950 dark:text-white sm:text-3xl">Your bag</h1>
+            <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">
                 {% if totals.total_quantity %}
-                    {{ totals.total_quantity }} item{{ totals.total_quantity|pluralize }} in your bag
+                    {{ totals.total_quantity }} item{{ totals.total_quantity|pluralize }} curated for your wardrobe
                 {% else %}
                     Nothing here yet
                 {% endif %}
             </p>
         </div>
-        {% if not cart.is_empty %}
-        <form method="post" action="{% url 'shop:cart-clear' %}">
-            {% csrf_token %}
-            <button type="submit" class="text-sm font-medium text-slate-500 underline-offset-4 transition hover:text-slate-900 hover:underline">
-                Clear bag
-            </button>
-        </form>
+        {% if items %}
+        <div class="flex items-center gap-4">
+            <a href="{% url 'catalog:track-merchandising' %}?type=continue_shopping_click&next={% url 'catalog:product-list' %}&src=cart_header" class="text-sm font-medium text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white">
+                Continue shopping
+            </a>
+            <form method="post" action="{% url 'shop:cart-clear' %}">
+                {% csrf_token %}
+                <button type="submit" class="text-sm font-medium text-rose-600 underline-offset-4 transition hover:text-rose-700 hover:underline dark:text-rose-400">
+                    Clear bag
+                </button>
+            </form>
+        </div>
         {% endif %}
     </div>
 
     {% if errors %}
-    <div class="mt-6 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900" role="alert">
-        <p class="font-semibold">Before checkout</p>
-        <ul class="mt-1 list-disc space-y-1 pl-5">
+    <div class="mt-6 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-800/80 dark:bg-amber-950/40 dark:text-amber-200" role="alert">
+        <div class="flex items-center gap-2">
+            <svg class="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <p class="font-semibold">Before checkout</p>
+        </div>
+        <ul class="mt-2 list-disc space-y-1 pl-6">
             {% for error in errors %}
             <li>{{ error }}</li>
             {% endfor %}
@@ -39,23 +75,37 @@
     {% endif %}
 
     {% if price_changes %}
-    <div class="mt-6 rounded-2xl border border-sky-300 bg-sky-50 p-4 text-sm text-sky-900" role="status">
-        <p class="font-semibold">Prices have changed</p>
-        <p class="mt-1">Some items in your bag are now priced differently. The new price is shown below and will be used at checkout.</p>
+    <div class="mt-6 rounded-2xl border border-sky-300 bg-sky-50 p-4 text-sm text-sky-900 dark:border-sky-800/80 dark:bg-sky-950/40 dark:text-sky-200" role="status">
+        <div class="flex items-center gap-2">
+            <svg class="h-5 w-5 text-sky-600 dark:text-sky-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <p class="font-semibold">Prices have changed</p>
+        </div>
+        <p class="mt-1 text-xs sm:text-sm text-sky-800 dark:text-sky-300">
+            Some items in your bag are now priced differently. The new price is shown below and will be used at checkout.
+        </p>
     </div>
     {% endif %}
 
-    {% if cart.is_empty %}
-    <div class="mt-8 rounded-2xl border border-dashed border-slate-200 bg-white p-10 text-center">
-        <p class="text-base font-semibold text-slate-900">Your bag is feeling light.</p>
-        <p class="mt-1 text-sm text-slate-500">Explore our signature garments and foundational pieces.</p>
+    {% if not items %}
+    <div class="mt-8 rounded-3xl border border-dashed border-slate-200 bg-white p-10 text-center shadow-soft dark:border-slate-800 dark:bg-slate-900">
+        <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500">
+            <svg class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+            </svg>
+        </div>
+        <p class="mt-4 text-lg font-semibold text-slate-900 dark:text-white">Your bag is feeling light.</p>
+        <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Explore our signature garments, capsule collections, and foundational pieces.</p>
         <p class="mt-6">
-            <a href="{% url 'catalog:track-merchandising' %}?type=continue_shopping_click&next={% url 'catalog:product-list' %}&src=empty_cart" class="inline-flex items-center justify-center rounded-full bg-flash-600 px-6 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-flash-700">Explore catalogue</a>
+            <a href="{% url 'catalog:track-merchandising' %}?type=continue_shopping_click&next={% url 'catalog:product-list' %}&src=empty_cart" class="inline-flex items-center justify-center rounded-full bg-flash-600 px-6 py-3 text-sm font-semibold text-white shadow-soft transition hover:bg-flash-700 focus:outline-none focus:ring-2 focus:ring-flash-500/30">
+                Explore catalogue
+            </a>
         </p>
 
         {% if continue_items %}
-        <div class="mt-12 text-left pt-8 border-t border-slate-100">
-            <h2 class="text-base font-semibold text-slate-950">Recommended for your wardrobe</h2>
+        <div class="mt-12 border-t border-slate-100 pt-8 text-left dark:border-slate-800">
+            <h2 class="text-base font-semibold text-slate-950 dark:text-white">Recommended for your wardrobe</h2>
             <div class="mt-4 grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4">
                 {% for prod in continue_items %}
                     {% include "catalog/_product_card.html" with product=prod %}
@@ -64,111 +114,249 @@
         </div>
         {% endif %}
     </div>
+
     {% else %}
-    <div class="mt-8 grid gap-8 lg:grid-cols-[1fr_20rem]">
-        <ul class="space-y-4">
-            {% for item in items %}
-            <li class="rounded-2xl border border-slate-200 bg-white p-4 shadow-soft sm:p-5">
-                <div class="flex gap-4">
-                    <a href="{{ item.variant.get_absolute_url }}" class="block h-24 w-20 shrink-0 overflow-hidden rounded-xl bg-slate-100 sm:h-28 sm:w-24">
-                        {% with image=item.variant.product.primary_image %}
-                            {% if image %}
-                            <img src="{{ image.image.url }}" alt="{{ image.alt_text }}" width="640" height="800" loading="lazy" decoding="async" class="h-full w-full object-cover" />
-                            {% endif %}
-                        {% endwith %}
-                    </a>
+    <div class="mt-8 grid gap-8 lg:grid-cols-[1fr_22rem]">
+        <!-- Items Section -->
+        <div class="space-y-6">
+            <ul class="space-y-4" role="list" aria-label="Items in bag">
+                {% for item in items %}
+                <li class="rounded-2xl border border-slate-200 bg-white p-4 shadow-soft transition hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900 sm:p-5">
+                    <div class="flex gap-4 sm:gap-5">
+                        <a href="{{ item.variant.get_absolute_url }}" class="block h-28 w-24 shrink-0 overflow-hidden rounded-xl bg-slate-100 border border-slate-200 dark:border-slate-800 dark:bg-slate-800 sm:h-32 sm:w-28">
+                            {% with image=item.variant.product.primary_image %}
+                                {% if image %}
+                                <img src="{{ image.image.url }}" alt="{{ image.alt_text|default:item.variant.product.name }}" width="640" height="800" loading="lazy" decoding="async" class="h-full w-full object-cover transition duration-300 hover:scale-105" />
+                                {% else %}
+                                <div class="flex h-full w-full items-center justify-center text-xs text-slate-400">No image</div>
+                                {% endif %}
+                            {% endwith %}
+                        </a>
 
-                    <div class="min-w-0 flex-1">
-                        <div class="flex flex-wrap items-start justify-between gap-2">
-                            <div class="min-w-0">
-                                <p class="text-xs font-medium uppercase tracking-[0.08em] text-slate-500">{{ item.variant.product.name }}</p>
-                                <h2 class="mt-0.5 truncate text-sm font-semibold text-slate-900">
-                                    <a href="{{ item.variant.get_absolute_url }}" class="hover:underline">{{ item.variant.option_label|default:item.variant }}</a>
-                                </h2>
-                                <p class="mt-1 text-xs text-slate-500">SKU {{ item.variant.sku }}</p>
+                        <div class="min-w-0 flex-1 flex flex-col justify-between">
+                            <div>
+                                <div class="flex flex-wrap items-start justify-between gap-2">
+                                    <div class="min-w-0">
+                                        <p class="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">{{ item.variant.product.name }}</p>
+                                        <h2 class="mt-0.5 truncate text-sm font-semibold text-slate-900 dark:text-white sm:text-base">
+                                            <a href="{{ item.variant.get_absolute_url }}" class="hover:underline">{{ item.variant.option_label|default:item.variant }}</a>
+                                        </h2>
+                                        <p class="mt-1 text-xs text-slate-500 dark:text-slate-400 font-mono">SKU {{ item.variant.sku }}</p>
+                                    </div>
+                                    <div class="text-right">
+                                        <p class="text-base font-bold text-slate-950 dark:text-white">{{ item.line_total|money }}</p>
+                                        <span class="text-xs text-slate-500 dark:text-slate-400">{{ item.price_snapshot|money }} each</span>
+                                    </div>
+                                </div>
+
+                                {% if not item.variant_is_eligible %}
+                                <div class="mt-2.5 flex items-center gap-1.5 rounded-lg bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">
+                                    <svg class="h-4 w-4 shrink-0 text-rose-500" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                                    </svg>
+                                    <span>No longer available — remove it to continue to checkout.</span>
+                                </div>
+                                {% elif item.price_changed %}
+                                <p class="mt-2 text-xs text-slate-600 dark:text-slate-400">
+                                    Price when added: <span class="line-through">{{ item.price_snapshot|money }}</span>
+                                    · now <span class="font-semibold text-slate-900 dark:text-white">{{ item.variant.price|money }}</span>
+                                </p>
+                                {% endif %}
                             </div>
-                            <p class="text-sm font-semibold text-slate-950">{{ item.line_total|money }}</p>
-                        </div>
 
-                        {% if not item.variant_is_eligible %}
-                        <p class="mt-2 rounded-lg bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700">
-                            No longer available — remove it to continue to checkout.
-                        </p>
-                        {% elif item.price_changed %}
-                        <p class="mt-2 text-xs text-slate-600">
-                            Price when added: <span class="line-through">{{ item.price_snapshot|money }}</span>
-                            · now <span class="font-semibold text-slate-900">{{ item.variant.price|money }}</span>
-                        </p>
-                        {% endif %}
+                            <!-- Actions Row -->
+                            <div class="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3 dark:border-slate-800">
+                                <div class="flex items-center gap-3">
+                                    <!-- Stepper Form -->
+                                    <form method="post" action="{% url 'shop:cart-update' item.pk %}" class="flex items-center gap-1.5"
+                                          x-data="{
+                                              qty: {{ item.quantity }},
+                                              maxQty: {{ cart_max_quantity }},
+                                              decrease() { if (this.qty > 1) { this.qty--; $el.closest('form').requestSubmit(); } },
+                                              increase() { if (this.qty < this.maxQty) { this.qty++; $el.closest('form').requestSubmit(); } }
+                                          }">
+                                        {% csrf_token %}
+                                        <label for="qty-{{ item.pk }}" class="sr-only">Quantity for {{ item.variant.option_label|default:item.variant }}</label>
+                                        <div class="flex items-center rounded-xl border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800">
+                                            <button type="button"
+                                                    @click="decrease()"
+                                                    :disabled="qty <= 1"
+                                                    class="flex h-8 w-8 items-center justify-center rounded-l-xl text-slate-500 hover:bg-slate-200 hover:text-slate-800 disabled:opacity-40 disabled:hover:bg-transparent dark:text-slate-400 dark:hover:bg-slate-700"
+                                                    aria-label="Decrease quantity">
+                                                <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" /></svg>
+                                            </button>
+                                            <input type="number"
+                                                   id="qty-{{ item.pk }}"
+                                                   name="quantity"
+                                                   x-model.number="qty"
+                                                   value="{{ item.quantity }}"
+                                                   min="1"
+                                                   max="{{ cart_max_quantity }}"
+                                                   required
+                                                   class="h-8 w-12 border-0 bg-transparent text-center text-xs font-semibold text-slate-900 focus:outline-none focus:ring-0 dark:text-white" />
+                                            <button type="button"
+                                                    @click="increase()"
+                                                    :disabled="qty >= maxQty"
+                                                    class="flex h-8 w-8 items-center justify-center rounded-r-xl text-slate-500 hover:bg-slate-200 hover:text-slate-800 disabled:opacity-40 disabled:hover:bg-transparent dark:text-slate-400 dark:hover:bg-slate-700"
+                                                    aria-label="Increase quantity">
+                                                <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+                                            </button>
+                                        </div>
+                                        <button type="submit" class="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-900 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-slate-500">
+                                            Update
+                                        </button>
+                                    </form>
+                                </div>
 
-                        <div class="mt-4 flex flex-wrap items-center gap-3">
-                            <form method="post" action="{% url 'shop:cart-update' item.pk %}" class="flex items-center gap-2">
-                                {% csrf_token %}
-                                <label for="qty-{{ item.pk }}" class="sr-only">Quantity for {{ item.variant.option_label|default:item.variant }}</label>
-                                <input type="number"
-                                       id="qty-{{ item.pk }}"
-                                       name="quantity"
-                                       value="{{ item.quantity }}"
-                                       min="1"
-                                       max="{{ cart_max_quantity }}"
-                                       required
-                                       class="w-20 rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-900 focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900" />
-                                <button type="submit" class="rounded-full border border-slate-300 bg-white px-3.5 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900">
-                                    Update
-                                </button>
-                            </form>
-                            <form method="post" action="{% url 'shop:cart-remove' item.pk %}">
-                                {% csrf_token %}
-                                <button type="submit" class="text-xs font-medium text-red-700 underline-offset-4 transition hover:underline">
-                                    Remove
-                                </button>
-                            </form>
-                            <span class="ml-auto text-xs text-slate-500">{{ item.price_snapshot|money }} each</span>
+                                <div class="flex items-center gap-3">
+                                    <!-- Move to Wishlist (Phase 35 requirement #4) -->
+                                    <form method="post" action="{% url 'shop:cart-move-to-wishlist' item.pk %}">
+                                        {% csrf_token %}
+                                        <button type="submit" class="inline-flex items-center gap-1 text-xs font-medium text-slate-600 transition hover:text-flash-600 dark:text-slate-400 dark:hover:text-flash-400" title="Move to wishlist">
+                                            <svg class="h-3.5 w-3.5 text-slate-400 hover:text-flash-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                                            </svg>
+                                            <span>Save to Wishlist</span>
+                                        </button>
+                                    </form>
+
+                                    <!-- Remove -->
+                                    <form method="post" action="{% url 'shop:cart-remove' item.pk %}">
+                                        {% csrf_token %}
+                                        <button type="submit" class="inline-flex items-center gap-1 text-xs font-medium text-rose-600 transition hover:text-rose-700 hover:underline dark:text-rose-400" title="Remove item from cart">
+                                            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                            </svg>
+                                            <span>Remove</span>
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
                         </div>
                     </div>
+                </li>
+                {% endfor %}
+            </ul>
+
+            <!-- Promotions & Loyalty Accordion on Cart Page -->
+            {% if user.is_authenticated %}
+            <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft dark:border-slate-800 dark:bg-slate-900">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <h2 class="text-sm font-semibold tracking-tight text-slate-900 dark:text-white">Promotion &amp; FLASH Points</h2>
+                    {% if loyalty_points %}
+                    <span class="inline-flex items-center rounded-full bg-flash-50 px-2.5 py-0.5 text-xs font-semibold text-flash-700 dark:bg-flash-900/40 dark:text-flash-300">
+                        {{ loyalty_points }} points applied
+                    </span>
+                    {% endif %}
                 </div>
-            </li>
-            {% endfor %}
-        </ul>
 
+                <form method="post" action="{% url 'shop:checkout-promotion' %}" class="mt-3 flex flex-wrap items-end gap-3">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{% url 'shop:cart' %}" />
+                    <div class="min-w-0 flex-1">
+                        <label for="cart-promo-code" class="block text-xs font-medium text-slate-600 dark:text-slate-400">Promotion code</label>
+                        <input type="text"
+                               id="cart-promo-code"
+                               name="code"
+                               value="{{ promo_code|default:'' }}"
+                               placeholder="e.g. SUMMER10"
+                               maxlength="32"
+                               class="mt-1 w-full rounded-xl border border-slate-300 px-3.5 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:border-flash-500 focus:outline-none focus:ring-2 focus:ring-flash-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
+                    </div>
+                    <button type="submit" class="rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-800 transition hover:border-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                        {% if promo_code %}Update{% else %}Apply{% endif %}
+                    </button>
+                    {% if promo_code %}
+                    <button type="submit" name="code" value="" class="text-xs font-medium text-slate-500 underline-offset-4 hover:underline dark:text-slate-400">
+                        Remove
+                    </button>
+                    {% endif %}
+                </form>
+
+                {% if promo_discount %}
+                <div class="mt-2.5 flex items-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-400">
+                    <svg class="h-4 w-4 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>
+                    <span>Promotion <strong>{{ promo_code }}</strong> applied (−{{ promo_discount|money }})</span>
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <!-- Smart Cart Suggestions: Complete the look / You may also like (Requirement #5) -->
+            {% if cart_suggestions %}
+            <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft dark:border-slate-800 dark:bg-slate-900">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-sm font-semibold text-slate-900 dark:text-white">Complete your look</h2>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">Curated pieces that coordinate with your bag</p>
+                    </div>
+                    <a href="{% url 'catalog:product-list' %}" class="text-xs font-medium text-flash-600 hover:underline dark:text-flash-400">View all</a>
+                </div>
+                <div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    {% for suggestion in cart_suggestions %}
+                    <div class="flex items-center gap-3 rounded-xl border border-slate-100 p-2.5 transition hover:border-slate-300 dark:border-slate-800 dark:hover:border-slate-700">
+                        <a href="{{ suggestion.get_absolute_url }}" class="h-16 w-14 shrink-0 overflow-hidden rounded-lg bg-slate-100 dark:bg-slate-800">
+                            {% with image=suggestion.primary_image %}
+                                {% if image %}
+                                <img src="{{ image.image.url }}" alt="{{ suggestion.name }}" class="h-full w-full object-cover" loading="lazy" />
+                                {% endif %}
+                            {% endwith %}
+                        </a>
+                        <div class="min-w-0 flex-1">
+                            <h3 class="truncate text-xs font-semibold text-slate-900 dark:text-white">
+                                <a href="{{ suggestion.get_absolute_url }}" class="hover:underline">{{ suggestion.name }}</a>
+                            </h3>
+                            <p class="mt-0.5 text-xs font-bold text-slate-950 dark:text-white">{{ suggestion.min_price|money }}</p>
+                            <a href="{{ suggestion.get_absolute_url }}" class="mt-1 inline-block text-[11px] font-medium text-flash-600 hover:underline dark:text-flash-400">View item →</a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Sticky Summary Sidebar -->
         <aside class="lg:sticky lg:top-24 lg:self-start">
-            <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
-                <h2 class="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500">Summary</h2>
+            <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft dark:border-slate-800 dark:bg-slate-900">
+                <h2 class="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">Order Summary</h2>
 
-                <div class="mt-4 mb-4 rounded-xl border border-slate-100 bg-slate-50 p-3.5">
+                <!-- Free Shipping Progress Meter -->
+                <div class="mt-4 mb-4 rounded-2xl border border-slate-100 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-800/60">
                     {% if free_qualified %}
-                    <div class="flex items-center gap-2 text-xs font-semibold text-emerald-700">
-                        <svg class="h-4 w-4 shrink-0 text-emerald-600" viewBox="0 0 20 20" fill="currentColor">
+                    <div class="flex items-center gap-2 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+                        <svg class="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" viewBox="0 0 20 20" fill="currentColor">
                             <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
                         </svg>
                         <span>You've earned <strong>Free Standard Shipping</strong>!</span>
                     </div>
                     {% else %}
-                    <div class="text-xs text-slate-600">
-                        <div class="flex justify-between">
+                    <div class="text-xs text-slate-600 dark:text-slate-300">
+                        <div class="flex justify-between items-baseline">
                             <span>Free shipping threshold ($100)</span>
-                            <span>Add <strong class="text-slate-900">{{ free_remaining|money }}</strong></span>
+                            <span>Add <strong class="text-slate-900 dark:text-white">{{ free_remaining|money }}</strong></span>
                         </div>
-                        <div class="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
+                        <div class="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
                             <div class="h-full bg-flash-600 transition-all duration-300" style="width: {{ free_pct }}%;"></div>
                         </div>
                     </div>
                     {% endif %}
                 </div>
 
+                <!-- Financial Breakdown -->
                 <dl class="space-y-3 text-sm">
                     <div class="flex items-baseline justify-between gap-4">
-                        <dt class="text-slate-600">Subtotal ({{ totals.item_count }} item{{ totals.item_count|pluralize }})</dt>
-                        <dd class="font-medium text-slate-900">{{ subtotal|money }}</dd>
+                        <dt class="text-slate-600 dark:text-slate-400">Subtotal ({{ totals.item_count }} item{{ totals.item_count|pluralize }})</dt>
+                        <dd class="font-medium text-slate-900 dark:text-white">{{ subtotal|money }}</dd>
                     </div>
 
                     {% if promo_discount %}
                     <div class="flex items-baseline justify-between gap-4">
-                        <dt class="text-slate-600">Promotion ({{ promo_code }})</dt>
-                        <dd class="font-medium text-emerald-700">−{{ promo_discount|money }}</dd>
+                        <dt class="text-slate-600 dark:text-slate-400">Promotion ({{ promo_code }})</dt>
+                        <dd class="font-medium text-emerald-700 dark:text-emerald-400">−{{ promo_discount|money }}</dd>
                     </div>
                     {% else %}
-                    <div class="flex items-baseline justify-between gap-4 text-xs text-slate-500">
+                    <div class="flex items-baseline justify-between gap-4 text-xs text-slate-500 dark:text-slate-400">
                         <dt>Promotion</dt>
                         <dd>Applied at checkout</dd>
                     </div>
@@ -176,60 +364,67 @@
 
                     {% if loyalty_discount %}
                     <div class="flex items-baseline justify-between gap-4">
-                        <dt class="text-slate-600">FLASH Points ({{ loyalty_points }})</dt>
-                        <dd class="font-medium text-emerald-700">−{{ loyalty_discount|money }}</dd>
+                        <dt class="text-slate-600 dark:text-slate-400">FLASH Points ({{ loyalty_points }})</dt>
+                        <dd class="font-medium text-emerald-700 dark:text-emerald-400">−{{ loyalty_discount|money }}</dd>
                     </div>
                     {% else %}
-                    <div class="flex items-baseline justify-between gap-4 text-xs text-slate-500">
+                    <div class="flex items-baseline justify-between gap-4 text-xs text-slate-500 dark:text-slate-400">
                         <dt>FLASH Points</dt>
                         <dd>Redeem at checkout</dd>
                     </div>
                     {% endif %}
 
                     <div class="flex items-baseline justify-between gap-4">
-                        <dt class="text-slate-600">Estimated Shipping</dt>
-                        <dd class="font-medium text-slate-900">
+                        <dt class="text-slate-600 dark:text-slate-400">Estimated Shipping</dt>
+                        <dd class="font-medium text-slate-900 dark:text-white">
                             {% if free_qualified %}
-                                <span class="text-emerald-700 font-semibold">Free</span>
+                                <span class="text-emerald-700 dark:text-emerald-400 font-semibold">Free</span>
                             {% else %}
                                 {{ shipping_estimate|money }}
                             {% endif %}
                         </dd>
                     </div>
 
-                    <div class="flex items-baseline justify-between gap-4 border-t border-slate-200 pt-3">
-                        <dt class="font-semibold text-slate-950">Estimated Total</dt>
-                        <dd class="text-lg font-bold text-slate-950">{{ estimated_total|money }}</dd>
+                    <div class="flex items-baseline justify-between gap-4 border-t border-slate-200 pt-3 dark:border-slate-800">
+                        <dt class="font-bold text-slate-950 dark:text-white">Estimated Total</dt>
+                        <dd class="text-xl font-bold text-slate-950 dark:text-white">{{ estimated_total|money }}</dd>
                     </div>
                 </dl>
 
-                <p class="mt-4 text-xs leading-relaxed text-slate-500">
+                <p class="mt-4 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
                     Shipping is calculated at checkout. Availability will be confirmed before order placement.
                 </p>
 
+                <!-- CTA -->
                 {% if errors %}
-                <button type="button" disabled class="mt-5 w-full cursor-not-allowed rounded-full bg-slate-200 px-5 py-3 text-sm font-semibold text-slate-500">
+                <button type="button" disabled class="mt-5 w-full cursor-not-allowed rounded-full bg-slate-200 px-5 py-3.5 text-sm font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-400">
                     Checkout
                 </button>
-                <p class="mt-2 text-center text-xs text-amber-700">Resolve the items above to continue.</p>
+                <p class="mt-2 text-center text-xs text-amber-700 dark:text-amber-400">Resolve the items above to continue.</p>
                 {% else %}
-                <a href="{% url 'shop:checkout' %}" class="mt-5 flex w-full items-center justify-center rounded-full bg-flash-600 px-5 py-3 text-sm font-semibold text-white shadow-soft transition hover:bg-flash-700 focus:outline-none focus:ring-2 focus:ring-flash-500/30 focus:ring-offset-2 focus:ring-offset-white">
-                    Continue to Checkout
+                <a href="{% url 'shop:checkout' %}" class="mt-5 flex w-full items-center justify-center rounded-full bg-flash-600 px-5 py-3.5 text-sm font-semibold text-white shadow-soft transition hover:bg-flash-700 focus:outline-none focus:ring-2 focus:ring-flash-500/30 focus:ring-offset-2">
+                    Continue to Checkout →
                 </a>
                 {% endif %}
 
-                <div class="mt-4 border-t border-slate-100 pt-3 text-center text-xs text-slate-500">
-                    <p class="flex items-center justify-center gap-1.5 text-slate-600 font-medium">
-                        <svg class="h-3.5 w-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <!-- Trust Badges -->
+                <div class="mt-5 border-t border-slate-100 pt-4 text-center text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
+                    <p class="flex items-center justify-center gap-1.5 font-medium text-slate-700 dark:text-slate-300">
+                        <svg class="h-4 w-4 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                         </svg>
-                        Encrypted 256-Bit Checkout
+                        Encrypted 256-Bit SSL Checkout
                     </p>
-                    <p class="mt-1 text-[11px] text-slate-400">30-day returns · Dedicated customer support</p>
+                    <div class="mt-2 grid grid-cols-2 gap-2 text-[11px] text-slate-400 dark:text-slate-500">
+                        <span>✓ 30-Day Free Returns</span>
+                        <span>✓ Authentic Quality</span>
+                    </div>
                 </div>
 
-                <p class="mt-3 text-center text-xs text-slate-500">
-                    <a href="{% url 'catalog:track-merchandising' %}?type=continue_shopping_click&next={% url 'catalog:product-list' %}&src=cart" class="underline-offset-4 hover:underline">Continue shopping</a>
+                <p class="mt-4 text-center text-xs text-slate-500 dark:text-slate-400">
+                    <a href="{% url 'catalog:track-merchandising' %}?type=continue_shopping_click&next={% url 'catalog:product-list' %}&src=cart" class="underline-offset-4 hover:underline">
+                        Continue shopping
+                    </a>
                 </p>
             </div>
         </aside>
@@ -237,4 +432,3 @@
     {% endif %}
 </div>
 {% endblock content %}
-

@@ -1,72 +1,120 @@
 {% extends "base.html" %}
 {% load catalog_extras %}
 
-{% block title %}Order {{ order.number }}{% endblock title %}
+{% block title %}Order {{ order.number }} Confirmed · FLASHWEAR{% endblock title %}
 {% block meta_robots %}noindex, nofollow{% endblock meta_robots %}
 
 {% block content %}
-<div class="mx-auto max-w-3xl px-4 py-10 sm:px-6 lg:px-8">
-    <ol class="mb-6 flex flex-wrap items-center gap-1 text-xs font-medium text-slate-500 sm:text-sm" aria-label="Checkout steps">
-        <li class="flex items-center text-flash-700">
-            <span>1. Bag</span>
-            <svg class="mx-2 h-3.5 w-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
-        </li>
-        <li class="flex items-center text-flash-700">
-            <span>2. Details</span>
-            <svg class="mx-2 h-3.5 w-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
-        </li>
-        <li class="flex items-center text-flash-700">
-            <span>3. Payment</span>
-            <svg class="mx-2 h-3.5 w-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
-        </li>
-        <li class="flex items-center font-bold text-slate-900">
-            <span>4. Confirmation</span>
-        </li>
-    </ol>
-    <p class="text-sm font-medium text-slate-500">Order {{ order.number }}</p>
+<div class="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
+    <!-- Progress Stepper -->
+    <nav aria-label="Checkout progress" class="mb-6">
+        <ol class="flex flex-wrap items-center gap-2 text-xs font-medium text-slate-500 sm:text-sm">
+            <li class="flex items-center text-flash-600 dark:text-flash-400">
+                <a href="{% url 'shop:cart' %}" class="flex items-center hover:underline">
+                    <span class="flex h-5 w-5 items-center justify-center rounded-full bg-flash-100 text-[11px] text-flash-700 dark:bg-flash-900/50 dark:text-flash-300 mr-1.5">✓</span>
+                    <span>1. Bag</span>
+                </a>
+                <svg class="ml-2 h-3.5 w-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+            </li>
+            <li class="flex items-center text-flash-600 dark:text-flash-400">
+                <span class="flex h-5 w-5 items-center justify-center rounded-full bg-flash-100 text-[11px] text-flash-700 dark:bg-flash-900/50 dark:text-flash-300 mr-1.5">✓</span>
+                <span>2. Details</span>
+                <svg class="ml-2 h-3.5 w-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+            </li>
+            <li class="flex items-center text-flash-600 dark:text-flash-400">
+                <span class="flex h-5 w-5 items-center justify-center rounded-full bg-flash-100 text-[11px] text-flash-700 dark:bg-flash-900/50 dark:text-flash-300 mr-1.5">✓</span>
+                <span>3. Payment</span>
+                <svg class="ml-2 h-3.5 w-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+            </li>
+            <li class="flex items-center font-bold text-flash-600 dark:text-flash-400">
+                <span class="flex h-5 w-5 items-center justify-center rounded-full bg-flash-600 text-white text-[11px] mr-1.5">4</span>
+                <span>4. Confirmation</span>
+            </li>
+        </ol>
+    </nav>
 
+    <div class="border-b border-slate-100 pb-3 dark:border-slate-800">
+        <p class="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">Order {{ order.number }}</p>
+    </div>
+
+    <!-- Status Banners -->
     {% if order.status == "paid" or order.status == "processing" or order.status == "shipped" or order.status == "delivered" %}
-    <div class="mt-4 overflow-hidden rounded-2xl border border-emerald-300 bg-gradient-to-br from-emerald-50 to-white p-6 shadow-soft" role="status">
-        <div class="flex items-start gap-4">
-            <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 shadow-sm transition-transform duration-500 motion-reduce:transition-none motion-safe:animate-bounce">
-                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <div class="mt-5 overflow-hidden rounded-3xl border border-emerald-300 bg-gradient-to-br from-emerald-50 via-white to-emerald-50/30 p-6 sm:p-8 shadow-soft dark:border-emerald-800/80 dark:bg-slate-900 dark:from-slate-900 dark:to-slate-900" role="status">
+        <div class="flex items-start gap-4 sm:gap-5">
+            <div class="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-600 shadow-sm transition-transform duration-500 motion-reduce:transition-none motion-safe:animate-bounce dark:bg-emerald-950/60 dark:text-emerald-400">
+                <svg class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
                 </svg>
             </div>
             <div class="flex-1">
                 <div class="flex flex-wrap items-center justify-between gap-2">
-                    <h1 class="text-xl font-bold tracking-tight text-emerald-950 sm:text-2xl">Thank you — your order is confirmed!</h1>
-                    <span class="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800">Confirmed</span>
+                    <h1 class="text-xl font-bold tracking-tight text-emerald-950 dark:text-white sm:text-2xl">Thank you — your order is confirmed!</h1>
+                    <span class="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">Confirmed</span>
                 </div>
-                <p class="mt-1 text-sm text-emerald-800">
-                    We've received your payment and are preparing your order. An email receipt and tracking updates will follow shortly.
+                <p class="mt-2 text-sm text-emerald-900 dark:text-emerald-300 leading-relaxed">
+                    We've received your payment and are preparing your order. An email receipt has been sent, and real-time tracking updates will follow once your package is dispatched.
                 </p>
-                <div class="mt-4 flex flex-wrap gap-3">
-                    <a href="{% url 'account:order-detail' order.number %}" class="inline-flex items-center rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow-soft transition hover:bg-slate-800">
+
+                <!-- Post-Purchase Action Ribbon (Requirement #13) -->
+                <div class="mt-5 flex flex-wrap items-center gap-3">
+                    <a href="{% url 'account:order-detail' order.number %}" class="inline-flex items-center rounded-full bg-slate-950 px-5 py-2.5 text-xs font-semibold text-white shadow-soft transition hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100">
                         View Order Details →
                     </a>
-                    <a href="{% url 'catalog:track-merchandising' %}?type=continue_shopping_click&next={% url 'catalog:product-list' %}&src=order_done" class="inline-flex items-center rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-soft transition hover:border-slate-900 hover:text-slate-900">
+                    <a href="{% url 'support:ticket-create' %}?order={{ order.number|urlencode }}" class="inline-flex items-center rounded-full border border-slate-300 bg-white px-4 py-2.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-900 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                        Contact Support
+                    </a>
+                    <a href="{% url 'catalog:track-merchandising' %}?type=continue_shopping_click&next={% url 'catalog:product-list' %}&src=order_done" class="inline-flex items-center rounded-full border border-slate-300 bg-white px-4 py-2.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-900 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
                         Continue Shopping
                     </a>
                 </div>
             </div>
         </div>
+
+        <!-- Next Step Timeline -->
+        <div class="mt-8 border-t border-emerald-200/60 pt-6 dark:border-slate-800">
+            <h2 class="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">Order Progress</h2>
+            <div class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4 text-xs">
+                <div class="flex items-center gap-2 text-emerald-700 dark:text-emerald-400 font-semibold">
+                    <span class="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 text-[10px] dark:bg-emerald-950">✓</span>
+                    <span>Order Placed</span>
+                </div>
+                <div class="flex items-center gap-2 text-emerald-700 dark:text-emerald-400 font-semibold">
+                    <span class="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 text-[10px] dark:bg-emerald-950">✓</span>
+                    <span>Payment Verified</span>
+                </div>
+                <div class="flex items-center gap-2 text-slate-500 dark:text-slate-400">
+                    <span class="flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 text-[10px] dark:bg-slate-800">3</span>
+                    <span>Preparing</span>
+                </div>
+                <div class="flex items-center gap-2 text-slate-400 dark:text-slate-500">
+                    <span class="flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 text-[10px] dark:bg-slate-800">4</span>
+                    <span>Dispatched</span>
+                </div>
+            </div>
+        </div>
     </div>
+
     {% elif order.status == "cancelled" %}
-    <div class="mt-4 rounded-2xl border border-amber-300 bg-amber-50 p-6" role="status">
-        <p class="text-lg font-semibold text-amber-900">This order was cancelled</p>
-        <p class="mt-1 text-sm text-amber-800">
+    <div class="mt-5 rounded-3xl border border-amber-300 bg-amber-50 p-6 dark:border-amber-800/80 dark:bg-amber-950/40" role="status">
+        <p class="text-lg font-semibold text-amber-900 dark:text-amber-200">This order was cancelled</p>
+        <p class="mt-1 text-sm text-amber-800 dark:text-amber-300">
             {% if payment and payment.failure_message %}
             {{ payment.failure_message }}
             {% else %}
             No payment was taken and your held items were returned to the shop floor.
             {% endif %}
         </p>
+        <div class="mt-4">
+            <a href="{% url 'shop:cart' %}" class="inline-flex items-center rounded-full bg-flash-600 px-5 py-2.5 text-xs font-semibold text-white shadow-soft hover:bg-flash-700">
+                Return to Bag
+            </a>
+        </div>
     </div>
+
     {% else %}
-    <div class="mt-4 rounded-2xl border border-sky-300 bg-sky-50 p-6" role="status">
-        <p class="text-lg font-semibold text-sky-900">Waiting for payment</p>
-        <p class="mt-1 text-sm text-sky-800">
+    <div class="mt-5 rounded-3xl border border-sky-300 bg-sky-50 p-6 dark:border-sky-800/80 dark:bg-sky-950/40" role="status">
+        <p class="text-lg font-semibold text-sky-900 dark:text-sky-200">Waiting for payment</p>
+        <p class="mt-1 text-sm text-sky-800 dark:text-sky-300">
             Your items are held for you.
             <a href="{% url 'shop:checkout-payment' order.number %}" class="font-medium underline-offset-4 hover:underline">Complete payment</a>
             to confirm the order.
@@ -74,87 +122,95 @@
     </div>
     {% endif %}
 
+    <!-- Order Metadata & Delivery Grid -->
     <div class="mt-6 grid gap-6 sm:grid-cols-2">
-        <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
-            <h2 class="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500">Status</h2>
-            <dl class="mt-3 space-y-2 text-sm">
+        <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft dark:border-slate-800 dark:bg-slate-900">
+            <h2 class="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">Status</h2>
+            <dl class="mt-4 space-y-2.5 text-sm">
                 <div class="flex items-baseline justify-between gap-4">
-                    <dt class="text-slate-600">Order</dt>
-                    <dd class="font-medium text-slate-900">{{ order.get_status_display }}</dd>
+                    <dt class="text-slate-600 dark:text-slate-400">Order</dt>
+                    <dd class="font-semibold text-slate-900 dark:text-white">{{ order.get_status_display }}</dd>
                 </div>
                 {% if payment %}
                 <div class="flex items-baseline justify-between gap-4">
-                    <dt class="text-slate-600">Payment</dt>
-                    <dd class="font-medium text-slate-900">{{ payment.get_status_display }}</dd>
+                    <dt class="text-slate-600 dark:text-slate-400">Payment</dt>
+                    <dd class="font-semibold text-slate-900 dark:text-white">{{ payment.get_status_display }}</dd>
                 </div>
                 {% endif %}
                 <div class="flex items-baseline justify-between gap-4">
-                    <dt class="text-slate-600">Placed</dt>
-                    <dd class="font-medium text-slate-900">{{ order.created_at|date:"N j, Y, H:i" }}</dd>
+                    <dt class="text-slate-600 dark:text-slate-400">Placed</dt>
+                    <dd class="font-medium text-slate-900 dark:text-white">{{ order.created_at|date:"N j, Y, H:i" }}</dd>
                 </div>
             </dl>
         </div>
 
-        <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
-            <h2 class="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500">Delivering to</h2>
-            <address class="mt-3 text-sm not-italic text-slate-700">
-                <span class="font-semibold text-slate-900">{{ order.shipping_address.full_name }}</span><br />
+        <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft dark:border-slate-800 dark:bg-slate-900">
+            <h2 class="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">Delivering to</h2>
+            <address class="mt-3 text-sm not-italic text-slate-700 dark:text-slate-300 leading-relaxed">
+                <span class="font-semibold text-slate-900 dark:text-white">{{ order.shipping_address.full_name }}</span><br />
                 {{ order.shipping_address.line1 }}{% if order.shipping_address.line2 %}, {{ order.shipping_address.line2 }}{% endif %}<br />
                 {{ order.shipping_address.city }}, {{ order.shipping_address.region }} {{ order.shipping_address.postal_code }}<br />
                 {{ order.shipping_address.country }}
             </address>
-            <p class="mt-3 text-sm text-slate-600">{{ order.shipping_name }} · {{ order.shipping_estimate }}</p>
+            <p class="mt-3 text-xs text-slate-500 dark:text-slate-400 border-t border-slate-100 pt-2.5 dark:border-slate-800">
+                {{ order.shipping_name }} · {{ order.shipping_estimate }}
+            </p>
         </div>
     </div>
 
-    <div class="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
-        <h2 class="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500">Items</h2>
-        <ul class="mt-4 divide-y divide-slate-100">
+    <!-- Items List Card -->
+    <div class="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-soft dark:border-slate-800 dark:bg-slate-900">
+        <h2 class="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">Purchased Items</h2>
+        <ul class="mt-4 divide-y divide-slate-100 dark:divide-slate-800">
             {% for item in items %}
-            <li class="flex items-baseline justify-between gap-4 py-3 text-sm">
-                <span class="text-slate-700">
-                    {{ item.product_name }}
-                    {% if item.option_label %}· {{ item.option_label }}{% endif %}
-                    <span class="text-slate-400">× {{ item.quantity }}</span>
-                </span>
-                <span class="font-medium text-slate-900">{{ item.line_total|money }}</span>
+            <li class="flex items-center justify-between gap-4 py-3.5 text-sm">
+                <div>
+                    <span class="font-medium text-slate-900 dark:text-white">{{ item.product_name }}</span>
+                    {% if item.option_label %}
+                    <span class="text-slate-500 dark:text-slate-400"> · {{ item.option_label }}</span>
+                    {% endif %}
+                    <span class="text-slate-400 dark:text-slate-500"> × {{ item.quantity }}</span>
+                </div>
+                <span class="font-bold text-slate-900 dark:text-white">{{ item.line_total|money }}</span>
             </li>
             {% endfor %}
         </ul>
-        <dl class="mt-4 space-y-2 border-t border-slate-200 pt-4 text-sm">
+        <dl class="mt-4 space-y-2 border-t border-slate-200 pt-4 text-sm dark:border-slate-800">
             <div class="flex items-baseline justify-between gap-4">
-                <dt class="text-slate-600">Subtotal</dt>
-                <dd class="font-medium text-slate-900">{{ order.subtotal|money }}</dd>
+                <dt class="text-slate-600 dark:text-slate-400">Subtotal</dt>
+                <dd class="font-medium text-slate-900 dark:text-white">{{ order.subtotal|money }}</dd>
             </div>
             <div class="flex items-baseline justify-between gap-4">
-                <dt class="text-slate-600">Shipping</dt>
-                <dd class="font-medium text-slate-900">{{ order.shipping_amount|money }}</dd>
+                <dt class="text-slate-600 dark:text-slate-400">Shipping</dt>
+                <dd class="font-medium text-slate-900 dark:text-white">{{ order.shipping_amount|money }}</dd>
             </div>
-            <div class="flex items-baseline justify-between gap-4 border-t border-slate-200 pt-2">
-                <dt class="font-semibold text-slate-950">Total</dt>
-                <dd class="font-semibold text-slate-950">{{ order.total|money }}</dd>
+            <div class="flex items-baseline justify-between gap-4 border-t border-slate-200 pt-2.5 dark:border-slate-800">
+                <dt class="font-bold text-slate-950 dark:text-white">Total</dt>
+                <dd class="text-xl font-bold text-slate-950 dark:text-white">{{ order.total|money }}</dd>
             </div>
         </dl>
     </div>
 
+    <!-- Order History Events -->
     {% if events %}
-    <div class="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
-        <h2 class="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500">History</h2>
-        <ol class="mt-3 space-y-3">
+    <div class="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-soft dark:border-slate-800 dark:bg-slate-900">
+        <h2 class="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">History</h2>
+        <ol class="mt-4 space-y-3">
             {% for event in events %}
             <li class="flex flex-wrap items-baseline justify-between gap-2 text-sm">
-                <span class="text-slate-700">{{ event.note|default:event.get_event_type_display }}</span>
-                <span class="text-xs text-slate-400">{{ event.created_at|date:"N j, Y, H:i" }}</span>
+                <span class="text-slate-700 dark:text-slate-300">{{ event.note|default:event.get_event_type_display }}</span>
+                <span class="text-xs text-slate-400 dark:text-slate-500 font-mono">{{ event.created_at|date:"N j, Y, H:i" }}</span>
             </li>
             {% endfor %}
         </ol>
     </div>
     {% endif %}
 
-    <p class="mt-6 text-sm text-slate-600">
-        <a href="{% url 'account:orders' %}" class="font-medium text-slate-900 underline-offset-4 hover:underline">View all orders</a>
+    <!-- Footer Links -->
+    <p class="mt-6 text-sm text-slate-600 dark:text-slate-400">
+        <a href="{% url 'account:orders' %}" class="font-medium text-slate-900 underline-offset-4 hover:underline dark:text-white">View all orders</a>
         ·
-        <a href="{% url 'shop:cart' %}" class="font-medium text-slate-900 underline-offset-4 hover:underline">Back to bag</a>
+        <a href="{% url 'shop:cart' %}" class="font-medium text-slate-900 underline-offset-4 hover:underline dark:text-white">Back to bag</a>
     </p>
 </div>
 {% endblock content %}

@@ -140,6 +140,8 @@ def checkout_detail(request):
         "promo_discount": promo_discount,
         "loyalty_discount": loyalty_discount,
         "loyalty_balance": loyalty_balance,
+        "loyalty_remaining": loyalty_balance,
+        "loyalty_total": loyalty_balance + (checkout.loyalty_points or 0),
         "loyalty_max": loyalty_max,
         "redemption_message": loyalty_services.redemption_message(request.user),
         "redeem_increment": settings.LOYALTY_REDEEM_INCREMENT,
@@ -231,11 +233,15 @@ def checkout_promotion(request):
 
     checkout = get_or_create_checkout(request.user, cart)
     code = request.POST.get("code", "")
+    next_url = request.POST.get("next")
+    is_safe = bool(next_url and next_url.startswith("/") and not next_url.startswith("//"))
+    redirect_target = next_url if is_safe else "shop:checkout"
+
     try:
         set_promotion_code(checkout, code)
     except ValidationError as err:
         messages.error(request, _message_text(err))
-        return redirect("shop:checkout")
+        return redirect(redirect_target)
 
     if code.strip():
         messages.success(
@@ -244,7 +250,7 @@ def checkout_promotion(request):
         )
     else:
         messages.info(request, _("Promotion removed."))
-    return redirect("shop:checkout")
+    return redirect(redirect_target)
 
 
 @login_required
@@ -260,6 +266,10 @@ def checkout_loyalty(request):
         return redirect("shop:cart")
 
     checkout = get_or_create_checkout(request.user, cart)
+    next_url = request.POST.get("next")
+    is_safe = bool(next_url and next_url.startswith("/") and not next_url.startswith("//"))
+    redirect_target = next_url if is_safe else "shop:checkout"
+
     if request.POST.get("remove"):
         points = 0
     else:
@@ -268,7 +278,7 @@ def checkout_loyalty(request):
         set_loyalty_points(checkout, points)
     except ValidationError as err:
         messages.error(request, _message_text(err))
-        return redirect("shop:checkout")
+        return redirect(redirect_target)
 
     if int(points or 0) > 0:
         messages.success(
@@ -278,7 +288,7 @@ def checkout_loyalty(request):
         )
     else:
         messages.info(request, _("FLASH Points removed."))
-    return redirect("shop:checkout")
+    return redirect(redirect_target)
 
 
 # =============================================================================

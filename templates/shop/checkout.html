@@ -1,49 +1,67 @@
 {% extends "base.html" %}
 {% load catalog_extras %}
 
-{% block title %}Checkout{% endblock title %}
+{% block title %}Checkout · FLASHWEAR{% endblock title %}
 {% block meta_robots %}noindex, nofollow{% endblock meta_robots %}
 
 {% block content %}
-<div class="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-    <div class="mb-8">
-        <ol class="flex flex-wrap items-center gap-1 text-xs font-medium text-slate-500 sm:text-sm" aria-label="Checkout steps">
-            <li class="flex items-center {% if not checkout.is_validated and not checkout.shipping_address_id %}font-bold text-slate-900{% else %}text-flash-700{% endif %}">
-                <span>1. Information</span>
-                <svg class="mx-2 h-3.5 w-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+<div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <!-- Checkout Progress Stepper -->
+    <nav aria-label="Checkout progress" class="mb-8">
+        <ol class="flex flex-wrap items-center gap-2 text-xs font-medium text-slate-500 sm:text-sm">
+            <li class="flex items-center text-flash-600 dark:text-flash-400">
+                <a href="{% url 'shop:cart' %}" class="flex items-center hover:underline">
+                    <span class="flex h-5 w-5 items-center justify-center rounded-full bg-flash-100 text-[11px] text-flash-700 dark:bg-flash-900/50 dark:text-flash-300 mr-1.5">✓</span>
+                    <span>1. Bag</span>
+                </a>
+                <svg class="ml-2 h-3.5 w-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
             </li>
-            <li class="flex items-center {% if not checkout.is_validated and checkout.shipping_address_id %}font-bold text-slate-900{% elif checkout.is_validated %}text-flash-700{% else %}text-slate-400{% endif %}">
+            <li class="flex items-center {% if not checkout.is_validated %}font-bold text-flash-600 dark:text-flash-400{% else %}text-flash-700 dark:text-flash-300{% endif %}">
+                <span class="flex h-5 w-5 items-center justify-center rounded-full {% if not checkout.is_validated %}bg-flash-600 text-white{% else %}bg-flash-100 text-flash-700 dark:bg-flash-900/50 dark:text-flash-300{% endif %} text-[11px] mr-1.5">2</span>
                 <span>2. Delivery</span>
-                <svg class="mx-2 h-3.5 w-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+                <svg class="ml-2 h-3.5 w-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
             </li>
-            <li class="flex items-center {% if checkout.is_validated %}font-bold text-slate-900{% else %}text-slate-400{% endif %}">
+            <li class="flex items-center {% if checkout.is_validated %}font-bold text-slate-900 dark:text-white{% else %}text-slate-400 dark:text-slate-500{% endif %}">
+                <span class="flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 text-[11px] text-slate-500 dark:bg-slate-800 mr-1.5">3</span>
                 <span>3. Payment</span>
-                <svg class="mx-2 h-3.5 w-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+                <svg class="ml-2 h-3.5 w-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
             </li>
-            <li class="flex items-center text-slate-400">
+            <li class="flex items-center text-slate-400 dark:text-slate-500">
+                <span class="flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 text-[11px] text-slate-500 dark:bg-slate-800 mr-1.5">4</span>
                 <span>4. Confirmation</span>
             </li>
         </ol>
-        <h1 class="mt-4 text-3xl font-semibold tracking-tight text-slate-950">Checkout</h1>
-    </div>
+        <h1 class="mt-4 text-2xl font-bold tracking-tight text-slate-950 dark:text-white sm:text-3xl">Checkout</h1>
+    </nav>
 
     {% if checkout.is_validated %}
-    {% comment %} Validated handoff: Phase 5 ends here. Payment is Phase 6. {% endcomment %}
-    <div class="mt-6 rounded-2xl border border-emerald-300 bg-emerald-50 p-5" role="status">
-        <p class="text-sm font-semibold text-emerald-900">Your details check out</p>
-        <p class="mt-1 text-sm text-emerald-800">
-            Delivery address, shipping and totals were re-checked against your bag at {{ checkout.validated_at|date:"N j, Y, H:i" }}.
-            Nothing has been charged and no order has been placed yet.
-        </p>
+    <!-- Validated Handoff State -->
+    <div class="mt-6 rounded-2xl border border-emerald-300 bg-emerald-50 p-5 dark:border-emerald-800 dark:bg-emerald-950/40" role="status">
+        <div class="flex items-start gap-3">
+            <svg class="h-6 w-6 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div>
+                <p class="text-sm font-semibold text-emerald-900 dark:text-emerald-200">Your details check out</p>
+                <p class="mt-1 text-sm text-emerald-800 dark:text-emerald-300">
+                    Delivery address, shipping and totals were re-checked against your bag at {{ checkout.validated_at|date:"N j, Y, H:i" }}.
+                    Nothing has been charged and no order has been placed yet.
+                </p>
+            </div>
+        </div>
     </div>
 
-    <div class="mt-8 grid gap-8 lg:grid-cols-[1fr_20rem]">
+    <div class="mt-8 grid gap-8 lg:grid-cols-[1fr_22rem]">
         <div class="space-y-6">
-            <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
-                <h2 class="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500">Delivering to</h2>
+            <!-- Validated Delivery Address -->
+            <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft dark:border-slate-800 dark:bg-slate-900">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">Delivering to</h2>
+                    <span class="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">Verified</span>
+                </div>
                 {% with addr=snapshot.address %}
-                <address class="mt-3 text-sm not-italic text-slate-700">
-                    <span class="font-semibold text-slate-900">{{ addr.full_name }}</span><br />
+                <address class="mt-3 text-sm not-italic text-slate-700 dark:text-slate-300 leading-relaxed">
+                    <span class="font-semibold text-slate-900 dark:text-white">{{ addr.full_name }}</span><br />
                     {{ addr.line1 }}{% if addr.line2 %}, {{ addr.line2 }}{% endif %}<br />
                     {{ addr.city }}, {{ addr.region }} {{ addr.postal_code }}<br />
                     {{ addr.country }}
@@ -51,94 +69,114 @@
                 {% endwith %}
             </section>
 
-            <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
-                <h2 class="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500">Shipping</h2>
-                <p class="mt-3 text-sm text-slate-700">
-                    {{ snapshot.shipping.name }} · {{ snapshot.shipping.estimate }}
-                    <span class="font-semibold text-slate-900">{{ snapshot.shipping.amount|money }}</span>
-                </p>
+            <!-- Validated Shipping Method -->
+            <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft dark:border-slate-800 dark:bg-slate-900">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">Shipping</h2>
+                    <span class="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">Selected</span>
+                </div>
+                <div class="mt-3 flex items-baseline justify-between text-sm text-slate-700 dark:text-slate-300">
+                    <div>
+                        <span class="font-semibold text-slate-900 dark:text-white">{{ snapshot.shipping.name }}</span>
+                        <span class="text-slate-500 dark:text-slate-400"> · {{ snapshot.shipping.estimate }}</span>
+                    </div>
+                    <span class="font-bold text-slate-900 dark:text-white">{{ snapshot.shipping.amount|money }}</span>
+                </div>
             </section>
 
-            <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
-                <h2 class="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500">Items validated</h2>
-                <ul class="mt-3 divide-y divide-slate-100">
+            <!-- Validated Items -->
+            <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft dark:border-slate-800 dark:bg-slate-900">
+                <h2 class="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">Items validated</h2>
+                <ul class="mt-4 divide-y divide-slate-100 dark:divide-slate-800">
                     {% for line in snapshot.lines %}
-                    <li class="flex items-baseline justify-between gap-4 py-2 text-sm">
-                        <span class="text-slate-700">{{ line.product }} · {{ line.option }} <span class="text-slate-400">× {{ line.quantity }}</span></span>
-                        <span class="font-medium text-slate-900">{{ line.line_total|money }}</span>
+                    <li class="flex items-baseline justify-between gap-4 py-3 text-sm">
+                        <span class="text-slate-700 dark:text-slate-300">
+                            <span class="font-medium text-slate-900 dark:text-white">{{ line.product }}</span> · {{ line.option }}
+                            <span class="text-slate-400 dark:text-slate-500">× {{ line.quantity }}</span>
+                        </span>
+                        <span class="font-bold text-slate-900 dark:text-white">{{ line.line_total|money }}</span>
                     </li>
                     {% endfor %}
                 </ul>
             </section>
 
-            <p class="text-sm text-slate-600">
-                <a href="{% url 'shop:cart' %}" class="font-medium text-slate-900 underline-offset-4 hover:underline">Back to bag</a>
+            <p class="text-sm text-slate-600 dark:text-slate-400">
+                <a href="{% url 'shop:cart' %}" class="font-medium text-slate-900 underline-offset-4 hover:underline dark:text-white">Back to bag</a>
                 · editing the bag re-opens checkout so the total is never stale.
             </p>
         </div>
 
+        <!-- Validated Sticky Summary -->
         <aside class="lg:sticky lg:top-24 lg:self-start">
-            <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
-                <h2 class="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500">Validated total</h2>
+            <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft dark:border-slate-800 dark:bg-slate-900">
+                <h2 class="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">Validated total</h2>
                 <dl class="mt-4 space-y-3 text-sm">
                     <div class="flex items-baseline justify-between gap-4">
-                        <dt class="text-slate-600">Subtotal</dt>
-                        <dd class="font-medium text-slate-900">{{ snapshot.subtotal|money }}</dd>
+                        <dt class="text-slate-600 dark:text-slate-400">Subtotal</dt>
+                        <dd class="font-medium text-slate-900 dark:text-white">{{ snapshot.subtotal|money }}</dd>
                     </div>
                     {% if snapshot.promotion.discount and snapshot.promotion.discount != "0.00" %}
                     <div class="flex items-baseline justify-between gap-4">
-                        <dt class="text-slate-600">Promotion ({{ snapshot.promotion.code }})</dt>
-                        <dd class="font-medium text-emerald-700">−{{ snapshot.promotion.discount|money }}</dd>
+                        <dt class="text-slate-600 dark:text-slate-400">Promotion ({{ snapshot.promotion.code }})</dt>
+                        <dd class="font-medium text-emerald-700 dark:text-emerald-400">−{{ snapshot.promotion.discount|money }}</dd>
                     </div>
                     {% endif %}
                     {% if snapshot.loyalty.discount and snapshot.loyalty.discount != "0.00" %}
                     <div class="flex items-baseline justify-between gap-4">
-                        <dt class="text-slate-600">FLASH Points ({{ snapshot.loyalty.points }})</dt>
-                        <dd class="font-medium text-emerald-700">−{{ snapshot.loyalty.discount|money }}</dd>
+                        <dt class="text-slate-600 dark:text-slate-400">FLASH Points ({{ snapshot.loyalty.points }})</dt>
+                        <dd class="font-medium text-emerald-700 dark:text-emerald-400">−{{ snapshot.loyalty.discount|money }}</dd>
                     </div>
                     {% endif %}
                     <div class="flex items-baseline justify-between gap-4">
-                        <dt class="text-slate-600">Shipping</dt>
-                        <dd class="font-medium text-slate-900">{{ snapshot.shipping.amount|money }}</dd>
+                        <dt class="text-slate-600 dark:text-slate-400">Shipping</dt>
+                        <dd class="font-medium text-slate-900 dark:text-white">{{ snapshot.shipping.amount|money }}</dd>
                     </div>
-                    <div class="flex items-baseline justify-between gap-4 border-t border-slate-200 pt-3">
-                        <dt class="font-semibold text-slate-950">Total</dt>
-                        <dd class="font-semibold text-slate-950">{{ snapshot.total|money }}</dd>
+                    <div class="flex items-baseline justify-between gap-4 border-t border-slate-200 pt-3 dark:border-slate-800">
+                        <dt class="font-bold text-slate-950 dark:text-white">Total</dt>
+                        <dd class="text-xl font-bold text-slate-950 dark:text-white">{{ snapshot.total|money }}</dd>
                     </div>
                 </dl>
-                <p class="mt-4 text-xs leading-relaxed text-slate-500">
+
+                <p class="mt-4 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
                     Placing the order holds these items for you while you pay. Nothing is charged
                     until the next step.
                 </p>
+
                 <form method="post" action="{% url 'shop:checkout-place' %}">
                     {% csrf_token %}
                     <input type="hidden" name="checkout_id" value="{{ checkout.pk }}" />
-                    <button type="submit" class="mt-5 flex w-full items-center justify-center rounded-full bg-flash-600 px-5 py-3 text-sm font-semibold text-white shadow-soft transition hover:bg-flash-700 focus:outline-none focus:ring-2 focus:ring-flash-500/30 focus:ring-offset-2 focus:ring-offset-white">
-                        Place order
+                    <button type="submit" class="mt-5 flex w-full items-center justify-center rounded-full bg-flash-600 px-5 py-3.5 text-sm font-semibold text-white shadow-soft transition hover:bg-flash-700 focus:outline-none focus:ring-2 focus:ring-flash-500/30">
+                        Place order →
                     </button>
                 </form>
-                <p class="mt-2 text-center text-xs text-slate-500">Reserves your items and opens secure payment.</p>
-                <div class="mt-4 border-t border-slate-100 pt-3 text-center text-xs text-slate-500">
-                    <p class="flex items-center justify-center gap-1.5 text-slate-600 font-medium">
-                        <svg class="h-3.5 w-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <p class="mt-2 text-center text-xs text-slate-500 dark:text-slate-400">Reserves your items and opens secure payment.</p>
+
+                <div class="mt-5 border-t border-slate-100 pt-4 text-center text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
+                    <p class="flex items-center justify-center gap-1.5 font-medium text-slate-700 dark:text-slate-300">
+                        <svg class="h-4 w-4 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                         </svg>
                         Secure 256-Bit Checkout
                     </p>
-                    <p class="mt-1 text-[11px] text-slate-400">30-day return policy · Support available</p>
+                    <p class="mt-1 text-[11px] text-slate-400 dark:text-slate-500">30-day return policy · Dedicated support</p>
                 </div>
             </div>
         </aside>
     </div>
 
     {% else %}
-    {% comment %} Open checkout: address, shipping, review, validate. {% endcomment %}
-    <div class="mt-8 grid gap-8 lg:grid-cols-[1fr_20rem]">
+    <!-- Open Checkout Flow -->
+    <div class="mt-8 grid gap-8 lg:grid-cols-[1fr_22rem]">
         <div class="space-y-8">
             {% if errors %}
-            <div class="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900" role="alert">
-                <p class="font-semibold">Before you continue</p>
-                <ul class="mt-1 list-disc space-y-1 pl-5">
+            <div class="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-800/80 dark:bg-amber-950/40 dark:text-amber-200" role="alert">
+                <div class="flex items-center gap-2">
+                    <svg class="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <p class="font-semibold">Before you continue</p>
+                </div>
+                <ul class="mt-2 list-disc space-y-1 pl-6">
                     {% for error in errors %}
                     <li>{{ error }}</li>
                     {% endfor %}
@@ -147,50 +185,76 @@
             {% endif %}
 
             {% if price_changes %}
-            <div class="rounded-2xl border border-sky-300 bg-sky-50 p-4 text-sm text-sky-900" role="status">
+            <div class="rounded-2xl border border-sky-300 bg-sky-50 p-4 text-sm text-sky-900 dark:border-sky-800/80 dark:bg-sky-950/40 dark:text-sky-200" role="status">
                 Prices changed since you added these items. The current prices are shown below and will be used.
             </div>
             {% endif %}
 
-            <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft" aria-labelledby="addr-heading">
-                <div class="flex flex-wrap items-center justify-between gap-3">
-                    <h2 id="addr-heading" class="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500">1. Delivery address</h2>
-                    <a href="{% url 'account:address-create' %}" class="text-sm font-medium text-slate-900 underline-offset-4 hover:underline">Add a new address</a>
+            <!-- 1. Delivery Address Selection -->
+            <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft dark:border-slate-800 dark:bg-slate-900" aria-labelledby="addr-heading">
+                <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4 dark:border-slate-800">
+                    <div>
+                        <h2 id="addr-heading" class="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">1. Delivery address</h2>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Select a shipping address from your address book</p>
+                    </div>
+                    <a href="{% url 'account:address-create' %}?next={% url 'shop:checkout' %}" class="inline-flex items-center gap-1 text-xs font-semibold text-flash-600 hover:underline dark:text-flash-400">
+                        <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+                        Add a new address
+                    </a>
                 </div>
 
                 {% if not addresses %}
-                <div class="mt-4 rounded-xl border border-dashed border-slate-300 p-6 text-center">
-                    <p class="text-sm font-medium text-slate-900">No addresses yet</p>
-                    <p class="mt-1 text-sm text-slate-600">Add one and it will appear here.</p>
+                <div class="mt-5 rounded-2xl border border-dashed border-slate-300 p-8 text-center dark:border-slate-700">
+                    <p class="text-sm font-semibold text-slate-900 dark:text-white">No addresses yet</p>
+                    <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Add a delivery address to complete your checkout.</p>
+                    <a href="{% url 'account:address-create' %}?next={% url 'shop:checkout' %}" class="mt-4 inline-flex items-center rounded-full bg-flash-600 px-4 py-2 text-xs font-semibold text-white shadow-soft hover:bg-flash-700">
+                        Add delivery address
+                    </a>
                 </div>
                 {% else %}
                 <ul class="mt-4 space-y-3">
                     {% for address in addresses %}
                     <li>
                         {% if checkout.shipping_address_id == address.pk %}
-                        <div class="rounded-xl border-2 border-flash-600 bg-flash-50/50 p-4">
+                        <div class="rounded-2xl border-2 border-flash-600 bg-flash-50/50 p-4 dark:border-flash-500 dark:bg-flash-950/30">
                             <div class="flex flex-wrap items-start justify-between gap-3">
-                                <address class="text-sm not-italic text-slate-700">
-                                    <span class="font-semibold text-slate-900">{{ address.full_name }}</span><br />
-                                    {{ address.line1 }}{% if address.line2 %}, {{ address.line2 }}{% endif %}<br />
-                                    {{ address.city }}, {{ address.region }} {{ address.postal_code }}<br />
-                                    {{ address.country }}
-                                </address>
-                                <span class="rounded-full bg-flash-600 px-3 py-1 text-xs font-semibold text-white">Selected</span>
+                                <div>
+                                    <div class="flex items-center gap-2">
+                                        <span class="font-semibold text-sm text-slate-900 dark:text-white">{{ address.full_name }}</span>
+                                        {% if address.is_default_shipping %}
+                                        <span class="rounded-full bg-slate-200/80 px-2 py-0.5 text-[10px] font-semibold text-slate-700 dark:bg-slate-700 dark:text-slate-300">Default</span>
+                                        {% endif %}
+                                    </div>
+                                    <address class="mt-1 text-xs not-italic text-slate-700 dark:text-slate-300 leading-relaxed">
+                                        {{ address.line1 }}{% if address.line2 %}, {{ address.line2 }}{% endif %}<br />
+                                        {{ address.city }}, {{ address.region }} {{ address.postal_code }}<br />
+                                        {{ address.country }}
+                                    </address>
+                                </div>
+                                <span class="rounded-full bg-flash-600 px-3 py-1 text-xs font-semibold text-white shadow-sm">Selected</span>
                             </div>
                         </div>
                         {% else %}
                         <form method="post" action="{% url 'shop:checkout-address' %}">
                             {% csrf_token %}
                             <input type="hidden" name="address_id" value="{{ address.pk }}" />
-                            <button type="submit" class="w-full rounded-xl border border-slate-200 bg-white p-4 text-left transition hover:border-slate-400">
-                                <address class="text-sm not-italic text-slate-700">
-                                    <span class="font-semibold text-slate-900">{{ address.full_name }}</span><br />
-                                    {{ address.line1 }}{% if address.line2 %}, {{ address.line2 }}{% endif %}<br />
-                                    {{ address.city }}, {{ address.region }} {{ address.postal_code }}<br />
-                                    {{ address.country }}
-                                </address>
-                                <span class="mt-2 inline-block text-xs font-semibold text-slate-900 underline-offset-4 hover:underline">Deliver here</span>
+                            <button type="submit" class="w-full rounded-2xl border border-slate-200 bg-white p-4 text-left transition hover:border-slate-400 hover:shadow-soft dark:border-slate-800 dark:bg-slate-800/60 dark:hover:border-slate-600">
+                                <div class="flex flex-wrap items-start justify-between gap-3">
+                                    <div>
+                                        <div class="flex items-center gap-2">
+                                            <span class="font-semibold text-sm text-slate-900 dark:text-white">{{ address.full_name }}</span>
+                                            {% if address.is_default_shipping %}
+                                            <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600 dark:bg-slate-700 dark:text-slate-300">Default</span>
+                                            {% endif %}
+                                        </div>
+                                        <address class="mt-1 text-xs not-italic text-slate-600 dark:text-slate-400 leading-relaxed">
+                                            {{ address.line1 }}{% if address.line2 %}, {{ address.line2 }}{% endif %}<br />
+                                            {{ address.city }}, {{ address.region }} {{ address.postal_code }}<br />
+                                            {{ address.country }}
+                                        </address>
+                                    </div>
+                                    <span class="inline-block text-xs font-semibold text-slate-900 underline-offset-4 hover:underline dark:text-white">Deliver here →</span>
+                                </div>
                             </button>
                         </form>
                         {% endif %}
@@ -200,60 +264,78 @@
                 {% endif %}
             </section>
 
-            <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft" aria-labelledby="ship-heading">
-                <h2 id="ship-heading" class="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500">2. Shipping method</h2>
+            <!-- 2. Shipping Method Selection -->
+            <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft dark:border-slate-800 dark:bg-slate-900" aria-labelledby="ship-heading">
+                <div class="border-b border-slate-100 pb-3 dark:border-slate-800">
+                    <h2 id="ship-heading" class="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">2. Shipping method</h2>
+                </div>
                 <form method="post" action="{% url 'shop:checkout-shipping' %}">
                     {% csrf_token %}
                     <fieldset class="mt-4 space-y-3">
                         <legend class="sr-only">Shipping method</legend>
                         {% for method in shipping_methods %}
-                        <label class="flex cursor-pointer items-start gap-3 rounded-xl border {% if selected_method.code == method.code %}border-flash-600 bg-flash-50/50{% else %}border-slate-200{% endif %} p-4 transition hover:border-slate-400">
+                        <label class="flex cursor-pointer items-start gap-3 rounded-2xl border {% if selected_method.code == method.code %}border-flash-600 bg-flash-50/50 dark:border-flash-500 dark:bg-flash-950/30{% else %}border-slate-200 dark:border-slate-800{% endif %} p-4 transition hover:border-slate-400 dark:hover:border-slate-700">
                             <input type="radio"
                                    name="method"
                                    value="{{ method.code }}"
                                    {% if selected_method.code == method.code %}checked{% endif %}
                                    class="mt-1 h-4 w-4 border-slate-300 text-flash-600 focus:ring-flash-500" />
                             <span class="min-w-0 flex-1">
-                                <span class="block text-sm font-semibold text-slate-900">{{ method.name }}</span>
-                                <span class="block text-xs text-slate-500">{{ method.estimate }}</span>
+                                <span class="block text-sm font-semibold text-slate-900 dark:text-white">{{ method.name }}</span>
+                                <span class="block text-xs text-slate-500 dark:text-slate-400">{{ method.estimate }}</span>
                             </span>
-                            <span class="text-sm font-semibold text-slate-900">
-                                {% if method.is_free %}Free{% else %}{{ method.amount|money }}{% endif %}
+                            <span class="text-sm font-bold text-slate-900 dark:text-white">
+                                {% if method.is_free %}<span class="text-emerald-700 dark:text-emerald-400">Free</span>{% else %}{{ method.amount|money }}{% endif %}
                             </span>
                         </label>
                         {% endfor %}
                     </fieldset>
-                    <button type="submit" class="mt-4 text-sm font-medium text-slate-900 underline-offset-4 hover:underline">
+                    <button type="submit" class="mt-4 text-xs font-semibold text-slate-900 underline-offset-4 hover:underline dark:text-white">
                         Use this method
                     </button>
                 </form>
             </section>
 
-            <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft" aria-labelledby="review-heading">
-                <h2 id="review-heading" class="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500">3. Review your bag</h2>
-                <ul class="mt-4 divide-y divide-slate-100">
+            <!-- 3. Review Bag Items -->
+            <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft dark:border-slate-800 dark:bg-slate-900" aria-labelledby="review-heading">
+                <div class="border-b border-slate-100 pb-3 dark:border-slate-800">
+                    <h2 id="review-heading" class="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">3. Review your bag</h2>
+                </div>
+                <ul class="mt-4 divide-y divide-slate-100 dark:divide-slate-800">
                     {% for item in items %}
-                    <li class="flex items-baseline justify-between gap-4 py-3 text-sm">
-                        <span class="text-slate-700">
-                            {{ item.variant.product.name }} · {{ item.variant.option_label|default:item.variant }}
-                            <span class="text-slate-400">× {{ item.quantity }}</span>
-                            {% if not item.variant_is_eligible %}
-                            <span class="ml-2 rounded bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">Unavailable</span>
-                            {% endif %}
-                        </span>
-                        <span class="font-medium text-slate-900">{{ item.line_total|money }}</span>
+                    <li class="flex items-center justify-between gap-4 py-3.5 text-sm">
+                        <div class="flex items-center gap-3">
+                            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-xs font-semibold text-slate-700 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300">
+                                {{ item.quantity }}×
+                            </div>
+                            <div>
+                                <p class="font-medium text-slate-900 dark:text-white">{{ item.variant.product.name }}</p>
+                                <p class="text-xs text-slate-500 dark:text-slate-400">
+                                    {{ item.variant.option_label|default:item.variant }}
+                                    <span class="font-semibold text-slate-700 dark:text-slate-300">× {{ item.quantity }}</span>
+                                    {% if not item.variant_is_eligible %}
+                                    <span class="ml-2 rounded bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">Unavailable</span>
+                                    {% endif %}
+                                </p>
+                            </div>
+                        </div>
+                        <span class="font-bold text-slate-900 dark:text-white">{{ item.line_total|money }}</span>
                     </li>
                     {% endfor %}
                 </ul>
             </section>
 
-            <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft" aria-labelledby="discounts-heading">
-                <h2 id="discounts-heading" class="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500">4. Offers &amp; FLASH Points</h2>
+            <!-- 4. Offers & FLASH Points -->
+            <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft dark:border-slate-800 dark:bg-slate-900" aria-labelledby="discounts-heading">
+                <div class="border-b border-slate-100 pb-3 dark:border-slate-800">
+                    <h2 id="discounts-heading" class="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">4. Offers &amp; FLASH Points</h2>
+                </div>
 
+                <!-- Promo Code Form -->
                 <form method="post" action="{% url 'shop:checkout-promotion' %}" class="mt-4 flex flex-wrap items-end gap-3">
                     {% csrf_token %}
                     <div class="min-w-0 flex-1">
-                        <label for="promo-code" class="block text-xs font-medium text-slate-600">Promotion code</label>
+                        <label for="promo-code" class="block text-xs font-medium text-slate-600 dark:text-slate-400">Promotion code</label>
                         <input type="text"
                                id="promo-code"
                                name="code"
@@ -261,38 +343,44 @@
                                placeholder="e.g. SUMMER10"
                                maxlength="32"
                                autocomplete="off"
-                               class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-flash-500 focus:outline-none focus:ring-2 focus:ring-flash-500/20" />
+                               class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-flash-500 focus:outline-none focus:ring-2 focus:ring-flash-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
                     </div>
-                    <button type="submit" class="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 transition hover:border-slate-400">
+                    <button type="submit" class="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 transition hover:border-slate-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
                         {% if checkout.promotion_code %}Update{% else %}Apply{% endif %}
                     </button>
                     {% if checkout.promotion_code %}
-                    <button type="submit" name="code" value="" class="text-sm font-medium text-slate-600 underline-offset-4 hover:underline">Remove</button>
+                    <button type="submit" name="code" value="" class="text-sm font-medium text-slate-600 underline-offset-4 hover:underline dark:text-slate-400">Remove</button>
                     {% endif %}
                 </form>
 
-                <div class="mt-5 border-t border-slate-100 pt-4">
+                <!-- Loyalty Points Section -->
+                <div class="mt-5 border-t border-slate-100 pt-4 dark:border-slate-800">
                     <div class="flex flex-wrap items-baseline justify-between gap-3">
-                        <p class="text-sm font-semibold text-slate-900">FLASH Points</p>
-                        <p class="text-xs text-slate-500">{{ redemption_message }}</p>
+                        <p class="text-sm font-semibold text-slate-900 dark:text-white">FLASH Points</p>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">{{ redemption_message }}</p>
                     </div>
 
                     {% if checkout.loyalty_points %}
-                    <div class="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border-2 border-flash-600 bg-flash-50/50 p-4">
-                        <p class="text-sm text-slate-800">
-                            <span class="font-semibold text-slate-950">{{ checkout.loyalty_points }} points</span>
-                            held for this order · worth {{ loyalty_discount|money }}
-                        </p>
+                    <div class="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl border-2 border-flash-600 bg-flash-50/50 p-4 dark:border-flash-500 dark:bg-flash-950/30">
+                        <div>
+                            <p class="text-sm text-slate-800 dark:text-slate-200">
+                                <span class="font-bold text-slate-950 dark:text-white">{{ checkout.loyalty_points }} points</span>
+                                held for this order · worth {{ loyalty_discount|money }}
+                            </p>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                                Balance remaining: {{ loyalty_remaining }} points
+                            </p>
+                        </div>
                         <form method="post" action="{% url 'shop:checkout-loyalty' %}">
                             {% csrf_token %}
-                            <button type="submit" name="remove" value="1" class="text-sm font-medium text-slate-600 underline-offset-4 hover:underline">Remove</button>
+                            <button type="submit" name="remove" value="1" class="text-xs font-semibold text-slate-600 underline-offset-4 hover:underline dark:text-slate-300">Remove</button>
                         </form>
                     </div>
                     {% elif loyalty_balance >= redeem_increment %}
                     <form method="post" action="{% url 'shop:checkout-loyalty' %}" class="mt-3 flex flex-wrap items-end gap-3">
                         {% csrf_token %}
                         <div class="min-w-0 flex-1">
-                            <label for="loyalty-points" class="block text-xs font-medium text-slate-600">Points to use (you have {{ loyalty_balance }})</label>
+                            <label for="loyalty-points" class="block text-xs font-medium text-slate-600 dark:text-slate-400">Points to use (you have {{ loyalty_balance }})</label>
                             <input type="number"
                                    id="loyalty-points"
                                    name="points"
@@ -300,15 +388,15 @@
                                    max="{{ loyalty_max }}"
                                    step="{{ redeem_increment }}"
                                    placeholder="{{ redeem_increment }}"
-                                   class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-flash-500 focus:outline-none focus:ring-2 focus:ring-flash-500/20" />
+                                   class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-flash-500 focus:outline-none focus:ring-2 focus:ring-flash-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
                         </div>
-                        <button type="submit" class="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 transition hover:border-slate-400">
+                        <button type="submit" class="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 transition hover:border-slate-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
                             Use points
                         </button>
                     </form>
-                    <p class="mt-2 text-xs text-slate-500">Worth 1.00 off per 100 points. Nothing is redeemed until the order is placed.</p>
+                    <p class="mt-2 text-xs text-slate-500 dark:text-slate-400">Worth $1.00 off per 100 points. Nothing is redeemed until the order is placed.</p>
                     {% else %}
-                    <p class="mt-3 text-sm text-slate-600">
+                    <p class="mt-3 text-xs text-slate-500 dark:text-slate-400">
                         Earn 10 points per unit spent on every paid order; they land here after checkout.
                     </p>
                     {% endif %}
@@ -316,62 +404,64 @@
             </section>
         </div>
 
+        <!-- Sticky Summary Sidebar -->
         <aside class="lg:sticky lg:top-24 lg:self-start">
-            <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
-                <h2 class="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500">Summary</h2>
+            <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft dark:border-slate-800 dark:bg-slate-900">
+                <h2 class="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">Summary</h2>
                 <dl class="mt-4 space-y-3 text-sm">
                     <div class="flex items-baseline justify-between gap-4">
-                        <dt class="text-slate-600">Subtotal</dt>
-                        <dd class="font-medium text-slate-900">{{ totals.subtotal|money }}</dd>
+                        <dt class="text-slate-600 dark:text-slate-400">Subtotal</dt>
+                        <dd class="font-medium text-slate-900 dark:text-white">{{ totals.subtotal|money }}</dd>
                     </div>
                     <div class="flex items-baseline justify-between gap-4">
-                        <dt class="text-slate-600">{{ selected_method.name }}</dt>
-                        <dd class="font-medium text-slate-900">{% if shipping_amount %}{{ shipping_amount|money }}{% else %}Free{% endif %}</dd>
+                        <dt class="text-slate-600 dark:text-slate-400">{{ selected_method.name }}</dt>
+                        <dd class="font-medium text-slate-900 dark:text-white">{% if shipping_amount %}{{ shipping_amount|money }}{% else %}Free{% endif %}</dd>
                     </div>
                     {% if promo_discount %}
                     <div class="flex items-baseline justify-between gap-4">
-                        <dt class="text-slate-600">Promotion ({{ checkout.promotion_code }})</dt>
-                        <dd class="font-medium text-emerald-700">−{{ promo_discount|money }}</dd>
+                        <dt class="text-slate-600 dark:text-slate-400">Promotion ({{ checkout.promotion_code }})</dt>
+                        <dd class="font-medium text-emerald-700 dark:text-emerald-400">−{{ promo_discount|money }}</dd>
                     </div>
                     {% endif %}
                     {% if loyalty_discount %}
                     <div class="flex items-baseline justify-between gap-4">
-                        <dt class="text-slate-600">FLASH Points ({{ checkout.loyalty_points }})</dt>
-                        <dd class="font-medium text-emerald-700">−{{ loyalty_discount|money }}</dd>
+                        <dt class="text-slate-600 dark:text-slate-400">FLASH Points ({{ checkout.loyalty_points }})</dt>
+                        <dd class="font-medium text-emerald-700 dark:text-emerald-400">−{{ loyalty_discount|money }}</dd>
                     </div>
                     {% endif %}
-                    <div class="flex items-baseline justify-between gap-4 border-t border-slate-200 pt-3">
-                        <dt class="font-semibold text-slate-950">Total</dt>
-                        <dd class="font-semibold text-slate-950">{{ total|money }}</dd>
+                    <div class="flex items-baseline justify-between gap-4 border-t border-slate-200 pt-3 dark:border-slate-800">
+                        <dt class="font-bold text-slate-950 dark:text-white">Total</dt>
+                        <dd class="text-xl font-bold text-slate-950 dark:text-white">{{ total|money }}</dd>
                     </div>
                 </dl>
 
-                <p class="mt-4 text-xs leading-relaxed text-slate-500">
+                <p class="mt-4 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
                     Availability will be confirmed before order placement. Nothing is charged at this step.
                 </p>
 
                 {% if errors %}
-                <button type="button" disabled class="mt-5 w-full cursor-not-allowed rounded-full bg-slate-200 px-5 py-3 text-sm font-semibold text-slate-500">
+                <button type="button" disabled class="mt-5 w-full cursor-not-allowed rounded-full bg-slate-200 px-5 py-3.5 text-sm font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-400">
                     Validate details
                 </button>
-                <p class="mt-2 text-center text-xs text-amber-700">Resolve the items above to continue.</p>
+                <p class="mt-2 text-center text-xs text-amber-700 dark:text-amber-400">Resolve the items above to continue.</p>
                 {% else %}
                 <form method="post" action="{% url 'shop:checkout-validate' %}">
                     {% csrf_token %}
-                    <button type="submit" class="mt-5 flex w-full items-center justify-center rounded-full bg-flash-600 px-5 py-3 text-sm font-semibold text-white shadow-soft transition hover:bg-flash-700 focus:outline-none focus:ring-2 focus:ring-flash-500/30 focus:ring-offset-2 focus:ring-offset-white">
-                        Validate details
+                    <button type="submit" class="mt-5 flex w-full items-center justify-center rounded-full bg-flash-600 px-5 py-3.5 text-sm font-semibold text-white shadow-soft transition hover:bg-flash-700 focus:outline-none focus:ring-2 focus:ring-flash-500/30">
+                        Validate details →
                     </button>
                 </form>
-                <p class="mt-2 text-center text-xs text-slate-500">Re-checks your bag and freezes this total.</p>
+                <p class="mt-2 text-center text-xs text-slate-500 dark:text-slate-400">Re-checks your bag and freezes this total.</p>
                 {% endif %}
-                <div class="mt-4 border-t border-slate-100 pt-3 text-center text-xs text-slate-500">
-                    <p class="flex items-center justify-center gap-1.5 text-slate-600 font-medium">
-                        <svg class="h-3.5 w-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+
+                <div class="mt-5 border-t border-slate-100 pt-4 text-center text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
+                    <p class="flex items-center justify-center gap-1.5 font-medium text-slate-700 dark:text-slate-300">
+                        <svg class="h-4 w-4 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                         </svg>
                         Secure 256-Bit SSL Checkout
                     </p>
-                    <p class="mt-1 text-[11px] text-slate-400">30-day returns · Real-time order tracking</p>
+                    <p class="mt-1 text-[11px] text-slate-400 dark:text-slate-500">30-day returns · Real-time order tracking</p>
                 </div>
             </div>
         </aside>
@@ -379,4 +469,3 @@
     {% endif %}
 </div>
 {% endblock content %}
-

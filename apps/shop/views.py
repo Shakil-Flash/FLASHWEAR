@@ -17,6 +17,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.cache import never_cache
@@ -25,7 +26,7 @@ from django.views.decorators.http import require_POST
 from apps.analytics.services import record_event
 from apps.catalog.models import Product, ProductVariant
 from apps.recommendations.services import get_customer_recommendations
-from apps.shop.models import Wishlist, WishlistItem
+from apps.shop.models import CartItem, Wishlist, WishlistItem
 from apps.shop.services import (
     add_to_cart,
     clear_cart,
@@ -79,9 +80,13 @@ def _cart_payload(cart) -> dict:
 
 
 def _handle_error(request, error: Exception):
-    """Turn a service error into an HTMX JSON response or a flash + redirect."""
-    if _is_htmx(request):
-        return JsonResponse({"error": str(error)}, status=400)
+    """Turn a service error into an HTMX/AJAX JSON response or a flash + redirect."""
+    if (
+        _is_htmx(request)
+        or request.headers.get("accept") == "application/json"
+        or request.headers.get("x-requested-with") == "XMLHttpRequest"
+    ):
+        return JsonResponse({"error": str(error), "success": False}, status=400)
     messages.error(request, str(error))
     return redirect("shop:cart")
 
@@ -94,7 +99,6 @@ def _handle_error(request, error: Exception):
 def cart_detail(request):
     """Display the cart page with all items, totals, validation problems and recommendations."""
     from apps.catalog.merchandising import get_continue_shopping_items, get_recently_viewed
-    from apps.catalog.selectors import homepage_new_arrivals
     from apps.shop.checkout import discount_breakdown
     from apps.shop.models import CheckoutSession
 
@@ -151,8 +155,11 @@ def cart_detail(request):
     continue_items = get_continue_shopping_items(request, limit=4)
     if not continue_items:
         continue_items = get_recently_viewed(request, limit=4)
-    if not continue_items:
-        continue_items = homepage_new_arrivals(limit=4)
+
+    cart_product_ids = {item.variant.product_id for item in items if item.variant}
+    cart_suggestions = [p for p in (continue_items or []) if p.pk not in cart_product_ids][:3]
+
+    loyalty_balance = 0
 
     record_event(
         "cart_view",
@@ -174,6 +181,7 @@ def cart_detail(request):
         "promo_discount": promo_discount,
         "loyalty_points": loyalty_points,
         "loyalty_discount": loyalty_discount,
+        "loyalty_balance": loyalty_balance,
         "shipping_estimate": shipping_estimate,
         "estimated_total": estimated_total,
         "free_threshold": free_threshold,
@@ -183,6 +191,7 @@ def cart_detail(request):
         "errors": validate_cart_items(cart, items=items),
         "price_changes": get_price_changes(cart, items=items),
         "continue_items": continue_items,
+        "cart_suggestions": cart_suggestions,
     }
     return render(request, "shop/cart.html", context)
 
@@ -264,12 +273,26 @@ def cart_update(request, item_pk: int):
 
     cart = get_or_create_cart(request)
     try:
-        update_cart_item_quantity(cart, item_pk, quantity)
+        updated_item = update_cart_item_quantity(cart, item_pk, quantity)
     except ValidationError as err:
         return _handle_error(request, err)
 
     if _is_htmx(request):
         return JsonResponse(_cart_payload(cart))
+
+    if (
+        request.headers.get("accept") == "application/json"
+        or request.headers.get("x-requested-with") == "XMLHttpRequest"
+    ):
+        payload = _cart_payload(cart)
+        payload["success"] = True
+        payload["item"] = {
+            "id": updated_item.pk,
+            "quantity": updated_item.quantity,
+            "line_total": str(updated_item.line_total),
+            "unit_price": str(updated_item.price_snapshot),
+        }
+        return JsonResponse(payload)
 
     return redirect("shop:cart")
 
@@ -293,7 +316,54 @@ def cart_remove(request, item_pk: int):
     if _is_htmx(request):
         return JsonResponse(_cart_payload(cart))
 
+    if (
+        request.headers.get("accept") == "application/json"
+        or request.headers.get("x-requested-with") == "XMLHttpRequest"
+    ):
+        payload = _cart_payload(cart)
+        payload["success"] = True
+        payload["removed_item_id"] = item_pk
+        return JsonResponse(payload)
+
     messages.success(request, _("Item removed from cart"))
+    return redirect("shop:cart")
+
+
+@require_POST
+def cart_move_to_wishlist(request, item_pk: int):
+    """Move an item from cart to wishlist (Phase 35 requirement #4)."""
+    cart = get_or_create_cart(request)
+    if not request.user.is_authenticated:
+        messages.info(request, _("Please sign in to save items to your wishlist."))
+        login_url = reverse("accounts:login")
+        return redirect(f"{login_url}?next={reverse('shop:cart')}")
+
+    try:
+        item = cart.items.select_related("variant__product").get(pk=item_pk)
+    except CartItem.DoesNotExist:
+        return _handle_error(
+            request, ValidationError(_("Item not found in cart."), code="item_not_found")
+        )
+
+    product = item.variant.product
+    variant = item.variant
+    add_to_wishlist(request.user, product, variant=variant, request=request)
+    remove_from_cart(cart, item_pk)
+
+    if (
+        _is_htmx(request)
+        or request.headers.get("accept") == "application/json"
+        or request.headers.get("x-requested-with") == "XMLHttpRequest"
+    ):
+        wishlist = get_or_create_wishlist(request.user)
+        payload = _cart_payload(cart)
+        payload["success"] = True
+        payload["message"] = str(_("Moved to your wishlist."))
+        payload["wishlist_count"] = wishlist.get_item_count()
+        payload["removed_item_id"] = item_pk
+        return JsonResponse(payload)
+
+    messages.success(request, _("Moved to your wishlist."))
     return redirect("shop:cart")
 
 

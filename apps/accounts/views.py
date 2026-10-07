@@ -659,6 +659,12 @@ class AddressCreateView(CreateView):
         kwargs["user"] = self.request.user
         return kwargs
 
+    def get_success_url(self):
+        next_url = self.request.POST.get("next") or self.request.GET.get("next")
+        if next_url and next_url.startswith("/") and not next_url.startswith("//"):
+            return next_url
+        return str(self.success_url)
+
     def form_valid(self, form):
         form.instance.user = self.request.user
         response = super().form_valid(form)
@@ -687,6 +693,12 @@ class AddressUpdateView(UpdateView):
         kwargs = super().get_form_kwargs()
         kwargs["user"] = self.request.user
         return kwargs
+
+    def get_success_url(self):
+        next_url = self.request.POST.get("next") or self.request.GET.get("next")
+        if next_url and next_url.startswith("/") and not next_url.startswith("//"):
+            return next_url
+        return str(self.success_url)
 
     def form_valid(self, form):
         response = super().form_valid(form)
