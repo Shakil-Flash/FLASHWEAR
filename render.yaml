@@ -1,0 +1,35 @@
+services:
+  - type: web
+    name: flashwear
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    branch: main
+    preDeployCommand: python manage.py migrate --noinput
+    envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: config.settings.production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: flashwear-db
+          property: connectionString
+      - key: ALLOWED_HOSTS
+        value: .onrender.com,localhost,127.0.0.1
+      - key: CSRF_TRUSTED_ORIGINS
+        value: https://*.onrender.com
+      - key: PAYMENT_PROVIDER
+        value: stripe
+      - key: PAYMENT_WEBHOOK_SECRET
+        value: whsec_placeholder_for_render_setup
+      - key: EMAIL_BACKEND
+        value: django.core.mail.backends.console.EmailBackend
+      - key: CSP_REPORT_ONLY
+        value: "true"
+      - key: REDIS_URL
+        sync: false
+
+databases:
+  - name: flashwear-db
+    plan: free
