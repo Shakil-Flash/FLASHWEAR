@@ -17,8 +17,7 @@ without it.
             {% block breadcrumbs %}
             <li><a href="{% url 'core:home' %}" class="hover:text-slate-900">Home</a></li>
             <li aria-hidden="true">/</li>
-            <li aria-current="page" class="font-medium text-slate-900">{% block crumb_label %}Shop{% endblock
-                crumb_label %}</li>
+            <li aria-current="page" class="font-medium text-slate-900">{% block crumb_label %}Shop{% endblock crumb_label %}</li>
             {% endblock breadcrumbs %}
         </ol>
     </nav>
@@ -29,8 +28,7 @@ without it.
                 {% block heading %}All products{% endblock heading %}
             </h1>
             {% block lede %}
-            {% if category.description %}<p class="mt-3 text-base leading-relaxed text-slate-600">{{
-                category.description }}</p>{% endif %}
+            {% if category.description %}<p class="mt-3 text-base leading-relaxed text-slate-600">{{ category.description }}</p>{% endif %}
             {% endblock lede %}
         </div>
         <p class="text-sm text-slate-500" role="status">
@@ -43,8 +41,7 @@ without it.
     {% block prelude %}{% endblock prelude %}
     {% block filters %}{% endblock filters %}
 
-    {% if filters.query or filters.category_slug or filters.color_slugs or filters.size_codes or filters.min_price or
-    filters.max_price %}
+    {% if filters.query or filters.category_slug or filters.color_slugs or filters.size_codes or filters.min_price or filters.max_price %}
     <div class="mt-4 flex flex-wrap items-center gap-2 rounded-2xl bg-slate-50 p-3 text-xs text-slate-700">
         <span class="font-semibold text-slate-900">Active filters:</span>
         {% if filters.query %}
