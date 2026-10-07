@@ -261,6 +261,8 @@ def _redis_url_for(name: str, db: int) -> str:
     explicit = env(name, default="")
     if explicit:
         return explicit
+    if "upstash.io" in REDIS_URL:
+        return REDIS_URL
     return _with_redis_db(REDIS_URL, db)
 
 

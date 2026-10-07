@@ -65,6 +65,10 @@ CACHES = {
 SESSION_COOKIE_AGE = env.int("SESSION_COOKIE_AGE", default=60 * 60 * 24 * 14)
 SESSION_ENGINE = "django.contrib.sessions.backends.cached_db"
 
+# On single-container platforms (e.g. Render free tier without dedicated Celery workers),
+# execute tasks eagerly in-process so background work executes without delay.
+CELERY_TASK_ALWAYS_EAGER = env.bool("CELERY_TASK_ALWAYS_EAGER", default=True)
+
 # --------------------------------------------------------------------------------------
 # Payments: the built-in development provider must never reach production
 # --------------------------------------------------------------------------------------
