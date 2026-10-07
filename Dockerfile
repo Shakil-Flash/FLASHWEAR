@@ -72,9 +72,10 @@ RUN mkdir -p /app/staticfiles /app/media /app/logs && \
     sed -i 's/\r$//' /app/entrypoint.sh && \
     chmod +x /app/entrypoint.sh && \
     addgroup --system django && \
-    adduser --system --ingroup django django && \
+    adduser --system --ingroup django --home /app django && \
     chown -R django:django /app
 
+ENV HOME=/app
 USER django
 
 EXPOSE 8000
