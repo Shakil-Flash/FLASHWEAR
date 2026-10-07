@@ -5,7 +5,7 @@ services:
     dockerfilePath: ./Dockerfile
     plan: free
     branch: main
-    preDeployCommand: python manage.py migrate --noinput
+    dockerCommand: sh -c "python manage.py migrate --noinput && gunicorn --config gunicorn.conf.py config.wsgi:application"
     envVars:
       - key: DJANGO_SETTINGS_MODULE
         value: config.settings.production

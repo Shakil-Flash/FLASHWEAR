@@ -84,6 +84,4 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
     CMD curl -fsS -H "X-Forwarded-Proto: https" http://127.0.0.1:8000/health/live/ || exit 1
 
-# Overridden by docker-compose.yml for development (runserver + migrations).
-# Worker count, timeouts and logging live in gunicorn.conf.py.
-CMD ["gunicorn", "--config", "gunicorn.conf.py", "config.wsgi:application"]
+CMD ["sh", "-c", "python manage.py migrate --noinput && gunicorn --config gunicorn.conf.py config.wsgi:application"]
