@@ -41,7 +41,46 @@ without it.
         {% block prelude %}{% endblock prelude %}
         {% block filters %}{% endblock filters %}
 
-        <div class="mt-8 flex flex-wrap items-center gap-2 border-b border-slate-200 pb-4">
+        {% if filters.query or filters.category_slug or filters.color_slugs or filters.size_codes or filters.min_price or filters.max_price %}
+            <div class="mt-4 flex flex-wrap items-center gap-2 rounded-2xl bg-slate-50 p-3 text-xs text-slate-700">
+                <span class="font-semibold text-slate-900">Active filters:</span>
+                {% if filters.query %}
+                    <span class="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 ring-1 ring-slate-200">
+                        Search: “{{ filters.query }}”
+                    </span>
+                {% endif %}
+                {% if filters.category_slug %}
+                    <span class="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 ring-1 ring-slate-200">
+                        Category: {{ filters.category_slug }}
+                    </span>
+                {% endif %}
+                {% for color in filters.color_slugs %}
+                    <span class="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 ring-1 ring-slate-200">
+                        Color: {{ color }}
+                    </span>
+                {% endfor %}
+                {% for size in filters.size_codes %}
+                    <span class="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 ring-1 ring-slate-200">
+                        Size: {{ size }}
+                    </span>
+                {% endfor %}
+                {% if filters.min_price %}
+                    <span class="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 ring-1 ring-slate-200">
+                        Min: {{ filters.min_price|money }}
+                    </span>
+                {% endif %}
+                {% if filters.max_price %}
+                    <span class="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 ring-1 ring-slate-200">
+                        Max: {{ filters.max_price|money }}
+                    </span>
+                {% endif %}
+                <a href="{{ request.path }}" class="ml-auto font-medium text-flash-700 underline hover:text-flash-800">
+                    Clear all filters
+                </a>
+            </div>
+        {% endif %}
+
+        <div class="mt-6 flex flex-wrap items-center gap-2 border-b border-slate-200 pb-4">
             <span class="mr-2 text-sm font-medium text-slate-500">Sort</span>
             {% for value, label in sort_choices %}{% sort_link value label %}{% endfor %}
         </div>
@@ -54,15 +93,28 @@ without it.
                     {% endfor %}
                 </div>
             {% else %}
-                <div class="mt-8 rounded-2xl border border-dashed border-slate-300 bg-white/70 p-10 text-center">
-                    <p class="text-base font-semibold text-slate-900">Nothing here yet</p>
-                    <p class="mt-2 text-sm text-slate-600">
-                        This shelf is empty. Try another category, or browse everything.
-                    </p>
-                    <a href="{% url 'catalog:product-list' %}"
-                       class="mt-6 inline-flex items-center rounded-full bg-flash-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-flash-700">
-                        All products
-                    </a>
+                <div class="mt-8 rounded-3xl border border-dashed border-slate-200 bg-white p-12 text-center">
+                    {% if filters.query %}
+                        <p class="text-lg font-semibold text-slate-900">No luck with “{{ filters.query }}”</p>
+                        <p class="mt-2 text-sm text-slate-500">
+                            Try a broader term, check for typos, or browse by category instead.
+                        </p>
+                    {% else %}
+                        <p class="text-lg font-semibold text-slate-900">Nothing here yet — this shelf is empty for now.</p>
+                        <p class="mt-2 text-sm text-slate-500">
+                            New pieces are always being added. Try browsing another category, or explore the full catalogue.
+                        </p>
+                    {% endif %}
+                    <div class="mt-6 flex flex-wrap items-center justify-center gap-3">
+                        <a href="{% url 'catalog:product-list' %}"
+                           class="inline-flex items-center rounded-full bg-flash-600 px-6 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-flash-700">
+                            Browse all products
+                        </a>
+                        <a href="{% url 'catalog:visual-search' %}"
+                           class="inline-flex items-center rounded-full border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 shadow-soft transition hover:border-slate-900">
+                            Try Visual Discovery
+                        </a>
+                    </div>
                 </div>
             {% endif %}
         {% endblock products %}

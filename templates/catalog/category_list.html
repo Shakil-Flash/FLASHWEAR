@@ -74,9 +74,9 @@ full tree is reachable from any product page's breadcrumb.
                 {% endfor %}
             </div>
         {% else %}
-            <div class="mt-10 rounded-2xl border border-dashed border-slate-300 bg-white/70 p-10 text-center">
-                <p class="text-base font-semibold text-slate-900">No departments yet</p>
-                <p class="mt-2 text-sm text-slate-600">The taxonomy has not been set up.</p>
+            <div class="mt-10 rounded-2xl border border-dashed border-slate-200 bg-white p-10 text-center">
+                <p class="text-base font-semibold text-slate-900">Categories are being set up.</p>
+                <p class="mt-2 text-sm text-slate-500">In the meantime, browse the full catalogue.</p>
                 <a href="{% url 'catalog:product-list' %}"
                    class="mt-6 inline-flex items-center rounded-full bg-flash-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-flash-700">
                     All products

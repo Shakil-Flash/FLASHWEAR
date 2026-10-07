@@ -348,6 +348,35 @@ class Product(TimestampedModel, SEOMixin):
         return any(variant.is_discounted for variant in self.purchasable_variants)
 
     @property
+    def compare_at_range(self) -> tuple[Decimal | None, Decimal | None]:
+        """(lowest, highest) compare-at price across purchasable variants."""
+        compare_prices = [
+            v.compare_at_price
+            for v in self.purchasable_variants
+            if v.compare_at_price is not None and v.compare_at_price > v.price
+        ]
+        if not compare_prices:
+            return None, None
+        return min(compare_prices), max(compare_prices)
+
+    @property
+    def max_discount_percent(self) -> int:
+        """Maximum discount percentage across discounted purchasable variants."""
+        discounts = [v.discount_percent for v in self.purchasable_variants if v.is_discounted]
+        return max(discounts) if discounts else 0
+
+    @property
+    def is_in_stock(self) -> bool:
+        """Whether at least one purchasable variant has inventory available."""
+        if not self.purchasable_variants:
+            return False
+        for v in self.purchasable_variants:
+            stock = getattr(v, "stock", None)
+            if stock is None or stock.available > 0:
+                return True
+        return False
+
+    @property
     def primary_image(self) -> ProductImage | None:
         """The card image: the flagged primary, else the first by position.
 

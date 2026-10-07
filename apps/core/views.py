@@ -77,6 +77,29 @@ def home(request: HttpRequest) -> HttpResponse:
 
     from apps.catalog import selectors
 
+    active_drops = []
+    try:
+        from apps.drops.models import FlashDrop
+
+        active_drops = list(
+            FlashDrop.objects.live().prefetch_related("products__product")[:3]
+        )
+    except Exception:
+        pass
+
+    loop_highlights = []
+    try:
+        from apps.loop.models import ResaleListing
+
+        loop_highlights = list(
+            ResaleListing.objects.filter(status=ResaleListing.Status.ACTIVE)
+            .select_related("loop_item__product", "loop_item__variant")
+            .prefetch_related("loop_item__images")
+            .order_by("-listed_at")[:4]
+        )
+    except Exception:
+        pass
+
     context = {
         "seo_title": f"{site.site_name} - {site.tagline}",
         "seo_description": site.default_seo_description,
@@ -85,6 +108,8 @@ def home(request: HttpRequest) -> HttpResponse:
         "featured_products": selectors.homepage_featured(limit=4),
         "new_arrivals": selectors.homepage_new_arrivals(limit=8),
         "featured_collections": list(selectors.live_collections(featured_only=True)[:3]),
+        "active_drops": active_drops,
+        "loop_highlights": loop_highlights,
         # Phase 20: who runs this site and how to search it, from the real config row.
         "organization_schema": organization_schema(request),
         "website_schema": website_schema(request),

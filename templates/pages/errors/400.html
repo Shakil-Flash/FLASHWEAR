@@ -15,14 +15,13 @@
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
 </head>
 <body class="flex min-h-screen items-center justify-center bg-white px-4">
-  <div class="mx-auto max-w-xl text-center">
-    <p class="text-sm font-semibold uppercase tracking-[0.16em] text-flash-600">400 — Bad request</p>
-    <h1 class="mt-4 text-4xl font-semibold tracking-tight text-slate-950">We couldn't read that request</h1>
-    <p class="mt-4 text-lg leading-relaxed text-slate-600">
-      The request was malformed or came from an address we don't serve. Nothing was changed.
-      Head back to the homepage and try again.
+  <div class="mx-auto max-w-xl text-center space-y-6">
+    <p class="text-xs font-semibold uppercase tracking-[0.12em] text-flash-600">400 — Bad request</p>
+    <h1 class="text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl" style="text-wrap: balance;">Something got lost in translation.</h1>
+    <p class="text-base leading-relaxed text-slate-600 sm:text-lg">
+      We couldn't understand that request. Try heading back and starting fresh.
     </p>
-    <a href="/" class="mt-8 inline-flex items-center justify-center rounded-full bg-flash-600 px-6 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-flash-700 focus:outline-none focus:ring-2 focus:ring-flash-500/30 focus:ring-offset-2 focus:ring-offset-white">
+    <a href="/" class="mt-2 inline-flex items-center justify-center rounded-full bg-flash-600 px-6 py-3 text-sm font-semibold text-white shadow-soft transition hover:bg-flash-700 focus:outline-none focus:ring-2 focus:ring-flash-500/30 focus:ring-offset-2 focus:ring-offset-white">
       Back to home
     </a>
   </div>

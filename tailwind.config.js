@@ -61,6 +61,6 @@ module.exports = {
      * Classes defined in frontend/css/tailwind.css are tree-shaken like any utility, so
      * helpers that templates do not reference yet must be safelisted explicitly.
      */
-    safelist: ['skip-link', 'htmx-indicator'],
+    safelist: ['skip-link', 'htmx-indicator', 'shadow-elevated'],
     plugins: [],
 };

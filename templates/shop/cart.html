@@ -46,9 +46,9 @@
     {% endif %}
 
     {% if cart.is_empty %}
-    <div class="mt-8 rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center">
-        <p class="text-base font-semibold text-slate-900">Your bag is empty</p>
-        <p class="mt-1 text-sm text-slate-600">Browse the catalogue and add something you love.</p>
+    <div class="mt-8 rounded-2xl border border-dashed border-slate-200 bg-white p-10 text-center">
+        <p class="text-base font-semibold text-slate-900">Your bag is feeling light.</p>
+        <p class="mt-1 text-sm text-slate-500">Time to find something you'll love.</p>
         <p class="mt-6">
             <a href="{% url 'catalog:product-list' %}" class="inline-flex items-center justify-center rounded-full bg-flash-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-flash-700">Start shopping</a>
         </p>

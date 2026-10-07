@@ -3,21 +3,20 @@
 {% block title %}Not allowed — {{ site_name|default:'FLASHWEAR' }}{% endblock title %}
 
 {% block content %}
-<section class="mx-auto flex max-w-3xl flex-col items-center justify-center px-4 py-20 text-center sm:px-6 lg:px-8">
+<section class="mx-auto flex max-w-3xl flex-col items-center justify-center px-4 py-24 text-center sm:px-6 lg:px-8">
     <div class="space-y-6">
-        <p class="text-sm font-semibold uppercase tracking-[0.16em] text-flash-600">403 — Not allowed</p>
-        <h1 class="text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl">
-            You don't have access to this page
+        <p class="editorial-label text-flash-600">403 — Not allowed</p>
+        <h1 class="editorial-display">
+            This one's off limits.
         </h1>
-        <p class="text-lg leading-relaxed text-slate-600">
-            Either this isn't yours to see, or your session expired partway through. Sign in again
-            and come back, or head to the homepage.
+        <p class="editorial-body max-w-lg mx-auto">
+            You don't have access to this page. If you think that's wrong, try signing in again — or head home.
         </p>
-        <div class="flex flex-wrap items-center justify-center gap-3">
-            <a href="{% url 'core:home' %}" class="inline-flex items-center justify-center rounded-full bg-flash-600 px-6 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-flash-700 focus:outline-none focus:ring-2 focus:ring-flash-500/30 focus:ring-offset-2 focus:ring-offset-white">
+        <div class="flex flex-wrap items-center justify-center gap-3 pt-2">
+            <a href="{% url 'core:home' %}" class="inline-flex items-center justify-center rounded-full bg-flash-600 px-6 py-3 text-sm font-semibold text-white shadow-soft transition hover:bg-flash-700 focus:outline-none focus:ring-2 focus:ring-flash-500/30 focus:ring-offset-2 focus:ring-offset-white">
                 Back to home
             </a>
-            <a href="{% url 'accounts:login' %}" class="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-6 py-2.5 text-sm font-medium text-slate-700 shadow-soft transition hover:border-slate-300 hover:text-slate-900">
+            <a href="{% url 'accounts:login' %}" class="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-6 py-3 text-sm font-medium text-slate-700 shadow-soft transition hover:border-slate-300 hover:text-slate-900">
                 Sign in
             </a>
         </div>

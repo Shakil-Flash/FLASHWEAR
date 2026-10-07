@@ -149,6 +149,7 @@ Three rules shape this template:
                     </form>
                 </div>
 
+                <div id="variant-options">
                 {% if matrix.has_variants %}
                     {% if matrix.colors|length > 1 %}
                         <fieldset class="mt-8">
@@ -195,6 +196,7 @@ Three rules shape this template:
                         </fieldset>
                     {% endif %}
                 {% endif %}
+                </div>
 
                 <div class="mt-8 space-y-3">
                     {% if selected_variant %}
@@ -538,11 +540,11 @@ Three rules shape this template:
                     </li>
                 {% empty %}
                     <li class="rounded-2xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-600">
-                        No reviews yet —
+                        No reviews yet.
                         {% if can_review %}
-                            yours would be the first.
+                            Be the first to share how this piece worked for you.
                         {% else %}
-                            published reviews will appear here.
+                            Reviews from verified buyers will appear here.
                         {% endif %}
                     </li>
                 {% endfor %}
@@ -603,4 +605,39 @@ Three rules shape this template:
         </p>
     </div>
 
+    <!-- Mobile Sticky Purchase Bar -->
+    <div class="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 p-3 shadow-lg backdrop-blur lg:hidden">
+        <div class="mx-auto flex max-w-md items-center justify-between gap-3">
+            <div class="min-w-0">
+                <p class="truncate text-xs font-semibold text-slate-950">{{ product.name }}</p>
+                <p class="text-xs text-slate-500">
+                    {% if selected_variant %}
+                        <span class="font-bold text-slate-900">{{ selected_variant.price|money }}</span>
+                        · {{ selected_variant.option_label }}
+                    {% else %}
+                        {% with low=product.price_range.0 %}
+                            <span class="font-bold text-slate-900">{{ low|money }}</span>
+                            · Choose size/colour
+                        {% endwith %}
+                    {% endif %}
+                </p>
+            </div>
+            <div>
+                {% if selected_variant %}
+                    <form method="post" action="{% url 'shop:cart-add' %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="variant_id" value="{{ selected_variant.pk }}" />
+                        <input type="hidden" name="quantity" value="1" />
+                        <button type="submit" class="inline-flex items-center justify-center rounded-full bg-flash-600 px-5 py-2.5 text-xs font-semibold text-white shadow-soft transition hover:bg-flash-700">
+                            Add to bag
+                        </button>
+                    </form>
+                {% else %}
+                    <a href="#variant-options" class="inline-flex items-center justify-center rounded-full bg-slate-900 px-4 py-2.5 text-xs font-semibold text-white shadow-soft transition hover:bg-slate-800">
+                        Select options
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
 {% endblock content %}

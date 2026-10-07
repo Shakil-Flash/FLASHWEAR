@@ -55,7 +55,7 @@ class FlashDropManager(models.Manager):
 
     def with_storefront_data(self):
         """Eager-load everything a drop landing page touches."""
-        return self.select_related("status").prefetch_related(
+        return self.prefetch_related(
             "products__product",
             "products__variant__color",
             "products__variant__size",

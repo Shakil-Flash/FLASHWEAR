@@ -2,61 +2,64 @@
 {% load flashwear %}
 
 <footer class="border-t border-slate-200 bg-white">
-    <div class="mx-auto grid max-w-7xl gap-8 px-4 py-12 sm:px-6 sm:py-16 lg:grid-cols-4 lg:px-8">
-        <div class="space-y-4 lg:col-span-2">
-            <div class="flex items-center gap-2">
-                <span class="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-flash-600 text-white shadow-soft">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="h-6 w-6">
-                        <path fill-rule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zm-1.5 6.75a.75.75 0 000 1.5h3a.75.75 0 000-1.5h-3zm0 3a.75.75 0 000 1.5h3a.75.75 0 000-1.5h-3z" clip-rule="evenodd" />
-                    </svg>
-                </span>
-                <div>
+    <div class="mx-auto max-w-7xl px-4 pt-16 pb-8 sm:px-6 lg:px-8">
+        {# Brand story — not just a logo repeat #}
+        <div class="grid gap-10 lg:grid-cols-5">
+            <div class="space-y-4 lg:col-span-2">
+                <div class="flex items-center gap-2">
+                    <span class="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-flash-600 text-white shadow-soft">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="h-6 w-6">
+                            <path fill-rule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zm-1.5 6.75a.75.75 0 000 1.5h3a.75.75 0 000-1.5h-3zm0 3a.75.75 0 000 1.5h3a.75.75 0 000-1.5h-3z" clip-rule="evenodd" />
+                        </svg>
+                    </span>
                     <p class="text-lg font-semibold tracking-tight text-slate-950">{{ site_name|default:'FLASHWEAR' }}</p>
-                    <p class="text-sm text-slate-500">{{ site_tagline|default:'Fashion Beyond Ordinary' }}</p>
                 </div>
+                <p class="max-w-md text-sm leading-relaxed text-slate-500">
+                    Real garments crafted with authentic materials, designed around personal style.
+                </p>
+                <p class="text-xs text-slate-400">
+                    Questions? <a href="mailto:{{ support_email|default:'support@flashwear.local' }}" class="text-slate-600 underline underline-offset-4 hover:text-slate-900">{{ support_email|default:'support@flashwear.local' }}</a>
+                </p>
             </div>
-            <p class="max-w-md text-sm leading-relaxed text-slate-600">
-                The catalogue is live: real garments, real colour and size variants. The closet, outfits
-                and AI stylist arrive in later phases.
-            </p>
-            <p class="text-xs text-slate-500">
-                Support: <a href="mailto:{{ support_email|default:'support@flashwear.local' }}" class="text-slate-700 underline underline-offset-4 hover:text-slate-900">{{ support_email|default:'support@flashwear.local' }}</a>
-            </p>
-        </div>
 
-        <div>
-            <h3 class="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500">Shop</h3>
-            <ul class="mt-4 space-y-3 text-sm text-slate-600">
-                <li><a href="{% url 'catalog:product-list' %}" class="transition hover:text-slate-900">All products</a></li>
-                <li><a href="{% url 'catalog:category-list' %}" class="transition hover:text-slate-900">Categories</a></li>
-                <li><a href="{% url 'catalog:collection-list' %}" class="transition hover:text-slate-900">Collections</a></li>
-                <li><span class="text-slate-400">Outfits (coming soon)</span></li>
-                <li><span class="text-slate-400">Drops (coming soon)</span></li>
-            </ul>
-        </div>
-
-        <div>
-            <h3 class="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500">Platform</h3>
-            <ul class="mt-4 space-y-3 text-sm text-slate-600">
-                <li><a href="{% url 'core:home' %}" class="transition hover:text-slate-900">Home</a></li>
-                <li><a href="{% url 'account:dashboard' %}" class="transition hover:text-slate-900">My account</a></li>
-                <li><a href="{% url 'v1:root' %}" class="transition hover:text-slate-900">API</a></li>
-                <li><a href="{% url 'admin:index' %}" class="transition hover:text-slate-900">Admin</a></li>
-                <li><a href="{% url 'core:health' %}" class="transition hover:text-slate-900">Health</a></li>
-            </ul>
-        </div>
-    </div>
-
-    <div class="border-t border-slate-200 bg-slate-50/60">
-        <div class="mx-auto flex flex-col items-center justify-between gap-4 px-4 py-6 sm:flex-row sm:px-6 lg:px-8">
-            <p class="text-xs text-slate-500">
-                © {% now "Y" %} {{ site_name|default:'FLASHWEAR' }}. All rights reserved.
-            </p>
-            <div class="flex items-center gap-4 text-xs text-slate-500">
-                <span>Phase 3 · Product Catalogue</span>
-                <span aria-hidden="true">·</span>
-                <span>{% flashwear_version %}</span>
+            <div>
+                <h3 class="editorial-label">Shop</h3>
+                <ul class="mt-4 space-y-2.5 text-sm text-slate-500">
+                    <li><a href="{% url 'catalog:product-list' %}" class="transition hover:text-slate-900">All products</a></li>
+                    <li><a href="{% url 'catalog:category-list' %}" class="transition hover:text-slate-900">Categories</a></li>
+                    <li><a href="{% url 'catalog:collection-list' %}" class="transition hover:text-slate-900">Collections</a></li>
+                    <li><a href="{% url 'loop:resale-list' %}" class="transition hover:text-slate-900">FLASH Loop</a></li>
+                    <li><a href="{% url 'catalog:visual-search' %}" class="transition hover:text-slate-900">Visual Discovery</a></li>
+                </ul>
             </div>
+
+            <div>
+                <h3 class="editorial-label">Style</h3>
+                <ul class="mt-4 space-y-2.5 text-sm text-slate-500">
+                    <li><a href="{% url 'account:studio' %}" class="transition hover:text-slate-900">Style Studio</a></li>
+                    <li><a href="{% url 'account:outfits' %}" class="transition hover:text-slate-900">My Outfits</a></li>
+                    <li><a href="{% url 'account:closet' %}" class="transition hover:text-slate-900">FLASH Closet</a></li>
+                    <li><a href="{% url 'shop:wishlist' %}" class="transition hover:text-slate-900">Wishlist</a></li>
+                </ul>
+            </div>
+
+            <div>
+                <h3 class="editorial-label">Account</h3>
+                <ul class="mt-4 space-y-2.5 text-sm text-slate-500">
+                    <li><a href="{% url 'account:dashboard' %}" class="transition hover:text-slate-900">My Account</a></li>
+                    <li><a href="{% url 'account:orders' %}" class="transition hover:text-slate-900">Orders</a></li>
+                    <li><a href="{% url 'account:returns' %}" class="transition hover:text-slate-900">Returns</a></li>
+                    <li><a href="{% url 'support:home' %}" class="transition hover:text-slate-900">Support</a></li>
+                    <li><a href="{% url 'account:loyalty' %}" class="transition hover:text-slate-900">FLASH Points</a></li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="mt-12 border-t border-slate-100 pt-6 flex flex-col items-center justify-between gap-4 sm:flex-row">
+            <p class="text-xs text-slate-400">
+                &copy; {% now "Y" %} {{ site_name|default:'FLASHWEAR' }} &middot; Platform under development
+            </p>
+            <span class="text-xs text-slate-400">{% flashwear_version %}</span>
         </div>
     </div>
 </footer>

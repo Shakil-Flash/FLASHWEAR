@@ -1142,10 +1142,11 @@ class TestDashboard:
     def test_sections_mark_later_phases_as_unavailable(self, db):
         sections = {section["label"]: section for section in account_sections()}
 
-        # Orders went live in Phase 6, Loyalty in Phase 7; the rest shows as planned.
+        # Orders went live in Phase 6, Loyalty in Phase 7, Wishlist in Phase 26;
+        # the rest shows as planned.
         assert sections["Orders"]["url"] == reverse("account:orders")
         assert sections["Addresses"]["url"] == reverse("account:addresses")
-        assert sections["Wishlist"]["url"] is None
+        assert sections["Wishlist"]["url"] == reverse("shop:wishlist")
         assert sections["Reviews"]["url"] is None
         assert sections["Loyalty"]["url"] == reverse("account:loyalty")
 

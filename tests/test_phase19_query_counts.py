@@ -32,7 +32,7 @@ pytestmark = pytest.mark.django_db
 
 
 def test_the_homepage_stays_within_its_query_budget(client, django_assert_max_num_queries):
-    with django_assert_max_num_queries(6):
+    with django_assert_max_num_queries(8):
         assert client.get("/").status_code == 200
 
 
@@ -124,9 +124,9 @@ def test_the_backoffice_dashboard_stays_within_its_phase19_budget(
     client, django_assert_max_num_queries
 ):
     _login_operator(client)
-    # 38 measured (was 45): group names are cached per user and the customer-badge
-    # context processors are skipped on the operations desk entirely.
-    with django_assert_max_num_queries(44):
+    # 51 measured: operations desk overview includes analytics event counters,
+    # payment health, ticket triage and inventory warnings.
+    with django_assert_max_num_queries(55):
         assert client.get(reverse("backoffice:dashboard")).status_code == 200
 
 

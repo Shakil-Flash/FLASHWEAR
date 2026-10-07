@@ -1,14 +1,20 @@
 {% extends "catalog/listing_base.html" %}
 {% load catalog_extras %}
 
-{% block crumb_label %}All products{% endblock crumb_label %}
-{% block heading %}All products{% endblock heading %}
+{% block crumb_label %}{% if filters.query %}Search: “{{ filters.query }}”{% else %}Shop{% endif %}{% endblock crumb_label %}
+{% block heading %}{% if filters.query %}Search: “{{ filters.query }}”{% else %}All products{% endif %}{% endblock heading %}
 
 {% block lede %}
-    <p class="mt-3 text-base leading-relaxed text-slate-600">
-        Every garment FLASHWEAR makes and sells, in one place. Filter by department, or sort by
-        price.
-    </p>
+    {% if filters.query %}
+        <p class="mt-3 text-base leading-relaxed text-slate-600">
+            Matching garments found across title, category, brand and tags.
+        </p>
+    {% else %}
+        <p class="mt-3 text-base leading-relaxed text-slate-600">
+            Every garment FLASHWEAR makes and sells, in one place. Filter by department, or sort by
+            price.
+        </p>
+    {% endif %}
 {% endblock lede %}
 
 {% block filters %}

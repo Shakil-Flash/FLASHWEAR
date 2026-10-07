@@ -62,9 +62,9 @@ its page 404s too, and there is nothing to link to from here.
                 {% endfor %}
             </div>
         {% else %}
-            <div class="mt-10 rounded-2xl border border-dashed border-slate-300 bg-white/70 p-10 text-center">
-                <p class="text-base font-semibold text-slate-900">No collections are running</p>
-                <p class="mt-2 text-sm text-slate-600">The next drop will appear here.</p>
+            <div class="mt-10 rounded-2xl border border-dashed border-slate-200 bg-white p-10 text-center">
+                <p class="text-base font-semibold text-slate-900">No collections are running right now.</p>
+                <p class="mt-2 text-sm text-slate-500">New collections drop regularly — check back soon.</p>
                 <a href="{% url 'catalog:product-list' %}"
                    class="mt-6 inline-flex items-center rounded-full bg-flash-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-flash-700">
                     Browse all products

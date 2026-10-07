@@ -6,7 +6,26 @@
 
 {% block content %}
 <div class="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-    <h1 class="text-2xl font-semibold tracking-tight text-slate-950">Checkout</h1>
+    <div class="mb-8">
+        <ol class="flex flex-wrap items-center gap-1 text-xs font-medium text-slate-500 sm:text-sm" aria-label="Checkout steps">
+            <li class="flex items-center text-flash-700">
+                <a href="{% url 'shop:cart' %}" class="hover:underline">1. Bag</a>
+                <svg class="mx-2 h-3.5 w-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+            </li>
+            <li class="flex items-center {% if not checkout.is_validated %}font-bold text-slate-900{% else %}text-flash-700{% endif %}">
+                <span>2. Details</span>
+                <svg class="mx-2 h-3.5 w-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+            </li>
+            <li class="flex items-center {% if checkout.is_validated %}font-bold text-slate-900{% else %}text-slate-400{% endif %}">
+                <span>3. Review &amp; Pay</span>
+                <svg class="mx-2 h-3.5 w-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+            </li>
+            <li class="flex items-center text-slate-400">
+                <span>4. Done</span>
+            </li>
+        </ol>
+        <h1 class="mt-4 text-3xl font-semibold tracking-tight text-slate-950">Checkout</h1>
+    </div>
 
     {% if checkout.is_validated %}
     {% comment %} Validated handoff: Phase 5 ends here. Payment is Phase 6. {% endcomment %}
