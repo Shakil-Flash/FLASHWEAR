@@ -18,6 +18,7 @@ from django.conf import settings
 from django.core.validators import MinValueValidator
 from django.db import models
 from django.db.models import Q, Sum
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from apps.catalog.models.base import TimestampedModel
@@ -490,6 +491,44 @@ class WishlistItem(TimestampedModel):
         blank=True,
         help_text=_("Personal reminder, e.g. 'Birthday gift for Mom'."),
     )
+    # Smart wishlist & alerts (Phase 33)
+    price_when_added = models.DecimalField(
+        _("price when added"),
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text=_("Price at the time the product or variant was saved."),
+    )
+    notify_price_drop = models.BooleanField(
+        _("notify on price drop"),
+        default=False,
+        help_text=_("Alert customer when price decreases."),
+    )
+    notify_back_in_stock = models.BooleanField(
+        _("notify back in stock"),
+        default=False,
+        help_text=_("Alert customer when this item is back in stock."),
+    )
+    last_notified_price = models.DecimalField(
+        _("last notified price"),
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text=_("Price at which the last price drop notification was sent."),
+    )
+    last_notified_stock_at = models.DateTimeField(
+        _("last notified back in stock at"),
+        null=True,
+        blank=True,
+        help_text=_("Timestamp when back-in-stock notification was last sent."),
+    )
+    was_out_of_stock = models.BooleanField(
+        _("was out of stock"),
+        default=False,
+        help_text=_("Tracks if item was out of stock when alert was enabled or last checked."),
+    )
 
     class Meta:
         verbose_name = _("wishlist item")
@@ -529,6 +568,106 @@ class WishlistItem(TimestampedModel):
         if self.variant:
             return self.variant.get_absolute_url()
         return self.product.get_absolute_url()
+
+    # -- Pricing & alerts (Phase 33) -------------------------------------------
+
+    @property
+    def current_price(self) -> Decimal | None:
+        """Real current price of this saved item."""
+        if self.variant:
+            return self.variant.price
+        if self.product:
+            low, _ = self.product.price_range
+            return low
+        return None
+
+    @property
+    def previous_price(self) -> Decimal | None:
+        """Previous price from addition snapshot or variant compare_at_price."""
+        curr = self.current_price
+        if self.price_when_added is not None and curr is not None and self.price_when_added > curr:
+            return self.price_when_added
+        if (
+            self.variant
+            and self.variant.compare_at_price is not None
+            and self.variant.compare_at_price > self.variant.price
+        ):
+            return self.variant.compare_at_price
+        return None
+
+    @property
+    def has_price_drop(self) -> bool:
+        """True when the current price is strictly lower than previous price."""
+        prev = self.previous_price
+        curr = self.current_price
+        return bool(prev is not None and curr is not None and prev > curr)
+
+    @property
+    def price_drop_amount(self) -> Decimal | None:
+        """Monetary difference between previous and current price."""
+        if self.has_price_drop and self.previous_price and self.current_price:
+            return self.previous_price - self.current_price
+        return None
+
+    # -- Availability & Stock States (Phase 33) --------------------------------
+
+    @property
+    def is_available(self) -> bool:
+        """Whether the product is currently published and active in storefront."""
+        return bool(self.product and self.product.is_published)
+
+    @property
+    def stock_state(self) -> str:
+        """Real stock state:
+
+        'unavailable', 'out_of_stock', 'low_stock', 'back_in_stock', 'in_stock'.
+        """
+        if not self.is_available:
+            return "unavailable"
+        if self.variant:
+            stock = getattr(self.variant, "stock", None)
+            if stock is None:
+                return "in_stock"
+            if stock.available <= 0:
+                return "out_of_stock"
+            if (
+                self.last_notified_stock_at
+                and stock.available > 0
+                and (timezone.now() - self.last_notified_stock_at).days <= 3
+            ):
+                return "back_in_stock"
+            if 0 < stock.available <= 5:
+                return "low_stock"
+            return "in_stock"
+        else:
+            if not self.product.is_in_stock:
+                return "out_of_stock"
+            if (
+                self.last_notified_stock_at
+                and (timezone.now() - self.last_notified_stock_at).days <= 3
+            ):
+                return "back_in_stock"
+            return "in_stock"
+
+    @property
+    def is_in_stock(self) -> bool:
+        """Whether item can currently be purchased."""
+        return self.stock_state in ("in_stock", "low_stock", "back_in_stock")
+
+    @property
+    def is_low_stock(self) -> bool:
+        """Real inventory only: 1 to 5 units available."""
+        return self.stock_state == "low_stock"
+
+    @property
+    def is_out_of_stock(self) -> bool:
+        """0 units available or sold out."""
+        return self.stock_state == "out_of_stock"
+
+    @property
+    def is_back_in_stock(self) -> bool:
+        """Previously out of stock and recently restored to inventory."""
+        return self.stock_state == "back_in_stock"
 
     def clean(self):
         super().clean()

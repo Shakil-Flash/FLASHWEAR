@@ -15,19 +15,7 @@
             {% endblock title %}
         · FLASHWEAR</title>
         {# Instant theme resolution to eliminate any flash of unstyled theme #}
-        <script>
-            (function() {
-                try {
-                    var t = localStorage.getItem('theme') || 'auto';
-                    var d = window.matchMedia('(prefers-color-scheme: dark)').matches;
-                    if (t === 'dark' || (t === 'auto' && d)) {
-                        document.documentElement.classList.add('dark');
-                    } else {
-                        document.documentElement.classList.remove('dark');
-                    }
-                } catch (e) {}
-            })();
-        </script>
+        <script src="{% static 'js/theme-init.js' %}"></script>
         <link rel="stylesheet" href="{% static 'css/app.css' %}" />
         <script src="{% static 'vendor/alpine.min.js' %}" defer></script>
     </head>

@@ -107,7 +107,11 @@ Three rules shape this template:
                     {% if signals.low_stock %}
                         <span class="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-800 ring-1 ring-amber-200">
                             <span class="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
-                            {% if signals.units_left %}Only {{ signals.units_left }} left{% else %}Low stock on select sizes{% endif %}
+                            {% if signals.units_left %}
+                                Only {{ signals.units_left }} left
+                            {% else %}
+                                Low stock on select sizes
+                            {% endif %}
                         </span>
                     {% endif %}
                     {% if signals.in_user_size %}
@@ -125,7 +129,10 @@ Three rules shape this template:
                     <p class="mt-3 text-xs text-slate-500">
                         Part of the
                         {% for col in collections %}
-                            <a href="{{ col.get_absolute_url }}" class="font-semibold text-slate-900 underline underline-offset-4 hover:text-flash-600">{{ col.name }}</a>{% if not forloop.last %}, {% endif %}
+                            <a href="{{ col.get_absolute_url }}" class="font-semibold text-slate-900 underline underline-offset-4 hover:text-flash-600">{{ col.name }}</a>
+                            {% if not forloop.last %}
+                                ,
+                            {% endif %}
                         {% endfor %}
                         series.
                     </p>
@@ -160,176 +167,198 @@ Three rules shape this template:
                         {% endwith %}
                     {% endif %}
 
-                    {% comment %} Wishlist heart: signed-in shoppers toggle it here; guests are sent
-                    to sign-in and returned to this page. {% endcomment %}
-                    <form method="post" action="{% url 'shop:wishlist-add' %}" class="ml-auto">
-                        {% csrf_token %}
-                        <input type="hidden" name="product_id" value="{{ product.pk }}" />
-                        {% if selected_variant %}
-                            <input type="hidden" name="variant_id" value="{{ selected_variant.pk }}" />
+                    {% comment %} Wishlist action: signed-in shoppers can save/remove and manage alerts {% endcomment %}
+                    <div class="ml-auto flex items-center gap-2">
+                        {% if in_wishlist and wishlist_item %}
+                            {# Saved button (clicking removes) #}
+                            <form method="post" action="{% url 'shop:wishlist-remove' wishlist_item.pk %}">
+                                {% csrf_token %}
+                                <button type="submit" class="inline-flex items-center gap-2 rounded-full border border-flash-600 bg-flash-50 px-4 py-2 text-sm font-medium text-flash-700 transition hover:bg-flash-100 focus:outline-none focus:ring-2 focus:ring-flash-500/30 dark:border-flash-800 dark:bg-flash-950/40 dark:text-flash-300" aria-current="true" title="Remove from wishlist">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.5" class="h-4 w-4">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
+                                    </svg>
+                                    Saved
+                                </button>
+                            </form>
+                            {# Quick Alert Dropdown #}
+                            <div class="relative" x-data="{ open: false }">
+                                <button @click="open = !open" type="button" class="inline-flex items-center justify-center rounded-full border border-slate-300 p-2 text-slate-700 hover:bg-slate-50 transition focus:outline-none focus:ring-2 focus:ring-flash-500/20 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800" title="Manage alerts for this item">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-4 w-4">
+                                        <path d="M10 2a6 6 0 00-6 6c0 1.887-.454 3.665-1.257 5.234a.75.75 0 00.515 1.076 32.91 32.91 0 003.256.508 3.5 3.5 0 006.972 0 32.903 32.903 0 003.256-.508.75.75 0 00.515-1.076A11.448 11.448 0 0116 8a6 6 0 00-6-6zm-1.5 15.75a2 2 0 003 0c-.987.086-1.996.086-3 0z" />
+                                    </svg>
+                                </button>
+                                <div x-show="open" @click.away="open = false" x-cloak class="absolute right-0 z-20 mt-2 w-56 rounded-xl border border-slate-200 bg-white p-3 shadow-lg dark:border-slate-800 dark:bg-slate-900 text-xs">
+                                    <p class="font-semibold text-slate-900 dark:text-white mb-2">
+                                        Item alerts
+                                    </p>
+                                    <form method="post" action="{% url 'shop:wishlist-toggle-alert' wishlist_item.pk %}" class="mb-2">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="alert_type" value="price_drop" />
+                                        <button type="submit" class="flex w-full items-center justify-between rounded-lg p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-left">
+                                            <span>Price drop alert</span>
+                                            <span class="font-bold {% if wishlist_item.notify_price_drop %}text-flash-600 dark:text-flash-400{% else %}text-slate-400{% endif %}">
+                                                {% if wishlist_item.notify_price_drop %}
+                                                    ON
+                                                {% else %}
+                                                    OFF
+                                                {% endif %}
+                                            </span>
+                                        </button>
+                                    </form>
+                                    <form method="post" action="{% url 'shop:wishlist-toggle-alert' wishlist_item.pk %}">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="alert_type" value="back_in_stock" />
+                                        <button type="submit" class="flex w-full items-center justify-between rounded-lg p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-left">
+                                            <span>Back in stock alert</span>
+                                            <span class="font-bold {% if wishlist_item.notify_back_in_stock %}text-emerald-600 dark:text-emerald-400{% else %}text-slate-400{% endif %}">
+                                                {% if wishlist_item.notify_back_in_stock %}
+                                                    ON
+                                                {% else %}
+                                                    OFF
+                                                {% endif %}
+                                            </span>
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        {% else %}
+                            <form method="post" action="{% url 'shop:wishlist-add' %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="product_id" value="{{ product.pk }}" />
+                                {% if selected_variant %}
+                                    <input type="hidden" name="variant_id" value="{{ selected_variant.pk }}" />
+                                {% endif %}
+                                <button type="submit" class="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-900 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-flash-500/30 focus:ring-offset-2 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-slate-500">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-4 w-4">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
+                                    </svg>
+                                    Save
+                                </button>
+                            </form>
                         {% endif %}
-                        <button type="submit" class="inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-flash-500/30 focus:ring-offset-2 {% if in_wishlist %}border-flash-600 bg-flash-50 text-flash-700{% else %}border-slate-300 bg-white text-slate-700 hover:border-slate-900{% endif %}" {% if in_wishlist %}aria-current="true"{% endif %}>
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="{% if in_wishlist %}currentColor{% else %}none{% endif %}" stroke="currentColor" stroke-width="1.5" class="h-4 w-4">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
-                            </svg>
-                            {% if in_wishlist %}
-                                Saved
-                            {% else %}
-                                Save
-                            {% endif %}
-                        </button>
-                    </form>
-                </                <div id="pdp-buy-flow" x-data="{
-                    adding: false,
-                    added: false,
-                    showSizeGuide: false,
-                    async addToBag(e) {
-                        this.adding = true;
-                        const form = e.target;
-                        const formData = new FormData(form);
-                        try {
-                            const res = await fetch(form.action, {
-                                method: 'POST',
-                                headers: {
-                                    'X-Requested-With': 'XMLHttpRequest',
-                                    'Accept': 'application/json'
-                                },
-                                body: formData
-                            });
-                            if (res.ok) {
-                                const data = await res.json();
-                                this.added = true;
-                                this.$dispatch('cart-updated');
-                                this.$dispatch('open-mini-cart');
-                                setTimeout(() => { this.added = false; }, 2500);
-                            } else {
-                                form.submit();
-                            }
-                        } catch (err) {
-                            form.submit();
-                        } finally {
-                            this.adding = false;
-                        }
-                    }
-                }">
+                    </div>
+                </div>
+                <div id="pdp-buy-flow"
+                     x-data="{ adding: false, added: false, showSizeGuide: false, async addToBag(e) { this.adding = true; const form = e.target; const formData = new FormData(form); try { const res = await fetch(form.action, { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }, body: formData }); if (res.ok) { const data = await res.json(); this.added = true; this.$dispatch('cart-updated'); this.$dispatch('open-mini-cart'); setTimeout(() => { this.added = false; }, 2500); } else { form.submit(); } } catch (err) { form.submit(); } finally { this.adding = false; } } }">
                     <div id="variant-options">
-                    {% if matrix.has_variants %}
-                        {% if matrix.colors|length > 1 %}
-                            <fieldset class="mt-8">
-                                <legend class="text-sm font-semibold text-slate-900">
-                                    Colour
-                                    {% if selected_color %}
-                                        <span class="font-normal text-slate-500">: {{ selected_color.name }}</span>
-                                    {% endif %}
-                                </legend>
-                                <ul class="mt-3 flex flex-wrap items-center gap-3">
-                                    {% for color in matrix.colors %}
-                                        <li>
-                                            <a href="?color={{ color.slug }}{% if selected_size %}&amp;size={{ selected_size.code|urlencode }}{% endif %}"
-                                               title="{{ color.name }}"
-                                               aria-label="{{ color.name }}"
-                                               {% if selected_color and selected_color.pk == color.pk %}aria-current="true"{% endif %}
-                                               class="flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition {% if selected_color and selected_color.pk == color.pk %}border-slate-900 bg-slate-900 text-white{% else %}border-slate-300 bg-white text-slate-700 hover:border-slate-900{% endif %}">
-                                                <span class="h-4 w-4 rounded-full ring-1 ring-slate-300" style="{{ color|swatch_style }}"></span>
-                                                {{ color.name }}
-                                            </a>
-                                        </li>
-                                    {% endfor %}
-                                </ul>
-                            </fieldset>
-                        {% endif %}
-
-                        {% if size_options %}
-                            <fieldset class="mt-6">
-                                <div class="flex items-center justify-between">
+                        {% if matrix.has_variants %}
+                            {% if matrix.colors|length > 1 %}
+                                <fieldset class="mt-8">
                                     <legend class="text-sm font-semibold text-slate-900">
-                                        Size
-                                        {% if selected_size %}
-                                            <span class="font-normal text-slate-500">: {{ selected_size.code }}</span>
+                                        Colour
+                                        {% if selected_color %}
+                                            <span class="font-normal text-slate-500">: {{ selected_color.name }}</span>
                                         {% endif %}
                                     </legend>
-                                    {% if sizing_guide %}
-                                    <button type="button"
-                                            @click="showSizeGuide = true"
-                                            class="text-xs font-semibold text-flash-700 underline-offset-4 hover:underline">
-                                        Find your size
-                                    </button>
-                                    {% endif %}
-                                </div>
-                                <ul class="mt-3 flex flex-wrap items-center gap-2">
-                                    {% for opt in size_options %}
-                                        <li>
-                                            {% if opt.is_available and not opt.is_sold_out %}
-                                                <a href="?size={{ opt.size.code|urlencode }}{% if selected_color %}&amp;color={{ selected_color.slug }}{% endif %}"
-                                                   {% if opt.is_selected %}aria-current="true"{% endif %}
-                                                   class="relative inline-flex min-w-[3.25rem] flex-col items-center justify-center rounded-xl border px-3 py-2 text-sm font-medium transition {% if opt.is_selected %}border-slate-900 bg-slate-900 text-white shadow-sm ring-2 ring-slate-900 ring-offset-2{% else %}border-slate-300 bg-white text-slate-800 hover:border-slate-900{% endif %}">
-                                                    <span>{{ opt.size.code }}</span>
-                                                    {% if opt.units_left <= 5 and opt.units_left > 0 %}
-                                                        <span class="text-[9px] font-normal leading-tight text-amber-500 {% if opt.is_selected %}text-amber-300{% endif %}">
-                                                            {{ opt.units_left }} left
-                                                        </span>
-                                                    {% endif %}
+                                    <ul class="mt-3 flex flex-wrap items-center gap-3">
+                                        {% for color in matrix.colors %}
+                                            <li>
+                                                <a href="?color={{ color.slug }}{% if selected_size %}&amp;size={{ selected_size.code|urlencode }}{% endif %}"
+                                                   title="{{ color.name }}"
+                                                   aria-label="{{ color.name }}"
+                                                   {% if selected_color and selected_color.pk == color.pk %}aria-current="true"{% endif %}
+                                                   class="flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition {% if selected_color and selected_color.pk == color.pk %}border-slate-900 bg-slate-900 text-white{% else %}border-slate-300 bg-white text-slate-700 hover:border-slate-900{% endif %}">
+                                                    <span class="h-4 w-4 rounded-full ring-1 ring-slate-300" style="{{ color|swatch_style }}"></span>
+                                                    {{ color.name }}
                                                 </a>
-                                            {% else %}
-                                                <a href="?size={{ opt.size.code|urlencode }}{% if selected_color %}&amp;color={{ selected_color.slug }}{% endif %}"
-                                                   {% if opt.is_selected %}aria-current="true"{% endif %}
-                                                   title="Sold out"
-                                                   class="relative inline-flex min-w-[3.25rem] flex-col items-center justify-center rounded-xl border border-slate-200 bg-slate-100 px-3 py-2 text-sm font-medium text-slate-400 line-through decoration-slate-400 hover:border-slate-400">
-                                                    <span>{{ opt.size.code }}</span>
-                                                    <span class="text-[9px] font-normal leading-tight no-underline text-slate-400">Out</span>
-                                                </a>
+                                            </li>
+                                        {% endfor %}
+                                    </ul>
+                                </fieldset>
+                            {% endif %}
+
+                            {% if size_options %}
+                                <fieldset class="mt-6">
+                                    <div class="flex items-center justify-between">
+                                        <legend class="text-sm font-semibold text-slate-900">
+                                            Size
+                                            {% if selected_size %}
+                                                <span class="font-normal text-slate-500">: {{ selected_size.code }}</span>
                                             {% endif %}
-                                        </li>
-                                    {% endfor %}
-                                </ul>
-                            </fieldset>
+                                        </legend>
+                                        {% if sizing_guide %}
+                                            <button type="button" @click="showSizeGuide = true" class="text-xs font-semibold text-flash-700 underline-offset-4 hover:underline">
+                                                Find your size
+                                            </button>
+                                        {% endif %}
+                                    </div>
+                                    <ul class="mt-3 flex flex-wrap items-center gap-2">
+                                        {% for opt in size_options %}
+                                            <li>
+                                                {% if opt.is_available and not opt.is_sold_out %}
+                                                    <a href="?size={{ opt.size.code|urlencode }}{% if selected_color %}&amp;color={{ selected_color.slug }}{% endif %}"
+                                                       {% if opt.is_selected %}aria-current="true"{% endif %}
+                                                       class="relative inline-flex min-w-[3.25rem] flex-col items-center justify-center rounded-xl border px-3 py-2 text-sm font-medium transition {% if opt.is_selected %}border-slate-900 bg-slate-900 text-white shadow-sm ring-2 ring-slate-900 ring-offset-2{% else %}border-slate-300 bg-white text-slate-800 hover:border-slate-900{% endif %}">
+                                                        <span>{{ opt.size.code }}</span>
+                                                        {% if opt.units_left <= 5 and opt.units_left > 0 %}
+                                                            <span class="text-[9px] font-normal leading-tight text-amber-500 {% if opt.is_selected %}text-amber-300{% endif %}">
+                                                                {{ opt.units_left }} left
+                                                            </span>
+                                                        {% endif %}
+                                                    </a>
+                                                {% else %}
+                                                    <a href="?size={{ opt.size.code|urlencode }}{% if selected_color %}&amp;color={{ selected_color.slug }}{% endif %}" {% if opt.is_selected %}aria-current="true"{% endif %} title="Sold out" class="relative inline-flex min-w-[3.25rem] flex-col items-center justify-center rounded-xl border border-slate-200 bg-slate-100 px-3 py-2 text-sm font-medium text-slate-400 line-through decoration-slate-400 hover:border-slate-400">
+                                                        <span>{{ opt.size.code }}</span>
+                                                        <span class="text-[9px] font-normal leading-tight no-underline text-slate-400">Out</span>
+                                                    </a>
+                                                {% endif %}
+                                            </li>
+                                        {% endfor %}
+                                    </ul>
+                                </fieldset>
+                            {% endif %}
                         {% endif %}
-                    {% endif %}
                     </div>
 
                     {% comment %} Find Your Size Modal {% endcomment %}
                     {% if sizing_guide %}
-                    <div x-show="showSizeGuide"
-                         x-cloak
-                         x-transition.opacity
-                         class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm"
-                         @keydown.escape.window="showSizeGuide = false">
-                        <div class="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl" @click.outside="showSizeGuide = false">
-                            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-                                <h3 class="text-base font-semibold text-slate-950">Find Your Size</h3>
-                                <button type="button" @click="showSizeGuide = false" class="rounded-full p-1 text-slate-400 hover:text-slate-600">
-                                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                                </button>
-                            </div>
-                            <div class="mt-4 space-y-4 text-xs leading-relaxed text-slate-600">
-                                <div>
-                                    <h4 class="font-semibold text-slate-900">Fit Silhouette: {{ sizing_guide.fit_name }}</h4>
-                                    <p class="mt-1">{{ sizing_guide.fit_description }}</p>
+                        <div x-show="showSizeGuide" x-cloak x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm" @keydown.escape.window="showSizeGuide = false">
+                            <div class="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl" @click.outside="showSizeGuide = false">
+                                <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                                    <h3 class="text-base font-semibold text-slate-950">
+                                        Find Your Size
+                                    </h3>
+                                    <button type="button" @click="showSizeGuide = false" class="rounded-full p-1 text-slate-400 hover:text-slate-600">
+                                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    </button>
                                 </div>
-                                {% if sizing_guide.recommended_size %}
-                                <div class="rounded-xl bg-flash-50 border border-flash-200 p-3 text-flash-900">
-                                    <span class="font-bold">DNA Fit Recommendation:</span> Based on your profile sizing, size <strong>{{ sizing_guide.recommended_size }}</strong> is recommended.
-                                </div>
-                                {% endif %}
-                                <div>
-                                    <h4 class="font-semibold text-slate-900">Available Sizes for This Piece</h4>
-                                    <div class="mt-2 flex flex-wrap gap-2">
-                                        {% for s in sizing_guide.available_sizes %}
-                                        <span class="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-800">{{ s }}</span>
-                                        {% endfor %}
+                                <div class="mt-4 space-y-4 text-xs leading-relaxed text-slate-600">
+                                    <div>
+                                        <h4 class="font-semibold text-slate-900">
+                                            Fit Silhouette: {{ sizing_guide.fit_name }}
+                                        </h4>
+                                        <p class="mt-1">
+                                            {{ sizing_guide.fit_description }}
+                                        </p>
+                                    </div>
+                                    {% if sizing_guide.recommended_size %}
+                                        <div class="rounded-xl bg-flash-50 border border-flash-200 p-3 text-flash-900">
+                                            <span class="font-bold">DNA Fit Recommendation:</span> Based on your profile sizing, size <strong>{{ sizing_guide.recommended_size }}</strong> is recommended.
+                                        </div>
+                                    {% endif %}
+                                    <div>
+                                        <h4 class="font-semibold text-slate-900">
+                                            Available Sizes for This Piece
+                                        </h4>
+                                        <div class="mt-2 flex flex-wrap gap-2">
+                                            {% for s in sizing_guide.available_sizes %}
+                                                <span class="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-800">{{ s }}</span>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                    <div class="rounded-xl bg-slate-50 p-3 text-[11px] text-slate-500">
+                                        Garments are cut to standard streetwear dimensions. If between sizes, choose your typical fit or refer to our 30-day exchange window.
                                     </div>
                                 </div>
-                                <div class="rounded-xl bg-slate-50 p-3 text-[11px] text-slate-500">
-                                    Garments are cut to standard streetwear dimensions. If between sizes, choose your typical fit or refer to our 30-day exchange window.
+                                <div class="mt-5 flex justify-end">
+                                    <button type="button" @click="showSizeGuide = false" class="rounded-full bg-slate-900 px-5 py-2 text-xs font-semibold text-white hover:bg-slate-800">
+                                        Close
+                                    </button>
                                 </div>
                             </div>
-                            <div class="mt-5 flex justify-end">
-                                <button type="button" @click="showSizeGuide = false" class="rounded-full bg-slate-900 px-5 py-2 text-xs font-semibold text-white hover:bg-slate-800">
-                                    Close
-                                </button>
-                            </div>
                         </div>
-                    </div>
                     {% endif %}
 
                     {% comment %} Add-To-Bag & Stock Feedback {% endcomment %}
@@ -339,13 +368,12 @@ Three rules shape this template:
                                 <form method="post" action="{% url 'shop:cart-add' %}" @submit.prevent="addToBag($event)">
                                     {% csrf_token %}
                                     <input type="hidden" name="variant_id" value="{{ selected_variant.pk }}" />
-                                    <label for="add-qty" class="sr-only">Quantity</label>
+                                    <label for="add-qty" class="sr-only">
+                                        Quantity
+                                    </label>
                                     <div class="flex items-center gap-3">
                                         <input type="number" id="add-qty" name="quantity" value="1" min="1" max="{{ cart_max_quantity }}" class="w-20 rounded-lg border border-slate-300 px-3 py-3 text-sm text-slate-900 focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900" />
-                                        <button type="submit"
-                                                :disabled="adding"
-                                                :class="added ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-flash-600 hover:bg-flash-700'"
-                                                class="flex-1 rounded-full px-6 py-3.5 text-sm font-semibold text-white shadow-soft transition focus:outline-none focus:ring-2 focus:ring-flash-500/30 focus:ring-offset-2">
+                                        <button type="submit" :disabled="adding" :class="added ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-flash-600 hover:bg-flash-700'" class="flex-1 rounded-full px-6 py-3.5 text-sm font-semibold text-white shadow-soft transition focus:outline-none focus:ring-2 focus:ring-flash-500/30 focus:ring-offset-2">
                                             <span x-text="added ? '✓ Added to bag' : (adding ? 'Adding...' : 'Add to bag')">Add to bag</span>
                                         </button>
                                     </div>
@@ -412,67 +440,75 @@ Three rules shape this template:
 
                     {% comment %} Phase 31: Closet & Outfit Connection {% endcomment %}
                     {% if closet_matches %}
-                    <div class="mt-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-soft">
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center gap-2">
-                                <span class="flex h-6 w-6 items-center justify-center rounded-full bg-flash-100 text-flash-700">
-                                    <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                                    </svg>
-                                </span>
-                                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-900">
-                                    Works with {{ closet_matches|length }} piece{{ closet_matches|length|pluralize }} in your closet
-                                </h3>
+                        <div class="mt-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-soft">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-2">
+                                    <span class="flex h-6 w-6 items-center justify-center rounded-full bg-flash-100 text-flash-700">
+                                        <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                                        </svg>
+                                    </span>
+                                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-900">
+                                        Works with {{ closet_matches|length }} piece{{ closet_matches|length|pluralize }} in your closet
+                                    </h3>
+                                </div>
+                                <a href="{% url 'account:outfit-create' %}?product_id={{ product.pk }}" class="text-xs font-semibold text-flash-700 underline-offset-4 hover:underline">
+                                    Build an outfit →
+                                </a>
                             </div>
-                            <a href="{% url 'account:outfit-create' %}?product_id={{ product.pk }}"
-                               class="text-xs font-semibold text-flash-700 underline-offset-4 hover:underline">
-                                Build an outfit →
-                            </a>
-                        </div>
-                        <div class="mt-3 flex items-center gap-3 overflow-x-auto pb-1">
-                            {% for ci in closet_matches %}
-                            <div class="group flex shrink-0 items-center gap-2.5 rounded-xl border border-slate-100 bg-slate-50/80 p-2 transition hover:border-slate-300">
-                                <div class="h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-white ring-1 ring-slate-200">
-                                    {% if ci.display_image %}
-                                        <img src="{{ ci.display_image.url }}" alt="{{ ci.name }}" class="h-full w-full object-cover" />
-                                    {% else %}
-                                        <div class="flex h-full w-full items-center justify-center bg-slate-100 text-[10px] font-bold text-slate-400">
-                                            {{ ci.category|slice:":2"|upper }}
+                            <div class="mt-3 flex items-center gap-3 overflow-x-auto pb-1">
+                                {% for ci in closet_matches %}
+                                    <div class="group flex shrink-0 items-center gap-2.5 rounded-xl border border-slate-100 bg-slate-50/80 p-2 transition hover:border-slate-300">
+                                        <div class="h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-white ring-1 ring-slate-200">
+                                            {% if ci.display_image %}
+                                                <img src="{{ ci.display_image.url }}" alt="{{ ci.name }}" class="h-full w-full object-cover" />
+                                            {% else %}
+                                                <div class="flex h-full w-full items-center justify-center bg-slate-100 text-[10px] font-bold text-slate-400">
+                                                    {{ ci.category|slice:":2"|upper }}
+                                                </div>
+                                            {% endif %}
                                         </div>
-                                    {% endif %}
-                                </div>
-                                <div class="min-w-0 pr-1">
-                                    <p class="truncate text-xs font-semibold text-slate-900 max-w-[110px]">{{ ci.name }}</p>
-                                    <p class="text-[11px] text-slate-500 capitalize">{{ ci.category }}</p>
-                                </div>
+                                        <div class="min-w-0 pr-1">
+                                            <p class="truncate text-xs font-semibold text-slate-900 max-w-[110px]">
+                                                {{ ci.name }}
+                                            </p>
+                                            <p class="text-[11px] text-slate-500 capitalize">
+                                                {{ ci.category }}
+                                            </p>
+                                        </div>
+                                    </div>
+                                {% endfor %}
                             </div>
-                            {% endfor %}
                         </div>
-                    </div>
                     {% endif %}
 
                     {% comment %} Smart Alternatives when selected variant is sold out {% endcomment %}
                     {% if selected_variant and not selected_in_stock and smart_alternatives %}
-                    <div class="mt-6 rounded-2xl border border-amber-200 bg-amber-50/70 p-4">
-                        <div class="flex items-center justify-between">
-                            <h3 class="text-xs font-semibold uppercase tracking-wider text-amber-900">Similar In-Stock Alternatives</h3>
-                            <span class="text-[11px] text-amber-700">In stock now</span>
+                        <div class="mt-6 rounded-2xl border border-amber-200 bg-amber-50/70 p-4">
+                            <div class="flex items-center justify-between">
+                                <h3 class="text-xs font-semibold uppercase tracking-wider text-amber-900">
+                                    Similar In-Stock Alternatives
+                                </h3>
+                                <span class="text-[11px] text-amber-700">In stock now</span>
+                            </div>
+                            <div class="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                                {% for alt in smart_alternatives %}
+                                    <a href="{% url 'catalog:track-merchandising' %}?type=alternative_product_clicked&product_id={{ alt.pk }}&next={{ alt.get_absolute_url|urlencode }}&src=pdp_sold_out" class="group block rounded-xl bg-white p-2 shadow-sm transition hover:shadow">
+                                        <div class="aspect-[4/5] overflow-hidden rounded-lg bg-slate-100">
+                                            {% if alt.primary_image %}
+                                                <img src="{{ alt.primary_image.image.url }}" alt="{{ alt.name }}" class="h-full w-full object-cover transition group-hover:scale-105" />
+                                            {% endif %}
+                                        </div>
+                                        <p class="mt-2 truncate text-xs font-semibold text-slate-900 group-hover:underline">
+                                            {{ alt.name }}
+                                        </p>
+                                        <p class="text-xs font-bold text-slate-700">
+                                            {{ alt.price_range.0|money }}
+                                        </p>
+                                    </a>
+                                {% endfor %}
+                            </div>
                         </div>
-                        <div class="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                            {% for alt in smart_alternatives %}
-                            <a href="{% url 'catalog:track-merchandising' %}?type=alternative_product_clicked&product_id={{ alt.pk }}&next={{ alt.get_absolute_url|urlencode }}&src=pdp_sold_out"
-                               class="group block rounded-xl bg-white p-2 shadow-sm transition hover:shadow">
-                                <div class="aspect-[4/5] overflow-hidden rounded-lg bg-slate-100">
-                                    {% if alt.primary_image %}
-                                    <img src="{{ alt.primary_image.image.url }}" alt="{{ alt.name }}" class="h-full w-full object-cover transition group-hover:scale-105" />
-                                    {% endif %}
-                                </div>
-                                <p class="mt-2 truncate text-xs font-semibold text-slate-900 group-hover:underline">{{ alt.name }}</p>
-                                <p class="text-xs font-bold text-slate-700">{{ alt.price_range.0|money }}</p>
-                            </a>
-                            {% endfor %}
-                        </div>
-                    </div>
                     {% endif %}
 
                     {% comment %} Secondary Information in Clean Expandable Accordions {% endcomment %}
@@ -481,14 +517,18 @@ Three rules shape this template:
                             <summary class="flex cursor-pointer items-center justify-between text-sm font-semibold text-slate-900">
                                 <span>Description & Details</span>
                                 <span class="transition group-open:rotate-180">
-                                    <svg class="h-4 w-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7 7" /></svg>
+                                    <svg class="h-4 w-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7 7" />
+                                    </svg>
                                 </span>
                             </summary>
                             <div class="mt-3 text-sm leading-relaxed text-slate-600">
                                 {% if product.description %}
                                     {{ product.description|linebreaks }}
                                 {% else %}
-                                    <p>Signature FLASHWEAR silhouette designed for longevity, comfort, and modern expression.</p>
+                                    <p>
+                                        Signature FLASHWEAR silhouette designed for longevity, comfort, and modern expression.
+                                    </p>
                                 {% endif %}
                             </div>
                         </details>
@@ -497,25 +537,41 @@ Three rules shape this template:
                             <summary class="flex cursor-pointer items-center justify-between text-sm font-semibold text-slate-900">
                                 <span>Fit & Fabric Specifications</span>
                                 <span class="transition group-open:rotate-180">
-                                    <svg class="h-4 w-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7 7" /></svg>
+                                    <svg class="h-4 w-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7 7" />
+                                    </svg>
                                 </span>
                             </summary>
                             <div class="mt-3 space-y-2 text-sm text-slate-600">
                                 {% if product.fit %}
-                                    <p><strong class="font-medium text-slate-900">Fit:</strong> {{ product.fit.name }}</p>
+                                    <p>
+                                        <strong class="font-medium text-slate-900">Fit:</strong> {{ product.fit.name }}
+                                    </p>
                                 {% endif %}
                                 {% if materials %}
-                                    <p><strong class="font-medium text-slate-900">Material:</strong>
-                                        {% for material in materials %}{{ material.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+                                    <p>
+                                        <strong class="font-medium text-slate-900">Material:</strong>
+                                        {% for material in materials %}
+                                            {{ material.name }}
+                                            {% if not forloop.last %}
+                                                ,
+                                            {% endif %}
+                                        {% endfor %}
                                     </p>
                                 {% endif %}
                                 {% if selected_variant %}
-                                    <p><strong class="font-medium text-slate-900">SKU:</strong> <span class="font-mono text-xs text-slate-700">{{ selected_variant.sku }}</span></p>
+                                    <p>
+                                        <strong class="font-medium text-slate-900">SKU:</strong> <span class="font-mono text-xs text-slate-700">{{ selected_variant.sku }}</span>
+                                    </p>
                                 {% endif %}
                                 {% if category_trail %}
-                                    <p><strong class="font-medium text-slate-900">Category:</strong>
+                                    <p>
+                                        <strong class="font-medium text-slate-900">Category:</strong>
                                         {% for node in category_trail %}
-                                            <a href="{{ node.get_absolute_url }}" class="underline underline-offset-4 hover:text-slate-900">{{ node.name }}</a>{% if not forloop.last %}<span aria-hidden="true"> / </span>{% endif %}
+                                            <a href="{{ node.get_absolute_url }}" class="underline underline-offset-4 hover:text-slate-900">{{ node.name }}</a>
+                                            {% if not forloop.last %}
+                                                <span aria-hidden="true"> / </span>
+                                            {% endif %}
                                         {% endfor %}
                                     </p>
                                 {% endif %}
@@ -533,13 +589,21 @@ Three rules shape this template:
                             <summary class="flex cursor-pointer items-center justify-between text-sm font-semibold text-slate-900">
                                 <span>Shipping & 30-Day Returns</span>
                                 <span class="transition group-open:rotate-180">
-                                    <svg class="h-4 w-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7 7" /></svg>
+                                    <svg class="h-4 w-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7 7" />
+                                    </svg>
                                 </span>
                             </summary>
                             <div class="mt-3 space-y-2 text-xs leading-relaxed text-slate-600">
-                                <p>• <strong>Standard Shipping:</strong> 3–5 business days ($5.00, Free on orders over $100).</p>
-                                <p>• <strong>Express Delivery:</strong> 1–2 business days ($15.00).</p>
-                                <p>• <strong>30-Day Return Window:</strong> Free returns and exchanges within 30 days of delivery on unworn items with original tags intact.</p>
+                                <p>
+                                    • <strong>Standard Shipping:</strong> 3–5 business days ($5.00, Free on orders over $100).
+                                </p>
+                                <p>
+                                    • <strong>Express Delivery:</strong> 1–2 business days ($15.00).
+                                </p>
+                                <p>
+                                    • <strong>30-Day Return Window:</strong> Free returns and exchanges within 30 days of delivery on unworn items with original tags intact.
+                                </p>
                             </div>
                         </details>
                     </div>
@@ -566,72 +630,76 @@ Three rules shape this template:
 
         {% comment %} Phase 32: Community & Shoppable UGC {% endcomment %}
         {% if community_posts %}
-        <section class="mt-16 border-t border-slate-200 pt-10" aria-labelledby="community-heading">
-            <div class="flex flex-wrap items-baseline justify-between gap-4 mb-6">
-                <div>
-                    <span class="inline-flex items-center gap-1.5 rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-white">
-                        <span class="h-1.5 w-1.5 rounded-full bg-flash-400"></span>
-                        Community Proof
-                    </span>
-                    <h2 id="community-heading" class="mt-2 text-2xl font-bold tracking-tight text-slate-950">
-                        Styled by the Community
-                    </h2>
-                    <p class="mt-1 text-sm text-slate-600">
-                        Real creator styling edits and community looks featuring this piece.
-                    </p>
+            <section class="mt-16 border-t border-slate-200 pt-10" aria-labelledby="community-heading">
+                <div class="flex flex-wrap items-baseline justify-between gap-4 mb-6">
+                    <div>
+                        <span class="inline-flex items-center gap-1.5 rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-white">
+                            <span class="h-1.5 w-1.5 rounded-full bg-flash-400"></span>
+                            Community Proof
+                        </span>
+                        <h2 id="community-heading" class="mt-2 text-2xl font-bold tracking-tight text-slate-950">
+                            Styled by the Community
+                        </h2>
+                        <p class="mt-1 text-sm text-slate-600">
+                            Real creator styling edits and community looks featuring this piece.
+                        </p>
+                    </div>
+                    <a href="{% url 'inspiration:list' %}" class="text-xs font-semibold text-slate-900 hover:text-flash-700 transition">
+                        Explore all looks →
+                    </a>
                 </div>
-                <a href="{% url 'inspiration:list' %}" class="text-xs font-semibold text-slate-900 hover:text-flash-700 transition">
-                    Explore all looks →
-                </a>
-            </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                {% for post in community_posts %}
-                    {% include "creator/_seen_on_people.html" with post=post %}
-                {% endfor %}
-            </div>
-        </section>
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                    {% for post in community_posts %}
+                        {% include "creator/_seen_on_people.html" with post=post %}
+                    {% endfor %}
+                </div>
+            </section>
         {% endif %}
 
         {% if community_outfits %}
-        <section class="mt-12 border-t border-slate-100 pt-8" aria-labelledby="community-outfits-heading">
-            <div class="flex items-center justify-between mb-6">
-                <div>
-                    <p class="text-xs font-bold uppercase tracking-wider text-slate-400">Complete Ensembles</p>
-                    <h3 id="community-outfits-heading" class="mt-1 text-xl font-bold tracking-tight text-slate-950">
-                        Seen in Real Looks
-                    </h3>
-                </div>
-            </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {% for ot in community_outfits %}
-                    <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
-                        <div class="flex items-center justify-between">
-                            <h4 class="text-sm font-bold text-slate-900">{{ ot.outfit.name }}</h4>
-                            {% if ot.post.creator %}
-                                <a href="{{ ot.post.creator.get_absolute_url }}" class="text-xs text-slate-500 hover:text-slate-900 font-medium">
-                                    by {{ ot.post.creator.display_name }}
-                                </a>
-                            {% endif %}
-                        </div>
-                        {% if ot.outfit.description %}
-                            <p class="text-xs text-slate-600 mt-1 line-clamp-2">{{ ot.outfit.description }}</p>
-                        {% endif %}
-                        <div class="mt-4 flex items-center gap-2 overflow-x-auto pb-1">
-                            {% for item in ot.outfit.items.all %}
-                                <a href="{{ item.closet_item.product.get_absolute_url }}"
-                                   title="{{ item.closet_item.product.name }}"
-                                   class="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-slate-50 border border-slate-200 {% if item.closet_item.product_id == product.id %}ring-2 ring-flash-500{% endif %}">
-                                    {% if item.closet_item.product.primary_image %}
-                                        <img src="{{ item.closet_item.product.primary_image.url }}" alt="{{ item.closet_item.product.name }}" class="h-full w-full object-cover" />
-                                    {% endif %}
-                                </a>
-                            {% endfor %}
-                        </div>
+            <section class="mt-12 border-t border-slate-100 pt-8" aria-labelledby="community-outfits-heading">
+                <div class="flex items-center justify-between mb-6">
+                    <div>
+                        <p class="text-xs font-bold uppercase tracking-wider text-slate-400">
+                            Complete Ensembles
+                        </p>
+                        <h3 id="community-outfits-heading" class="mt-1 text-xl font-bold tracking-tight text-slate-950">
+                            Seen in Real Looks
+                        </h3>
                     </div>
-                {% endfor %}
-            </div>
-        </section>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {% for ot in community_outfits %}
+                        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
+                            <div class="flex items-center justify-between">
+                                <h4 class="text-sm font-bold text-slate-900">
+                                    {{ ot.outfit.name }}
+                                </h4>
+                                {% if ot.post.creator %}
+                                    <a href="{{ ot.post.creator.get_absolute_url }}" class="text-xs text-slate-500 hover:text-slate-900 font-medium">
+                                        by {{ ot.post.creator.display_name }}
+                                    </a>
+                                {% endif %}
+                            </div>
+                            {% if ot.outfit.description %}
+                                <p class="text-xs text-slate-600 mt-1 line-clamp-2">
+                                    {{ ot.outfit.description }}
+                                </p>
+                            {% endif %}
+                            <div class="mt-4 flex items-center gap-2 overflow-x-auto pb-1">
+                                {% for item in ot.outfit.items.all %}
+                                    <a href="{{ item.closet_item.product.get_absolute_url }}" title="{{ item.closet_item.product.name }}" class="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-slate-50 border border-slate-200 {% if item.closet_item.product_id == product.id %}ring-2 ring-flash-500{% endif %}">
+                                        {% if item.closet_item.product.primary_image %}
+                                            <img src="{{ item.closet_item.product.primary_image.url }}" alt="{{ item.closet_item.product.name }}" class="h-full w-full object-cover" />
+                                        {% endif %}
+                                    </a>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </section>
         {% endif %}
 
         {% comment %} Phase 7: reviews. The summary is server-computed in one query, the list is
@@ -930,10 +998,7 @@ Three rules shape this template:
         {% endif %}
 
         {% if not more_like_this and not recently_viewed %}
-            <div id="pdp-discovery-extra"
-                 hx-get="{% url 'catalog:pdp-discovery-extra' product.slug %}"
-                 hx-trigger="revealed"
-                 hx-swap="outerHTML">
+            <div id="pdp-discovery-extra" hx-get="{% url 'catalog:pdp-discovery-extra' product.slug %}" hx-trigger="revealed" hx-swap="outerHTML">
             </div>
         {% endif %}
         <p class="mt-4 text-center text-xs text-slate-500">
@@ -941,28 +1006,29 @@ Three rules shape this template:
             <a href="{% url 'support:ticket-create' %}?product={{ product.slug|urlencode }}" class="font-medium text-slate-700 underline-offset-4 hover:underline">Contact support</a>.
         </p>
     </div>
-    </div>
 
-    <!-- Mobile Sticky Purchase Bar -->
-    <div class="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 p-3 shadow-lg backdrop-blur lg:hidden">
-        <div class="mx-auto flex max-w-md items-center justify-between gap-3">
-            <div class="min-w-0">
-                <p class="truncate text-xs font-semibold text-slate-950">{{ product.name }}</p>
-                <p class="text-xs text-slate-500">
-                    {% if selected_variant %}
-                        <span class="font-bold text-slate-900">{{ selected_variant.price|money }}</span>
-                        · {{ selected_variant.option_label }}
-                    {% else %}
-                        {% with low=product.price_range.0 %}
-                            <span class="font-bold text-slate-900">{{ low|money }}</span>
-                            · Choose size/colour
-                        {% endwith %}
-                    {% endif %}
-                </p>
-            </div>
-            <div>
+<!-- Mobile Sticky Purchase Bar -->
+<div class="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 p-3 shadow-lg backdrop-blur lg:hidden">
+    <div class="mx-auto flex max-w-md items-center justify-between gap-3">
+        <div class="min-w-0">
+            <p class="truncate text-xs font-semibold text-slate-950">
+                {{ product.name }}
+            </p>
+            <p class="text-xs text-slate-500">
                 {% if selected_variant %}
-                    {% if selected_in_stock %}
+                    <span class="font-bold text-slate-900">{{ selected_variant.price|money }}</span>
+                    · {{ selected_variant.option_label }}
+                {% else %}
+                    {% with low=product.price_range.0 %}
+                        <span class="font-bold text-slate-900">{{ low|money }}</span>
+                        · Choose size/colour
+                    {% endwith %}
+                {% endif %}
+            </p>
+        </div>
+        <div>
+            {% if selected_variant %}
+                {% if selected_in_stock %}
                     <form method="post" action="{% url 'shop:cart-add' %}">
                         {% csrf_token %}
                         <input type="hidden" name="variant_id" value="{{ selected_variant.pk }}" />
@@ -971,17 +1037,17 @@ Three rules shape this template:
                             Add to bag
                         </button>
                     </form>
-                    {% else %}
+                {% else %}
                     <button type="button" disabled class="inline-flex items-center justify-center rounded-full bg-slate-200 px-4 py-2.5 text-xs font-semibold text-slate-500 cursor-not-allowed">
                         Sold out
                     </button>
-                    {% endif %}
-                {% else %}
-                    <a href="#variant-options" class="inline-flex items-center justify-center rounded-full bg-slate-900 px-4 py-2.5 text-xs font-semibold text-white shadow-soft transition hover:bg-slate-800">
-                        Select options
-                    </a>
                 {% endif %}
-            </div>
+            {% else %}
+                <a href="#variant-options" class="inline-flex items-center justify-center rounded-full bg-slate-900 px-4 py-2.5 text-xs font-semibold text-white shadow-soft transition hover:bg-slate-800">
+                    Select options
+                </a>
+            {% endif %}
         </div>
     </div>
+</div>
 {% endblock content %}

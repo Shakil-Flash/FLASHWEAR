@@ -25,6 +25,21 @@ urlpatterns = [
         views.wishlist_move_to_bag,
         name="wishlist-move-to-bag",
     ),
+    path(
+        "wishlist/toggle-alert/<int:item_pk>/",
+        views.wishlist_toggle_alert,
+        name="wishlist-toggle-alert",
+    ),
+    path(
+        "wishlist/add-all-to-bag/",
+        views.wishlist_add_all_to_bag,
+        name="wishlist-add-all-to-bag",
+    ),
+    path(
+        "wishlist/to-product/<int:item_pk>/",
+        views.wishlist_to_product,
+        name="wishlist-to-product",
+    ),
     # Checkout (Phase 5 validates; Phase 6 places the order and pays)
     path("checkout/", checkout_views.checkout_detail, name="checkout"),
     path("checkout/address/", checkout_views.checkout_address, name="checkout-address"),

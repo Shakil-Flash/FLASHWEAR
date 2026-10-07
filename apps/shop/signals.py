@@ -13,6 +13,7 @@ import logging
 
 from django.conf import settings
 from django.contrib.auth.signals import user_logged_in
+from django.db.models.signals import post_save
 from django.dispatch import receiver
 
 from apps.shop.services import CartMergeError, merge_carts
@@ -52,3 +53,43 @@ def merge_guest_cart(sender, request, user, **kwargs):
         # reachable by its session key until that session expires); the customer can
         # reconcile quantities by hand.
         logger.warning("Cart merge skipped for user %s: quantity limit conflict.", user.pk)
+
+
+@receiver(post_save, sender="inventory.Stock")
+def on_stock_level_changed(sender, instance, **kwargs):
+    """Trigger back-in-stock alerts when inventory is restored, or record out-of-stock status."""
+    if kwargs.get("raw", False):
+        return
+    try:
+        from apps.shop.models import WishlistItem
+        from apps.shop.wishlist_services import check_and_trigger_back_in_stock_alerts
+
+        if instance.available > 0:
+            check_and_trigger_back_in_stock_alerts(variant=instance.variant)
+        else:
+            WishlistItem.objects.filter(
+                variant=instance.variant,
+                notify_back_in_stock=True,
+                was_out_of_stock=False,
+            ).update(was_out_of_stock=True)
+    except Exception:
+        logger.exception(
+            "Failed processing stock update alert for stock pk=%s",
+            getattr(instance, "pk", None),
+        )
+
+
+@receiver(post_save, sender="catalog.ProductVariant")
+def on_variant_saved(sender, instance, **kwargs):
+    """Trigger price-drop alerts when a variant price decreases."""
+    if kwargs.get("raw", False):
+        return
+    try:
+        from apps.shop.wishlist_services import check_and_trigger_price_drop_alerts
+
+        check_and_trigger_price_drop_alerts(variant=instance)
+    except Exception:
+        logger.exception(
+            "Failed processing price drop alert for variant pk=%s",
+            getattr(instance, "pk", None),
+        )

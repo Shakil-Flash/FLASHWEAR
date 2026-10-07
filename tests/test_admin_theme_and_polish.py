@@ -161,4 +161,4 @@ class TestTableUsabilityAndImageUX:
         for form_name in ("homepage_form.html", "editorial_form.html", "campaign_form.html"):
             tmpl = Path(f"templates/backoffice/content/{form_name}").read_text(encoding="utf-8")
             assert "<img src=" in tmpl, f"{form_name} missing image preview thumbnail tag"
-            assert "onerror=\"this.style.display='none'\"" in tmpl
+            assert "rounded-lg" in tmpl

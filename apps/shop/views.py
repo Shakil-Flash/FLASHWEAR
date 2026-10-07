@@ -15,7 +15,6 @@ from decimal import Decimal
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
-from django.db import IntegrityError
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -25,6 +24,7 @@ from django.views.decorators.http import require_POST
 
 from apps.analytics.services import record_event
 from apps.catalog.models import Product, ProductVariant
+from apps.recommendations.services import get_customer_recommendations
 from apps.shop.models import Wishlist, WishlistItem
 from apps.shop.services import (
     add_to_cart,
@@ -36,6 +36,13 @@ from apps.shop.services import (
     remove_from_cart,
     update_cart_item_quantity,
     validate_cart_items,
+)
+from apps.shop.wishlist_services import (
+    add_all_available_to_bag,
+    add_to_wishlist,
+    get_or_create_wishlist,
+    remove_from_wishlist,
+    toggle_wishlist_alert,
 )
 
 # =============================================================================
@@ -310,33 +317,32 @@ def cart_clear(request):
 
 def _get_or_create_wishlist(user):
     """Get or create the user's wishlist, tolerating a create race."""
-    try:
-        wishlist, _ = Wishlist.objects.get_or_create(user=user)
-    except IntegrityError:
-        wishlist = Wishlist.objects.get(user=user)
-    return wishlist
+    return get_or_create_wishlist(user)
 
 
 @login_required
 @never_cache
 def wishlist_detail(request):
-    """Display the user's wishlist with real availability status and options."""
-    wishlist = _get_or_create_wishlist(request.user)
+    """Display the user's wishlist with real availability status, filters, and alerts."""
+    wishlist = get_or_create_wishlist(request.user)
     items = list(
         wishlist.items.select_related(
-            "product__brand", "variant__color", "variant__size"
+            "product__brand", "variant__color", "variant__size", "variant__stock"
         ).prefetch_related("product__variants__stock", "product__images")
     )
     enriched_items = []
     for item in items:
         prod = item.product
         var = item.variant
-        is_avail = prod.is_published
+        is_avail = item.is_available
         stock_msg = "In stock"
         is_in_stock = False
 
         if not is_avail:
             stock_msg = "Unavailable"
+        elif item.is_back_in_stock:
+            stock_msg = "Back in stock"
+            is_in_stock = True
         elif var:
             stock = getattr(var, "stock", None)
             if stock:
@@ -357,16 +363,12 @@ def wishlist_detail(request):
             else:
                 stock_msg = "In stock"
 
-        is_low_stock = bool(
-            var
-            and getattr(var, "stock", None)
-            and 0 < var.stock.available <= 5
-        )
-        is_on_sale = bool(var.is_discounted if var else prod.is_on_sale)
+        is_low_stock = item.is_low_stock
+        is_sold_out = not is_in_stock
         is_recently_added = bool(
-            item.created_at
-            and item.created_at >= timezone.now() - timedelta(days=14)
+            item.created_at and item.created_at >= timezone.now() - timedelta(days=14)
         )
+        has_price_drop = item.has_price_drop
 
         enriched_items.append(
             {
@@ -374,38 +376,93 @@ def wishlist_detail(request):
                 "is_available": is_avail,
                 "is_in_stock": is_in_stock,
                 "is_low_stock": is_low_stock,
-                "is_sold_out": not is_in_stock,
-                "is_on_sale": is_on_sale,
+                "is_sold_out": is_sold_out,
+                "is_back_in_stock": item.is_back_in_stock,
+                "is_on_sale": bool(
+                    has_price_drop or (var.is_discounted if var else prod.is_on_sale)
+                ),
+                "has_price_drop": has_price_drop,
+                "current_price": item.current_price,
+                "previous_price": item.previous_price,
+                "price_drop_amount": item.price_drop_amount,
                 "is_recently_added": is_recently_added,
                 "stock_msg": stock_msg,
+                "stock_state": item.stock_state,
+                "notify_price_drop": item.notify_price_drop,
+                "notify_back_in_stock": item.notify_back_in_stock,
                 "purchasable_variants": prod.purchasable_variants if not var else [],
             }
         )
 
+    # Filter counts
+    filter_counts = {
+        "all": len(enriched_items),
+        "available": sum(1 for e in enriched_items if e["is_in_stock"] and e["is_available"]),
+        "out_of_stock": sum(
+            1 for e in enriched_items if not e["is_in_stock"] or not e["is_available"]
+        ),
+        "price_drop": sum(1 for e in enriched_items if e["has_price_drop"] or e["is_on_sale"]),
+        "recent": sum(1 for e in enriched_items if e["is_recently_added"]),
+    }
+
+    active_filter = request.GET.get("filter", "all").strip().lower()
+    if active_filter == "available":
+        displayed_items = [e for e in enriched_items if e["is_in_stock"] and e["is_available"]]
+    elif active_filter == "out_of_stock":
+        displayed_items = [
+            e for e in enriched_items if not e["is_in_stock"] or not e["is_available"]
+        ]
+    elif active_filter == "price_drop":
+        displayed_items = [e for e in enriched_items if e["has_price_drop"] or e["is_on_sale"]]
+    elif active_filter == "recent":
+        displayed_items = [e for e in enriched_items if e["is_recently_added"]]
+    else:
+        active_filter = "all"
+        displayed_items = enriched_items
+
+    # Smart suggestions (Section 8)
+    recommendations = []
+    try:
+        raw_recs = get_customer_recommendations(request.user, limit=6)
+        wishlist_product_ids = {item.product_id for item in items}
+        recommendations = [r for r in raw_recs if r["product"].pk not in wishlist_product_ids][:4]
+    except Exception:
+        recommendations = []
+
     return render(
         request,
         "shop/wishlist.html",
-        {"wishlist": wishlist, "enriched_items": enriched_items},
+        {
+            "wishlist": wishlist,
+            "enriched_items": displayed_items,
+            "all_items_count": len(enriched_items),
+            "filter_counts": filter_counts,
+            "active_filter": active_filter,
+            "has_available_items": filter_counts["available"] > 0,
+            "recommendations": recommendations,
+        },
     )
 
 
 @login_required
 @require_POST
 def wishlist_add(request):
-    """Add a product (optionally a variant) to the wishlist."""
+    """Add a product (optionally a variant) to the wishlist with real price baseline."""
     product_id = request.POST.get("product_id")
     variant_id = request.POST.get("variant_id")
+    note = request.POST.get("note", "").strip()[:200]
+    notify_price_drop = request.POST.get("notify_price_drop") in ("1", "true", "True", True)
+    notify_back_in_stock = request.POST.get("notify_back_in_stock") in ("1", "true", "True", True)
 
     if not product_id:
-        if _is_htmx(request):
+        if _is_htmx(request) or request.headers.get("accept") == "application/json":
             return JsonResponse({"error": _("Product ID required")}, status=400)
         messages.error(request, _("Product ID required"))
         return redirect("shop:wishlist")
 
     product = get_object_or_404(Product, pk=product_id)
-    # is_published is a property (not a column), so it cannot go in the ORM filter.
     if not product.is_published:
-        if _is_htmx(request):
+        if _is_htmx(request) or request.headers.get("accept") == "application/json":
             return JsonResponse({"error": _("Product not found")}, status=404)
         messages.error(request, _("Product not found"))
         return redirect("shop:wishlist")
@@ -419,27 +476,27 @@ def wishlist_add(request):
             product=product,
         )
 
-    wishlist = _get_or_create_wishlist(request.user)
-    try:
-        WishlistItem.objects.get_or_create(
-            wishlist=wishlist,
-            product=product,
-            variant=variant,
-        )
-    except IntegrityError:
-        # Duplicate created concurrently; it is already on the wishlist.
-        pass
-
-    record_event(
-        "wishlist_add",
+    item, created = add_to_wishlist(
+        request.user,
+        product,
+        variant=variant,
+        note=note,
+        notify_price_drop=notify_price_drop,
+        notify_back_in_stock=notify_back_in_stock,
         request=request,
-        object_type="product",
-        object_id=product.pk,
-        metadata={"variant": variant.pk if variant else None},
     )
+
+    wishlist = get_or_create_wishlist(request.user)
 
     if _is_htmx(request):
         return JsonResponse({"count": wishlist.get_item_count()})
+    if request.headers.get("accept") == "application/json":
+        return JsonResponse({
+            "count": wishlist.get_item_count(),
+            "item_id": item.pk,
+            "success": True,
+            "created": created,
+        })
 
     messages.success(request, _("Added to wishlist"))
     return redirect("shop:wishlist")
@@ -449,21 +506,103 @@ def wishlist_add(request):
 @require_POST
 def wishlist_remove(request, item_pk: int):
     """Remove an item from the wishlist."""
-    wishlist = get_object_or_404(Wishlist, user=request.user)
-    item = get_object_or_404(WishlistItem, pk=item_pk, wishlist=wishlist)
-    record_event(
-        "wishlist_remove",
-        request=request,
-        object_type="product",
-        object_id=item.product_id,
-    )
-    item.delete()
+    wishlist = get_or_create_wishlist(request.user)
+    removed = remove_from_wishlist(request.user, item_pk, request=request)
+    if not removed:
+        get_object_or_404(WishlistItem, pk=item_pk, wishlist=wishlist)
 
     if _is_htmx(request):
         return JsonResponse({"count": wishlist.get_item_count()})
+    if request.headers.get("accept") == "application/json":
+        return JsonResponse({"count": wishlist.get_item_count(), "success": True})
 
     messages.success(request, _("Removed from wishlist"))
     return redirect("shop:wishlist")
+
+
+@login_required
+@require_POST
+def wishlist_toggle_alert(request, item_pk: int):
+    """Toggle price-drop or back-in-stock alerts for a wishlist item."""
+    alert_type = request.POST.get("alert_type")
+    if alert_type not in ("price_drop", "back_in_stock"):
+        return JsonResponse({"error": _("Invalid alert type")}, status=400)
+
+    wishlist = get_or_create_wishlist(request.user)
+    item = get_object_or_404(WishlistItem, pk=item_pk, wishlist=wishlist)
+
+    enabled_raw = request.POST.get("enabled")
+    enabled = None
+    if enabled_raw is not None:
+        enabled = enabled_raw in ("1", "true", "True", True)
+
+    updated_item = toggle_wishlist_alert(
+        request.user, item.pk, alert_type, enabled=enabled, request=request
+    )
+
+    is_enabled = (
+        updated_item.notify_price_drop
+        if alert_type == "price_drop"
+        else updated_item.notify_back_in_stock
+    )
+
+    if _is_htmx(request) or request.headers.get("accept") == "application/json":
+        return JsonResponse({
+            "success": True,
+            "item_id": updated_item.pk,
+            "alert_type": alert_type,
+            "enabled": is_enabled,
+        })
+
+    msg = (
+        _("Price drop alert updated.")
+        if alert_type == "price_drop"
+        else _("Back in stock alert updated.")
+    )
+    messages.success(request, msg)
+    return redirect("shop:wishlist")
+
+
+@login_required
+@require_POST
+def wishlist_add_all_to_bag(request):
+    """Add all available wishlist items directly to customer's bag."""
+    added, skipped = add_all_available_to_bag(request, request.user)
+    if added > 0:
+        messages.success(
+            request,
+            _("Added %(count)s item(s) from your wishlist to bag.") % {"count": added},
+        )
+    elif skipped > 0:
+        messages.info(
+            request,
+            _("Items require size or colour selection before adding to bag."),
+        )
+    else:
+        messages.info(request, _("No available items in wishlist."))
+
+    if _is_htmx(request) or request.headers.get("accept") == "application/json":
+        return JsonResponse({"added": added, "skipped": skipped, "success": True})
+
+    return redirect("shop:cart")
+
+
+@login_required
+def wishlist_to_product(request, item_pk: int):
+    """Track navigation from wishlist to product detail and redirect."""
+    wishlist = get_or_create_wishlist(request.user)
+    item = get_object_or_404(
+        WishlistItem.objects.select_related("product"), pk=item_pk, wishlist=wishlist
+    )
+    record_event(
+        "wishlist_to_product",
+        request=request,
+        user=request.user,
+        object_type="product",
+        object_id=item.product_id,
+        metadata={"wishlist_item": item.pk, "variant_id": item.variant_id},
+    )
+    return redirect(item.get_absolute_url())
 
 
 @login_required

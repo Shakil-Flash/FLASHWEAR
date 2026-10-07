@@ -85,6 +85,15 @@ class Event(models.Model):
             "alternative_product_clicked",
             _("alternative product clicked"),
         )
+        # Smart Wishlist & Alerts (Phase 33)
+        PRICE_ALERT_ENABLED = "price_alert_enabled", _("price alert enabled")
+        PRICE_ALERT_TRIGGERED = "price_alert_triggered", _("price alert triggered")
+        BACK_IN_STOCK_ALERT_ENABLED = (
+            "back_in_stock_alert_enabled",
+            _("back-in-stock alert enabled"),
+        )
+        BACK_IN_STOCK_TRIGGERED = "back_in_stock_triggered", _("back-in-stock notification sent")
+        WISHLIST_TO_PRODUCT = "wishlist_to_product", _("wishlist to product")
 
     name = models.CharField(_("name"), max_length=64, choices=Name.choices)
     user = models.ForeignKey(

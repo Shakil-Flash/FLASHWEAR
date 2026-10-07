@@ -137,7 +137,7 @@
                         {{ form.desktop_image }}
                         {% if section and section.desktop_image %}
                             <div class="mt-2 flex items-center gap-3">
-                                <img src="{{ section.desktop_image.url }}" alt="Desktop Preview" class="h-16 w-28 object-cover rounded-lg border border-slate-200 dark:border-slate-700 shadow-xs" onerror="this.style.display='none'" />
+                                <img src="{{ section.desktop_image.url }}" alt="Desktop Preview" class="h-16 w-28 object-cover rounded-lg border border-slate-200 dark:border-slate-700 shadow-xs" />
                                 <p class="text-xs text-slate-500">
                                     Current file · <a href="{{ section.desktop_image.url }}" target="_blank" rel="noopener noreferrer" class="text-amber-600 dark:text-amber-400 underline">View full</a>
                                 </p>
@@ -151,7 +151,7 @@
                         {{ form.desktop_image_url }}
                         {% if section and section.desktop_image_url %}
                             <div class="mt-2 flex items-center gap-3">
-                                <img src="{{ section.desktop_image_url }}" alt="Desktop External Preview" class="h-16 w-28 object-cover rounded-lg border border-slate-200 dark:border-slate-700 shadow-xs" onerror="this.style.display='none'" />
+                                <img src="{{ section.desktop_image_url }}" alt="Desktop External Preview" class="h-16 w-28 object-cover rounded-lg border border-slate-200 dark:border-slate-700 shadow-xs" />
                                 <p class="text-xs text-slate-500">
                                     Validated against SSRF rules.
                                 </p>
@@ -169,7 +169,7 @@
                         {{ form.mobile_image }}
                         {% if section and section.mobile_image %}
                             <div class="mt-2 flex items-center gap-3">
-                                <img src="{{ section.mobile_image.url }}" alt="Mobile Preview" class="h-16 w-20 object-cover rounded-lg border border-slate-200 dark:border-slate-700 shadow-xs" onerror="this.style.display='none'" />
+                                <img src="{{ section.mobile_image.url }}" alt="Mobile Preview" class="h-16 w-20 object-cover rounded-lg border border-slate-200 dark:border-slate-700 shadow-xs" />
                                 <p class="text-xs text-slate-500">
                                     Current file · <a href="{{ section.mobile_image.url }}" target="_blank" rel="noopener noreferrer" class="text-amber-600 dark:text-amber-400 underline">View full</a>
                                 </p>
@@ -183,7 +183,7 @@
                         {{ form.mobile_image_url }}
                         {% if section and section.mobile_image_url %}
                             <div class="mt-2 flex items-center gap-3">
-                                <img src="{{ section.mobile_image_url }}" alt="Mobile External Preview" class="h-16 w-20 object-cover rounded-lg border border-slate-200 dark:border-slate-700 shadow-xs" onerror="this.style.display='none'" />
+                                <img src="{{ section.mobile_image_url }}" alt="Mobile External Preview" class="h-16 w-20 object-cover rounded-lg border border-slate-200 dark:border-slate-700 shadow-xs" />
                                 <p class="text-xs text-slate-500">
                                     External URL active
                                 </p>

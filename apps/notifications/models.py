@@ -101,6 +101,7 @@ class NotificationCategory(models.TextChoices):
     LOOP = "loop", _("FLASH Loop")
     QUESTS = "quests", _("Quests & badges")
     RECOMMENDATIONS = "recommendations", _("Recommendations")
+    WISHLIST = "wishlist", _("Wishlist & stock alerts")
 
 
 class NotificationType(models.TextChoices):
@@ -167,6 +168,9 @@ class NotificationType(models.TextChoices):
     QUEST_COMPLETED = "quest_completed", _("Quest completed")
     QUEST_REWARD_GRANTED = "quest_reward_granted", _("Quest reward granted")
     BADGE_EARNED = "badge_earned", _("Badge earned")
+    # Wishlist & stock alerts (Phase 33)
+    PRICE_DROP = "price_drop", _("Price drop alert")
+    BACK_IN_STOCK = "back_in_stock", _("Back in stock alert")
 
 
 class NotificationQuerySet(models.QuerySet):

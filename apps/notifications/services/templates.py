@@ -627,6 +627,37 @@ def registry() -> dict[str, TypeSpec]:
             _("You added a badge to your profile."),
             email_subject=_("You earned a badge"),
         ),
+        # -- wishlist & alerts (Phase 33) ---------------------------------------
+        _spec(
+            NotificationType.PRICE_DROP,
+            NotificationCategory.WISHLIST,
+            _EMAIL_AND_APP,
+            _(
+                "Price drop: {% if product_name %}{{ product_name }}"
+                "{% else %}Item on your wishlist{% endif %}"
+            ),
+            _(
+                "{% if product_name %}{{ product_name }}{% else %}An item you saved{% endif %} "
+                "dropped from {{ old_price|default:'regular price' }} to {{ new_price }}."
+            ),
+            email_subject=_("Price drop on an item in your wishlist"),
+            priority=Priority.NORMAL,
+        ),
+        _spec(
+            NotificationType.BACK_IN_STOCK,
+            NotificationCategory.WISHLIST,
+            _EMAIL_AND_APP,
+            _(
+                "Back in stock: {% if product_name %}{{ product_name }}"
+                "{% else %}Item on your wishlist{% endif %}"
+            ),
+            _(
+                "{% if product_name %}{{ product_name }}{% else %}An item you saved{% endif %}"
+                "{% if variant_label %} ({{ variant_label }}){% endif %} is available again."
+            ),
+            email_subject=_("An item on your wishlist is back in stock"),
+            priority=Priority.NORMAL,
+        ),
     ]
     return {spec.notification_type: spec for spec in specs}
 

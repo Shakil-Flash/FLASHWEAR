@@ -209,12 +209,20 @@ def product_detail(request, slug: str):
         ],
     )
 
-    # Wishlist state for the heart toggle. Anonymous shoppers get the plain heart, which
+    # Wishlist state for the heart toggle & alerts. Anonymous shoppers get the plain heart, which
     # routes to the login prompt and returns them here afterwards.
     in_wishlist = False
+    wishlist_item = None
     if request.user.is_authenticated:
         wishlist = getattr(request.user, "wishlist", None)
-        in_wishlist = wishlist is not None and wishlist.has_product(product)
+        if wishlist is not None:
+            if selected:
+                wishlist_item = wishlist.items.filter(
+                    product=product, variant=selected
+                ).first()
+            if not wishlist_item:
+                wishlist_item = wishlist.items.filter(product=product).first()
+            in_wishlist = wishlist_item is not None
 
     # Phase 7: reviews. The aggregate is one query and feeds both the visible summary and the
     # JSON-LD block; the list is paginated with an allowlisted sort (never a raw order_by).
@@ -340,6 +348,7 @@ def product_detail(request, slug: str):
         "recently_viewed": [],
         "signals": signals,
         "in_wishlist": in_wishlist,
+        "wishlist_item": wishlist_item,
         "review_summary": review_summary,
         "review_page": review_page,
         "review_sort": review_sort,
