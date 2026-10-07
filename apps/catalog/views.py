@@ -194,6 +194,18 @@ def product_detail(request, slug: str):
     # frame. Doing this here keeps the template free of dictionary lookups it cannot express well.
     color_images = gallery["by_color"].get(selected.color_id, []) if selected else []
     gallery_images = [*color_images, *gallery["shared"]]
+    if not gallery_images and gallery.get("primary"):
+        gallery_images = [gallery["primary"]]
+
+    gallery_data = [
+        {
+            "id": getattr(img, "pk", i),
+            "url": img.image.url,
+            "alt": getattr(img, "alt_text", "") or product.name,
+        }
+        for i, img in enumerate(gallery_images)
+        if getattr(img, "image", None)
+    ]
 
     breadcrumbs = _trail_schema(
         request,
@@ -281,6 +293,26 @@ def product_detail(request, slug: str):
     except Exception:
         pass
 
+    dna_match = None
+    if request.user.is_authenticated:
+        try:
+            dna = getattr(request.user, "flash_dna", None)
+            if dna:
+                reasons = []
+                if product.fit_id and dna.preferred_fits.filter(pk=product.fit_id).exists():
+                    reasons.append(f"Cut in your preferred {product.fit.name.lower()} fit")
+                if (
+                    product.brand_id
+                    and dna.preferred_brands.filter(pk=product.brand_id).exists()
+                ):
+                    reasons.append(
+                        f"From your preferred label {product.brand.name}"
+                    )
+                if reasons:
+                    dna_match = " · ".join(reasons)
+        except Exception:
+            pass
+
     size_options = []
     selected_color_id = selected.color_id if selected else None
     for size_obj in matrix.sizes:
@@ -329,12 +361,14 @@ def product_detail(request, slug: str):
         "selected_stock_msg": selected_stock_msg,
         "size_options": size_options,
         "sizing_guide": sizing_guide,
+        "dna_match": dna_match,
         "smart_alternatives": smart_alternatives,
         "closet_matches": closet_matches,
         "community_posts": community_posts,
         "community_outfits": community_outfits,
         "gallery": gallery,
         "gallery_images": gallery_images,
+        "gallery_data": gallery_data,
         "hero_image": gallery_images[0] if gallery_images else gallery["primary"],
         "materials": product.materials.all(),
         "collections": product.collections.all(),
