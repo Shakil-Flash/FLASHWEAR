@@ -81,15 +81,26 @@ def _handle_error(request, error: Exception):
 
 
 def cart_detail(request):
-    """Display the cart page with all items, totals and validation problems."""
+    """Display the cart page with all items, totals, validation problems and recommendations."""
+    from apps.catalog.merchandising import get_continue_shopping_items, get_recently_viewed
+    from apps.catalog.selectors import homepage_new_arrivals
+
     cart = get_or_create_cart(request)
     items = list(cart.get_items())
+
+    continue_items = get_continue_shopping_items(request, limit=4)
+    if not continue_items:
+        continue_items = get_recently_viewed(request, limit=4)
+    if not continue_items:
+        continue_items = homepage_new_arrivals(limit=4)
+
     context = {
         "cart": cart,
         "items": items,
         "totals": get_cart_totals(cart, items=items),
         "errors": validate_cart_items(cart, items=items),
         "price_changes": get_price_changes(cart, items=items),
+        "continue_items": continue_items,
     }
     return render(request, "shop/cart.html", context)
 
@@ -204,9 +215,58 @@ def _get_or_create_wishlist(user):
 @login_required
 @never_cache
 def wishlist_detail(request):
-    """Display the user's wishlist."""
+    """Display the user's wishlist with real availability status and options."""
     wishlist = _get_or_create_wishlist(request.user)
-    return render(request, "shop/wishlist.html", {"wishlist": wishlist})
+    items = list(
+        wishlist.items.select_related(
+            "product__brand", "variant__color", "variant__size"
+        ).prefetch_related("product__variants__stock", "product__images")
+    )
+    enriched_items = []
+    for item in items:
+        prod = item.product
+        var = item.variant
+        is_avail = prod.is_published
+        stock_msg = "In stock"
+        is_in_stock = False
+
+        if not is_avail:
+            stock_msg = "Unavailable"
+        elif var:
+            stock = getattr(var, "stock", None)
+            if stock:
+                if stock.available <= 0:
+                    stock_msg = "Sold out"
+                elif stock.available <= 5:
+                    stock_msg = f"Low stock: {stock.available} left"
+                    is_in_stock = True
+                else:
+                    stock_msg = "In stock"
+                    is_in_stock = True
+            else:
+                is_in_stock = True
+        else:
+            is_in_stock = prod.is_in_stock
+            if not is_in_stock:
+                stock_msg = "Sold out"
+            else:
+                stock_msg = "In stock"
+
+        enriched_items.append(
+            {
+                "item": item,
+                "is_available": is_avail,
+                "is_in_stock": is_in_stock,
+                "stock_msg": stock_msg,
+                "purchasable_variants": prod.purchasable_variants if not var else [],
+            }
+        )
+
+    return render(
+        request,
+        "shop/wishlist.html",
+        {"wishlist": wishlist, "enriched_items": enriched_items},
+    )
 
 
 @login_required
@@ -284,6 +344,61 @@ def wishlist_remove(request, item_pk: int):
 
     messages.success(request, _("Removed from wishlist"))
     return redirect("shop:wishlist")
+
+
+@login_required
+@require_POST
+def wishlist_move_to_bag(request, item_pk: int):
+    """Move a wishlist item into the customer's cart, tracking wishlist_to_cart."""
+    wishlist = get_object_or_404(Wishlist, user=request.user)
+    item = get_object_or_404(
+        WishlistItem.objects.select_related("product", "variant"),
+        pk=item_pk,
+        wishlist=wishlist,
+    )
+
+    if not item.product.is_published:
+        messages.error(request, _("This product is currently unavailable."))
+        return redirect("shop:wishlist")
+
+    variant = item.variant
+    if variant is None:
+        variant_id = request.POST.get("variant_id")
+        if variant_id:
+            variant = get_object_or_404(
+                ProductVariant,
+                pk=variant_id,
+                product=item.product,
+                is_active=True,
+            )
+
+    if variant is None:
+        messages.error(request, _("Please choose a size or colour before adding to bag."))
+        return redirect("shop:wishlist")
+
+    if not variant.is_active:
+        messages.error(request, _("Selected option is no longer available."))
+        return redirect("shop:wishlist")
+
+    cart = get_or_create_cart(request)
+    try:
+        add_to_cart(cart, variant, quantity=1)
+    except ValidationError as err:
+        return _handle_error(request, err)
+
+    record_event(
+        "wishlist_to_cart",
+        request=request,
+        object_type="variant",
+        object_id=variant.pk,
+        metadata={"product": item.product_id, "wishlist_item": item.pk},
+    )
+
+    if request.POST.get("keep_in_wishlist") != "1":
+        item.delete()
+
+    messages.success(request, _("Moved %(product)s to your bag.") % {"product": item.product.name})
+    return redirect("shop:cart")
 
 
 # =============================================================================

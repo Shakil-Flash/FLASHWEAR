@@ -59,6 +59,13 @@ class Event(models.Model):
         IMAGE_SEARCH_FAILED = "image_search_failed", _("image search failed")
         VISUAL_PRODUCT_CLICKED = "visual_product_clicked", _("visual product clicked")
         FIND_SIMILAR_USED = "find_similar_used", _("find similar used")
+        # Merchandising & Discovery (Phase 28)
+        RECENTLY_VIEWED_CLICK = "recently_viewed_click", _("recently viewed click")
+        RECOMMENDATION_CLICK = "recommendation_click", _("recommendation click")
+        QUICK_VIEW_OPENED = "quick_view_opened", _("quick view opened")
+        WISHLIST_TO_CART = "wishlist_to_cart", _("wishlist to cart")
+        CONTINUE_SHOPPING_CLICK = "continue_shopping_click", _("continue shopping click")
+        RELATED_PRODUCT_CLICK = "related_product_click", _("related product click")
 
     name = models.CharField(_("name"), max_length=64, choices=Name.choices)
     user = models.ForeignKey(

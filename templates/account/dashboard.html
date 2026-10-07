@@ -97,5 +97,19 @@
             </p>
         </section>
     </div>
+
+    {% if recently_viewed %}
+    <section class="mt-12 border-t border-slate-200 pt-8" aria-labelledby="account-recent-heading">
+        <div class="flex items-center justify-between">
+            <h2 id="account-recent-heading" class="text-base font-semibold text-slate-900">Recently viewed items</h2>
+            <a href="{% url 'catalog:product-list' %}" class="text-xs font-semibold text-slate-700 underline-offset-4 hover:underline">Browse catalogue →</a>
+        </div>
+        <div class="mt-4 grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4">
+            {% for product in recently_viewed %}
+                {% include "catalog/_product_card.html" with product=product %}
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
 </div>
 {% endblock content %}

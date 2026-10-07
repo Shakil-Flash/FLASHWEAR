@@ -1,0 +1,204 @@
+{% load catalog_extras %}
+<div id="quick-view-dialog"
+     class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
+     role="dialog"
+     aria-modal="true"
+     aria-labelledby="quick-view-title">
+    <!-- Backdrop -->
+    <div class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm transition-opacity"
+         @click="$el.closest('#quick-view-dialog').remove()"></div>
+
+    <!-- Modal Card -->
+    <div class="relative z-10 max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl transition-all sm:p-8">
+        <!-- Close Button -->
+        <button type="button"
+                @click="$el.closest('#quick-view-dialog').remove()"
+                class="absolute right-4 top-4 inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-soft transition hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-flash-500/20"
+                aria-label="Close quick view">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-5 w-5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+        </button>
+
+        <div class="grid gap-6 sm:grid-cols-12 sm:gap-8">
+            <!-- Left: Imagery -->
+            <div class="sm:col-span-5">
+                <div class="aspect-[4/5] overflow-hidden rounded-2xl bg-slate-100">
+                    {% if hero_image %}
+                        <img src="{{ hero_image.image.url }}"
+                             alt="{{ hero_image.alt_text|default:product.name }}"
+                             width="640"
+                             height="800"
+                             class="h-full w-full object-cover" />
+                    {% else %}
+                        <div class="flex h-full w-full items-center justify-center text-sm text-slate-400">
+                            No image
+                        </div>
+                    {% endif %}
+                </div>
+
+                {% if gallery_images|length > 1 %}
+                    <div class="mt-3 flex gap-2 overflow-x-auto pb-1">
+                        {% for img in gallery_images|slice:":4" %}
+                            <div class="h-16 w-14 shrink-0 overflow-hidden rounded-lg border border-slate-200">
+                                <img src="{{ img.image.url }}" alt="{{ img.alt_text }}" class="h-full w-full object-cover" />
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Right: Product Info & Actions -->
+            <div class="flex flex-col justify-between sm:col-span-7">
+                <div>
+                    <!-- Brand & Badges -->
+                    <div class="flex flex-wrap items-center gap-2">
+                        {% if product.brand %}
+                            <span class="text-xs font-semibold uppercase tracking-wider text-flash-700">{{ product.brand.name }}</span>
+                        {% endif %}
+                        {% if signals.is_new %}
+                            <span class="rounded-full bg-slate-900 px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wider text-white">New</span>
+                        {% endif %}
+                        {% if signals.is_on_sale %}
+                            <span class="rounded-full bg-flash-600 px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wider text-white">Sale</span>
+                        {% endif %}
+                        {% if signals.low_stock %}
+                            <span class="rounded-full bg-amber-50 px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wider text-amber-700 ring-1 ring-amber-200">
+                                {% if signals.units_left %}Only {{ signals.units_left }} left{% else %}Low stock{% endif %}
+                            </span>
+                        {% endif %}
+                        {% if signals.is_sold_out %}
+                            <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wider text-slate-600">Sold out</span>
+                        {% endif %}
+                    </div>
+
+                    <!-- Title -->
+                    <h2 id="quick-view-title" class="mt-2 text-xl font-bold tracking-tight text-slate-950 sm:text-2xl">
+                        {{ product.name }}
+                    </h2>
+
+                    <!-- Price -->
+                    <div class="mt-3 flex items-baseline gap-2">
+                        {% if selected_variant %}
+                            <span class="text-xl font-bold text-slate-950">{{ selected_variant.price|money }}</span>
+                            {% if selected_variant.compare_at_price and selected_variant.is_discounted %}
+                                <span class="text-sm text-slate-400 line-through">{{ selected_variant.compare_at_price|money }}</span>
+                                <span class="text-xs font-semibold text-flash-600">-{{ selected_variant.discount_percent }}%</span>
+                            {% endif %}
+                        {% else %}
+                            {% with low=product.price_range.0 high=product.price_range.1 %}
+                                {% if low %}
+                                    <span class="text-xl font-bold text-slate-950">{{ low|money }}</span>
+                                    {% if high and high != low %}
+                                        <span class="text-sm text-slate-400">– {{ high|money }}</span>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-sm text-slate-500">Price on request</span>
+                                {% endif %}
+                            {% endwith %}
+                        {% endif %}
+                    </div>
+
+                    <!-- Short Description -->
+                    <p class="mt-3 text-sm leading-relaxed text-slate-600 line-clamp-3">
+                        {{ product.short_description|default:product.description }}
+                    </p>
+
+                    <!-- Colours -->
+                    {% if matrix.colors %}
+                        <div class="mt-5">
+                            <span class="text-xs font-medium uppercase tracking-wider text-slate-500">
+                                Colour: <strong class="text-slate-900">{{ selected_color.name|default:"Select colour" }}</strong>
+                            </span>
+                            <div class="mt-2 flex flex-wrap gap-2">
+                                {% for col in matrix.colors %}
+                                    <button type="button"
+                                            hx-get="{% url 'catalog:quick-view' product.slug %}?color={{ col.slug }}{% if selected_size %}&size={{ selected_size.code }}{% endif %}"
+                                            hx-target="#quick-view-dialog"
+                                            hx-swap="outerHTML"
+                                            class="h-7 w-7 rounded-full ring-2 transition {% if selected_color and selected_color.pk == col.pk %}ring-flash-600 ring-offset-2 scale-105{% else %}ring-slate-200 ring-offset-1 hover:scale-105{% endif %}"
+                                            style="{{ col|swatch_style }}"
+                                            title="{{ col.name }}">
+                                        <span class="sr-only">{{ col.name }}</span>
+                                    </button>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% endif %}
+
+                    <!-- Sizes -->
+                    {% if matrix.sizes %}
+                        <div class="mt-4">
+                            <span class="text-xs font-medium uppercase tracking-wider text-slate-500">
+                                Size: <strong class="text-slate-900">{{ selected_size.code|default:"Select size" }}</strong>
+                            </span>
+                            <div class="mt-2 flex flex-wrap gap-2">
+                                {% for sz in matrix.sizes %}
+                                    <button type="button"
+                                            hx-get="{% url 'catalog:quick-view' product.slug %}?size={{ sz.code }}{% if selected_color %}&color={{ selected_color.slug }}{% endif %}"
+                                            hx-target="#quick-view-dialog"
+                                            hx-swap="outerHTML"
+                                            class="inline-flex min-w-[2.5rem] items-center justify-center rounded-xl border px-3 py-1.5 text-xs font-semibold transition {% if selected_size and selected_size.pk == sz.pk %}border-slate-950 bg-slate-950 text-white{% else %}border-slate-300 bg-white text-slate-800 hover:border-slate-400{% endif %}">
+                                        {{ sz.code }}
+                                    </button>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="mt-6 space-y-3 pt-4 border-t border-slate-100">
+                    <div class="flex items-center gap-3">
+                        {% if selected_variant and not signals.is_sold_out %}
+                            <form method="post" action="{% url 'shop:cart-add' %}" class="flex-1">
+                                {% csrf_token %}
+                                <input type="hidden" name="variant_id" value="{{ selected_variant.pk }}" />
+                                <input type="hidden" name="quantity" value="1" />
+                                <button type="submit"
+                                        class="w-full inline-flex items-center justify-center rounded-full bg-flash-600 px-6 py-3 text-sm font-semibold text-white shadow-soft transition hover:bg-flash-700 focus:outline-none focus:ring-2 focus:ring-flash-500/30">
+                                    Add to bag — {{ selected_variant.price|money }}
+                                </button>
+                            </form>
+                        {% elif signals.is_sold_out %}
+                            <button type="button" disabled
+                                    class="flex-1 cursor-not-allowed rounded-full bg-slate-100 px-6 py-3 text-sm font-semibold text-slate-400">
+                                Out of stock
+                            </button>
+                        {% else %}
+                            <a href="{{ product.get_absolute_url }}"
+                               class="flex-1 inline-flex items-center justify-center rounded-full bg-slate-900 px-6 py-3 text-sm font-semibold text-white shadow-soft transition hover:bg-slate-800">
+                                Select options
+                            </a>
+                        {% endif %}
+
+                        {% if request.user.is_authenticated %}
+                            <form method="post" action="{% url 'shop:wishlist-add' %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="product_id" value="{{ product.pk }}" />
+                                {% if selected_variant %}
+                                    <input type="hidden" name="variant_id" value="{{ selected_variant.pk }}" />
+                                {% endif %}
+                                <button type="submit"
+                                        class="inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-700 shadow-soft transition hover:border-flash-300 hover:text-flash-600"
+                                        title="Save to wishlist"
+                                        aria-label="Save to wishlist">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="{% if in_wishlist %}currentColor{% else %}none{% endif %}" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-5 w-5 {% if in_wishlist %}text-red-500{% endif %}">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
+                                    </svg>
+                                </button>
+                            </form>
+                        {% endif %}
+                    </div>
+
+                    <div class="text-center">
+                        <a href="{{ product.get_absolute_url }}"
+                           class="text-xs font-semibold text-slate-900 underline-offset-4 hover:underline">
+                            View full product details & reviews →
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

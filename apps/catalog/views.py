@@ -34,7 +34,7 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET
 
 from apps.analytics.services import record_event
-from apps.catalog import selectors, services
+from apps.catalog import merchandising, selectors, services
 from apps.catalog.models import Brand, Category, Collection, Color, Product, Size
 from apps.catalog.seo import (
     breadcrumb_schema,
@@ -231,6 +231,10 @@ def product_detail(request, slug: str):
         own_review = review_services.own_review(request.user, product)
         can_review, review_reason = review_services.eligibility(request.user, product)
 
+    merchandising.record_recently_viewed(request, product)
+    signals = merchandising.get_product_signals(product, selected, user=request.user)
+    related_products = selectors.related_products(product)
+
     context = {
         "product": product,
         "matrix": matrix,
@@ -246,7 +250,11 @@ def product_detail(request, slug: str):
         "breadcrumbs": breadcrumbs["itemListElement"],
         "breadcrumb_schema": breadcrumbs,
         "product_schema": product_schema(product, request=request, aggregate=review_summary),
-        "related_products": selectors.related_products(product),
+        "related_products": related_products,
+        "you_may_also_like": related_products,
+        "more_like_this": [],
+        "recently_viewed": [],
+        "signals": signals,
         "in_wishlist": in_wishlist,
         "review_summary": review_summary,
         "review_page": review_page,
@@ -267,7 +275,17 @@ def product_detail(request, slug: str):
         object_id=product.pk,
         metadata={"slug": product.slug, "category": product.category.slug},
     )
-    return render(request, "catalog/product_detail.html", context)
+    response = render(request, "catalog/product_detail.html", context)
+    cookie_val = getattr(request, "_pending_recently_viewed_cookie", None)
+    if cookie_val:
+        response.set_cookie(
+            "fw_recent_views",
+            cookie_val,
+            max_age=60 * 60 * 24 * 30,
+            httponly=True,
+            samesite="Lax",
+        )
+    return response
 
 
 @storefront_open
@@ -609,3 +627,121 @@ def track_visual_click(request):
     ):
         return redirect(target_url)
     return redirect("catalog:product-list")
+
+
+@storefront_open
+@never_cache
+@require_GET
+def quick_view(request, slug: str):
+    """Return a lightweight HTML modal fragment for quick product preview and shopping."""
+    product = get_object_or_404(selectors.product_detail_queryset().published(), slug=slug)
+
+    color_slug = request.GET.get("color", "")
+    size_code = request.GET.get("size", "").upper()
+    matrix = services.build_variant_matrix(
+        product,
+        color=Color.objects.filter(slug=color_slug, is_active=True).first() if color_slug else None,
+        size=Size.objects.filter(code=size_code, is_active=True).first() if size_code else None,
+    )
+    selected = matrix.selected
+    gallery = services.product_gallery(product)
+
+    color_images = gallery["by_color"].get(selected.color_id, []) if selected else []
+    gallery_images = [*color_images, *gallery["shared"]]
+
+    in_wishlist = False
+    if request.user.is_authenticated:
+        wishlist = getattr(request.user, "wishlist", None)
+        in_wishlist = wishlist is not None and wishlist.has_product(product)
+
+    signals = merchandising.get_product_signals(product, selected, user=request.user)
+
+    record_event(
+        "quick_view_opened",
+        request=request,
+        object_type="product",
+        object_id=product.pk,
+        metadata={"slug": product.slug},
+    )
+
+    context = {
+        "product": product,
+        "matrix": matrix,
+        "selected_variant": selected,
+        "selected_color": selected.color if selected else None,
+        "selected_size": selected.size if selected else None,
+        "gallery": gallery,
+        "gallery_images": gallery_images,
+        "hero_image": gallery_images[0] if gallery_images else gallery["primary"],
+        "in_wishlist": in_wishlist,
+        "signals": signals,
+    }
+    return render(request, "catalog/_quick_view_modal.html", context)
+
+
+@storefront_open
+@never_cache
+def merchandising_click(request):
+    """Track outbound clicks on merchandising/discovery widgets and redirect safely."""
+    event_type = request.GET.get("type", "recommendation_click")
+    allowed_types = {
+        "recently_viewed_click",
+        "recommendation_click",
+        "related_product_click",
+        "continue_shopping_click",
+    }
+    if event_type not in allowed_types:
+        event_type = "recommendation_click"
+
+    product_id = request.GET.get("product_id")
+    target_url = request.GET.get("next") or ""
+    prod_pk = None
+
+    if product_id:
+        try:
+            prod_pk = int(product_id)
+            if not target_url:
+                prod = Product.objects.filter(pk=prod_pk).first()
+                if prod:
+                    target_url = prod.get_absolute_url()
+        except (ValueError, TypeError):
+            pass
+
+    record_event(
+        event_type,
+        request=request,
+        object_type="product",
+        object_id=prod_pk,
+        metadata={
+            "next": target_url or "/",
+            "src": (request.GET.get("src") or "")[:40],
+        },
+    )
+
+    if target_url and (
+        target_url.startswith("/")
+        and not target_url.startswith("//")
+        and url_has_allowed_host_and_scheme(
+            target_url,
+            allowed_hosts={request.get_host()},
+            require_https=request.is_secure(),
+        )
+    ):
+        return redirect(target_url)
+    return redirect("catalog:product-list")
+
+
+@storefront_open
+@never_cache
+@require_GET
+def pdp_discovery_extra(request, slug: str):
+    """Load below-the-fold More Like This and Recently Viewed products asynchronously."""
+    product = get_object_or_404(selectors.product_detail_queryset().published(), slug=slug)
+    discovery = merchandising.get_pdp_discovery_sections(product, request=request)
+    context = {
+        "product": product,
+        "materials": product.materials.all(),
+        "more_like_this": discovery["more_like_this"],
+        "recently_viewed": discovery["recently_viewed"],
+    }
+    return render(request, "catalog/_pdp_discovery_extra.html", context)

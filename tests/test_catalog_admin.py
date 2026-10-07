@@ -377,7 +377,7 @@ class TestSeedCommand:
         from apps.catalog.models import Category, Product, ProductVariant
 
         runner("seed_catalog", verbosity=0)
-        assert Product.objects.count() == 12
+        assert Product.objects.count() == 20
         assert Product.objects.filter(status=Product.Status.ACTIVE).exists()
         assert ProductVariant.objects.count() > 100
         assert Category.objects.filter(slug="men").exists()

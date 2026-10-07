@@ -25,13 +25,14 @@
     </div>
     {% else %}
     <ul class="mt-8 space-y-4">
-        {% for item in wishlist.items.all %}
+        {% for entry in enriched_items %}
+        {% with item=entry.item %}
         <li class="rounded-2xl border border-slate-200 bg-white p-4 shadow-soft sm:p-5">
             <div class="flex gap-4">
                 <a href="{{ item.get_absolute_url }}" class="block h-24 w-20 shrink-0 overflow-hidden rounded-xl bg-slate-100 sm:h-28 sm:w-24">
                     {% with image=item.product.primary_image %}
                         {% if image %}
-                        <img src="{{ image.image.url }}" alt="{{ image.alt_text }}" width="640" height="800" loading="lazy" decoding="async" class="h-full w-full object-cover" />
+                        <img src="{{ image.image.url }}" alt="{{ image.alt_text|default:item.product.name }}" width="640" height="800" loading="lazy" decoding="async" class="h-full w-full object-cover" />
                         {% endif %}
                     {% endwith %}
                 </a>
@@ -43,32 +44,63 @@
                             <h2 class="mt-0.5 text-sm font-semibold text-slate-900">
                                 <a href="{{ item.get_absolute_url }}" class="hover:underline">{{ item.display_name }}</a>
                             </h2>
+                            {% if item.variant %}
+                                <p class="mt-0.5 text-xs text-slate-500">{{ item.variant.option_label }}</p>
+                            {% endif %}
                             {% if item.note %}
                             <p class="mt-1 text-xs italic text-slate-500">{{ item.note }}</p>
                             {% endif %}
                         </div>
-                        {% if item.product.is_published %}
-                        <p class="text-sm font-semibold text-slate-950">
-                            {% if item.variant %}{{ item.variant.price|money }}{% else %}
-                                {% with low=item.product.price_range.0 %}{% if low is not None %}{{ low|money }}{% else %}Price on request{% endif %}{% endwith %}
+
+                        <div class="text-right">
+                            {% if entry.is_available %}
+                                <p class="text-sm font-semibold text-slate-950">
+                                    {% if item.variant %}{{ item.variant.price|money }}{% else %}
+                                        {% with low=item.product.price_range.0 %}{% if low is not None %}{{ low|money }}{% else %}Price on request{% endif %}{% endwith %}
+                                    {% endif %}
+                                </p>
+                                <span class="mt-1 inline-block rounded-full px-2.5 py-0.5 text-[0.7rem] font-semibold {% if not entry.is_in_stock %}bg-slate-100 text-slate-600{% elif 'Low stock' in entry.stock_msg %}bg-amber-50 text-amber-700 ring-1 ring-amber-200{% else %}bg-emerald-50 text-emerald-700{% endif %}">
+                                    {{ entry.stock_msg }}
+                                </span>
+                            {% else %}
+                                <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">Unavailable</span>
                             {% endif %}
-                        </p>
-                        {% else %}
-                        <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">Unavailable</span>
-                        {% endif %}
+                        </div>
                     </div>
 
+                    {% if not entry.is_available %}
+                        <p class="mt-2 text-xs text-slate-500">This piece is no longer in the active collection.</p>
+                    {% endif %}
+
                     <div class="mt-4 flex flex-wrap items-center gap-3">
-                        {% if item.variant and item.variant.is_active and item.product.is_published %}
-                        <form method="post" action="{% url 'shop:cart-add' %}">
-                            {% csrf_token %}
-                            <input type="hidden" name="variant_id" value="{{ item.variant.pk }}" />
-                            <input type="hidden" name="quantity" value="1" />
-                            <button type="submit" class="rounded-full bg-flash-600 px-4 py-2 text-xs font-semibold text-white shadow-soft transition hover:bg-flash-700">
-                                Add to bag
-                            </button>
-                        </form>
+                        {% if entry.is_available and entry.is_in_stock %}
+                            {% if item.variant %}
+                                <form method="post" action="{% url 'shop:wishlist-move-to-bag' item.pk %}">
+                                    {% csrf_token %}
+                                    <button type="submit" class="rounded-full bg-flash-600 px-4 py-2 text-xs font-semibold text-white shadow-soft transition hover:bg-flash-700 focus:outline-none focus:ring-2 focus:ring-flash-500/20">
+                                        Move to bag
+                                    </button>
+                                </form>
+                            {% elif entry.purchasable_variants %}
+                                <form method="post" action="{% url 'shop:wishlist-move-to-bag' item.pk %}" class="flex items-center gap-2">
+                                    {% csrf_token %}
+                                    <select name="variant_id" required class="rounded-xl border border-slate-300 px-3 py-1.5 text-xs text-slate-900 focus:border-flash-500 focus:outline-none focus:ring-1 focus:ring-flash-500">
+                                        <option value="">Select option</option>
+                                        {% for var in entry.purchasable_variants %}
+                                            <option value="{{ var.pk }}">{{ var.option_label }} — {{ var.price|money }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <button type="submit" class="rounded-full bg-flash-600 px-4 py-2 text-xs font-semibold text-white shadow-soft transition hover:bg-flash-700 focus:outline-none focus:ring-2 focus:ring-flash-500/20">
+                                        Move to bag
+                                    </button>
+                                </form>
+                            {% endif %}
                         {% endif %}
+
+                        <a href="{{ item.get_absolute_url }}" class="text-xs font-medium text-slate-700 underline-offset-4 hover:underline">
+                            View details
+                        </a>
+
                         <form method="post" action="{% url 'shop:wishlist-remove' item.pk %}">
                             {% csrf_token %}
                             <button type="submit" class="text-xs font-medium text-red-700 underline-offset-4 transition hover:underline">
@@ -79,6 +111,28 @@
                 </div>
             </div>
         </li>
+        {% endwith %}
+        {% empty %}
+            {% for item in wishlist.items.all %}
+            <li class="rounded-2xl border border-slate-200 bg-white p-4 shadow-soft sm:p-5">
+                <div class="flex gap-4">
+                    <a href="{{ item.get_absolute_url }}" class="block h-24 w-20 shrink-0 overflow-hidden rounded-xl bg-slate-100 sm:h-28 sm:w-24">
+                        {% with image=item.product.primary_image %}
+                            {% if image %}
+                            <img src="{{ image.image.url }}" alt="{{ image.alt_text }}" width="640" height="800" loading="lazy" decoding="async" class="h-full w-full object-cover" />
+                            {% endif %}
+                        {% endwith %}
+                    </a>
+                    <div class="min-w-0 flex-1">
+                        <h2 class="text-sm font-semibold text-slate-900"><a href="{{ item.get_absolute_url }}">{{ item.display_name }}</a></h2>
+                        <form method="post" action="{% url 'shop:wishlist-remove' item.pk %}" class="mt-4">
+                            {% csrf_token %}
+                            <button type="submit" class="text-xs font-medium text-red-700 hover:underline">Remove</button>
+                        </form>
+                    </div>
+                </div>
+            </li>
+            {% endfor %}
         {% endfor %}
     </ul>
     {% endif %}

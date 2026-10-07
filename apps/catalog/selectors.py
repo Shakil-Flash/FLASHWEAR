@@ -494,7 +494,9 @@ def product_detail_queryset():
         Prefetch("images", queryset=ProductImage.objects.select_related("variant__color")),
         Prefetch(
             "variants",
-            queryset=ProductVariant.objects.filter(is_active=True).select_related("color", "size"),
+            queryset=ProductVariant.objects.filter(is_active=True).select_related(
+                "color", "size", "stock"
+            ),
         ),
     )
 

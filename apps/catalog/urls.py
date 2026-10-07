@@ -34,6 +34,13 @@ urlpatterns = [
         name="complete-look",
     ),
     path("track/look/", recommendation_click, name="track-click"),
+    path("products/<slug:slug>/quick-view/", views.quick_view, name="quick-view"),
+    path(
+        "products/<slug:slug>/discovery-extra/",
+        views.pdp_discovery_extra,
+        name="pdp-discovery-extra",
+    ),
+    path("track/merchandising/", views.merchandising_click, name="track-merchandising"),
     path("products/<slug:slug>/", views.product_detail, name="product-detail"),
     path("categories/", views.category_list, name="category-list"),
     path("categories/<slug:slug>/", views.category_detail, name="category-detail"),

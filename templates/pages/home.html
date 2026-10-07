@@ -160,6 +160,37 @@
 </section>
 
 {# ======================================================================= #}
+{# STILL THINKING ABOUT THESE? — contextual recent activity                #}
+{# ======================================================================= #}
+{% if continue_shopping %}
+<section class="border-t border-slate-100 bg-white" aria-labelledby="continue-shopping-heading">
+    <div class="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
+        <div class="reveal reveal-up flex flex-wrap items-end justify-between gap-4">
+            <div>
+                <p class="editorial-label">Pick up where you left off</p>
+                <h2 id="continue-shopping-heading" class="mt-2 editorial-headline">
+                    Still thinking about these?
+                </h2>
+            </div>
+            <a href="{% url 'catalog:track-merchandising' %}?type=continue_shopping_click&next={% url 'catalog:product-list' %}&src=home_continue"
+               class="text-sm font-semibold text-slate-900 underline-offset-4 hover:underline">
+                Continue browsing →
+            </a>
+        </div>
+        <div class="mt-8">
+            <div class="-mx-4 flex gap-4 overflow-x-auto px-4 pb-4 snap-x snap-mandatory sm:mx-0 sm:grid sm:grid-cols-2 sm:gap-6 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-4 reveal-stagger">
+                {% for product in continue_shopping %}
+                    <div class="reveal reveal-up w-[72vw] max-w-xs flex-shrink-0 snap-start sm:w-auto sm:max-w-none">
+                        {% include "catalog/_product_card.html" with product=product %}
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</section>
+{% endif %}
+
+{# ======================================================================= #}
 {# NEW ARRIVALS — horizontal scroll rail on mobile, grid on desktop.       #}
 {# ======================================================================= #}
 {% if new_arrivals %}
@@ -186,6 +217,36 @@
                     </div>
                 {% endfor %}
             </div>
+        </div>
+    </div>
+</section>
+{% endif %}
+
+{# ======================================================================= #}
+{# THE ESSENTIALS — curated foundational wardrobe pieces                   #}
+{# ======================================================================= #}
+{% if essentials %}
+<section class="border-t border-slate-100 bg-white" aria-labelledby="essentials-heading">
+    <div class="mx-auto max-w-7xl px-4 py-20 sm:px-6 sm:py-24 lg:px-8">
+        <div class="reveal reveal-up flex flex-wrap items-end justify-between gap-4">
+            <div>
+                <p class="editorial-label">Uniform & Foundations</p>
+                <h2 id="essentials-heading" class="mt-2 editorial-headline">
+                    The Essentials
+                </h2>
+                <p class="mt-2 text-sm text-slate-500">Everyday cuts, enduring textiles, built to live in.</p>
+            </div>
+            <a href="{% url 'catalog:collection-detail' 'core-essentials' %}"
+               class="text-sm font-semibold text-slate-900 underline-offset-4 hover:underline">
+                View all essentials →
+            </a>
+        </div>
+        <div class="mt-10 grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4 reveal-stagger">
+            {% for product in essentials %}
+                <div class="reveal reveal-up">
+                    {% include "catalog/_product_card.html" with product=product %}
+                </div>
+            {% endfor %}
         </div>
     </div>
 </section>

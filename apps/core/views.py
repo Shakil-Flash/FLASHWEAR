@@ -75,15 +75,13 @@ def home(request: HttpRequest) -> HttpResponse:
     if site.maintenance_mode and not is_team_member:
         return render(request, "pages/maintenance.html", status=503)
 
-    from apps.catalog import selectors
+    from apps.catalog import merchandising, selectors
 
     active_drops = []
     try:
         from apps.drops.models import FlashDrop
 
-        active_drops = list(
-            FlashDrop.objects.live().prefetch_related("products__product")[:3]
-        )
+        active_drops = list(FlashDrop.objects.live().prefetch_related("products__product")[:3])
     except Exception:
         pass
 
@@ -100,6 +98,14 @@ def home(request: HttpRequest) -> HttpResponse:
     except Exception:
         pass
 
+    continue_shopping = merchandising.get_continue_shopping_items(request, limit=4)
+    recently_viewed = merchandising.get_recently_viewed(request, limit=4)
+    essentials = list(
+        selectors.storefront_products()
+        .filter(collections__slug="core-essentials")
+        .order_by("-published_at")[:4]
+    )
+
     context = {
         "seo_title": f"{site.site_name} - {site.tagline}",
         "seo_description": site.default_seo_description,
@@ -107,6 +113,9 @@ def home(request: HttpRequest) -> HttpResponse:
         "nav_categories": selectors.storefront_categories(limit=6, with_children=False),
         "featured_products": selectors.homepage_featured(limit=4),
         "new_arrivals": selectors.homepage_new_arrivals(limit=8),
+        "essentials": essentials,
+        "continue_shopping": continue_shopping,
+        "recently_viewed": recently_viewed,
         "featured_collections": list(selectors.live_collections(featured_only=True)[:3]),
         "active_drops": active_drops,
         "loop_highlights": loop_highlights,

@@ -1,0 +1,30 @@
+{% if more_like_this %}
+    <section class="mt-16 border-t border-slate-200 pt-10" aria-labelledby="more-like-heading">
+        <div class="flex items-center justify-between">
+            <h2 id="more-like-heading" class="text-xl font-semibold tracking-tight text-slate-950">
+                More like this
+            </h2>
+            {% if materials %}
+                <span class="text-xs text-slate-500">Matching fabric &amp; silhouette</span>
+            {% endif %}
+        </div>
+        <div class="mt-6 grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4">
+            {% for item in more_like_this %}
+                {% include "catalog/_product_card.html" with product=item %}
+            {% endfor %}
+        </div>
+    </section>
+{% endif %}
+
+{% if recently_viewed %}
+    <section class="mt-16 border-t border-slate-200 pt-10" aria-labelledby="recent-heading">
+        <h2 id="recent-heading" class="text-xl font-semibold tracking-tight text-slate-950">
+            Recently viewed
+        </h2>
+        <div class="mt-6 grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4">
+            {% for item in recently_viewed %}
+                {% include "catalog/_product_card.html" with product=item %}
+            {% endfor %}
+        </div>
+    </section>
+{% endif %}

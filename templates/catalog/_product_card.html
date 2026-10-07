@@ -30,6 +30,11 @@ Phase 27: quieter metadata, larger visual presence, subtle interactions.
     {% comment %} Badges & Wishlist Action {% endcomment %}
     <div class="pointer-events-none absolute inset-x-3 top-3 z-10 flex items-start justify-between gap-2">
         <div class="flex flex-col items-start gap-1">
+            {% if product.is_new %}
+                <span class="rounded-full bg-slate-900/90 px-2.5 py-0.5 text-xs font-semibold text-white shadow-soft backdrop-blur">
+                    New
+                </span>
+            {% endif %}
             {% if product.is_on_sale %}
                 <span class="rounded-full bg-flash-600 px-2.5 py-0.5 text-xs font-semibold text-white shadow-soft">
                     {% if product.max_discount_percent %}-{{ product.max_discount_percent }}%{% else %}Sale{% endif %}
@@ -98,20 +103,37 @@ Phase 27: quieter metadata, larger visual presence, subtle interactions.
         </div>
 
         {% with colors=product.available_colors %}
-            {% if colors %}
-                <ul class="relative z-10 mt-1 flex flex-wrap items-center gap-1.5" aria-label="Colours">
-                    {% for color in colors %}
-                        <li>
-                            <a href="{{ product.get_absolute_url }}?color={{ color.slug }}"
-                               title="{{ color.name }}"
-                               class="block h-3.5 w-3.5 rounded-full ring-1 ring-slate-200 ring-offset-1 transition hover:scale-110 hover:ring-slate-900"
-                               style="{{ color|swatch_style }}">
-                                <span class="sr-only">{{ color.name }}</span>
-                            </a>
-                        </li>
-                    {% endfor %}
-                </ul>
-            {% endif %}
+            <div class="relative z-10 mt-2 flex items-center justify-between gap-2">
+                {% if colors %}
+                    <ul class="flex flex-wrap items-center gap-1.5" aria-label="Colours">
+                        {% for color in colors %}
+                            <li>
+                                <a href="{{ product.get_absolute_url }}?color={{ color.slug }}"
+                                   title="{{ color.name }}"
+                                   class="block h-3.5 w-3.5 rounded-full ring-1 ring-slate-200 ring-offset-1 transition hover:scale-110 hover:ring-slate-900"
+                                   style="{{ color|swatch_style }}">
+                                    <span class="sr-only">{{ color.name }}</span>
+                                </a>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <span></span>
+                {% endif %}
+
+                <button type="button"
+                        hx-get="{% url 'catalog:quick-view' product.slug %}"
+                        hx-target="#quick-view-container"
+                        hx-swap="innerHTML"
+                        class="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white/90 px-2.5 py-1 text-[0.7rem] font-semibold text-slate-700 shadow-sm transition hover:border-slate-400 hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-flash-500/20"
+                        aria-label="Quick view {{ product.name }}">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-3 w-3">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    <span>Quick view</span>
+                </button>
+            </div>
         {% endwith %}
     </div>
 </article>

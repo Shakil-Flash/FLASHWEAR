@@ -1,11 +1,9 @@
-import pytest
-from django.urls import reverse
-from pathlib import Path
-from django.conf import settings
 
-from apps.catalog.models import Product, ProductImage, ProductVariant
-from apps.inventory.models import Stock
-from decimal import Decimal
+import pytest
+from django.conf import settings
+from django.urls import reverse
+
+from apps.catalog.models import ProductImage
 
 
 @pytest.mark.django_db
@@ -87,7 +85,8 @@ class TestFailSafeMotionDesign:
         assert ".hero-anim-visual" in css
 
     def test_compiled_css_includes_hero_and_reveal_tokens(self):
-        compiled_css = (settings.BASE_DIR / "static" / "css" / "app.css").read_text(encoding="utf-8")
+        css_file = settings.BASE_DIR / "static" / "css" / "app.css"
+        compiled_css = css_file.read_text(encoding="utf-8")
         assert ".hero-anim-title" in compiled_css
         assert ".hero-anim-visual" in compiled_css
         assert ".reveal" in compiled_css

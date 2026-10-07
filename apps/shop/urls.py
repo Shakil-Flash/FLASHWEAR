@@ -20,6 +20,11 @@ urlpatterns = [
     path("wishlist/", views.wishlist_detail, name="wishlist"),
     path("wishlist/add/", views.wishlist_add, name="wishlist-add"),
     path("wishlist/remove/<int:item_pk>/", views.wishlist_remove, name="wishlist-remove"),
+    path(
+        "wishlist/move-to-bag/<int:item_pk>/",
+        views.wishlist_move_to_bag,
+        name="wishlist-move-to-bag",
+    ),
     # Checkout (Phase 5 validates; Phase 6 places the order and pays)
     path("checkout/", checkout_views.checkout_detail, name="checkout"),
     path("checkout/address/", checkout_views.checkout_address, name="checkout-address"),

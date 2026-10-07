@@ -437,12 +437,15 @@ class AccountDashboardView(TemplateView):
         context = super().get_context_data(**kwargs)
         user = self.request.user
         addresses = user.addresses.all()
+        from apps.catalog.merchandising import get_recently_viewed
+
         context.update(
             {
                 "profile": user.profile,
                 "addresses": addresses,
                 "address_count": addresses.count(),
                 "default_shipping": next((a for a in addresses if a.is_default_shipping), None),
+                "recently_viewed": get_recently_viewed(self.request, limit=4),
             }
         )
         return context
