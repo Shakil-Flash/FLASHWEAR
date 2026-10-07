@@ -67,8 +67,10 @@ RUN DJANGO_SETTINGS_MODULE=config.settings.production \
     EMAIL_HOST=smtp.example.invalid \
     python manage.py collectstatic --noinput
 
-# Writable locations for collectstatic, uploads and logs.
+# Writable locations for collectstatic, uploads and logs, plus entrypoint permissions.
 RUN mkdir -p /app/staticfiles /app/media /app/logs && \
+    sed -i 's/\r$//' /app/entrypoint.sh && \
+    chmod +x /app/entrypoint.sh && \
     addgroup --system django && \
     adduser --system --ingroup django django && \
     chown -R django:django /app
@@ -84,4 +86,5 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
     CMD curl -fsS -H "X-Forwarded-Proto: https" http://127.0.0.1:8000/health/live/ || exit 1
 
-CMD ["sh", "-c", "python manage.py migrate --noinput && gunicorn --config gunicorn.conf.py config.wsgi:application"]
+ENTRYPOINT ["/app/entrypoint.sh"]
+CMD ["gunicorn", "--config", "gunicorn.conf.py", "config.wsgi:application"]
