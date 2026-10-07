@@ -43,6 +43,7 @@
                 <a href="{% url 'core:home' %}" class="text-sm font-medium text-slate-700 transition hover:text-slate-950 {% active_url request 'core:home' %}">Home</a>
                 <a href="{% url 'catalog:product-list' %}" class="text-sm font-medium text-slate-700 transition hover:text-slate-950 {% active_url request 'catalog:product-list' %}">Shop</a>
                 <a href="{% url 'catalog:collection-list' %}" class="text-sm font-medium text-slate-700 transition hover:text-slate-950 {% active_url request 'catalog:collection-list' %}">Collections</a>
+                <a href="{% url 'inspiration:list' %}" class="text-sm font-medium text-slate-700 transition hover:text-slate-950">Inspiration</a>
                 <a href="{% url 'account:studio' %}" class="text-sm font-medium text-slate-700 transition hover:text-slate-950">Styling</a>
 
                 <!-- Discover Dropdown -->
@@ -56,6 +57,9 @@
                     <div x-show="discoverOpen" x-transition.opacity.duration.150ms x-cloak class="absolute left-0 mt-3 w-56 origin-top-left rounded-2xl border border-slate-200 bg-white p-2 shadow-elevated">
                         <a href="{% url 'catalog:category-list' %}" class="block rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:text-slate-950">
                             Categories
+                        </a>
+                        <a href="{% url 'creator:creator_list' %}" class="block rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:text-slate-950">
+                            Creators
                         </a>
                         <a href="{% url 'loop:resale-list' %}" class="block rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:text-slate-950">
                             Loop Resale
@@ -92,12 +96,15 @@
             </a>
 
             <!-- Bag -->
-            <a href="{% url 'shop:cart' %}" class="group relative inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-soft transition hover:border-slate-300 hover:text-slate-900" aria-label="Bag, {{ cart_count }} item{{ cart_count|pluralize }}">
+            <a href="{% url 'shop:cart' %}"
+               @click.prevent="$dispatch('toggle-mini-cart')"
+               class="group relative inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-soft transition hover:border-slate-300 hover:text-slate-900"
+               aria-label="Bag, {{ cart_count }} item{{ cart_count|pluralize }}">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-4 w-4 text-slate-500 transition group-hover:text-slate-900">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007z" />
                 </svg>
                 {% if cart_count %}
-                <span class="absolute -right-1 -top-1 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-flash-600 px-1 text-[10px] font-bold leading-none text-white">{{ cart_count }}</span>
+                <span class="absolute -right-1 -top-1 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-flash-600 px-1 text-[10px] font-bold leading-none text-white transition-transform duration-200 hover:scale-110">{{ cart_count }}</span>
                 {% endif %}
             </a>
 
@@ -287,3 +294,4 @@
         </div>
     </div>
 </header>
+{% include "components/mini_cart.html" %}

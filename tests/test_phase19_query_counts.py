@@ -32,7 +32,8 @@ pytestmark = pytest.mark.django_db
 
 
 def test_the_homepage_stays_within_its_query_budget(client, django_assert_max_num_queries):
-    with django_assert_max_num_queries(8):
+    # Phase 29: Homepage resolves Content Studio managed sections alongside default rails.
+    with django_assert_max_num_queries(10):
         assert client.get("/").status_code == 200
 
 
@@ -71,7 +72,8 @@ def test_the_cart_page_shares_one_item_fetch_between_all_its_consumers(
         price_snapshot=Decimal("49.00"),
     )
     # 10 measured with data: totals, validation and the price diff all reuse the one list.
-    with django_assert_max_num_queries(14):
+    # Phase 30: +3 for cart_view event on fresh visitor, +1 for checkout session discounts.
+    with django_assert_max_num_queries(18):
         response = client.get(reverse("shop:cart"))
     assert response.status_code == 200
     assert response.context["totals"]["item_count"] == 1

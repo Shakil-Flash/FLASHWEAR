@@ -46,6 +46,9 @@ urlpatterns = [
     path("operations/", include("apps.backoffice.urls")),
     # Phase 17: notification center (/notifications/, /notifications/unsubscribe/<token>/)
     path("notifications/", include("apps.notifications.urls")),
+    # Phase 32: Community, Social Proof & Shoppable UGC (/creators/, /inspiration/)
+    path("creators/", include("apps.creator.urls")),
+    path("inspiration/", include("apps.creator.inspiration_urls")),
 ]
 
 # Development-only convenience: Django's runserver does not serve media files.

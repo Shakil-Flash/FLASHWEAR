@@ -1,0 +1,263 @@
+{% load catalog_extras %}
+
+{% if section.section_type == 'hero' %}
+{# ---------------- HERO SECTION ---------------- #}
+<section class="relative isolate overflow-hidden bg-slate-950 text-white min-h-[480px] lg:min-h-[580px] flex items-center"
+         data-section-id="{{ section.pk }}" data-section-type="hero">
+    {% if section.get_desktop_image_url %}
+        <picture class="absolute inset-0 -z-10 h-full w-full">
+            {% if section.mobile_image or section.mobile_image_url %}
+                <source media="(max-width: 640px)" srcset="{{ section.get_mobile_image_url }}">
+            {% endif %}
+            <img src="{{ section.get_desktop_image_url }}"
+                 alt="{{ section.image_alt|default:section.title }}"
+                 class="h-full w-full object-cover object-center filter brightness-[0.75] transition-transform duration-1000 scale-100 hover:scale-105"
+                 loading="eager" />
+        </picture>
+    {% else %}
+        <div class="absolute inset-0 -z-10 bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950"></div>
+        <div class="pointer-events-none absolute -right-40 top-20 -z-10 h-96 w-96 rounded-full bg-flash-500/10 blur-3xl"></div>
+    {% endif %}
+
+    <div class="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-24 lg:px-8 w-full">
+        <div class="max-w-2xl {% if section.overlay_position == 'center' %}mx-auto text-center{% elif section.overlay_position == 'right' %}ml-auto text-right{% elif section.overlay_position == 'bottom' %}mt-auto{% else %}text-left{% endif %}">
+            {% if section.campaign %}
+                <div class="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3.5 py-1 text-xs font-semibold uppercase tracking-widest text-flash-300 backdrop-blur mb-4">
+                    <span class="h-1.5 w-1.5 rounded-full bg-flash-400"></span>
+                    {{ section.campaign.title }}
+                </div>
+            {% endif %}
+
+            <h1 class="text-4xl font-extrabold tracking-tight sm:text-5xl lg:text-6xl text-white drop-shadow-md">
+                {{ section.title }}
+            </h1>
+
+            {% if section.subtitle %}
+                <p class="mt-4 text-lg text-slate-200 sm:text-xl drop-shadow">
+                    {{ section.subtitle }}
+                </p>
+            {% endif %}
+
+            {% if section.primary_cta_text or section.secondary_cta_text %}
+                <div class="mt-8 flex flex-wrap items-center gap-4 {% if section.overlay_position == 'center' %}justify-center{% elif section.overlay_position == 'right' %}justify-end{% endif %}">
+                    {% if section.primary_cta_text and section.primary_cta_url %}
+                        <a href="{{ section.primary_cta_url }}"
+                           data-track-event="homepage_section_click"
+                           data-section-id="{{ section.pk }}"
+                           class="inline-flex items-center justify-center rounded-full bg-white px-8 py-3.5 text-sm font-semibold text-slate-950 shadow-soft transition duration-300 hover:bg-slate-100 hover:scale-[1.02]">
+                            {{ section.primary_cta_text }}
+                        </a>
+                    {% endif %}
+                    {% if section.secondary_cta_text and section.secondary_cta_url %}
+                        <a href="{{ section.secondary_cta_url }}"
+                           data-track-event="homepage_section_click"
+                           data-section-id="{{ section.pk }}"
+                           class="inline-flex items-center justify-center rounded-full border border-white/25 bg-black/20 px-7 py-3.5 text-sm font-medium text-white backdrop-blur transition duration-300 hover:bg-white/15">
+                            {{ section.secondary_cta_text }}
+                        </a>
+                    {% endif %}
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</section>
+
+{% elif section.section_type == 'banner' %}
+{# ---------------- PROMOTIONAL BANNER ---------------- #}
+<section class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border-y border-white/10 text-white py-10 px-4 sm:px-6 lg:px-8 text-center relative overflow-hidden"
+         data-section-id="{{ section.pk }}" data-section-type="banner">
+    <div class="mx-auto max-w-4xl relative z-10">
+        <h2 class="text-2xl sm:text-3xl font-bold tracking-tight text-white">{{ section.title }}</h2>
+        {% if section.subtitle %}
+            <p class="mt-2 text-sm sm:text-base text-slate-300">{{ section.subtitle }}</p>
+        {% endif %}
+        {% if section.primary_cta_text and section.primary_cta_url %}
+            <div class="mt-6">
+                <a href="{{ section.primary_cta_url }}"
+                   data-track-event="campaign_click"
+                   data-section-id="{{ section.pk }}"
+                   class="inline-flex items-center rounded-full bg-white px-6 py-2.5 text-xs font-bold uppercase tracking-wider text-slate-950 shadow hover:bg-slate-100 transition">
+                    {{ section.primary_cta_text }} →
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</section>
+
+{% elif section.section_type == 'featured_products' or section.section_type == 'new_arrivals' or section.section_type == 'complete_look' or section.section_type == 'shop_by_mood' %}
+{# ---------------- PRODUCT MERCHANDISING / RAILS ---------------- #}
+<section class="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8 border-t border-slate-100"
+         data-section-id="{{ section.pk }}" data-section-type="{{ section.section_type }}">
+    <div class="flex flex-wrap items-end justify-between gap-4">
+        <div>
+            {% if section.subtitle %}
+                <p class="text-xs uppercase tracking-widest text-slate-500 font-semibold">{{ section.subtitle }}</p>
+            {% endif %}
+            <h2 class="mt-1 text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">{{ section.title }}</h2>
+        </div>
+        {% if section.primary_cta_text and section.primary_cta_url %}
+            <a href="{{ section.primary_cta_url }}"
+               data-track-event="homepage_section_click"
+               data-section-id="{{ section.pk }}"
+               class="text-sm font-semibold text-slate-900 underline-offset-4 hover:underline">
+                {{ section.primary_cta_text }} →
+            </a>
+        {% endif %}
+    </div>
+
+    {% with prods=section.get_active_products %}
+        {% if prods %}
+            <div class="mt-8 grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4">
+                {% for product in prods %}
+                    <div data-track-event="featured_product_click" data-product-id="{{ product.pk }}" data-section-id="{{ section.pk }}">
+                        {% include "catalog/_product_card.html" with product=product %}
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            {% if section.section_type == 'new_arrivals' and new_arrivals %}
+                <div class="mt-8 grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4">
+                    {% for product in new_arrivals|slice:":4" %}
+                        {% include "catalog/_product_card.html" with product=product %}
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="mt-6 rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center text-sm text-slate-500">
+                    Curated selections arriving soon.
+                </div>
+            {% endif %}
+        {% endif %}
+    {% endwith %}
+</section>
+
+{% elif section.section_type == 'featured_collection' %}
+{# ---------------- FEATURED COLLECTION ---------------- #}
+<section class="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8 border-t border-slate-100"
+         data-section-id="{{ section.pk }}" data-section-type="featured_collection">
+    <div class="relative overflow-hidden rounded-3xl bg-slate-950 text-white p-8 sm:p-12 lg:p-16 flex flex-col justify-end min-h-[360px]">
+        {% if section.get_desktop_image_url %}
+            <img src="{{ section.get_desktop_image_url }}" alt="{{ section.title }}" class="absolute inset-0 h-full w-full object-cover filter brightness-[0.7]" />
+        {% elif section.linked_collection and section.linked_collection.hero_image %}
+            <img src="{{ section.linked_collection.hero_image.url }}" alt="{{ section.linked_collection.name }}" class="absolute inset-0 h-full w-full object-cover filter brightness-[0.7]" />
+        {% endif %}
+        <div class="relative z-10 max-w-xl">
+            <span class="inline-block rounded-full bg-white/20 px-3.5 py-1 text-xs font-semibold uppercase tracking-widest text-white backdrop-blur mb-3">Featured Collection</span>
+            <h2 class="text-3xl sm:text-4xl font-bold tracking-tight text-white">{{ section.title }}</h2>
+            {% if section.subtitle %}
+                <p class="mt-2 text-sm sm:text-base text-slate-200">{{ section.subtitle }}</p>
+            {% elif section.linked_collection %}
+                <p class="mt-2 text-sm sm:text-base text-slate-200">{{ section.linked_collection.description }}</p>
+            {% endif %}
+            <div class="mt-6">
+                <a href="{% if section.primary_cta_url %}{{ section.primary_cta_url }}{% elif section.linked_collection %}{{ section.linked_collection.get_absolute_url }}{% else %}#{% endif %}"
+                   class="inline-flex items-center rounded-full bg-white px-7 py-3 text-sm font-semibold text-slate-950 hover:bg-slate-100 transition shadow">
+                    {{ section.primary_cta_text|default:"Shop the Collection" }} →
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
+
+{% elif section.section_type == 'editorial' %}
+{# ---------------- EDITORIAL STORY ---------------- #}
+<section class="bg-slate-50 py-16 sm:py-20 border-t border-slate-100"
+         data-section-id="{{ section.pk }}" data-section-type="editorial">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div class="grid items-center gap-12 lg:grid-cols-12">
+            <div class="lg:col-span-6 space-y-4">
+                <p class="text-xs uppercase tracking-widest font-semibold text-flash-600">Editorial</p>
+                <h2 class="text-3xl sm:text-4xl font-bold tracking-tight text-slate-950">{{ section.title }}</h2>
+                {% if section.subtitle %}
+                    <p class="text-lg font-medium text-slate-700 italic">"{{ section.subtitle }}"</p>
+                {% endif %}
+                <div class="pt-4">
+                    {% if section.primary_cta_text and section.primary_cta_url %}
+                        <a href="{{ section.primary_cta_url }}"
+                           data-track-event="editorial_click"
+                           data-section-id="{{ section.pk }}"
+                           class="inline-flex items-center justify-center rounded-full bg-slate-950 px-7 py-3 text-sm font-semibold text-white hover:bg-slate-800 transition">
+                            {{ section.primary_cta_text }} →
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+            {% if section.get_desktop_image_url %}
+                <div class="lg:col-span-6">
+                    <div class="aspect-[4/3] rounded-3xl overflow-hidden shadow-xl border border-slate-200">
+                        <img src="{{ section.get_desktop_image_url }}" alt="{{ section.title }}" class="h-full w-full object-cover" />
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</section>
+
+{% elif section.section_type == 'drops' %}
+{# ---------------- DROPS SECTION ---------------- #}
+<section class="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8 border-t border-slate-100"
+         data-section-id="{{ section.pk }}" data-section-type="drops">
+    <div class="bg-slate-950 rounded-3xl p-8 sm:p-12 text-white flex flex-col md:flex-row items-center justify-between gap-8">
+        <div>
+            <span class="inline-block rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30 px-3 py-1 text-xs font-semibold uppercase tracking-wider mb-3">Limited Drop</span>
+            <h2 class="text-3xl font-bold tracking-tight">{{ section.title }}</h2>
+            {% if section.subtitle %}
+                <p class="mt-2 text-sm text-slate-300 max-w-xl">{{ section.subtitle }}</p>
+            {% endif %}
+        </div>
+        <div>
+            <a href="{% if section.primary_cta_url %}{{ section.primary_cta_url }}{% elif section.linked_drop %}{{ section.linked_drop.get_absolute_url }}{% else %}{% url 'drops:drop-list' %}{% endif %}"
+               class="inline-flex items-center rounded-full bg-white px-8 py-3.5 text-sm font-bold text-slate-950 hover:bg-slate-100 transition shadow">
+                {{ section.primary_cta_text|default:"Enter the Drop" }} →
+            </a>
+        </div>
+    </div>
+</section>
+
+{% elif section.section_type == 'creator' %}
+{# ---------------- CREATOR / COMMUNITY ---------------- #}
+<section class="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8 border-t border-slate-100"
+         data-section-id="{{ section.pk }}" data-section-type="creator">
+    <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-10">
+        <div>
+            <p class="text-xs uppercase tracking-widest font-semibold text-slate-500">
+                {{ section.subtitle|default:"Community & Styling" }}
+            </p>
+            <h2 class="mt-1 text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
+                {{ section.title }}
+            </h2>
+        </div>
+        <div class="flex items-center gap-3">
+            <a href="{% url 'inspiration:list' %}"
+               class="text-xs font-semibold text-slate-900 hover:text-flash-600 transition">
+                Explore Community Feed →
+            </a>
+        </div>
+    </div>
+
+    {% if creator_community_looks %}
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
+            {% for look in creator_community_looks %}
+                {% include "creator/_seen_on_people.html" with post=look %}
+            {% endfor %}
+        </div>
+    {% elif section.section_products.all %}
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6">
+            {% for sp in section.section_products.all %}
+                <div class="rounded-2xl border border-slate-200 overflow-hidden shadow-sm bg-white p-3 hover:shadow-md transition">
+                    <a href="{{ sp.product.get_absolute_url }}" class="block aspect-square rounded-xl bg-slate-100 overflow-hidden mb-2">
+                        {% if sp.product.primary_image %}
+                            <img src="{{ sp.product.primary_image.url }}" alt="{{ sp.product.name }}" class="h-full w-full object-cover" />
+                        {% endif %}
+                    </a>
+                    <p class="text-xs font-semibold truncate">{{ sp.product.name }}</p>
+                    <p class="text-xs text-slate-500 mt-0.5">{{ sp.product.min_price|money }}</p>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center text-sm text-slate-500">
+            Community and creator edits will appear here.
+        </div>
+    {% endif %}
+</section>
+{% endif %}

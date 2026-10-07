@@ -48,7 +48,6 @@ class CreatorApplication(models.Model):
     portfolio_url = models.URLField(
         _("portfolio URL"),
         blank=True,
-        verify_exists=False,
     )
     status = models.CharField(
         _("status"),

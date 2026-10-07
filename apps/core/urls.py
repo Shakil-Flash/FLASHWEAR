@@ -15,4 +15,6 @@ urlpatterns = [
     path("health/", views.health_view, name="health"),
     path("health/live/", views.live_view, name="health_live"),
     path("health/ready/", views.ready_view, name="health_ready"),
+    path("content/track/", views.track_content_interaction, name="track_content_interaction"),
 ]
+

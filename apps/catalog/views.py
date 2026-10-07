@@ -234,6 +234,82 @@ def product_detail(request, slug: str):
     merchandising.record_recently_viewed(request, product)
     signals = merchandising.get_product_signals(product, selected, user=request.user)
     related_products = selectors.related_products(product)
+    sizing_guide = merchandising.get_product_sizing_guide(product, user=request.user)
+
+    selected_stock = getattr(selected, "stock", None) if selected else None
+    selected_in_stock = True
+    selected_stock_msg = "In stock"
+    if selected_stock:
+        if selected_stock.available <= 0:
+            selected_in_stock = False
+            selected_stock_msg = "Sold out"
+        elif selected_stock.available <= 5:
+            selected_stock_msg = f"Only {selected_stock.available} left"
+
+    smart_alternatives = (
+        merchandising.get_smart_alternatives(product, selected)
+        if (selected and not selected_in_stock)
+        else []
+    )
+
+    closet_matches = []
+    if request.user.is_authenticated:
+        from apps.closet.services.matching import get_closet_matches_for_product
+
+        closet_matches = get_closet_matches_for_product(request.user, product, limit=4)
+
+    community_posts = []
+    community_outfits = []
+    try:
+        from apps.creator.selectors import get_community_posts_for_product
+
+        community_posts = get_community_posts_for_product(product, limit=6)
+        outfit_seen = set()
+        for p in community_posts:
+            for ot in p.outfit_tags.all():
+                if ot.outfit_id not in outfit_seen:
+                    outfit_seen.add(ot.outfit_id)
+                    community_outfits.append(ot)
+    except Exception:
+        pass
+
+    size_options = []
+    selected_color_id = selected.color_id if selected else None
+    for size_obj in matrix.sizes:
+        var = matrix.variant_for(selected_color_id, size_obj.pk) if selected_color_id else None
+        if not var:
+            size_options.append({
+                "size": size_obj,
+                "variant": None,
+                "is_available": False,
+                "is_in_stock": False,
+                "is_sold_out": True,
+                "is_selected": bool(selected and selected.size_id == size_obj.pk),
+                "stock_msg": "Unavailable",
+                "units_left": 0,
+            })
+            continue
+
+        var_stock = getattr(var, "stock", None)
+        units = var_stock.available if var_stock else None
+        in_stk = units is None or units > 0
+        sold = units is not None and units <= 0
+        stk_label = "In stock"
+        if sold:
+            stk_label = "Sold out"
+        elif units is not None and units <= 5:
+            stk_label = f"Only {units} left"
+
+        size_options.append({
+            "size": size_obj,
+            "variant": var,
+            "is_available": True,
+            "is_in_stock": in_stk,
+            "is_sold_out": sold,
+            "is_selected": bool(selected and selected.size_id == size_obj.pk),
+            "stock_msg": stk_label,
+            "units_left": units if units is not None else 999,
+        })
 
     context = {
         "product": product,
@@ -241,6 +317,14 @@ def product_detail(request, slug: str):
         "selected_variant": selected,
         "selected_color": selected.color if selected else None,
         "selected_size": selected.size if selected else None,
+        "selected_in_stock": selected_in_stock,
+        "selected_stock_msg": selected_stock_msg,
+        "size_options": size_options,
+        "sizing_guide": sizing_guide,
+        "smart_alternatives": smart_alternatives,
+        "closet_matches": closet_matches,
+        "community_posts": community_posts,
+        "community_outfits": community_outfits,
         "gallery": gallery,
         "gallery_images": gallery_images,
         "hero_image": gallery_images[0] if gallery_images else gallery["primary"],
@@ -689,6 +773,7 @@ def merchandising_click(request):
         "recommendation_click",
         "related_product_click",
         "continue_shopping_click",
+        "alternative_product_clicked",
     }
     if event_type not in allowed_types:
         event_type = "recommendation_click"

@@ -7,11 +7,87 @@
 {% endblock extra_meta %}
 
 {% block content %}
+{% if is_content_preview %}
+<div class="sticky top-0 z-50 bg-amber-400 text-slate-950 px-4 py-2.5 text-xs font-semibold flex items-center justify-between shadow-lg">
+    <div class="flex items-center gap-2">
+        <span class="inline-block w-2 h-2 rounded-full bg-slate-950 animate-ping"></span>
+        <span>CONTENT STUDIO PREVIEW — Previewing draft & scheduled storefront sections.</span>
+    </div>
+    <a href="{% url 'backoffice:content_preview' %}" class="underline font-bold hover:text-black">Studio Preview Controls →</a>
+</div>
+{% endif %}
+
+{% if managed_sections %}
+    {# ======================================================================= #}
+    {# MANAGED CONTENT STUDIO SECTIONS                                         #}
+    {# ======================================================================= #}
+    {% for section in managed_sections %}
+        {% include "pages/sections/_section.html" with section=section %}
+    {% endfor %}
+
+    {% if continue_shopping %}
+    <section class="border-t border-slate-100 bg-white" aria-labelledby="continue-shopping-heading">
+        <div class="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
+            <div class="reveal reveal-up flex flex-wrap items-end justify-between gap-4">
+                <div>
+                    <p class="editorial-label">Pick up where you left off</p>
+                    <h2 id="continue-shopping-heading" class="mt-2 editorial-headline">
+                        Still thinking about these?
+                    </h2>
+                </div>
+                <a href="{% url 'catalog:track-merchandising' %}?type=continue_shopping_click&next={% url 'catalog:product-list' %}&src=home_continue"
+                   class="text-sm font-semibold text-slate-900 underline-offset-4 hover:underline">
+                    Continue browsing →
+                </a>
+            </div>
+            <div class="mt-8">
+                <div class="-mx-4 flex gap-4 overflow-x-auto px-4 pb-4 snap-x snap-mandatory sm:mx-0 sm:grid sm:grid-cols-2 sm:gap-6 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-4 reveal-stagger">
+                    {% for product in continue_shopping %}
+                        <div class="reveal reveal-up w-[72vw] max-w-xs flex-shrink-0 snap-start sm:w-auto sm:max-w-none">
+                            {% include "catalog/_product_card.html" with product=product %}
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </section>
+    {% endif %}
+
+    {% if recently_viewed %}
+    <section class="border-t border-slate-100 bg-slate-50/50" aria-labelledby="recently-viewed-heading">
+        <div class="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
+            <div class="reveal reveal-up flex flex-wrap items-end justify-between gap-4">
+                <div>
+                    <p class="editorial-label">Recently viewed</p>
+                    <h2 id="recently-viewed-heading" class="mt-2 editorial-headline">
+                        Your recently explored pieces
+                    </h2>
+                </div>
+                <a href="{% url 'catalog:track-merchandising' %}?type=recently_viewed_click&next={% url 'catalog:product-list' %}&src=home_recent"
+                   class="text-sm font-semibold text-slate-900 underline-offset-4 hover:underline">
+                    Explore catalogue →
+                </a>
+            </div>
+            <div class="mt-8">
+                <div class="-mx-4 flex gap-4 overflow-x-auto px-4 pb-4 snap-x snap-mandatory sm:mx-0 sm:grid sm:grid-cols-2 sm:gap-6 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-4 reveal-stagger">
+                    {% for product in recently_viewed %}
+                        <div class="reveal reveal-up w-[72vw] max-w-xs flex-shrink-0 snap-start sm:w-auto sm:max-w-none">
+                            {% include "catalog/_product_card.html" with product=product %}
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </section>
+    {% endif %}
+
+{% else %}
 {# ======================================================================= #}
 {# EDITORIAL HERO — image-forward, fashion-first, minimal text.            #}
 {# No feature checklists, no SaaS badges, no stats.                        #}
 {# ======================================================================= #}
 <section class="relative isolate overflow-hidden bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-white">
+
     <!-- Subtle layered depth glow -->
     <div class="hero-anim-bg pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_80%_60%_at_50%_-10%,rgba(94,123,255,0.22),transparent)]"></div>
     <div class="pointer-events-none absolute -right-40 top-20 -z-10 h-96 w-96 rounded-full bg-flash-500/10 blur-3xl"></div>
@@ -490,9 +566,11 @@
         </div>
     </div>
 </section>
+{% endif %}
 
 {# ======================================================================= #}
 {# FINAL BRAND MOMENT — emotional closing CTA.                            #}
+
 {# ======================================================================= #}
 <section class="border-t border-slate-200 bg-white text-slate-900">
     <div class="mx-auto max-w-7xl px-4 py-24 text-center sm:px-6 lg:px-8">

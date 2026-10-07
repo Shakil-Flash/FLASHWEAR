@@ -66,6 +66,25 @@ class Event(models.Model):
         WISHLIST_TO_CART = "wishlist_to_cart", _("wishlist to cart")
         CONTINUE_SHOPPING_CLICK = "continue_shopping_click", _("continue shopping click")
         RELATED_PRODUCT_CLICK = "related_product_click", _("related product click")
+        # Visual Content & Merchandising Studio (Phase 29)
+        HOMEPAGE_SECTION_VIEW = "homepage_section_view", _("homepage section view")
+        HOMEPAGE_SECTION_CLICK = "homepage_section_click", _("homepage section click")
+        EDITORIAL_VIEW = "editorial_view", _("editorial view")
+        EDITORIAL_CLICK = "editorial_click", _("editorial click")
+        CAMPAIGN_CLICK = "campaign_click", _("campaign click")
+        FEATURED_PRODUCT_CLICK = "featured_product_click", _("featured product click")
+        # Conversion, Trust & Purchase Experience (Phase 30)
+        PRODUCT_TO_CART = "product_to_cart", _("product to cart")
+        CART_VIEW = "cart_view", _("cart view")
+        CHECKOUT_STEP_COMPLETED = "checkout_step_completed", _("checkout step completed")
+        CHECKOUT_ABANDONED = "checkout_abandoned", _("checkout abandoned")
+        PAYMENT_STARTED = "payment_started", _("payment started")
+        PAYMENT_FAILED = "payment_failed", _("payment failed")
+        ORDER_COMPLETED = "order_completed", _("order completed")
+        ALTERNATIVE_PRODUCT_CLICKED = (
+            "alternative_product_clicked",
+            _("alternative product clicked"),
+        )
 
     name = models.CharField(_("name"), max_length=64, choices=Name.choices)
     user = models.ForeignKey(

@@ -158,6 +158,13 @@ def checkout_address(request):
     checkout = get_or_create_checkout(request.user, cart)
     address = get_object_or_404(Address, pk=request.POST.get("address_id"), user=request.user)
     set_shipping_address(checkout, address)
+    record_event(
+        "checkout_step_completed",
+        request=request,
+        object_type="checkout",
+        object_id=checkout.pk,
+        metadata={"step": "address", "address_id": address.pk},
+    )
     return redirect("shop:checkout")
 
 
@@ -172,6 +179,13 @@ def checkout_shipping(request):
     checkout = get_or_create_checkout(request.user, cart)
     try:
         set_shipping_method(checkout, request.POST.get("method", ""))
+        record_event(
+            "checkout_step_completed",
+            request=request,
+            object_type="checkout",
+            object_id=checkout.pk,
+            metadata={"step": "shipping", "shipping_method": checkout.shipping_method_code},
+        )
     except ValidationError as err:
         messages.error(request, _message_text(err))
         return redirect("shop:checkout")
@@ -290,6 +304,14 @@ def checkout_payment(request, number: str):
     if payment.status == payment.Status.SUCCEEDED or order.status != order.Status.PENDING_PAYMENT:
         return redirect("shop:checkout-done", number=order.number)
 
+    record_event(
+        "payment_started",
+        request=request,
+        object_type="payment",
+        object_id=payment.pk,
+        metadata={"order_number": order.number, "amount": str(order.total)},
+    )
+
     from apps.payments.providers import provider_name
 
     return render(
@@ -305,10 +327,49 @@ def checkout_payment(request, number: str):
 
 
 @login_required
+@require_POST
+def checkout_payment_retry(request, number: str):
+    """Allow customer to retry a failed payment attempt without rebuilding the order."""
+    order = _own_order(request, number)
+    if order.status != order.Status.PENDING_PAYMENT:
+        return redirect("shop:checkout-done", number=order.number)
+
+    payment = getattr(order, "payment", None)
+    if payment and payment.status == payment.Status.FAILED:
+        from apps.payments.models import Payment
+        from apps.payments.services import start_payment
+
+        payment.transition_to(Payment.Status.CREATED)
+        payment.failure_code = ""
+        payment.failure_message = ""
+        payment.save(update_fields=["status", "failure_code", "failure_message", "updated_at"])
+        start_payment(order)
+        messages.info(request, _("Ready to retry payment."))
+
+    return redirect("shop:checkout-payment", number=order.number)
+
+
+@login_required
 @never_cache
 def checkout_done(request, number: str):
     """``/shop/checkout/done/<number>/`` -- order confirmation and status."""
     order = _own_order(request, number)
+
+    if order.status in {
+        order.Status.PAID,
+        order.Status.PROCESSING,
+        order.Status.SHIPPED,
+        order.Status.DELIVERED,
+    }:
+        record_event(
+            "order_completed",
+            request=request,
+            object_type="order",
+            object_id=order.pk,
+            idempotency_key=f"order_completed:{order.pk}",
+            metadata={"order_number": order.number, "total": str(order.total)},
+        )
+
     return render(
         request,
         "shop/order_done.html",

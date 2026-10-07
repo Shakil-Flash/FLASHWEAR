@@ -30,6 +30,49 @@
     </div>
     {% endif %}
 
+    {% if order.status != "cancelled" %}
+    <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
+        <h2 class="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 mb-6">Order Status Progression</h2>
+        <div class="relative flex items-center justify-between">
+            <div class="absolute left-0 top-4 h-1 w-full bg-slate-100 z-0"></div>
+            <div class="absolute left-0 top-4 h-1 bg-flash-600 z-0 transition-all duration-500"
+                 style="width: {% if order.status == 'delivered' %}100%{% elif order.status == 'shipped' %}70%{% elif order.status == 'processing' or order.status == 'paid' %}35%{% else %}10%{% endif %};"></div>
+
+            <!-- Step 1: Placed -->
+            <div class="relative z-10 flex flex-col items-center">
+                <div class="flex h-8 w-8 items-center justify-center rounded-full {% if order.status == 'pending_payment' %}border-2 border-flash-600 bg-white text-flash-600 font-bold{% else %}bg-flash-600 text-white{% endif %} text-xs shadow-sm">
+                    ✓
+                </div>
+                <span class="mt-2 text-xs font-semibold text-slate-900">Placed</span>
+            </div>
+
+            <!-- Step 2: Processing -->
+            <div class="relative z-10 flex flex-col items-center">
+                <div class="flex h-8 w-8 items-center justify-center rounded-full {% if order.status == 'delivered' or order.status == 'shipped' %}bg-flash-600 text-white text-xs{% elif order.status == 'processing' or order.status == 'paid' %}border-2 border-flash-600 bg-white text-flash-600 font-bold text-xs{% else %}border border-slate-200 bg-white text-slate-400 text-xs{% endif %} shadow-sm">
+                    {% if order.status == 'delivered' or order.status == 'shipped' %}✓{% else %}2{% endif %}
+                </div>
+                <span class="mt-2 text-xs font-medium {% if order.status == 'processing' or order.status == 'paid' or order.status == 'shipped' or order.status == 'delivered' %}text-slate-900{% else %}text-slate-400{% endif %}">Processing</span>
+            </div>
+
+            <!-- Step 3: Shipped -->
+            <div class="relative z-10 flex flex-col items-center">
+                <div class="flex h-8 w-8 items-center justify-center rounded-full {% if order.status == 'delivered' %}bg-flash-600 text-white text-xs{% elif order.status == 'shipped' %}border-2 border-flash-600 bg-white text-flash-600 font-bold text-xs{% else %}border border-slate-200 bg-white text-slate-400 text-xs{% endif %} shadow-sm">
+                    {% if order.status == 'delivered' %}✓{% else %}3{% endif %}
+                </div>
+                <span class="mt-2 text-xs font-medium {% if order.status == 'shipped' or order.status == 'delivered' %}text-slate-900{% else %}text-slate-400{% endif %}">Shipped</span>
+            </div>
+
+            <!-- Step 4: Delivered -->
+            <div class="relative z-10 flex flex-col items-center">
+                <div class="flex h-8 w-8 items-center justify-center rounded-full {% if order.status == 'delivered' %}bg-emerald-600 text-white text-xs{% else %}border border-slate-200 bg-white text-slate-400 text-xs{% endif %} shadow-sm">
+                    {% if order.status == 'delivered' %}✓{% else %}4{% endif %}
+                </div>
+                <span class="mt-2 text-xs font-medium {% if order.status == 'delivered' %}text-emerald-700 font-semibold{% else %}text-slate-400{% endif %}">Delivered</span>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
         <h2 class="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500">Items</h2>
         <ul class="mt-4 divide-y divide-slate-100">

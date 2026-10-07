@@ -19,8 +19,9 @@ def cleanup_stale_reports():
     Only runs if PostgreSQL is available; silently no-op on SQLite.
     """
     try:
-        from creator.models import CreatorPostReport
         from django.utils import timezone as dj_timezone
+
+        from apps.creator.models import CreatorPostReport
 
         ninety_days_ago = dj_timezone.now() - timezone.timedelta(days=90)
         stale = CreatorPostReport.objects.filter(
@@ -44,7 +45,7 @@ def increment_post_views(post_id):
     view via F() expressions for atomicity.
     """
     try:
-        from creator.models import CreatorPost
+        from apps.creator.models import CreatorPost
 
         post = CreatorPost.objects.get(pk=post_id)
         post.view_count = models.F("view_count") + 1

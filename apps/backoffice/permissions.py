@@ -351,7 +351,40 @@ NAVIGATION = (
         ),
     ),
     (
+        "Content",
+
+        (
+            ("content_homepage", "Homepage", "backoffice:content_homepage", MARKETING_VIEW),
+            ("content_editorial", "Editorial", "backoffice:content_editorial", MARKETING_VIEW),
+            ("content_campaigns", "Campaigns", "backoffice:content_campaigns", MARKETING_VIEW),
+        ),
+    ),
+    (
+        "Merchandising",
+        (
+            (
+                "merch_featured_products",
+                "Featured Products",
+                "backoffice:merch_featured_products",
+                CATALOG_VIEW,
+            ),
+            (
+                "merch_featured_collections",
+                "Featured Collections",
+                "backoffice:merch_featured_collections",
+                CATALOG_VIEW,
+            ),
+            (
+                "merch_scheduled",
+                "Scheduled Content",
+                "backoffice:merch_scheduled",
+                CATALOG_VIEW,
+            ),
+        ),
+    ),
+    (
         "Commerce",
+
         (
             ("orders", "Orders", "backoffice:orders", ORDERS_VIEW),
             ("products", "Products", "backoffice:products", CATALOG_VIEW),

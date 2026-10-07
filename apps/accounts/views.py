@@ -423,12 +423,12 @@ class PasswordChangeView(auth_views.PasswordChangeView):
 
 
 class AccountDashboardView(TemplateView):
-    """``/account/`` -- the customer control centre.
+    """``/account/`` -- the customer control centre and personal style home.
 
-    Sections belonging to later phases are listed as explicitly unavailable rather than as dead
-    links, so the roadmap is visible without pretending the feature works. The list itself lives in
-    :mod:`apps.accounts.navigation`, which the navigation rail also reads -- one definition, so the
-    dashboard and the rail cannot disagree about what exists.
+    Phase 31 elevates this from an administrative dashboard to a fashion profile:
+    style signature, style evolution, wardrobe connection, outfit continuity,
+    wishlist intelligence, and human-reason recommendations, while preserving
+    all navigation and account status landmarks.
     """
 
     template_name = "account/dashboard.html"
@@ -437,7 +437,114 @@ class AccountDashboardView(TemplateView):
         context = super().get_context_data(**kwargs)
         user = self.request.user
         addresses = user.addresses.all()
+
+        from datetime import timedelta
+
+        from django.utils import timezone
+
         from apps.catalog.merchandising import get_recently_viewed
+        from apps.catalog.selectors import homepage_new_arrivals
+        from apps.closet.models.items import ClosetItem
+        from apps.closet.models.outfits import Outfit
+        from apps.engagement.services.loyalty import balance_for
+        from apps.recommendations.services import get_customer_recommendations
+        from apps.shop.services import get_cart_for_request
+        from apps.styling.services.style_profile import (
+            get_style_evolution_insight,
+            get_style_profile_summary,
+        )
+
+        recently_viewed = get_recently_viewed(self.request, limit=4)
+        style_profile = get_style_profile_summary(user)
+        style_evolution = get_style_evolution_insight(user)
+        recommendations = get_customer_recommendations(user, limit=4)
+
+        # Wardrobe & Outfits
+        closet_items = (
+            ClosetItem.objects.filter(user=user, status=ClosetItem.Status.ACTIVE)
+            .select_related("variant__product")
+            .order_by("-created_at")[:4]
+        )
+        closet_count = ClosetItem.objects.filter(
+            user=user, status=ClosetItem.Status.ACTIVE
+        ).count()
+
+        saved_outfits = (
+            Outfit.objects.filter(user=user, status=Outfit.Status.SAVED)
+            .prefetch_related("items__item")
+            .order_by("-updated_at")[:3]
+        )
+        saved_outfits_count = Outfit.objects.filter(
+            user=user, status=Outfit.Status.SAVED
+        ).count()
+        draft_outfit = (
+            Outfit.objects.filter(user=user, status=Outfit.Status.DRAFT)
+            .order_by("-updated_at")
+            .first()
+        )
+
+        # Wishlist intelligence preview
+        wishlist_preview = []
+        wishlist_count = 0
+        wishlist = getattr(user, "wishlist", None)
+        if wishlist is not None:
+            now = timezone.now()
+            items_qs = (
+                wishlist.items.select_related("product", "variant")
+                .order_by("-created_at")[:4]
+            )
+            wishlist_count = wishlist.items.count()
+            for w_item in items_qs:
+                stock_units = 0
+                if w_item.variant:
+                    stock_row = getattr(w_item.variant, "stock", None)
+                    stock_units = stock_row.available if stock_row else 0
+                elif w_item.product:
+                    for v in w_item.product.purchasable_variants:
+                        s = getattr(v, "stock", None)
+                        if s:
+                            stock_units += max(0, s.available)
+
+                is_on_sale = False
+                if w_item.variant:
+                    is_on_sale = getattr(w_item.variant, "is_discounted", False)
+                elif w_item.product:
+                    is_on_sale = getattr(w_item.product, "is_on_sale", False)
+
+                wishlist_preview.append(
+                    {
+                        "item": w_item,
+                        "product": w_item.product,
+                        "variant": w_item.variant,
+                        "is_low_stock": 0 < stock_units <= 5,
+                        "is_sold_out": stock_units == 0,
+                        "is_on_sale": is_on_sale,
+                        "is_recently_added": (now - w_item.created_at) < timedelta(days=14),
+                        "stock": stock_units,
+                    }
+                )
+
+        # Recent Orders
+        recent_orders = (
+            user.orders.select_related("payment")
+            .prefetch_related("items__variant")
+            .order_by("-created_at")[:2]
+        )
+        orders_count = user.orders.count()
+
+        # Continuity & Loyalty
+        cart = get_cart_for_request(self.request)
+        cart_item_count = cart.get_total_quantity() if cart else 0
+        loyalty_points = balance_for(user)
+        new_drops = homepage_new_arrivals(limit=4)
+
+        is_cold_start = (
+            not style_profile.get("is_complete")
+            and closet_count == 0
+            and orders_count == 0
+            and wishlist_count == 0
+            and not bool(recently_viewed)
+        )
 
         context.update(
             {
@@ -445,7 +552,23 @@ class AccountDashboardView(TemplateView):
                 "addresses": addresses,
                 "address_count": addresses.count(),
                 "default_shipping": next((a for a in addresses if a.is_default_shipping), None),
-                "recently_viewed": get_recently_viewed(self.request, limit=4),
+                "recently_viewed": recently_viewed,
+                "style_profile": style_profile,
+                "style_evolution": style_evolution,
+                "recommendations": recommendations,
+                "closet_items": closet_items,
+                "closet_count": closet_count,
+                "saved_outfits": saved_outfits,
+                "saved_outfits_count": saved_outfits_count,
+                "draft_outfit": draft_outfit,
+                "wishlist_preview": wishlist_preview,
+                "wishlist_count": wishlist_count,
+                "recent_orders": recent_orders,
+                "orders_count": orders_count,
+                "cart_item_count": cart_item_count,
+                "loyalty_points": loyalty_points,
+                "new_drops": new_drops,
+                "is_cold_start": is_cold_start,
             }
         )
         return context

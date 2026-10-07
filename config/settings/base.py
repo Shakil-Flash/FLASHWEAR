@@ -102,7 +102,8 @@ LOCAL_APPS = [
     "apps.drops",
     "apps.closet",
     # Phase 10: personalized discovery and recommendations.
-    # Phase 12: creator economy (not yet wired into INSTALLED_APPS).
+    # Phase 12 / Phase 32: creator economy, community & shoppable UGC.
+    "apps.creator",
     # Phase 13: FLASH Loop -- resale, trade-in and recycling. A leaf app: it reads
     # the catalogue, closet, orders and engagement but nothing above imports it.
     "apps.loop",

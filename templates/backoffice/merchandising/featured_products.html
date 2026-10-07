@@ -1,0 +1,155 @@
+{% extends "backoffice/base.html" %}
+
+{% block title %}
+    Featured Products Merchandiser
+{% endblock title %}
+
+{% block breadcrumb %}
+    Merchandising › Featured Products
+{% endblock breadcrumb %}
+
+{% block content %}
+<header class="mb-6 flex flex-wrap items-end justify-between gap-4">
+    <div>
+        <h1 class="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+            Featured Products Merchandiser
+        </h1>
+        <p class="mt-1 text-sm text-slate-500">
+            Select, sequence, and schedule products manually featured in storefront strips.
+        </p>
+    </div>
+</header>
+
+{# Section Selector Tabs #}
+<div class="mb-6 border-b border-slate-200">
+    <nav class="-mb-px flex space-x-6 overflow-x-auto" aria-label="Sections">
+        {% for sec in sections %}
+            <a href="?section={{ sec.pk }}"
+               class="whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm transition {% if selected_section and selected_section.pk == sec.pk %}border-slate-900 text-slate-900 font-semibold{% else %}border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300{% endif %}">
+                {{ sec.title }} ({{ sec.get_section_type_display }})
+            </a>
+        {% empty %}
+            <p class="text-sm text-slate-500 pb-4">No product-based sections found. Create a "Featured Products" section in Homepage Studio first.</p>
+        {% endfor %}
+    </nav>
+</div>
+
+{% if selected_section %}
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {# Left: Merchandised Products List & Order #}
+        <div class="lg:col-span-2 space-y-4">
+            <div class="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-base font-bold text-slate-900">
+                        Pinned Products in "{{ selected_section.title }}"
+                    </h2>
+                    <span class="text-xs text-slate-500">
+                        {{ pinned_products|length }} product{{ pinned_products|length|pluralize }}
+                    </span>
+                </div>
+
+                <div class="divide-y divide-slate-100">
+                    {% for sp in pinned_products %}
+                        <div class="py-3 flex flex-wrap items-center justify-between gap-4">
+                            <div class="flex items-center gap-3 min-w-[240px]">
+                                {% if sp.product.primary_image %}
+                                    <img src="{{ sp.product.primary_image.image.url }}" alt="" class="h-12 w-10 object-cover rounded-md border border-slate-200" />
+                                {% else %}
+                                    <div class="h-12 w-10 bg-slate-100 rounded-md border border-slate-200 flex items-center justify-center text-[10px] text-slate-400">
+                                        No img
+                                    </div>
+                                {% endif %}
+                                <div>
+                                    <div class="font-semibold text-slate-900 text-sm">{{ sp.product.name }}</div>
+
+                                    <div class="text-xs text-slate-500">
+                                        {{ sp.product.brand.name|default:"FLASHWEAR" }} • ${{ sp.product.price }}
+                                    </div>
+                                    {% if sp.starts_at or sp.ends_at %}
+                                        <div class="text-[11px] text-amber-600 font-medium">
+                                            Scheduled: {{ sp.starts_at|date:"M d"|default:"Now" }} → {{ sp.ends_at|date:"M d"|default:"Always" }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            {# Numeric Reorder and Remove Form #}
+                            <div class="flex items-center gap-3">
+                                {% if can_manage %}
+                                    <form method="post" action="{% url 'backoffice:merch_product_reorder' selected_section.pk %}" class="flex items-center gap-1.5">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="product_id" value="{{ sp.product.pk }}" />
+                                        <label class="text-xs text-slate-500 font-medium">Order:</label>
+                                        <input type="number" name="display_order" value="{{ sp.display_order }}" min="0"
+                                               class="w-16 rounded border border-slate-300 px-2 py-1 text-xs text-center font-bold" />
+                                        <button type="submit" class="text-xs rounded bg-slate-100 px-2 py-1 text-slate-700 hover:bg-slate-200">
+                                            Set
+                                        </button>
+                                    </form>
+
+                                    <form method="post" action="{% url 'backoffice:merch_product_remove' selected_section.pk sp.product.pk %}">
+                                        {% csrf_token %}
+                                        <button type="submit" class="text-xs font-medium text-rose-600 hover:text-rose-800 p-1">
+                                            Remove
+                                        </button>
+                                    </form>
+                                {% else %}
+                                    <span class="text-xs font-bold text-slate-700">Order: #{{ sp.display_order }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% empty %}
+                        <div class="py-8 text-center text-sm text-slate-500">
+                            No products manually pinned in this section yet. Add products using the form on the right.
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        {# Right: Feature a Product Form #}
+        <div>
+            <div class="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs sticky top-6">
+                <h2 class="text-base font-bold text-slate-900 mb-4">
+                    Feature a Product
+                </h2>
+                {% if can_manage %}
+                    <form method="post" action="{% url 'backoffice:merch_product_add' selected_section.pk %}" class="space-y-4">
+                        {% csrf_token %}
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">Select Product *</label>
+                            {{ form.product }}
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">Display Order</label>
+                            {{ form.display_order }}
+                            <p class="text-[11px] text-slate-400 mt-0.5">Lower numbers appear first in the strip.</p>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">Start Date</label>
+                                {{ form.starts_at }}
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">End Date</label>
+                                {{ form.ends_at }}
+                            </div>
+                        </div>
+                        <div>
+                            <label class="inline-flex items-center gap-2 text-xs font-semibold text-slate-900 cursor-pointer pt-2">
+                                {{ form.is_active }}
+                                <span>Active in Section</span>
+                            </label>
+                        </div>
+                        <button type="submit" class="w-full rounded-lg bg-slate-900 py-2.5 text-sm font-semibold text-white shadow hover:bg-slate-800 transition">
+                            + Pin Product to Section
+                        </button>
+                    </form>
+                {% else %}
+                    <p class="text-xs text-slate-500">You have read-only access to merchandising.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+{% endif %}
+{% endblock content %}

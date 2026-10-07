@@ -48,12 +48,18 @@ urlpatterns = [
         name="checkout-payment",
     ),
     path(
+        "checkout/payment/<str:number>/retry/",
+        checkout_views.checkout_payment_retry,
+        name="checkout-payment-retry",
+    ),
+    path(
         "checkout/done/<str:number>/",
         checkout_views.checkout_done,
         name="checkout-done",
     ),
     # HTMX / AJAX endpoints
     path("cart/count/", views.cart_count, name="cart-count"),
+    path("cart/mini/", views.cart_mini, name="cart-mini"),
     path("wishlist/count/", views.wishlist_count, name="wishlist-count"),
     path("cart/totals/", views.cart_totals, name="cart-totals"),
 ]

@@ -437,7 +437,8 @@ class TestHandlersMeasureRealData:
             loop_row(user, loop_type, status, price=Decimal("20.00"))
         assert handlers.compute_raw(user, quest, None) == len(qualifying)
 
-    def test_creator_quests_measure_zero_while_the_app_is_dormant(self, user):
+    def test_creator_quests_measure_zero_while_the_app_is_dormant(self, user, settings):
+        settings.INSTALLED_APPS = [app for app in settings.INSTALLED_APPS if app != "apps.creator"]
         assert "apps.creator" not in settings.INSTALLED_APPS
         quest = make_quest(quest_type=Quest.QuestType.CREATOR_POST)
 

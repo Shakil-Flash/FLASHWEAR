@@ -230,8 +230,20 @@ def _apply(payment: Payment, event: ProviderEvent, record: PaymentEvent) -> None
         payment.failure_code = "provider_failed"
         payment.save(update_fields=["failure_code", "failure_message", "updated_at"])
         _on_unpaid(payment, event, OrderEvent.Type.PAYMENT_FAILED, "Payment failed.")
+        from apps.analytics.services import record_event
         from apps.notifications.models import NotificationType
 
+        record_event(
+            "payment_failed",
+            user=payment.order.user,
+            object_type="payment",
+            object_id=payment.pk,
+            metadata={
+                "order_number": payment.order.number,
+                "amount": str(payment.amount),
+                "reason": payment.failure_message,
+            },
+        )
         _notify(
             payment.order,
             NotificationType.PAYMENT_FAILED,

@@ -9,12 +9,16 @@ HTMX requests receive JSON; classic form posts are redirected.
 
 from __future__ import annotations
 
+from datetime import timedelta
+from decimal import Decimal
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
@@ -84,9 +88,58 @@ def cart_detail(request):
     """Display the cart page with all items, totals, validation problems and recommendations."""
     from apps.catalog.merchandising import get_continue_shopping_items, get_recently_viewed
     from apps.catalog.selectors import homepage_new_arrivals
+    from apps.shop.checkout import discount_breakdown
+    from apps.shop.models import CheckoutSession
 
     cart = get_or_create_cart(request)
     items = list(cart.get_items())
+    totals = get_cart_totals(cart, items=items)
+    subtotal = totals["subtotal"]
+
+    free_threshold = Decimal("100.00")
+    free_remaining = max(Decimal("0.00"), free_threshold - subtotal)
+    free_qualified = subtotal >= free_threshold
+    free_pct = (
+        min(100, int((subtotal / free_threshold) * 100))
+        if free_threshold > Decimal("0.00")
+        else 100
+    )
+
+    promo_code = ""
+    promo_discount = Decimal("0.00")
+    loyalty_points = 0
+    loyalty_discount = Decimal("0.00")
+
+    if request.user.is_authenticated and bool(items):
+        checkout = (
+            CheckoutSession.objects.filter(
+                user=request.user,
+                status__in=[CheckoutSession.Status.OPEN, CheckoutSession.Status.VALIDATED],
+            )
+            .order_by("-created_at")
+            .first()
+        )
+        if checkout and (checkout.promotion_code or checkout.loyalty_points):
+            try:
+                breakdown = discount_breakdown(
+                    checkout,
+                    promotion_code=checkout.promotion_code,
+                    loyalty_points=checkout.loyalty_points,
+                )
+                promo_code = breakdown.promotion_code
+                promo_discount = breakdown.promotion_discount
+                loyalty_points = breakdown.loyalty_points
+                loyalty_discount = breakdown.loyalty_discount
+            except Exception:
+                pass
+
+    shipping_estimate = Decimal("0.00") if free_qualified else Decimal("5.00")
+    estimated_total = max(
+        Decimal("0.00"),
+        (subtotal - promo_discount - loyalty_discount + shipping_estimate).quantize(
+            Decimal("0.01")
+        ),
+    )
 
     continue_items = get_continue_shopping_items(request, limit=4)
     if not continue_items:
@@ -94,10 +147,32 @@ def cart_detail(request):
     if not continue_items:
         continue_items = homepage_new_arrivals(limit=4)
 
+    record_event(
+        "cart_view",
+        request=request,
+        object_type="cart",
+        object_id=cart.pk,
+        metadata={
+            "item_count": len(items),
+            "total_quantity": sum(i.quantity for i in items),
+        },
+    )
+
     context = {
         "cart": cart,
         "items": items,
-        "totals": get_cart_totals(cart, items=items),
+        "totals": totals,
+        "subtotal": subtotal,
+        "promo_code": promo_code,
+        "promo_discount": promo_discount,
+        "loyalty_points": loyalty_points,
+        "loyalty_discount": loyalty_discount,
+        "shipping_estimate": shipping_estimate,
+        "estimated_total": estimated_total,
+        "free_threshold": free_threshold,
+        "free_remaining": free_remaining,
+        "free_qualified": free_qualified,
+        "free_pct": free_pct,
         "errors": validate_cart_items(cart, items=items),
         "price_changes": get_price_changes(cart, items=items),
         "continue_items": continue_items,
@@ -132,11 +207,41 @@ def cart_add(request):
         object_id=variant.pk,
         metadata={"quantity": quantity, "product": variant.product_id},
     )
+    record_event(
+        "product_to_cart",
+        request=request,
+        object_type="variant",
+        object_id=variant.pk,
+        metadata={"quantity": quantity, "product": variant.product_id, "sku": variant.sku},
+    )
 
-    if _is_htmx(request):
-        return JsonResponse(_cart_payload(cart))
+    if (
+        _is_htmx(request)
+        or request.headers.get("accept") == "application/json"
+        or request.headers.get("x-requested-with") == "XMLHttpRequest"
+    ):
+        payload = _cart_payload(cart)
+        payload["success"] = True
+        payload["message"] = str(_("Added to bag."))
+        img_url = ""
+        if variant.product.primary_image:
+            img_url = variant.product.primary_image.image.url
+        payload["added_variant"] = {
+            "id": variant.pk,
+            "sku": variant.sku,
+            "product_name": variant.product.name,
+            "option_label": variant.option_label or "",
+            "price": str(variant.price),
+            "image_url": img_url,
+        }
+        return JsonResponse(payload)
 
-    messages.success(request, _("Added to cart"))
+    next_url = request.POST.get("next")
+    messages.success(request, _("Added to your bag."))
+    if next_url and next_url.startswith("/") and not next_url.startswith("//"):
+        sep = "&" if "?" in next_url else "?"
+        return redirect(f"{next_url}{sep}added={variant.pk}")
+
     return redirect("shop:cart")
 
 
@@ -252,11 +357,26 @@ def wishlist_detail(request):
             else:
                 stock_msg = "In stock"
 
+        is_low_stock = bool(
+            var
+            and getattr(var, "stock", None)
+            and 0 < var.stock.available <= 5
+        )
+        is_on_sale = bool(var.is_discounted if var else prod.is_on_sale)
+        is_recently_added = bool(
+            item.created_at
+            and item.created_at >= timezone.now() - timedelta(days=14)
+        )
+
         enriched_items.append(
             {
                 "item": item,
                 "is_available": is_avail,
                 "is_in_stock": is_in_stock,
+                "is_low_stock": is_low_stock,
+                "is_sold_out": not is_in_stock,
+                "is_on_sale": is_on_sale,
+                "is_recently_added": is_recently_added,
                 "stock_msg": stock_msg,
                 "purchasable_variants": prod.purchasable_variants if not var else [],
             }
@@ -430,3 +550,60 @@ def cart_totals(request):
     cart = get_or_create_cart(request)
     totals = get_cart_totals(cart)
     return JsonResponse({**totals, "subtotal": str(totals["subtotal"])})
+
+
+def cart_mini(request):
+    """Return JSON for the lightweight mini-cart slide-over drawer."""
+    from decimal import Decimal
+
+    cart = get_cart_for_request(request)
+    if cart is None or cart.is_empty():
+        return JsonResponse({
+            "is_empty": True,
+            "items": [],
+            "totals": {
+                "item_count": 0,
+                "total_quantity": 0,
+                "subtotal": "0.00",
+                "currency": "USD",
+            },
+            "free_shipping_threshold": "100.00",
+            "amount_for_free_shipping": "100.00",
+        })
+
+    items = list(cart.get_items())
+    totals = get_cart_totals(cart, items=items)
+    subtotal = totals["subtotal"]
+    free_threshold = Decimal("100.00")
+    needed_for_free = max(Decimal("0.00"), free_threshold - subtotal)
+
+    items_data = []
+    for item in items:
+        img_url = ""
+        if item.variant and item.variant.product.primary_image:
+            img_url = item.variant.product.primary_image.image.url
+        items_data.append({
+            "id": item.pk,
+            "product_name": item.variant.product.name,
+            "product_url": item.variant.product.get_absolute_url(),
+            "option_label": item.variant.option_label or "",
+            "sku": item.variant.sku,
+            "quantity": item.quantity,
+            "price": str(item.price_snapshot),
+            "line_total": str(item.line_total),
+            "image_url": img_url,
+            "is_eligible": item.variant_is_eligible,
+        })
+
+    return JsonResponse({
+        "is_empty": False,
+        "items": items_data,
+        "totals": {
+            "item_count": totals["item_count"],
+            "total_quantity": totals["total_quantity"],
+            "subtotal": str(subtotal),
+            "currency": totals["currency"],
+        },
+        "free_shipping_threshold": str(free_threshold),
+        "amount_for_free_shipping": str(needed_for_free),
+    })

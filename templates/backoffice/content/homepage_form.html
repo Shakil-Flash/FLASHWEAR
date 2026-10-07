@@ -1,0 +1,180 @@
+{% extends "backoffice/base.html" %}
+
+{% block title %}
+    {% if section %}Edit Section: {{ section.title }}{% else %}New Homepage Section{% endif %}
+{% endblock title %}
+
+{% block breadcrumb %}
+    <a href="{% url 'backoffice:content_homepage' %}" class="hover:underline">Homepage Studio</a> ›
+    {% if section %}Edit Section{% else %}New Section{% endif %}
+{% endblock breadcrumb %}
+
+{% block content %}
+<header class="mb-6">
+    <h1 class="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+        {% if section %}Edit Section: {{ section.title }}{% else %}Create Homepage Section{% endif %}
+    </h1>
+    <p class="mt-1 text-sm text-slate-500">
+        Configure visual display, images, CTAs, ordering, and scheduling window.
+    </p>
+</header>
+
+<div class="max-w-4xl rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs">
+    <form method="post" enctype="multipart/form-data" class="space-y-6">
+        {% csrf_token %}
+
+        {% if form.errors %}
+            <div class="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
+                <p class="font-semibold mb-1">Please correct the following errors:</p>
+                <ul class="list-disc pl-5 space-y-1">
+                    {% for field, errors in form.errors.items %}
+                        {% for error in errors %}
+                            <li><strong>{{ field }}:</strong> {{ error }}</li>
+                        {% endfor %}
+                    {% endfor %}
+                </ul>
+            </div>
+        {% endif %}
+
+        {# Section Basics #}
+        <div class="border-b border-slate-200 pb-6">
+            <h2 class="text-base font-semibold text-slate-900 mb-4">1. General Information</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">Title *</label>
+                    {{ form.title }}
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">Section Type *</label>
+                    {{ form.section_type }}
+                </div>
+                <div class="sm:col-span-2">
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">Subtitle / Short Description</label>
+                    {{ form.subtitle }}
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">Display Order</label>
+                    {{ form.display_order }}
+                    <p class="text-xs text-slate-400 mt-1">Lower values appear higher on the storefront.</p>
+                </div>
+                <div class="flex items-center pt-6">
+                    <label class="inline-flex items-center gap-2 text-sm font-semibold text-slate-900 cursor-pointer">
+                        {{ form.is_enabled }}
+                        <span>Enable this section on storefront</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        {# Scheduling & Campaign #}
+        <div class="border-b border-slate-200 pb-6">
+            <h2 class="text-base font-semibold text-slate-900 mb-4">2. Scheduling & Seasonal Campaign</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">Attached Campaign</label>
+                    {{ form.campaign }}
+                    <p class="text-xs text-slate-400 mt-1">Visible only when campaign is active.</p>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">Start Visibility Date</label>
+                    {{ form.starts_at }}
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">End Visibility Date</label>
+                    {{ form.ends_at }}
+                </div>
+            </div>
+        </div>
+
+        {# Visual & Hero Presentation #}
+        <div class="border-b border-slate-200 pb-6">
+            <h2 class="text-base font-semibold text-slate-900 mb-4">3. Imagery & Hero Styling</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">Desktop Image Upload</label>
+                    {{ form.desktop_image }}
+                    {% if section and section.desktop_image %}
+                        <p class="text-xs text-slate-500 mt-1">Current: <a href="{{ section.desktop_image.url }}" target="_blank" class="underline">View file</a></p>
+                    {% endif %}
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">Desktop Image External URL</label>
+                    {{ form.desktop_image_url }}
+                    <p class="text-xs text-slate-400 mt-1">Validated against SSRF rules.</p>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">Mobile Image Upload</label>
+                    {{ form.mobile_image }}
+                    {% if section and section.mobile_image %}
+                        <p class="text-xs text-slate-500 mt-1">Current: <a href="{{ section.mobile_image.url }}" target="_blank" class="underline">View file</a></p>
+                    {% endif %}
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">Mobile Image External URL</label>
+                    {{ form.mobile_image_url }}
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">Image Alt Text</label>
+                    {{ form.image_alt }}
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">Hero Overlay Position</label>
+                    {{ form.overlay_position }}
+                </div>
+            </div>
+        </div>
+
+        {# Calls to Action #}
+        <div class="border-b border-slate-200 pb-6">
+            <h2 class="text-base font-semibold text-slate-900 mb-4">4. Call to Action (CTA) Buttons</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">Primary CTA Text</label>
+                    {{ form.primary_cta_text }}
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">Primary CTA Destination</label>
+                    {{ form.primary_cta_url }}
+                    <p class="text-xs text-slate-400 mt-1">e.g. /catalog/ or /drops/</p>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">Secondary CTA Text</label>
+                    {{ form.secondary_cta_text }}
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">Secondary CTA Destination</label>
+                    {{ form.secondary_cta_url }}
+                </div>
+            </div>
+        </div>
+
+        {# Linked Catalog Entities #}
+        <div class="pb-2">
+            <h2 class="text-base font-semibold text-slate-900 mb-4">5. Linked Collections / Categories / Drops</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">Linked Collection</label>
+                    {{ form.linked_collection }}
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">Linked Category</label>
+                    {{ form.linked_category }}
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">Linked Drop</label>
+                    {{ form.linked_drop }}
+                </div>
+            </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
+            <a href="{% url 'backoffice:content_homepage' %}" class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">
+                Cancel
+            </a>
+            <button type="submit" class="rounded-lg bg-slate-900 px-6 py-2 text-sm font-semibold text-white shadow hover:bg-slate-800 transition">
+                Save Section
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock content %}

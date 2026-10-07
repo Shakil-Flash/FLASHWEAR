@@ -221,6 +221,11 @@ class ClosetItem(TimestampedModel):
         return self.variant_id is not None
 
     @property
+    def product(self):
+        """The associated catalog Product if this closet item is a FLASHWEAR piece."""
+        return self.variant.product if self.variant_id else None
+
+    @property
     def display_image(self):
         """The photo to render: the uploaded one, else the catalogue's primary image.
 

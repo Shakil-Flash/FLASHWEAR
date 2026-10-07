@@ -43,7 +43,7 @@ class Payment(TimestampedModel):
         Status.CREATED: (Status.PENDING, Status.CANCELLED),
         Status.PENDING: (Status.SUCCEEDED, Status.FAILED, Status.CANCELLED),
         Status.SUCCEEDED: (Status.REFUNDED,),
-        Status.FAILED: (),
+        Status.FAILED: (Status.CREATED, Status.PENDING),
         Status.CANCELLED: (),
         Status.REFUNDED: (),
     }

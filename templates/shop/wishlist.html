@@ -59,9 +59,17 @@
                                         {% with low=item.product.price_range.0 %}{% if low is not None %}{{ low|money }}{% else %}Price on request{% endif %}{% endwith %}
                                     {% endif %}
                                 </p>
-                                <span class="mt-1 inline-block rounded-full px-2.5 py-0.5 text-[0.7rem] font-semibold {% if not entry.is_in_stock %}bg-slate-100 text-slate-600{% elif 'Low stock' in entry.stock_msg %}bg-amber-50 text-amber-700 ring-1 ring-amber-200{% else %}bg-emerald-50 text-emerald-700{% endif %}">
-                                    {{ entry.stock_msg }}
-                                </span>
+                                <div class="mt-1 flex flex-wrap items-center justify-end gap-1.5">
+                                    {% if entry.is_recently_added %}
+                                        <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[0.65rem] font-medium text-slate-600">Recently added</span>
+                                    {% endif %}
+                                    {% if entry.is_on_sale %}
+                                        <span class="rounded-full bg-indigo-50 px-2 py-0.5 text-[0.65rem] font-semibold text-indigo-700 ring-1 ring-indigo-200">Price drop</span>
+                                    {% endif %}
+                                    <span class="inline-block rounded-full px-2.5 py-0.5 text-[0.7rem] font-semibold {% if not entry.is_in_stock %}bg-slate-100 text-slate-600{% elif entry.is_low_stock %}bg-amber-50 text-amber-700 ring-1 ring-amber-200{% else %}bg-emerald-50 text-emerald-700{% endif %}">
+                                        {{ entry.stock_msg }}
+                                    </span>
+                                </div>
                             {% else %}
                                 <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">Unavailable</span>
                             {% endif %}

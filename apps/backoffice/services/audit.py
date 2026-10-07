@@ -46,6 +46,19 @@ ACTIONS = (
     "support.status",
     "staff.role",
     "bulk.action",
+    "content.section.create",
+    "content.section.update",
+    "content.section.delete",
+    "content.section.toggle",
+    "content.editorial.create",
+    "content.editorial.update",
+    "content.editorial.delete",
+    "content.campaign.create",
+    "content.campaign.update",
+    "content.campaign.delete",
+    "merch.product.add",
+    "merch.product.remove",
+    "merch.product.reorder",
 )
 
 _DOMAINS = {value for value, _label in AuditEvent.Domain.choices}

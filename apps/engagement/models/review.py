@@ -121,3 +121,14 @@ class Review(TimestampedModel):
     @property
     def is_public(self) -> bool:
         return self.status == self.Status.PUBLISHED
+
+    @property
+    def display_author(self) -> str:
+        """Customer-facing display name protecting privacy (never exposes raw email)."""
+        first = (self.author.first_name or "").strip()
+        last = (self.author.last_name or "").strip()
+        if first and last:
+            return f"{first} {last[0].upper()}."
+        if first:
+            return first
+        return "Verified Shopper"

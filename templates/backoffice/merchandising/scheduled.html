@@ -1,0 +1,132 @@
+{% extends "backoffice/base.html" %}
+
+{% block title %}
+    Scheduled Content & Timeline
+{% endblock title %}
+
+{% block breadcrumb %}
+    Merchandising › Scheduled Content
+{% endblock breadcrumb %}
+
+{% block content %}
+<header class="mb-6 flex flex-wrap items-end justify-between gap-4">
+    <div>
+        <h1 class="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+            Scheduled Content Timeline
+        </h1>
+        <p class="mt-1 text-sm text-slate-500">
+            Timeline of all scheduled seasonal campaigns, homepage visual sections, and merchandised items.
+        </p>
+    </div>
+    <div class="rounded-lg bg-slate-100 px-3 py-1.5 text-xs text-slate-600 font-mono">
+        System Time: {{ now|date:"Y-m-d H:i:s T" }}
+    </div>
+</header>
+
+<div class="space-y-8">
+    {# 1. Scheduled Campaigns #}
+    <div class="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs">
+        <h2 class="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
+            <span>Seasonal Campaigns</span>
+            <span class="rounded-full bg-slate-100 text-slate-600 px-2 py-0.5 text-xs font-semibold">{{ campaigns|length }}</span>
+        </h2>
+        <div class="divide-y divide-slate-100">
+            {% for c in campaigns %}
+                <div class="py-3 flex flex-wrap items-center justify-between gap-4 text-sm">
+                    <div>
+                        <div class="font-semibold text-slate-900">{{ c.title }}</div>
+                        <div class="text-xs text-slate-500 font-mono">
+                            {{ c.starts_at|date:"Y-m-d H:i" }} → {{ c.ends_at|date:"Y-m-d H:i" }}
+                        </div>
+                    </div>
+                    <div>
+                        {% if c.is_running %}
+                            <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 border border-emerald-200">
+                                <span class="h-1.5 w-1.5 rounded-full bg-emerald-600"></span> Active Now
+                            </span>
+                        {% elif c.starts_at > now %}
+                            <span class="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 border border-blue-200">
+                                <span class="h-1.5 w-1.5 rounded-full bg-blue-600"></span> Upcoming
+                            </span>
+                        {% else %}
+                            <span class="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500">
+                                Concluded
+                            </span>
+                        {% endif %}
+                    </div>
+                </div>
+            {% empty %}
+                <p class="py-4 text-xs text-slate-400">No campaigns scheduled.</p>
+            {% endfor %}
+        </div>
+    </div>
+
+    {# 2. Scheduled Homepage Sections #}
+    <div class="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs">
+        <h2 class="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
+            <span>Scheduled Homepage Sections</span>
+            <span class="rounded-full bg-slate-100 text-slate-600 px-2 py-0.5 text-xs font-semibold">{{ sections|length }}</span>
+        </h2>
+        <div class="divide-y divide-slate-100">
+            {% for s in sections %}
+                <div class="py-3 flex flex-wrap items-center justify-between gap-4 text-sm">
+                    <div>
+                        <div class="font-semibold text-slate-900">{{ s.title }} ({{ s.get_section_type_display }})</div>
+                        <div class="text-xs text-slate-500 font-mono">
+                            {{ s.starts_at|date:"Y-m-d H:i"|default:"Start" }} → {{ s.ends_at|date:"Y-m-d H:i"|default:"End" }}
+                            {% if s.campaign %} • Linked to Campaign: {{ s.campaign.title }}{% endif %}
+                        </div>
+                    </div>
+                    <div>
+                        {% if s.is_visible %}
+                            <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 border border-emerald-200">
+                                <span class="h-1.5 w-1.5 rounded-full bg-emerald-600"></span> Active Now
+                            </span>
+                        {% else %}
+                            <span class="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 border border-amber-200">
+                                Outside Window
+                            </span>
+                        {% endif %}
+                    </div>
+                </div>
+            {% empty %}
+                <p class="py-4 text-xs text-slate-400">No homepage sections currently have date constraints.</p>
+            {% endfor %}
+        </div>
+    </div>
+
+    {# 3. Scheduled Merchandised Products #}
+    <div class="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs">
+        <h2 class="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
+            <span>Scheduled Product Pinnings</span>
+            <span class="rounded-full bg-slate-100 text-slate-600 px-2 py-0.5 text-xs font-semibold">{{ products|length }}</span>
+        </h2>
+        <div class="divide-y divide-slate-100">
+            {% for p in products %}
+                <div class="py-3 flex flex-wrap items-center justify-between gap-4 text-sm">
+                    <div>
+                        <div class="font-semibold text-slate-900">{{ p.product.name }} in section "{{ p.section.title }}"</div>
+
+                        <div class="text-xs text-slate-500 font-mono">
+                            {{ p.starts_at|date:"Y-m-d H:i"|default:"Start" }} → {{ p.ends_at|date:"Y-m-d H:i"|default:"End" }}
+                        </div>
+                    </div>
+                    <div>
+                        {% if p.is_visible %}
+                            <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 border border-emerald-200">
+                                Active
+                            </span>
+                        {% else %}
+                            <span class="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 border border-amber-200">
+                                Outside Window
+                            </span>
+                        {% endif %}
+                    </div>
+                </div>
+            {% empty %}
+                <p class="py-4 text-xs text-slate-400">No product pinnings have scheduled date constraints.</p>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock content %}

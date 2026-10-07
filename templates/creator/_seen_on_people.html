@@ -1,0 +1,144 @@
+{% load catalog_extras %}
+
+{% comment %}
+Reusable "Seen on People" / Community Look Card (Phase 32)
+Used in PDP ("Styled by the community"), /inspiration/, and homepage.
+Props:
+  - post: CreatorPost instance
+  - current_product: Optional catalog.Product (highlighted if tagged)
+{% endcomment %}
+
+<article class="group relative flex flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-soft transition-all duration-300 hover:-translate-y-1 hover:shadow-elevated motion-reduce:hover:translate-y-0"
+         data-post-id="{{ post.pk }}"
+         data-post-slug="{{ post.slug }}">
+    <!-- Image & Tag Overlays -->
+    <div class="relative aspect-[3/4] w-full overflow-hidden bg-slate-100">
+        <a href="{{ post.get_absolute_url }}" class="block h-full w-full focus:outline-none focus:ring-2 focus:ring-flash-500/50">
+            {% if post.cover_image %}
+                <img src="{{ post.cover_image.url }}"
+                     alt="{{ post.title }}"
+                     loading="lazy"
+                     class="h-full w-full object-cover object-center transition-transform duration-700 ease-out group-hover:scale-105 motion-reduce:group-hover:scale-100" />
+            {% elif post.media.first %}
+                <img src="{{ post.media.first.image.url }}"
+                     alt="{{ post.media.first.alt_text|default:post.title }}"
+                     loading="lazy"
+                     class="h-full w-full object-cover object-center transition-transform duration-700 ease-out group-hover:scale-105 motion-reduce:group-hover:scale-100" />
+            {% else %}
+                <div class="flex h-full w-full items-center justify-center bg-slate-100 text-slate-400">
+                    <svg class="h-10 w-10 stroke-current" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                </div>
+            {% endif %}
+        </a>
+
+        <!-- Creator Pill Overlay (Top Left) -->
+        <div class="absolute left-3 top-3 z-10">
+            <a href="{{ post.creator.get_absolute_url }}"
+               class="inline-flex items-center gap-2 rounded-full border border-white/20 bg-slate-950/70 py-1 pl-1 pr-3 text-xs font-medium text-white backdrop-blur transition hover:bg-slate-950/90">
+                {% if post.creator.avatar %}
+                    <img src="{{ post.creator.avatar.url }}" alt="{{ post.creator.display_name }}" class="h-5 w-5 rounded-full object-cover" />
+                {% else %}
+                    <span class="flex h-5 w-5 items-center justify-center rounded-full bg-flash-500 text-[10px] font-bold text-slate-950">
+                        {{ post.creator.display_name|slice:":1"|upper }}
+                    </span>
+                {% endif %}
+                <span class="max-w-[110px] truncate text-white">{{ post.creator.display_name }}</span>
+            </a>
+        </div>
+
+        <!-- Like / Save Actions (Top Right) -->
+        <div class="absolute right-3 top-3 z-10 flex items-center gap-1.5" x-data="{ liked: {{ user_liked|default:'false'|lower }}, likeCount: {{ post.like_count }}, saved: {{ user_saved|default:'false'|lower }} }">
+            <form method="post" action="{% url 'inspiration:like' slug=post.slug %}"
+                  @submit.prevent="
+                    if (!{{ request.user.is_authenticated|yesno:'true,false' }}) { window.location.href = '{% url 'accounts:login' %}?next={{ post.get_absolute_url }}'; return; }
+                    fetch($el.action, { method: 'POST', headers: { 'X-CSRFToken': '{{ csrf_token }}', 'X-Requested-With': 'XMLHttpRequest' } })
+                      .then(r => r.json())
+                      .then(d => { if (d.liked !== undefined) { liked = d.liked; likeCount = d.like_count; } });
+                  ">
+                {% csrf_token %}
+                <button type="submit"
+                        aria-label="Like look"
+                        class="flex h-8 w-8 items-center justify-center rounded-full border border-white/20 bg-slate-950/60 text-white backdrop-blur transition hover:scale-110 hover:bg-slate-950/90 motion-reduce:hover:scale-100"
+                        :class="liked ? 'text-rose-500' : 'text-white'">
+                    <svg class="h-4 w-4" :fill="liked ? 'currentColor' : 'none'" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                    </svg>
+                </button>
+            </form>
+        </div>
+
+        <!-- Shoppable Tag Count Badge (Bottom Left) -->
+        {% with tag_count=post.product_tags.count %}
+            {% if tag_count > 0 %}
+                <div class="absolute bottom-3 left-3 z-10">
+                    <span class="inline-flex items-center gap-1 rounded-full border border-white/20 bg-slate-950/70 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur">
+                        <svg class="h-3.5 w-3.5 text-flash-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/>
+                        </svg>
+                        <span>{{ tag_count }} tagged piece{{ tag_count|pluralize }}</span>
+                    </span>
+                </div>
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    <!-- Look Info & Shoppable Products Ribbon -->
+    <div class="flex flex-1 flex-col p-4">
+        <h3 class="text-sm font-semibold text-slate-900 line-clamp-1 group-hover:text-flash-700 transition">
+            <a href="{{ post.get_absolute_url }}">{{ post.title }}</a>
+        </h3>
+        {% if post.caption %}
+            <p class="mt-1 text-xs text-slate-600 line-clamp-2 leading-relaxed">{{ post.caption }}</p>
+        {% endif %}
+
+        <!-- Real Social Proof Indicators -->
+        <div class="mt-3 flex items-center justify-between text-xs text-slate-500 pt-2 border-t border-slate-100">
+            <div class="flex items-center gap-3">
+                {% if post.like_count > 0 %}
+                    <span class="flex items-center gap-1">
+                        <svg class="h-3.5 w-3.5 text-rose-500 fill-current" viewBox="0 0 20 20"><path d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z"/></svg>
+                        <span>{{ post.like_count }}</span>
+                    </span>
+                {% endif %}
+                {% if post.save_count > 0 %}
+                    <span class="flex items-center gap-1">
+                        <svg class="h-3.5 w-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
+                        <span>{{ post.save_count }}</span>
+                    </span>
+                {% endif %}
+            </div>
+            <a href="{{ post.get_absolute_url }}" class="font-medium text-slate-900 hover:text-flash-600 transition inline-flex items-center gap-1">
+                Shop look →
+            </a>
+        </div>
+
+        <!-- Tagged Products Mini Carousel / Strip -->
+        {% if post.product_tags.all %}
+            <div class="mt-3 pt-3 border-t border-slate-100">
+                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">Pieces in this look</p>
+                <div class="flex items-center gap-2 overflow-x-auto pb-1">
+                    {% for tag in post.product_tags.all|slice:":3" %}
+                        <a href="{{ tag.product.get_absolute_url }}"
+                           title="{{ tag.product.name }} ({{ tag.product.min_price|money }})"
+                           class="group/item flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200/80 bg-slate-50/80 p-1.5 transition hover:border-slate-300 hover:bg-white">
+                            <div class="h-8 w-8 shrink-0 overflow-hidden rounded bg-white">
+                                {% if tag.product.primary_image %}
+                                    <img src="{{ tag.product.primary_image.url }}" alt="{{ tag.product.name }}" class="h-full w-full object-cover" />
+                                {% else %}
+                                    <div class="flex h-full w-full items-center justify-center bg-slate-200 text-[9px] font-bold text-slate-500">FW</div>
+                                {% endif %}
+                            </div>
+                            <div class="min-w-0 pr-1">
+                                <p class="truncate text-[11px] font-semibold text-slate-900 max-w-[85px]">{{ tag.product.name }}</p>
+                                {% if tag.label %}
+                                    <span class="block truncate text-[9px] font-medium text-slate-500 max-w-[85px]">{{ tag.label }}</span>
+                                {% endif %}
+                                <p class="text-[10px] text-slate-600 font-medium">{{ tag.product.min_price|money }}</p>
+                            </div>
+                        </a>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</article>

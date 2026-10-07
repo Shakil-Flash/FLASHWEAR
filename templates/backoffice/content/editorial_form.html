@@ -1,0 +1,152 @@
+{% extends "backoffice/base.html" %}
+
+{% block title %}
+    {% if story %}Edit Story: {{ story.title }}{% else %}New Editorial Story{% endif %}
+{% endblock title %}
+
+{% block breadcrumb %}
+    <a href="{% url 'backoffice:content_editorial' %}" class="hover:underline">Editorial Stories</a> ›
+    {% if story %}Edit Story{% else %}New Story{% endif %}
+{% endblock breadcrumb %}
+
+{% block content %}
+<header class="mb-6">
+    <h1 class="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+        {% if story %}Edit Story: {{ story.title }}{% else %}Create Editorial Story{% endif %}
+    </h1>
+    <p class="mt-1 text-sm text-slate-500">
+        Fashion stories and narrative-driven curation (e.g. After Dark, Neon Cyber Drop).
+    </p>
+</header>
+
+<div class="max-w-4xl rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs">
+    <form method="post" enctype="multipart/form-data" class="space-y-6">
+        {% csrf_token %}
+
+        {% if form.errors %}
+            <div class="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
+                <p class="font-semibold mb-1">Please correct the following errors:</p>
+                <ul class="list-disc pl-5 space-y-1">
+                    {% for field, errors in form.errors.items %}
+                        {% for error in errors %}
+                            <li><strong>{{ field }}:</strong> {{ error }}</li>
+                        {% endfor %}
+                    {% endfor %}
+                </ul>
+            </div>
+        {% endif %}
+
+        {# Story Narrative #}
+        <div class="border-b border-slate-200 pb-6">
+            <h2 class="text-base font-semibold text-slate-900 mb-4">1. Story Narrative</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">Story Title *</label>
+                    {{ form.title }}
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">Slug *</label>
+                    {{ form.slug }}
+                </div>
+                <div class="sm:col-span-2">
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">Teaser / Subtitle</label>
+                    {{ form.subtitle }}
+                </div>
+                <div class="sm:col-span-2">
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">Narrative Content</label>
+                    {{ form.story }}
+                </div>
+            </div>
+        </div>
+
+        {# Imagery #}
+        <div class="border-b border-slate-200 pb-6">
+            <h2 class="text-base font-semibold text-slate-900 mb-4">2. Story Imagery</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">Image Upload</label>
+                    {{ form.image }}
+                    {% if story and story.image %}
+                        <p class="text-xs text-slate-500 mt-1">Current: <a href="{{ story.image.url }}" target="_blank" class="underline">View file</a></p>
+                    {% endif %}
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">External Image URL</label>
+                    {{ form.image_url }}
+                    <p class="text-xs text-slate-400 mt-1">Validated against SSRF rules.</p>
+                </div>
+                <div class="sm:col-span-2">
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">Image Alt Text</label>
+                    {{ form.image_alt }}
+                </div>
+            </div>
+        </div>
+
+        {# Links & Associations #}
+        <div class="border-b border-slate-200 pb-6">
+            <h2 class="text-base font-semibold text-slate-900 mb-4">3. Products & Collections</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">Primary CTA Text</label>
+                    {{ form.primary_cta_text }}
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">Primary CTA Destination</label>
+                    {{ form.primary_cta_url }}
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">Linked Collection</label>
+                    {{ form.linked_collection }}
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">Linked Category</label>
+                    {{ form.linked_category }}
+                </div>
+                <div class="sm:col-span-2">
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">Featured Products in Story</label>
+                    {{ form.linked_products }}
+                    <p class="text-xs text-slate-400 mt-1">Hold Ctrl / Cmd to select multiple products.</p>
+                </div>
+            </div>
+        </div>
+
+        {# Scheduling & Status #}
+        <div class="pb-2">
+            <h2 class="text-base font-semibold text-slate-900 mb-4">4. Visibility & Campaign</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">Campaign</label>
+                    {{ form.campaign }}
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">Start Date</label>
+                    {{ form.starts_at }}
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">End Date</label>
+                    {{ form.ends_at }}
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">Display Order</label>
+                    {{ form.display_order }}
+                </div>
+                <div class="flex items-center pt-6 sm:col-span-2">
+                    <label class="inline-flex items-center gap-2 text-sm font-semibold text-slate-900 cursor-pointer">
+                        {{ form.is_published }}
+                        <span>Published (visible on storefront)</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
+            <a href="{% url 'backoffice:content_editorial' %}" class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">
+                Cancel
+            </a>
+            <button type="submit" class="rounded-lg bg-slate-900 px-6 py-2 text-sm font-semibold text-white shadow hover:bg-slate-800 transition">
+                Save Story
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock content %}

@@ -37,6 +37,78 @@ urlpatterns = [
     path("payments/<int:pk>/", views.payment_detail, name="payment_detail"),
     path("shipments/", views.shipments, name="shipments"),
     path("customers/", views.customers, name="customers"),
+    # Content Studio (Phase 29)
+    path("content/homepage/", views.content_homepage, name="content_homepage"),
+    path("content/homepage/add/", views.content_homepage_edit, name="content_homepage_add"),
+    path(
+        "content/homepage/<int:pk>/edit/",
+        views.content_homepage_edit,
+        name="content_homepage_edit",
+    ),
+    path(
+        "content/homepage/<int:pk>/toggle/",
+        views.content_homepage_toggle,
+        name="content_homepage_toggle",
+    ),
+    path(
+        "content/homepage/<int:pk>/delete/",
+        views.content_homepage_delete,
+        name="content_homepage_delete",
+    ),
+    path("content/preview/", views.content_preview, name="content_preview"),
+    path("content/editorial/", views.content_editorial, name="content_editorial"),
+    path("content/editorial/add/", views.content_editorial_edit, name="content_editorial_add"),
+    path(
+        "content/editorial/<int:pk>/edit/",
+        views.content_editorial_edit,
+        name="content_editorial_edit",
+    ),
+    path(
+        "content/editorial/<int:pk>/delete/",
+        views.content_editorial_delete,
+        name="content_editorial_delete",
+    ),
+    path("content/campaigns/", views.content_campaigns, name="content_campaigns"),
+    path("content/campaigns/add/", views.content_campaign_edit, name="content_campaign_add"),
+    path(
+        "content/campaigns/<int:pk>/edit/",
+        views.content_campaign_edit,
+        name="content_campaign_edit",
+    ),
+    path(
+        "content/campaigns/<int:pk>/delete/",
+        views.content_campaign_delete,
+        name="content_campaign_delete",
+    ),
+
+    # Merchandising Studio (Phase 29)
+    path(
+        "merchandising/featured-products/",
+        views.merch_featured_products,
+        name="merch_featured_products",
+    ),
+    path(
+        "merchandising/featured-products/<int:section_pk>/add/",
+        views.merch_product_add,
+        name="merch_product_add",
+    ),
+    path(
+        "merchandising/featured-products/<int:section_pk>/reorder/",
+        views.merch_product_reorder,
+        name="merch_product_reorder",
+    ),
+    path(
+        "merchandising/featured-products/<int:section_pk>/remove/<int:product_pk>/",
+        views.merch_product_remove,
+        name="merch_product_remove",
+    ),
+    path(
+        "merchandising/featured-collections/",
+        views.merch_featured_collections,
+        name="merch_featured_collections",
+    ),
+    path("merchandising/scheduled/", views.merch_scheduled, name="merch_scheduled"),
+
     # Merchandising
     path("products/", views.products, name="products"),
     path("products/bulk/", views.products_bulk, name="products_bulk"),
@@ -45,6 +117,7 @@ urlpatterns = [
     path("drops/", views.drops, name="drops"),
     path("promotions/", views.promotions, name="promotions"),
     path("quests/", views.quests, name="quests"),
+
     # Community
     path("reviews/", views.reviews, name="reviews"),
     path("reviews/bulk/", views.reviews_bulk, name="reviews_bulk"),

@@ -1,24 +1,67 @@
 {% extends "base.html" %}
 {% load account %}
+{% load catalog_extras %}
 
-{% block title %}Your account — {{ site_name|default:'FLASHWEAR' }}{% endblock title %}
+{% block title %}Your Style & Account — {{ site_name|default:'FLASHWEAR' }}{% endblock title %}
+{% block meta_robots %}noindex, follow{% endblock meta_robots %}
 
 {% block content %}
-<div class="mx-auto w-full max-w-4xl px-4 py-12 sm:px-6 lg:px-8">
-    <div class="flex flex-wrap items-center gap-4">
-        {% if user.profile.avatar %}
-            <img src="{{ user.profile.avatar.url }}" alt="" width="64" height="64" decoding="async" class="h-16 w-16 rounded-full object-cover ring-1 ring-slate-200" />
-        {% else %}
-            <span aria-hidden="true" class="inline-flex h-16 w-16 items-center justify-center rounded-full bg-flash-600 text-2xl font-semibold text-white shadow-soft">{{ user.get_short_name|slice:":1"|upper }}</span>
-        {% endif %}
-        <div class="min-w-0">
-            <h1 class="text-2xl font-semibold tracking-tight text-slate-950">{{ user.get_full_name }}</h1>
-            <p class="text-sm text-slate-600">{{ user.email }}</p>
-        </div>
-    </div>
+<div class="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
 
+    {# 1. FASHION PROFILE HERO #}
+    <header class="relative overflow-hidden rounded-3xl border border-slate-200/80 bg-gradient-to-br from-white via-slate-50 to-flash-50/40 p-6 shadow-soft sm:p-8">
+        <div class="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+            <div class="flex items-center gap-4 sm:gap-5">
+                {% if user.profile.avatar %}
+                    <img src="{{ user.profile.avatar.url }}" alt="{{ user.get_full_name }}" width="80" height="80" decoding="async" class="h-20 w-20 rounded-full object-cover ring-2 ring-white shadow-soft" />
+                {% else %}
+                    <span aria-hidden="true" class="inline-flex h-20 w-20 items-center justify-center rounded-full bg-flash-600 text-3xl font-semibold text-white shadow-soft ring-4 ring-white">{{ user.get_short_name|slice:":1"|upper }}</span>
+                {% endif %}
+                <div class="min-w-0">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="inline-flex items-center rounded-full bg-slate-900 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider text-white">Fashion Profile</span>
+                        {% if style_profile.style_goal_label %}
+                            <span class="inline-flex items-center rounded-full bg-flash-100 px-2.5 py-0.5 text-xs font-medium text-flash-800">{{ style_profile.style_goal_label }}</span>
+                        {% endif %}
+                    </div>
+                    <h1 class="mt-1 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">{{ user.get_full_name }}</h1>
+                    <p class="text-sm text-slate-600">{{ user.email }}</p>
+                </div>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-3">
+                <a href="{% url 'account:loyalty' %}" class="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white/90 px-4 py-2.5 text-sm font-semibold text-slate-800 shadow-soft transition hover:border-slate-300 hover:bg-white" title="FLASH Points balance">
+                    <span class="inline-block h-2 w-2 rounded-full bg-flash-600"></span>
+                    <span>{{ loyalty_points }} FLASH Points</span>
+                </a>
+                <a href="{% url 'account:profile' %}" class="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-soft transition hover:border-slate-300 hover:text-slate-950">Edit Profile</a>
+            </div>
+        </div>
+
+        {# Quick wardrobe counters #}
+        <div class="mt-6 grid grid-cols-2 gap-3 border-t border-slate-200/60 pt-5 sm:grid-cols-4">
+            <a href="{% url 'account:closet' %}" class="rounded-xl bg-white/70 p-3 text-center transition hover:bg-white hover:shadow-soft">
+                <span class="block text-xl font-bold text-slate-900">{{ closet_count }}</span>
+                <span class="text-xs font-medium text-slate-600">Wardrobe Pieces</span>
+            </a>
+            <a href="{% url 'account:outfits' %}" class="rounded-xl bg-white/70 p-3 text-center transition hover:bg-white hover:shadow-soft">
+                <span class="block text-xl font-bold text-slate-900">{{ saved_outfits_count }}</span>
+                <span class="text-xs font-medium text-slate-600">Saved Outfits</span>
+            </a>
+            <a href="{% url 'shop:wishlist' %}" class="rounded-xl bg-white/70 p-3 text-center transition hover:bg-white hover:shadow-soft">
+                <span class="block text-xl font-bold text-slate-900">{{ wishlist_count }}</span>
+                <span class="text-xs font-medium text-slate-600">Wishlist Items</span>
+            </a>
+            <a href="{% url 'account:orders' %}" class="rounded-xl bg-white/70 p-3 text-center transition hover:bg-white hover:shadow-soft">
+                <span class="block text-xl font-bold text-slate-900">{{ orders_count }}</span>
+                <span class="text-xs font-medium text-slate-600">Past Orders</span>
+            </a>
+        </div>
+    </header>
+
+    {# 2. UNVERIFIED EMAIL REMINDER #}
     {% if not user.is_email_verified %}
-    <div class="mt-8 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-amber-200 bg-amber-50 p-5" role="status">
+    <div class="mt-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-soft" role="status">
         <div>
             <p class="text-sm font-semibold text-amber-900">Your email address is not verified yet.</p>
             <p class="mt-1 text-sm text-amber-800">Verify it so we can reach you about orders and returns.</p>
@@ -31,28 +74,407 @@
     </div>
     {% endif %}
 
-    {% account_nav as nav_items %}
-    <nav class="mt-8" aria-label="Account sections">
-        <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Your account</h2>
-        <ul class="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {% for item in nav_items %}
-                <li>
-                    {% if item.url %}
-                        <a href="{{ item.url }}" class="flex h-full items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-soft transition hover:border-slate-300 hover:shadow-md">
-                            <span class="text-sm font-semibold text-slate-900">{{ item.label }}</span>
-                            <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke="currentColor" class="h-4 w-4 shrink-0 text-slate-400"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" /></svg>
-                        </a>
-                    {% else %}
-                        <span class="flex h-full cursor-not-allowed items-center justify-between gap-3 rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4" aria-disabled="true">
-                            <span class="text-sm font-semibold text-slate-400">{{ item.label }}</span>
-                            <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[0.65rem] uppercase tracking-wide text-slate-500">Soon</span>
-                        </span>
-                    {% endif %}
-                </li>
-            {% endfor %}
-        </ul>
-    </nav>
+    {# 3. RETURNING CUSTOMER CONTINUITY NOTICES #}
+    {% if cart_item_count > 0 or draft_outfit %}
+    <div class="mt-6 grid gap-4 sm:grid-cols-2">
+        {% if cart_item_count > 0 %}
+        <div class="flex items-center justify-between rounded-2xl border border-flash-200 bg-flash-50/60 p-4 shadow-soft">
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-wider text-flash-800">Continue Shopping</p>
+                <p class="mt-0.5 text-sm font-medium text-slate-900">You have {{ cart_item_count }} item{{ cart_item_count|pluralize }} waiting in your bag.</p>
+            </div>
+            <a href="{% url 'shop:cart' %}" class="inline-flex items-center rounded-full bg-flash-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-soft transition hover:bg-flash-700">View Bag →</a>
+        </div>
+        {% endif %}
 
+        {% if draft_outfit %}
+        <div class="flex items-center justify-between rounded-2xl border border-indigo-200 bg-indigo-50/60 p-4 shadow-soft">
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-wider text-indigo-800">Unfinished Outfit</p>
+                <p class="mt-0.5 text-sm font-medium text-slate-900">Continue building "{{ draft_outfit.name }}".</p>
+            </div>
+            <a href="{% url 'account:outfit-detail' draft_outfit.pk %}" class="inline-flex items-center rounded-full bg-indigo-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-soft transition hover:bg-indigo-700">Resume Look →</a>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {# 4. COLD-START INVITATION TO DEFINE FLASH DNA #}
+    {% if not style_profile.is_complete %}
+    <div class="mt-8 rounded-3xl border border-flash-200 bg-gradient-to-r from-flash-50 via-white to-indigo-50/50 p-6 sm:p-8 shadow-soft">
+        <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div class="max-w-xl">
+                <span class="inline-flex items-center rounded-full bg-flash-600 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-white">Style Calibration</span>
+                <h2 class="mt-2 text-xl font-bold tracking-tight text-slate-950 sm:text-2xl">Help FLASHWEAR understand your personal style</h2>
+                <p class="mt-1 text-sm text-slate-600 leading-relaxed">
+                    Set your preferred aesthetics, silhouettes, and color palettes so our recommendations reflect how you truly dress—no guesswork, no invasive tracking.
+                </p>
+            </div>
+            <a href="{% url 'account:studio' %}" class="inline-flex shrink-0 items-center justify-center rounded-full bg-flash-600 px-6 py-3 text-sm font-semibold text-white shadow-soft transition hover:bg-flash-700 hover-lift">Define FLASH DNA →</a>
+        </div>
+    </div>
+    {% endif %}
+
+    {# 5. "YOUR STYLE" SUMMARY & STYLE EVOLUTION #}
+    {% if style_profile.is_complete %}
+    <section class="mt-10 rounded-3xl border border-slate-200 bg-white p-6 shadow-soft sm:p-8" aria-labelledby="style-profile-heading">
+        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
+            <div>
+                <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">FLASH DNA</span>
+                <h2 id="style-profile-heading" class="text-xl font-bold text-slate-950 sm:text-2xl">Your Style Profile</h2>
+            </div>
+            <a href="{% url 'account:studio' %}" class="text-xs font-semibold text-flash-600 hover:text-flash-700 hover:underline">Update Preferences →</a>
+        </div>
+
+        <div class="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {# Preferred Styles #}
+            {% if style_profile.styles %}
+            <div class="rounded-2xl bg-slate-50 p-4">
+                <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Preferred Styles</p>
+                <div class="mt-2.5 flex flex-wrap gap-1.5">
+                    {% for st in style_profile.styles %}
+                        <span class="rounded-full bg-white px-3 py-1 text-xs font-medium text-slate-800 shadow-soft ring-1 ring-slate-200/60">{{ st|title }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            {# Preferred Colors #}
+            {% if style_profile.favorite_colors %}
+            <div class="rounded-2xl bg-slate-50 p-4">
+                <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Favorite Palette</p>
+                <div class="mt-2.5 flex flex-wrap gap-1.5">
+                    {% for color in style_profile.favorite_colors %}
+                        <span class="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-xs font-medium text-slate-800 shadow-soft ring-1 ring-slate-200/60">
+                            <span class="h-2.5 w-2.5 rounded-full ring-1 ring-slate-300" style="background-color: {{ color.hex_code|default:color.name|default:color|lower }};"></span>
+                            {{ color.name|default:color|title }}
+                        </span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            {# Preferred Fits & Silhouettes #}
+            {% if style_profile.preferred_fits %}
+            <div class="rounded-2xl bg-slate-50 p-4">
+                <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Preferred Fits</p>
+                <div class="mt-2.5 flex flex-wrap gap-1.5">
+                    {% for fit in style_profile.preferred_fits %}
+                        <span class="rounded-full bg-white px-3 py-1 text-xs font-medium text-slate-800 shadow-soft ring-1 ring-slate-200/60">{{ fit.name|default:fit|title }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            {# Category Focus #}
+            {% if style_profile.category_focus %}
+            <div class="rounded-2xl bg-slate-50 p-4">
+                <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Focus Categories</p>
+                <div class="mt-2.5 flex flex-wrap gap-1.5">
+                    {% for cat in style_profile.category_focus %}
+                        <span class="rounded-full bg-white px-3 py-1 text-xs font-medium text-slate-800 shadow-soft ring-1 ring-slate-200/60">{{ cat|title }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            {# Seasonal Preferences #}
+            {% if style_profile.seasons %}
+            <div class="rounded-2xl bg-slate-50 p-4">
+                <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Seasonal Focus</p>
+                <div class="mt-2.5 flex flex-wrap gap-1.5">
+                    {% for season in style_profile.seasons %}
+                        <span class="rounded-full bg-white px-3 py-1 text-xs font-medium text-slate-800 shadow-soft ring-1 ring-slate-200/60">{{ season|title }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            {# Style Goal #}
+            {% if style_profile.style_goal_label %}
+            <div class="rounded-2xl bg-slate-50 p-4">
+                <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Current Style Goal</p>
+                <p class="mt-2 text-sm font-semibold text-slate-900">{{ style_profile.style_goal_label }}</p>
+            </div>
+            {% endif %}
+        </div>
+
+        {# Style Evolution Insight (Only shown when supported by real historical data) #}
+        {% if style_evolution.has_data %}
+        <div class="mt-6 rounded-2xl border border-slate-200/80 bg-gradient-to-r from-slate-50 to-flash-50/30 p-4 sm:p-5">
+            <div class="flex items-start gap-3">
+                <span class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-flash-100 text-flash-700">
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+                </span>
+                <div>
+                    <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-500">Style Evolution</h3>
+                    <p class="mt-1 text-sm font-medium text-slate-900">{{ style_evolution.summary }}</p>
+                    {% if style_evolution.details %}
+                        <ul class="mt-2 space-y-1">
+                            {% for detail in style_evolution.details %}
+                                <li class="text-xs text-slate-600">• {{ detail }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </section>
+    {% endif %}
+
+    {# 6. PERSONAL RECOMMENDATIONS (HUMAN FASHION REASONS) #}
+    {% if recommendations %}
+    <section class="mt-12" aria-labelledby="recommendations-heading">
+        <div class="flex flex-wrap items-end justify-between gap-3">
+            <div>
+                <span class="text-xs font-semibold uppercase tracking-wider text-flash-600">Tailored Curation</span>
+                <h2 id="recommendations-heading" class="mt-0.5 text-xl font-bold tracking-tight text-slate-950 sm:text-2xl">Recommended For Your Style</h2>
+                <p class="mt-1 text-xs text-slate-500">Curated based on your wardrobe pieces and style preferences.</p>
+            </div>
+            <a href="{% url 'catalog:product-list' %}" class="text-xs font-semibold text-slate-700 hover:text-slate-950 hover:underline">Explore full catalogue →</a>
+        </div>
+
+        <div class="mt-6 grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4">
+            {% for rec in recommendations %}
+            <article class="group relative flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft hover-lift hover:shadow-elevated transition">
+                <a href="{{ rec.product.get_absolute_url }}" class="relative block aspect-[4/5] overflow-hidden bg-slate-100">
+                    {% with image=rec.product.primary_image %}
+                        {% if image %}
+                            <img src="{{ image.image.url }}" alt="{{ image.alt_text|default:rec.product.name }}" width="640" height="800" loading="lazy" decoding="async" class="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+                        {% else %}
+                            <span class="flex h-full w-full items-center justify-center text-xs text-slate-400">No image</span>
+                        {% endif %}
+                    {% endwith %}
+                    <div class="absolute inset-x-2 bottom-2 z-10">
+                        <span class="inline-flex max-w-full truncate items-center rounded-full bg-slate-900/85 px-2.5 py-1 text-[11px] font-medium text-white shadow-soft backdrop-blur-sm">
+                            {{ rec.reason }}
+                        </span>
+                    </div>
+                </a>
+
+                <div class="flex flex-1 flex-col p-4">
+                    <p class="text-[11px] font-medium uppercase tracking-wider text-slate-500">{{ rec.product.brand.name|default:"FLASHWEAR" }}</p>
+                    <h3 class="mt-1 text-sm font-semibold text-slate-900 line-clamp-1">
+                        <a href="{{ rec.product.get_absolute_url }}" class="hover:underline">{{ rec.product.name }}</a>
+                    </h3>
+                    <div class="mt-auto pt-3 flex items-center justify-between">
+                        <span class="text-sm font-bold text-slate-950">
+                            {% with low=rec.product.price_range.0 %}{% if low is not None %}{{ low|money }}{% else %}Price on request{% endif %}{% endwith %}
+                        </span>
+                        <a href="{{ rec.product.get_absolute_url }}" class="text-xs font-medium text-flash-600 hover:underline">View details</a>
+                    </div>
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    {# 7. WARDROBE & CLOSET CONNECTION #}
+    {% if closet_items %}
+    <section class="mt-12 rounded-3xl border border-slate-200 bg-white p-6 shadow-soft sm:p-8" aria-labelledby="closet-heading">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+                <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">Your Wardrobe</span>
+                <h2 id="closet-heading" class="text-xl font-bold text-slate-950 sm:text-2xl">Pieces in Your Closet</h2>
+                <p class="mt-0.5 text-xs text-slate-500">{{ closet_count }} active item{{ closet_count|pluralize }} saved in your private wardrobe.</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <a href="{% url 'account:outfit-create' %}" class="inline-flex items-center justify-center rounded-full bg-flash-50 px-3.5 py-1.5 text-xs font-semibold text-flash-700 transition hover:bg-flash-100">Build an outfit →</a>
+                <a href="{% url 'account:closet' %}" class="text-xs font-semibold text-slate-700 hover:underline">View all pieces →</a>
+            </div>
+        </div>
+
+        <div class="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
+            {% for item in closet_items %}
+            <div class="group relative flex flex-col rounded-2xl border border-slate-100 bg-slate-50/60 p-3 transition hover:border-slate-200 hover:bg-white hover:shadow-soft">
+                <div class="aspect-square overflow-hidden rounded-xl bg-slate-200/80">
+                    {% if item.image %}
+                        <img src="{{ item.image.url }}" alt="{{ item.name }}" width="300" height="300" loading="lazy" decoding="async" class="h-full w-full object-cover transition group-hover:scale-105" />
+                    {% elif item.product and item.product.primary_image %}
+                        <img src="{{ item.product.primary_image.image.url }}" alt="{{ item.name }}" width="300" height="300" loading="lazy" decoding="async" class="h-full w-full object-cover transition group-hover:scale-105" />
+                    {% else %}
+                        <span class="flex h-full w-full items-center justify-center text-xs text-slate-400">Wardrobe piece</span>
+                    {% endif %}
+                </div>
+                <h3 class="mt-2 text-xs font-semibold text-slate-900 line-clamp-1">{{ item.name }}</h3>
+                <p class="text-[11px] text-slate-500 capitalize">{{ item.get_category_display }}</p>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    {# 8. SAVED OUTFITS PREVIEW #}
+    {% if saved_outfits %}
+    <section class="mt-12 rounded-3xl border border-slate-200 bg-white p-6 shadow-soft sm:p-8" aria-labelledby="outfits-heading">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+                <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">Your Looks</span>
+                <h2 id="outfits-heading" class="text-xl font-bold text-slate-950 sm:text-2xl">Saved Outfits</h2>
+            </div>
+            <a href="{% url 'account:outfits' %}" class="text-xs font-semibold text-slate-700 hover:underline">View all {{ saved_outfits_count }} outfit{{ saved_outfits_count|pluralize }} →</a>
+        </div>
+
+        <div class="mt-6 grid gap-4 sm:grid-cols-3">
+            {% for outfit in saved_outfits %}
+            <a href="{% url 'account:outfit-detail' outfit.pk %}" class="group rounded-2xl border border-slate-100 bg-slate-50/60 p-4 transition hover:border-slate-200 hover:bg-white hover:shadow-soft">
+                <h3 class="text-sm font-semibold text-slate-900 group-hover:text-flash-600">{{ outfit.name }}</h3>
+                <div class="mt-1 flex flex-wrap gap-2 text-xs text-slate-500">
+                    {% if outfit.occasion %}<span class="capitalize">{{ outfit.get_occasion_display }}</span>{% endif %}
+                    {% if outfit.season %}<span class="capitalize">• {{ outfit.get_season_display }}</span>{% endif %}
+                    <span>• {{ outfit.items.count }} piece{{ outfit.items.count|pluralize }}</span>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    {# 9. WISHLIST INTELLIGENCE PREVIEW #}
+    {% if wishlist_preview %}
+    <section class="mt-12 rounded-3xl border border-slate-200 bg-white p-6 shadow-soft sm:p-8" aria-labelledby="wishlist-heading">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+                <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">Saved Items</span>
+                <h2 id="wishlist-heading" class="text-xl font-bold text-slate-950 sm:text-2xl">Wishlist Intelligence</h2>
+                <p class="mt-0.5 text-xs text-slate-500">Real-time availability and stock signals for pieces you are eyeing.</p>
+            </div>
+            <a href="{% url 'shop:wishlist' %}" class="text-xs font-semibold text-slate-700 hover:underline">Manage wishlist ({{ wishlist_count }}) →</a>
+        </div>
+
+        <div class="mt-6 grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4">
+            {% for entry in wishlist_preview %}
+            <article class="group relative flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft transition hover-lift">
+                <a href="{{ entry.product.get_absolute_url }}" class="relative block aspect-[4/5] overflow-hidden bg-slate-100">
+                    {% with image=entry.product.primary_image %}
+                        {% if image %}
+                            <img src="{{ image.image.url }}" alt="{{ entry.product.name }}" width="640" height="800" loading="lazy" decoding="async" class="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+                        {% endif %}
+                    {% endwith %}
+
+                    {# Real signals #}
+                    <div class="absolute inset-x-2 top-2 flex flex-col items-start gap-1">
+                        {% if entry.is_sold_out %}
+                            <span class="rounded-full bg-slate-900/90 px-2 py-0.5 text-[10px] font-semibold text-white shadow-soft">Sold out</span>
+                        {% elif entry.is_low_stock %}
+                            <span class="rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-semibold text-white shadow-soft">Low stock: {{ entry.stock }} left</span>
+                        {% endif %}
+                        {% if entry.is_on_sale %}
+                            <span class="rounded-full bg-flash-600 px-2 py-0.5 text-[10px] font-semibold text-white shadow-soft">Price drop</span>
+                        {% endif %}
+                        {% if entry.is_recently_added and not entry.is_on_sale and not entry.is_low_stock %}
+                            <span class="rounded-full bg-slate-800/80 px-2 py-0.5 text-[10px] font-semibold text-white shadow-soft">Recently saved</span>
+                        {% endif %}
+                    </div>
+                </a>
+
+                <div class="p-3.5 flex flex-1 flex-col">
+                    <h3 class="text-xs font-semibold text-slate-900 line-clamp-1">
+                        <a href="{{ entry.product.get_absolute_url }}" class="hover:underline">{{ entry.product.name }}</a>
+                    </h3>
+                    {% if entry.variant %}
+                        <p class="text-[11px] text-slate-500">{{ entry.variant.option_label }}</p>
+                    {% endif %}
+                    <div class="mt-auto pt-2 flex items-center justify-between">
+                        <span class="text-xs font-bold text-slate-950">
+                            {% if entry.variant %}{{ entry.variant.price|money }}{% else %}
+                                {% with low=entry.product.price_range.0 %}{% if low is not None %}{{ low|money }}{% else %}Price on request{% endif %}{% endwith %}
+                            {% endif %}
+                        </span>
+                        <a href="{{ entry.product.get_absolute_url }}" class="text-[11px] font-medium text-flash-600 hover:underline">View</a>
+                    </div>
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    {# 10. RECENT ORDERS #}
+    {% if recent_orders %}
+    <section class="mt-12 rounded-3xl border border-slate-200 bg-white p-6 shadow-soft sm:p-8" aria-labelledby="recent-orders-heading">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+                <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">Order History</span>
+                <h2 id="recent-orders-heading" class="text-xl font-bold text-slate-950 sm:text-2xl">Recent Orders</h2>
+            </div>
+            <a href="{% url 'account:orders' %}" class="text-xs font-semibold text-slate-700 hover:underline">View all orders ({{ orders_count }}) →</a>
+        </div>
+
+        <div class="mt-6 space-y-4">
+            {% for order in recent_orders %}
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border border-slate-100 bg-slate-50/60 p-4 transition hover:bg-white hover:shadow-soft">
+                <div class="min-w-0">
+                    <div class="flex items-center gap-2">
+                        <span class="text-sm font-semibold text-slate-900">Order #{{ order.order_number }}</span>
+                        <span class="rounded-full bg-slate-200/80 px-2 py-0.5 text-[11px] font-medium text-slate-700 capitalize">{{ order.get_status_display }}</span>
+                    </div>
+                    <p class="mt-1 text-xs text-slate-500">Placed on {{ order.created_at|date:"j M Y" }} • {{ order.items.count }} item{{ order.items.count|pluralize }}</p>
+                </div>
+                <div class="flex items-center gap-4">
+                    <span class="text-sm font-bold text-slate-950">{{ order.total_amount|money }}</span>
+                    <a href="{% url 'account:order-detail' order.pk %}" class="inline-flex items-center rounded-full bg-white px-3.5 py-1.5 text-xs font-semibold text-slate-800 shadow-soft ring-1 ring-slate-200 hover:bg-slate-50">Order Details →</a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    {# 11. RECENTLY VIEWED ITEMS #}
+    {% if recently_viewed %}
+    <section class="mt-12 border-t border-slate-200 pt-8" aria-labelledby="account-recent-heading">
+        <div class="flex items-center justify-between">
+            <h2 id="account-recent-heading" class="text-base font-semibold text-slate-900">Recently viewed items</h2>
+            <a href="{% url 'catalog:product-list' %}" class="text-xs font-semibold text-slate-700 underline-offset-4 hover:underline">Browse catalogue →</a>
+        </div>
+        <div class="mt-4 grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4">
+            {% for product in recently_viewed %}
+                {% include "catalog/_product_card.html" with product=product %}
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    {# 12. CURATED NEW DROPS (Useful for discovery & cold start) #}
+    {% if new_drops and is_cold_start %}
+    <section class="mt-12 border-t border-slate-200 pt-8" aria-labelledby="new-drops-heading">
+        <div class="flex items-center justify-between">
+            <div>
+                <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">New Arrivals</span>
+                <h2 id="new-drops-heading" class="text-base font-semibold text-slate-900">Explore Fresh Drops</h2>
+            </div>
+            <a href="{% url 'catalog:product-list' %}" class="text-xs font-semibold text-slate-700 underline-offset-4 hover:underline">View all new drops →</a>
+        </div>
+        <div class="mt-4 grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4">
+            {% for product in new_drops %}
+                {% include "catalog/_product_card.html" with product=product %}
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    {# 13. PERSONALIZATION & PRIVACY CONTROLS #}
+    <section class="mt-12 rounded-3xl border border-slate-200 bg-white p-6 shadow-soft sm:p-8" aria-labelledby="privacy-controls-heading">
+        <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div class="max-w-xl">
+                <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">Style Transparency</span>
+                <h2 id="privacy-controls-heading" class="text-lg font-bold text-slate-950 sm:text-xl">Your Style & Personalization Controls</h2>
+                <p class="mt-1 text-sm text-slate-600 leading-relaxed">
+                    Your recommendations and style curations are based on your explicit style preferences, wardrobe items, and saved looks. We never expose your style data to third parties, and you can update or clear your preferences at any time.
+                </p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <a href="{% url 'account:studio' %}" class="inline-flex items-center rounded-2xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs font-semibold text-slate-800 transition hover:bg-white hover:shadow-soft">FLASH DNA</a>
+                <a href="{% url 'account:notifications' %}" class="inline-flex items-center rounded-2xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs font-semibold text-slate-800 transition hover:bg-white hover:shadow-soft">Notifications</a>
+                <a href="{% url 'account:security' %}" class="inline-flex items-center rounded-2xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs font-semibold text-slate-800 transition hover:bg-white hover:shadow-soft">Security</a>
+            </div>
+        </div>
+    </section>
+
+    {# 14. AT A GLANCE & PREFERENCES (Preserved for tests & account info) #}
     <div class="mt-10 grid gap-6 sm:grid-cols-2">
         <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft" aria-labelledby="account-summary-heading">
             <h2 id="account-summary-heading" class="text-sm font-semibold text-slate-900">At a glance</h2>
@@ -98,18 +520,27 @@
         </section>
     </div>
 
-    {% if recently_viewed %}
-    <section class="mt-12 border-t border-slate-200 pt-8" aria-labelledby="account-recent-heading">
-        <div class="flex items-center justify-between">
-            <h2 id="account-recent-heading" class="text-base font-semibold text-slate-900">Recently viewed items</h2>
-            <a href="{% url 'catalog:product-list' %}" class="text-xs font-semibold text-slate-700 underline-offset-4 hover:underline">Browse catalogue →</a>
-        </div>
-        <div class="mt-4 grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4">
-            {% for product in recently_viewed %}
-                {% include "catalog/_product_card.html" with product=product %}
+    {# 15. ACCOUNT SECTIONS NAVIGATION (Preserved for tests & full sitemap access) #}
+    {% account_nav as nav_items %}
+    <nav class="mt-12 border-t border-slate-200 pt-8" aria-label="Account sections">
+        <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500">All Account Sections</h2>
+        <ul class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {% for item in nav_items %}
+                <li>
+                    {% if item.url %}
+                        <a href="{{ item.url }}" class="flex h-full items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-soft transition hover:border-slate-300 hover:shadow-md">
+                            <span class="text-sm font-semibold text-slate-900">{{ item.label }}</span>
+                            <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke="currentColor" class="h-4 w-4 shrink-0 text-slate-400"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" /></svg>
+                        </a>
+                    {% else %}
+                        <span class="flex h-full cursor-not-allowed items-center justify-between gap-3 rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4" aria-disabled="true">
+                            <span class="text-sm font-semibold text-slate-400">{{ item.label }}</span>
+                            <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[0.65rem] uppercase tracking-wide text-slate-500">Soon</span>
+                        </span>
+                    {% endif %}
+                </li>
             {% endfor %}
-        </div>
-    </section>
-    {% endif %}
+        </ul>
+    </nav>
 </div>
 {% endblock content %}

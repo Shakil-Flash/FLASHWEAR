@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% load catalog_extras %}
+
+{% block title %}Community Fashion Inspiration | FLASHWEAR{% endblock title %}
+{% block meta_description %}Discover how real creators and fashion lovers style FLASHWEAR pieces. Explore shoppable looks, aesthetic outfits, and community wardrobe inspiration.{% endblock meta_description %}
+
+{% block content %}
+<div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <!-- Breadcrumb -->
+    <nav class="text-sm text-slate-500" aria-label="Breadcrumb">
+        <ol class="flex flex-wrap items-center gap-2">
+            <li><a href="{% url 'core:home' %}" class="hover:text-slate-900 transition">Home</a></li>
+            <li aria-hidden="true" class="text-slate-300">/</li>
+            <li aria-current="page" class="font-medium text-slate-900">Community Inspiration</li>
+        </ol>
+    </nav>
+
+    <!-- Header & Pitch -->
+    <header class="mt-6 flex flex-col md:flex-row md:items-end md:justify-between gap-6 pb-8 border-b border-slate-200">
+        <div class="max-w-2xl">
+            <span class="inline-flex items-center gap-1.5 rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-white">
+                <span class="h-1.5 w-1.5 rounded-full bg-flash-400"></span>
+                Community & UGC
+            </span>
+            <h1 class="mt-3 text-3xl font-extrabold tracking-tight text-slate-950 sm:text-4xl lg:text-5xl">
+                Styled by People
+            </h1>
+            <p class="mt-3 text-base sm:text-lg text-slate-600 leading-relaxed">
+                Real community looks, honest styling, and shoppable outfits curated from verified FLASHWEAR creators.
+            </p>
+        </div>
+        <div class="flex items-center gap-3">
+            <a href="{% url 'creator:creator_list' %}"
+               class="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-900 shadow-soft transition hover:border-slate-900 hover:bg-slate-50">
+                <svg class="h-4 w-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+                <span>Browse Creators</span>
+            </a>
+            {% if request.user.is_authenticated %}
+                <a href="{% url 'creator:creator_apply' %}"
+                   class="inline-flex items-center gap-2 rounded-full bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-slate-800">
+                    <span>Apply as Creator</span>
+                </a>
+            {% endif %}
+        </div>
+    </header>
+
+    <!-- Filter Rails (Categories & Moods) -->
+    <div class="mt-8 flex flex-col gap-4">
+        <!-- Category Pills -->
+        <div class="flex items-center gap-2 overflow-x-auto pb-2">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-400 shrink-0 mr-1">Category:</span>
+            <a href="{% url 'inspiration:list' %}{% if selected_mood %}?mood={{ selected_mood }}{% endif %}"
+               class="rounded-full px-3.5 py-1.5 text-xs font-semibold transition shrink-0 {% if not selected_category %}bg-slate-900 text-white{% else %}bg-slate-100 text-slate-700 hover:bg-slate-200{% endif %}">
+                All Pieces
+            </a>
+            {% for cat in categories %}
+                <a href="{% url 'inspiration:list' %}?category={{ cat.slug }}{% if selected_mood %}&mood={{ selected_mood }}{% endif %}"
+                   class="rounded-full px-3.5 py-1.5 text-xs font-semibold transition shrink-0 {% if selected_category == cat.slug %}bg-slate-900 text-white{% else %}bg-slate-100 text-slate-700 hover:bg-slate-200{% endif %}">
+                    {{ cat.name }}
+                </a>
+            {% endfor %}
+        </div>
+
+        <!-- Mood / Aesthetic Filter Pills -->
+        {% if mood_choices %}
+        <div class="flex items-center gap-2 overflow-x-auto pb-2">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-400 shrink-0 mr-1">Mood:</span>
+            <a href="{% url 'inspiration:list' %}{% if selected_category %}?category={{ selected_category }}{% endif %}"
+               class="rounded-full px-3 py-1 text-xs font-medium transition shrink-0 {% if not selected_mood %}bg-flash-600 text-white font-semibold{% else %}border border-slate-200 bg-white text-slate-600 hover:border-slate-300{% endif %}">
+                All Moods
+            </a>
+            {% for mood in mood_choices %}
+                <a href="{% url 'inspiration:list' %}?mood={{ mood }}{% if selected_category %}&category={{ selected_category }}{% endif %}"
+                   class="rounded-full px-3 py-1 text-xs font-medium transition shrink-0 {% if selected_mood == mood %}bg-flash-600 text-white font-semibold{% else %}border border-slate-200 bg-white text-slate-600 hover:border-slate-300{% endif %}">
+                    {{ mood|title }}
+                </a>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Featured Spotlight Strip (Shown on default feed) -->
+    {% if featured and not selected_category and not selected_mood %}
+    <section class="mt-10 rounded-3xl bg-slate-950 p-6 sm:p-8 text-white relative overflow-hidden">
+        <div class="relative z-10 max-w-xl">
+            <span class="inline-block rounded-full bg-flash-500/20 text-flash-300 border border-flash-500/30 px-3 py-1 text-xs font-semibold uppercase tracking-wider mb-2">Editor's Pick</span>
+            <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight">Featured Community Looks</h2>
+            <p class="mt-2 text-sm text-slate-300">Styling edits recognized for exceptional aesthetic composition and wearable combinations.</p>
+        </div>
+        <div class="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-6 relative z-10">
+            {% for look in featured %}
+                <div class="rounded-2xl border border-white/10 bg-white/5 p-3 backdrop-blur transition hover:bg-white/10">
+                    {% include "creator/_seen_on_people.html" with post=look %}
+                </div>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    <!-- Main Community Feed Grid -->
+    <main class="mt-10">
+        {% if posts.object_list %}
+            <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+                {% for post in posts.object_list %}
+                    {% include "creator/_seen_on_people.html" with post=post %}
+                {% endfor %}
+            </div>
+
+            <!-- Pagination -->
+            {% if posts.has_other_pages %}
+            <nav class="mt-12 flex items-center justify-center gap-2" aria-label="Pagination">
+                {% if posts.has_previous %}
+                    <a href="?page={{ posts.previous_page_number }}{% if selected_category %}&category={{ selected_category }}{% endif %}{% if selected_mood %}&mood={{ selected_mood }}{% endif %}"
+                       class="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-soft hover:bg-slate-50">
+                        ← Previous
+                    </a>
+                {% endif %}
+                <span class="px-4 py-2 text-sm text-slate-500">
+                    Page {{ posts.number }} of {{ posts.paginator.num_pages }}
+                </span>
+                {% if posts.has_next %}
+                    <a href="?page={{ posts.next_page_number }}{% if selected_category %}&category={{ selected_category }}{% endif %}{% if selected_mood %}&mood={{ selected_mood }}{% endif %}"
+                       class="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-soft hover:bg-slate-50">
+                        Next →
+                    </a>
+                {% endif %}
+            </nav>
+            {% endif %}
+        {% else %}
+            <!-- Honest Empty State -->
+            <div class="rounded-3xl border border-slate-200 bg-slate-50 p-12 text-center my-8">
+                <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-slate-200 text-slate-500">
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                    </svg>
+                </div>
+                <h3 class="mt-4 text-base font-bold text-slate-900">No community looks found</h3>
+                <p class="mt-1 text-sm text-slate-500 max-w-sm mx-auto">
+                    {% if selected_category or selected_mood %}
+                        There are currently no published community looks matching the selected filters.
+                    {% else %}
+                        No published creator looks yet. Check back soon as our creators share new styling edits.
+                    {% endif %}
+                </p>
+                {% if selected_category or selected_mood %}
+                    <a href="{% url 'inspiration:list' %}"
+                       class="mt-5 inline-flex items-center rounded-full bg-slate-900 px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-white shadow hover:bg-slate-800 transition">
+                        Clear Filters
+                    </a>
+                {% endif %}
+            </div>
+        {% endif %}
+    </main>
+</div>
+{% endblock content %}

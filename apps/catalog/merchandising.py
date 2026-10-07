@@ -405,3 +405,124 @@ def get_product_signals(
             pass
 
     return signals
+
+
+# =============================================================================
+# 5. Smart Alternatives & Sizing Guide (Phase 30)
+# =============================================================================
+
+
+def get_smart_alternatives(
+    product: Product,
+    variant: ProductVariant | None = None,
+    *,
+    limit: int = 4,
+) -> list[Product]:
+    """Retrieve in-stock, published alternative pieces when a product or variant is unavailable.
+
+    Grounded purely in matching category, brand, and fit without duplicating the viewed product.
+    """
+    excluded = {product.pk}
+    candidates = (
+        Product.objects.published()
+        .with_storefront_data()
+        .exclude(pk__in=excluded)
+    )
+
+    matches: list[Product] = []
+    # 1. Match category
+    if product.category_id:
+        cat_matches = list(
+            candidates.filter(category=product.category)
+            .order_by("-is_featured", "-published_at")[:limit]
+        )
+        matches.extend(cat_matches)
+        for m in cat_matches:
+            excluded.add(m.pk)
+
+    # 2. Match fit or brand if more needed
+    if len(matches) < limit and product.fit_id:
+        needed = limit - len(matches)
+        fit_matches = list(
+            Product.objects.published()
+            .with_storefront_data()
+            .exclude(pk__in=excluded)
+            .filter(fit=product.fit)
+            .order_by("-published_at")[:needed]
+        )
+        matches.extend(fit_matches)
+        for m in fit_matches:
+            excluded.add(m.pk)
+
+    # 3. Fill with featured in-stock items if still needed
+    if len(matches) < limit:
+        needed = limit - len(matches)
+        fill = list(
+            Product.objects.published()
+            .with_storefront_data()
+            .exclude(pk__in=excluded)
+            .order_by("-is_featured", "-id")[:needed]
+        )
+        matches.extend(fill)
+
+    return matches[:limit]
+
+
+def get_product_sizing_guide(product: Product, user=None) -> dict[str, Any]:
+    """Build honest sizing and fit guide based strictly on real DB records and user DNA."""
+    fit_name = product.fit.name if product.fit else "Standard Fit"
+    fit_desc = "True to size. Designed for everyday comfort and clean drape."
+    if product.fit:
+        lower = product.fit.name.lower()
+        if "relaxed" in lower or "oversized" in lower or "loose" in lower:
+            fit_desc = (
+                f"{product.fit.name} cut with extra room through the body. "
+                "For a closer, more tailored fit, consider sizing down."
+            )
+        elif "slim" in lower or "tailored" in lower or "tight" in lower:
+            fit_desc = (
+                f"{product.fit.name} cut designed to follow the natural contours of the body. "
+                "True to size; if between sizes, choose the larger size."
+            )
+        elif "wide" in lower or "straight" in lower:
+            fit_desc = f"{product.fit.name} with consistent volume from hip to hem."
+
+    sizes = []
+    seen_codes = set()
+    for variant in product.purchasable_variants:
+        if variant.size and variant.size.code not in seen_codes:
+            seen_codes.add(variant.size.code)
+            sizes.append({
+                "code": variant.size.code,
+                "name": variant.size.name or variant.size.code,
+                "size_type": variant.size.get_size_type_display(),
+            })
+
+    # Sort sizes logically by code/order
+    sizes.sort(key=lambda s: s["code"])
+
+    recommended_size = ""
+    if user and user.is_authenticated:
+        try:
+            dna = getattr(user, "flash_dna", None)
+            if dna:
+                is_bottom = bool(
+                    product.category
+                    and any(
+                        w in product.category.name.lower()
+                        for w in ("pant", "jean", "short", "skirt", "trouser", "bottom")
+                    )
+                )
+                if is_bottom and getattr(dna, "bottom_size", None):
+                    recommended_size = dna.bottom_size.upper()
+                elif getattr(dna, "top_size", None):
+                    recommended_size = dna.top_size.upper()
+        except Exception:
+            pass
+
+    return {
+        "fit_name": fit_name,
+        "fit_description": fit_desc,
+        "sizes": sizes,
+        "recommended_size": recommended_size,
+    }

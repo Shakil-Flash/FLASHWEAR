@@ -1,0 +1,108 @@
+{% extends "backoffice/base.html" %}
+
+{% block title %}
+    Storefront Preview Simulator
+{% endblock title %}
+
+{% block breadcrumb %}
+    <a href="{% url 'backoffice:content_homepage' %}" class="hover:underline">Homepage Studio</a> ›
+    Preview Simulator
+{% endblock breadcrumb %}
+
+{% block content %}
+<header class="mb-4 flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-4">
+    <div>
+        <h1 class="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl flex items-center gap-2">
+            <span>Visual Studio Preview Simulator</span>
+            <span class="rounded-full bg-amber-100 text-amber-800 text-xs px-2.5 py-0.5 font-semibold">Protected Staff Mode</span>
+        </h1>
+        <p class="text-xs text-slate-500">
+            Preview scheduled & draft sections in desktop or mobile viewport before publishing to customers.
+        </p>
+    </div>
+
+    {# Viewport and Draft Toggles #}
+    <div class="flex items-center gap-3">
+        <div class="inline-flex rounded-lg border border-slate-300 bg-slate-100 p-0.5 text-xs font-semibold">
+            <a href="?device=desktop&unpublished={% if show_unpublished %}1{% else %}0{% endif %}"
+               class="rounded-md px-3 py-1.5 transition {% if device == 'desktop' %}bg-white text-slate-900 shadow-xs{% else %}text-slate-600 hover:text-slate-900{% endif %}">
+                🖥️ Desktop
+            </a>
+            <a href="?device=mobile&unpublished={% if show_unpublished %}1{% else %}0{% endif %}"
+               class="rounded-md px-3 py-1.5 transition {% if device == 'mobile' %}bg-white text-slate-900 shadow-xs{% else %}text-slate-600 hover:text-slate-900{% endif %}">
+                📱 Mobile (390px)
+            </a>
+        </div>
+
+        <a href="?device={{ device }}&unpublished={% if show_unpublished %}0{% else %}1{% endif %}"
+           class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-xs hover:bg-slate-50">
+            {% if show_unpublished %}
+                <span class="h-2 w-2 rounded-full bg-emerald-500"></span> Drafts: Included
+            {% else %}
+                <span class="h-2 w-2 rounded-full bg-slate-400"></span> Drafts: Excluded
+            {% endif %}
+        </a>
+
+        <a href="{% url 'core:home' %}?preview=content" target="_blank"
+           class="inline-flex items-center rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800">
+            Open in Storefront Tab ↗
+        </a>
+    </div>
+</header>
+
+{# Simulator Frame #}
+<div class="w-full bg-slate-200/70 p-4 sm:p-8 rounded-2xl flex justify-center items-start overflow-x-auto min-h-[85vh]">
+    {% if device == 'mobile' %}
+        {# Mobile Device Frame #}
+        <div class="w-[390px] min-h-[780px] bg-white border-[10px] border-slate-900 rounded-[46px] shadow-2xl overflow-hidden relative flex flex-col">
+            <!-- Simulated Notch -->
+            <div class="w-full bg-slate-950 h-6 flex justify-center items-center z-30">
+                <div class="w-24 h-3.5 bg-black rounded-b-xl"></div>
+            </div>
+            <!-- Scrollable Content Container -->
+            <div class="flex-1 overflow-y-auto">
+                {% if sections %}
+                    {% for section in sections %}
+                        {% include "pages/sections/_section.html" with section=section %}
+                    {% endfor %}
+                {% else %}
+                    <div class="p-8 text-center text-sm text-slate-500">
+                        No sections to preview.
+                    </div>
+                {% endif %}
+            </div>
+            <!-- Home Bar Indicator -->
+            <div class="w-full bg-white h-4 flex justify-center items-center z-30">
+                <div class="w-28 h-1 bg-slate-300 rounded-full"></div>
+            </div>
+        </div>
+    {% else %}
+        {# Desktop Full Viewport Frame #}
+        <div class="w-full bg-white rounded-xl shadow-lg border border-slate-300/80 overflow-hidden">
+            <!-- Simulated Browser Header -->
+            <div class="bg-slate-100 border-b border-slate-200 px-4 py-2 flex items-center gap-2 text-xs text-slate-500">
+                <div class="flex gap-1.5">
+                    <span class="w-2.5 h-2.5 rounded-full bg-rose-400"></span>
+                    <span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+                </div>
+                <div class="bg-white px-3 py-1 rounded-md border border-slate-200 text-slate-600 font-mono text-[11px] flex-1 max-w-md mx-auto text-center truncate">
+                    https://flashwear.local/?preview=content
+                </div>
+            </div>
+            <!-- Content -->
+            <div>
+                {% if sections %}
+                    {% for section in sections %}
+                        {% include "pages/sections/_section.html" with section=section %}
+                    {% endfor %}
+                {% else %}
+                    <div class="p-12 text-center text-sm text-slate-500">
+                        No sections to preview. Default theme layout is currently serving storefront shoppers.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock content %}

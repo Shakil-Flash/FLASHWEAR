@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% load catalog_extras %}
+
+{% block title %}Fashion Creators & Curators | FLASHWEAR Community{% endblock title %}
+{% block meta_description %}Meet the verified stylists, creators, and fashion curators building looks with FLASHWEAR. Discover their aesthetic, browse their wardrobes, and shop their looks.{% endblock meta_description %}
+
+{% block content %}
+<div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <!-- Breadcrumb -->
+    <nav class="text-sm text-slate-500" aria-label="Breadcrumb">
+        <ol class="flex flex-wrap items-center gap-2">
+            <li><a href="{% url 'core:home' %}" class="hover:text-slate-900 transition">Home</a></li>
+            <li aria-hidden="true" class="text-slate-300">/</li>
+            <li><a href="{% url 'inspiration:list' %}" class="hover:text-slate-900 transition">Inspiration</a></li>
+            <li aria-hidden="true" class="text-slate-300">/</li>
+            <li aria-current="page" class="font-medium text-slate-900">Creators</li>
+        </ol>
+    </nav>
+
+    <!-- Header -->
+    <header class="mt-6 flex flex-col md:flex-row md:items-end md:justify-between gap-6 pb-8 border-b border-slate-200">
+        <div class="max-w-2xl">
+            <span class="inline-flex items-center gap-1.5 rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-white">
+                <span class="h-1.5 w-1.5 rounded-full bg-flash-400"></span>
+                Community Voices
+            </span>
+            <h1 class="mt-3 text-3xl font-extrabold tracking-tight text-slate-950 sm:text-4xl lg:text-5xl">
+                Creators & Curators
+            </h1>
+            <p class="mt-3 text-base sm:text-lg text-slate-600 leading-relaxed">
+                The designers, stylists, and fashion pioneers styling real FLASHWEAR pieces.
+            </p>
+        </div>
+        <div>
+            <a href="{% url 'creator:creator_apply' %}"
+               class="inline-flex items-center gap-2 rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white shadow-soft transition hover:bg-slate-800">
+                <span>Join the Creator Program</span>
+            </a>
+        </div>
+    </header>
+
+    <!-- Featured Creators (if available) -->
+    {% if featured %}
+    <section class="mt-10">
+        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">Featured Voices</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {% for creator in featured %}
+                <div class="group relative flex flex-col overflow-hidden rounded-3xl border border-slate-200/90 bg-white p-6 shadow-soft transition hover:-translate-y-1 hover:shadow-elevated motion-reduce:hover:translate-y-0">
+                    <div class="flex items-center gap-4">
+                        {% if creator.avatar %}
+                            <img src="{{ creator.avatar.url }}" alt="{{ creator.display_name }}"
+                                 class="h-16 w-16 rounded-full object-cover ring-2 ring-flash-400/50" />
+                        {% else %}
+                            <div class="flex h-16 w-16 items-center justify-center rounded-full bg-flash-500 font-bold text-slate-950 text-xl">
+                                {{ creator.display_name|slice:":1"|upper }}
+                            </div>
+                        {% endif %}
+                        <div>
+                            <div class="flex items-center gap-1.5">
+                                <h3 class="text-base font-bold text-slate-950 group-hover:text-flash-700 transition">
+                                    <a href="{{ creator.get_absolute_url }}">{{ creator.display_name }}</a>
+                                </h3>
+                                <span class="inline-flex items-center rounded-full bg-flash-100 p-0.5 text-flash-800" title="Verified Creator">
+                                    <svg class="h-3 w-3 fill-current" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                                </span>
+                            </div>
+                            {% if creator.location %}
+                                <p class="text-xs text-slate-500 mt-0.5">{{ creator.location }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% if creator.bio %}
+                        <p class="mt-4 text-xs text-slate-600 line-clamp-2 leading-relaxed">{{ creator.bio }}</p>
+                    {% endif %}
+                    <div class="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between">
+                        <span class="text-xs text-slate-400 font-medium">{{ creator.posts.count }} look{{ creator.posts.count|pluralize }}</span>
+                        <a href="{{ creator.get_absolute_url }}" class="text-xs font-semibold text-slate-950 hover:text-flash-600 transition">
+                            Explore Looks →
+                        </a>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    <!-- Directory Grid -->
+    <main class="mt-12">
+        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-6">All Creators</h2>
+        {% if profiles.object_list %}
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                {% for creator in profiles.object_list %}
+                    <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft transition hover:border-slate-300">
+                        <div class="flex items-center gap-3">
+                            {% if creator.avatar %}
+                                <img src="{{ creator.avatar.url }}" alt="{{ creator.display_name }}" class="h-12 w-12 rounded-full object-cover" />
+                            {% else %}
+                                <div class="flex h-12 w-12 items-center justify-center rounded-full bg-slate-200 font-bold text-slate-700">
+                                    {{ creator.display_name|slice:":1"|upper }}
+                                </div>
+                            {% endif %}
+                            <div class="min-w-0">
+                                <h3 class="truncate text-sm font-bold text-slate-900">
+                                    <a href="{{ creator.get_absolute_url }}" class="hover:text-flash-700 transition">{{ creator.display_name }}</a>
+                                </h3>
+                                {% if creator.location %}
+                                    <p class="truncate text-xs text-slate-500">{{ creator.location }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% if creator.bio %}
+                            <p class="mt-3 text-xs text-slate-600 line-clamp-2">{{ creator.bio }}</p>
+                        {% endif %}
+                        <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+                            <span class="text-xs text-slate-400">{{ creator.posts.count }} look{{ creator.posts.count|pluralize }}</span>
+                            <a href="{{ creator.get_absolute_url }}" class="text-xs font-semibold text-slate-900 hover:text-flash-600">
+                                Profile →
+                            </a>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+
+            {% if profiles.has_other_pages %}
+            <nav class="mt-12 flex items-center justify-center gap-2" aria-label="Pagination">
+                {% if profiles.has_previous %}
+                    <a href="?page={{ profiles.previous_page_number }}" class="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-soft hover:bg-slate-50">← Previous</a>
+                {% endif %}
+                <span class="px-4 py-2 text-sm text-slate-500">Page {{ profiles.number }} of {{ profiles.paginator.num_pages }}</span>
+                {% if profiles.has_next %}
+                    <a href="?page={{ profiles.next_page_number }}" class="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-soft hover:bg-slate-50">Next →</a>
+                {% endif %}
+            </nav>
+            {% endif %}
+        {% else %}
+            <div class="rounded-3xl border border-slate-200 bg-slate-50 p-12 text-center">
+                <h3 class="text-base font-bold text-slate-900">No creators listed yet</h3>
+                <p class="mt-1 text-sm text-slate-500">Applications are currently open for new fashion voices.</p>
+                <a href="{% url 'creator:creator_apply' %}" class="mt-4 inline-flex items-center rounded-full bg-slate-900 px-5 py-2.5 text-xs font-bold uppercase text-white shadow hover:bg-slate-800 transition">
+                    Apply to Join
+                </a>
+            </div>
+        {% endif %}
+    </main>
+</div>
+{% endblock content %}

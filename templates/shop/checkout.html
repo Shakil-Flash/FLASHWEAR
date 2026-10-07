@@ -8,20 +8,20 @@
 <div class="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
     <div class="mb-8">
         <ol class="flex flex-wrap items-center gap-1 text-xs font-medium text-slate-500 sm:text-sm" aria-label="Checkout steps">
-            <li class="flex items-center text-flash-700">
-                <a href="{% url 'shop:cart' %}" class="hover:underline">1. Bag</a>
+            <li class="flex items-center {% if not checkout.is_validated and not checkout.shipping_address_id %}font-bold text-slate-900{% else %}text-flash-700{% endif %}">
+                <span>1. Information</span>
                 <svg class="mx-2 h-3.5 w-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
             </li>
-            <li class="flex items-center {% if not checkout.is_validated %}font-bold text-slate-900{% else %}text-flash-700{% endif %}">
-                <span>2. Details</span>
+            <li class="flex items-center {% if not checkout.is_validated and checkout.shipping_address_id %}font-bold text-slate-900{% elif checkout.is_validated %}text-flash-700{% else %}text-slate-400{% endif %}">
+                <span>2. Delivery</span>
                 <svg class="mx-2 h-3.5 w-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
             </li>
             <li class="flex items-center {% if checkout.is_validated %}font-bold text-slate-900{% else %}text-slate-400{% endif %}">
-                <span>3. Review &amp; Pay</span>
+                <span>3. Payment</span>
                 <svg class="mx-2 h-3.5 w-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
             </li>
             <li class="flex items-center text-slate-400">
-                <span>4. Done</span>
+                <span>4. Confirmation</span>
             </li>
         </ol>
         <h1 class="mt-4 text-3xl font-semibold tracking-tight text-slate-950">Checkout</h1>
@@ -117,7 +117,16 @@
                         Place order
                     </button>
                 </form>
-                <p class="mt-2 text-center text-xs text-slate-500">Reserves your items and opens the payment step.</p>
+                <p class="mt-2 text-center text-xs text-slate-500">Reserves your items and opens secure payment.</p>
+                <div class="mt-4 border-t border-slate-100 pt-3 text-center text-xs text-slate-500">
+                    <p class="flex items-center justify-center gap-1.5 text-slate-600 font-medium">
+                        <svg class="h-3.5 w-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                        Secure 256-Bit Checkout
+                    </p>
+                    <p class="mt-1 text-[11px] text-slate-400">30-day return policy · Support available</p>
+                </div>
             </div>
         </aside>
     </div>
@@ -355,6 +364,15 @@
                 </form>
                 <p class="mt-2 text-center text-xs text-slate-500">Re-checks your bag and freezes this total.</p>
                 {% endif %}
+                <div class="mt-4 border-t border-slate-100 pt-3 text-center text-xs text-slate-500">
+                    <p class="flex items-center justify-center gap-1.5 text-slate-600 font-medium">
+                        <svg class="h-3.5 w-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                        Secure 256-Bit SSL Checkout
+                    </p>
+                    <p class="mt-1 text-[11px] text-slate-400">30-day returns · Real-time order tracking</p>
+                </div>
             </div>
         </aside>
     </div>

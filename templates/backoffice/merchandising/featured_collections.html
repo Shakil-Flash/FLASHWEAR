@@ -1,0 +1,76 @@
+{% extends "backoffice/base.html" %}
+
+{% block title %}
+    Featured Collections & Drops
+{% endblock title %}
+
+{% block breadcrumb %}
+    Merchandising › Featured Collections
+{% endblock breadcrumb %}
+
+{% block content %}
+<header class="mb-6 flex flex-wrap items-end justify-between gap-4">
+    <div>
+        <h1 class="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+            Featured Collections & Drops
+        </h1>
+        <p class="mt-1 text-sm text-slate-500">
+            Overview of existing Collections, Categories, and Drops merchandised on the storefront.
+        </p>
+    </div>
+    <div>
+        <a href="{% url 'backoffice:content_homepage' %}" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-slate-800 transition">
+            Manage in Homepage Studio →
+        </a>
+    </div>
+</header>
+
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    {% for section in sections %}
+        <div class="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs flex flex-col justify-between">
+            <div>
+                <div class="flex items-center justify-between mb-3">
+                    <span class="inline-flex rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-700">
+                        {{ section.get_section_type_display }}
+                    </span>
+                    <span class="text-xs font-bold text-slate-500">Order: #{{ section.display_order }}</span>
+                </div>
+
+                {% if section.get_desktop_image_url %}
+                    <img src="{{ section.get_desktop_image_url }}" alt="" class="w-full h-36 object-cover rounded-xl mb-3 border border-slate-100" />
+                {% endif %}
+
+                <h2 class="text-base font-bold text-slate-900">{{ section.title }}</h2>
+                {% if section.subtitle %}
+                    <p class="text-xs text-slate-500 mt-1 line-clamp-2">{{ section.subtitle }}</p>
+                {% endif %}
+
+                <div class="mt-4 pt-3 border-t border-slate-100 text-xs text-slate-600 space-y-1">
+                    {% if section.linked_collection %}
+                        <div><strong>Collection:</strong> {{ section.linked_collection.name }}</div>
+                    {% endif %}
+                    {% if section.linked_category %}
+                        <div><strong>Category:</strong> {{ section.linked_category.name }}</div>
+                    {% endif %}
+                    {% if section.linked_drop %}
+                        <div><strong>Drop:</strong> {{ section.linked_drop.name }}</div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between">
+                <span class="text-xs {% if section.is_enabled and section.is_visible %}text-emerald-600 font-semibold{% else %}text-slate-400{% endif %}">
+                    {% if section.is_enabled and section.is_visible %}● Live on Storefront{% else %}○ Inactive / Scheduled{% endif %}
+                </span>
+                <a href="{% url 'backoffice:content_homepage_edit' section.pk %}" class="text-xs font-bold text-slate-900 hover:underline">
+                    Edit Section →
+                </a>
+            </div>
+        </div>
+    {% empty %}
+        <div class="col-span-3 rounded-2xl border border-dashed border-slate-200 bg-white p-12 text-center text-sm text-slate-500">
+            No collection or drop sections currently configured. Create a "Featured Collection" or "Drops" section in Homepage Studio.
+        </div>
+    {% endfor %}
+</div>
+{% endblock content %}

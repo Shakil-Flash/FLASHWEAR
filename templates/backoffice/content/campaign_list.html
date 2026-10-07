@@ -1,0 +1,134 @@
+{% extends "backoffice/base.html" %}
+
+{% block title %}
+    Seasonal Campaigns
+{% endblock title %}
+
+{% block breadcrumb %}
+    Content › Seasonal Campaigns
+{% endblock breadcrumb %}
+
+{% block content %}
+<header class="mb-6 flex flex-wrap items-end justify-between gap-4">
+    <div>
+        <h1 class="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+            Seasonal Campaigns
+        </h1>
+        <p class="mt-1 text-sm text-slate-500">
+            Schedule seasonal takeovers (e.g. Autumn Edit). When active, linked sections appear automatically.
+        </p>
+    </div>
+    <div class="flex items-center gap-2.5">
+        {% if can_manage %}
+            <a href="{% url 'backoffice:content_campaign_add' %}"
+               class="inline-flex items-center justify-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-xs transition hover:bg-slate-800">
+                + New Campaign
+            </a>
+        {% endif %}
+    </div>
+</header>
+
+{# Filter Bar #}
+<div class="mb-6 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs">
+    <form method="get" class="flex flex-wrap items-center gap-4">
+        <div class="flex-1 min-w-[200px]">
+            <input type="text" name="q" value="{{ filters.q }}" placeholder="Search campaigns by title or description..."
+                   class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none" />
+        </div>
+        <button type="submit" class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200 transition">
+            Filter
+        </button>
+        {% if filters.q %}
+            <a href="{% url 'backoffice:content_campaigns' %}" class="text-xs text-slate-500 hover:underline">Clear</a>
+        {% endif %}
+    </form>
+</div>
+
+{# Campaigns Table #}
+<div class="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xs">
+    <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-slate-200 text-left text-sm">
+            <thead class="bg-slate-50/75 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                <tr>
+                    <th scope="col" class="px-4 py-3">Campaign</th>
+                    <th scope="col" class="px-4 py-3">Duration (Timezone-Aware)</th>
+                    <th scope="col" class="px-4 py-3">Linked Sections</th>
+                    <th scope="col" class="px-4 py-3">Status</th>
+                    <th scope="col" class="px-4 py-3 text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                {% for campaign in campaigns %}
+                    <tr class="hover:bg-slate-50/60 transition">
+                        <td class="px-4 py-3">
+                            <div class="flex items-center gap-3">
+                                {% if campaign.get_banner_url %}
+                                    <img src="{{ campaign.get_banner_url }}" alt="" class="h-10 w-16 rounded-md object-cover border border-slate-200" />
+                                {% else %}
+                                    <div class="h-10 w-16 rounded-md bg-slate-100 border border-slate-200 flex items-center justify-center text-xs text-slate-400 font-mono">
+                                        No img
+                                    </div>
+                                {% endif %}
+                                <div>
+                                    <div class="font-semibold text-slate-900">{{ campaign.title }}</div>
+                                    <div class="text-xs text-slate-500 font-mono">{{ campaign.slug }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-4 py-3 text-xs text-slate-600">
+                            <div><strong>Start:</strong> {{ campaign.starts_at|date:"Y-m-d H:i" }}</div>
+                            <div><strong>End:</strong> {{ campaign.ends_at|date:"Y-m-d H:i" }}</div>
+                        </td>
+                        <td class="px-4 py-3 text-xs font-semibold text-slate-700">
+                            {{ campaign.sections.count }} section{{ campaign.sections.count|pluralize }}
+                        </td>
+                        <td class="px-4 py-3">
+                            {% if campaign.is_active %}
+                                {% if campaign.is_running %}
+                                    <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 border border-emerald-200">
+                                        <span class="h-1.5 w-1.5 rounded-full bg-emerald-600"></span> Currently Live
+                                    </span>
+                                {% elif campaign.starts_at > now %}
+                                    <span class="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 border border-blue-200">
+                                        <span class="h-1.5 w-1.5 rounded-full bg-blue-600"></span> Scheduled
+                                    </span>
+                                {% else %}
+                                    <span class="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600 border border-slate-200">
+                                        <span class="h-1.5 w-1.5 rounded-full bg-slate-400"></span> Concluded
+                                    </span>
+                                {% endif %}
+                            {% else %}
+                                <span class="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600 border border-slate-200">
+                                    <span class="h-1.5 w-1.5 rounded-full bg-slate-400"></span> Inactive
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-right">
+                            <div class="flex items-center justify-end gap-2">
+                                {% if can_manage %}
+                                    <a href="{% url 'backoffice:content_campaign_edit' campaign.pk %}"
+                                       class="text-xs font-semibold text-slate-900 hover:underline">
+                                        Edit
+                                    </a>
+                                    <form method="post" action="{% url 'backoffice:content_campaign_delete' campaign.pk %}">
+                                        {% csrf_token %}
+                                        <button type="submit" class="text-xs font-medium text-rose-600 hover:text-rose-800">
+                                            Delete
+                                        </button>
+                                    </form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="5" class="p-8 text-center text-sm text-slate-500">
+                            No seasonal marketing campaigns created yet.
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock content %}

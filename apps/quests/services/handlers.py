@@ -205,7 +205,7 @@ def creator_post(user, quest: Quest, since: datetime | None) -> int:
     installed", not "did the import fail", so a real coding error inside the app never
     masquerades as "zero progress".
     """
-    if not django_apps.is_installed("apps.creator"):
+    if not django_apps.is_installed("apps.creator") or "apps.creator" not in settings.INSTALLED_APPS:
         return 0
 
     from apps.creator.models import CreatorPost, CreatorPostStatus, CreatorProfile

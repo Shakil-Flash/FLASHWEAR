@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}Apply as Creator | FLASHWEAR{% endblock title %}
+
+{% block content %}
+<div class="mx-auto max-w-2xl px-4 py-12 sm:px-6 lg:px-8">
+    <div class="rounded-3xl border border-slate-200 bg-white p-8 sm:p-10 shadow-soft">
+        <span class="inline-flex items-center gap-1.5 rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-white">
+            Creator Application
+        </span>
+        <h1 class="mt-4 text-2xl sm:text-3xl font-extrabold text-slate-950">Join the FLASHWEAR Creator Program</h1>
+        <p class="mt-2 text-sm text-slate-600 leading-relaxed">
+            Share your style with our global fashion community. Approved creators get verified profile badges, direct product tagging, and look features on our inspiration feed.
+        </p>
+
+        {% if error %}
+            <div class="mt-6 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs font-semibold text-rose-700">
+                {{ error }}
+            </div>
+        {% endif %}
+
+        <form method="post" class="mt-8 flex flex-col gap-6">
+            {% csrf_token %}
+            <div>
+                <label for="requested_display_name" class="block text-xs font-bold uppercase tracking-wider text-slate-700">Display Name / Stylist Alias</label>
+                <input type="text" id="requested_display_name" name="requested_display_name" required
+                       placeholder="e.g. Maya Chen / @studio_maya"
+                       class="mt-1.5 w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900" />
+            </div>
+
+            <div>
+                <label for="application_bio" class="block text-xs font-bold uppercase tracking-wider text-slate-700">Aesthetic & Vision Bio</label>
+                <textarea id="application_bio" name="application_bio" rows="4" required
+                          placeholder="Tell us about your personal style, preferred aesthetic (e.g. cyberpunk, minimal, vintage workwear), and how you style FLASHWEAR pieces..."
+                          class="mt-1.5 w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"></textarea>
+            </div>
+
+            <div>
+                <label for="portfolio_url" class="block text-xs font-bold uppercase tracking-wider text-slate-700">Portfolio or Lookbook URL (Optional)</label>
+                <input type="url" id="portfolio_url" name="portfolio_url"
+                       placeholder="https://instagram.com/yourhandle or portfolio link"
+                       class="mt-1.5 w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900" />
+            </div>
+
+            <button type="submit"
+                    class="mt-4 rounded-full bg-slate-950 py-3.5 text-sm font-bold text-white shadow-soft hover:bg-slate-800 transition">
+                Submit Creator Application
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock content %}

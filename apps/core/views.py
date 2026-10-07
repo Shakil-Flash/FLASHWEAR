@@ -106,6 +106,35 @@ def home(request: HttpRequest) -> HttpResponse:
         .order_by("-published_at")[:4]
     )
 
+    from apps.core.services.content import get_active_homepage_sections
+
+    is_preview = bool(is_team_member and request.GET.get("preview") == "content")
+    managed_sections = get_active_homepage_sections(include_unpublished=is_preview)
+
+    creator_community_looks = []
+    if any(s.section_type == "creator" for s in managed_sections):
+        try:
+            from apps.creator.selectors import get_featured_posts
+
+            creator_community_looks = get_featured_posts(limit=4)
+        except Exception:
+            pass
+
+    # Track homepage_section_view for live store visits (not staff previews)
+    if not is_preview and managed_sections:
+        from apps.analytics.services import record_event
+
+        for sec in managed_sections:
+            record_event(
+                name="homepage_section_view",
+                request=request,
+                metadata={
+                    "section_id": str(sec.pk),
+                    "section_type": sec.section_type,
+                    "title": sec.title,
+                },
+            )
+
     context = {
         "seo_title": f"{site.site_name} - {site.tagline}",
         "seo_description": site.default_seo_description,
@@ -119,11 +148,76 @@ def home(request: HttpRequest) -> HttpResponse:
         "featured_collections": list(selectors.live_collections(featured_only=True)[:3]),
         "active_drops": active_drops,
         "loop_highlights": loop_highlights,
+        # Content Studio (Phase 29)
+        "managed_sections": managed_sections,
+        "is_content_preview": is_preview,
+        "creator_community_looks": creator_community_looks,
         # Phase 20: who runs this site and how to search it, from the real config row.
         "organization_schema": organization_schema(request),
         "website_schema": website_schema(request),
     }
     return render(request, "pages/home.html", context)
+
+
+def track_content_interaction(request: HttpRequest) -> HttpResponse:
+    """Track content and merchandising interactions (views, clicks)."""
+    import json
+
+    from django.shortcuts import redirect
+
+    data: dict = {}
+    if request.method == "POST":
+        if request.content_type == "application/json" and request.body:
+            try:
+                data = json.loads(request.body)
+            except Exception:
+                data = {}
+        else:
+            data = request.POST.dict()
+    elif request.method == "GET":
+        data = request.GET.dict()
+    else:
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+
+    event_name = data.get("event")
+    allowed_events = {
+        "homepage_section_view",
+        "homepage_section_click",
+        "editorial_view",
+        "editorial_click",
+        "campaign_click",
+        "featured_product_click",
+    }
+    if event_name in allowed_events:
+        from apps.analytics.services import record_event
+        from apps.core.services.content import validate_cta_destination
+
+        metadata = {
+            "section_id": data.get("section_id"),
+            "section_type": data.get("section_type"),
+            "section_title": data.get("section_title"),
+            "story_id": data.get("story_id"),
+            "story_title": data.get("story_title"),
+            "campaign_id": data.get("campaign_id"),
+            "campaign_title": data.get("campaign_title"),
+            "product_id": data.get("product_id"),
+            "destination": data.get("destination"),
+        }
+        record_event(name=event_name, request=request, metadata=metadata)
+
+        destination = data.get("destination")
+        if request.method == "GET" and destination:
+            try:
+                validate_cta_destination(destination)
+                return redirect(destination)
+            except Exception:
+                return redirect("core:home")
+
+        return JsonResponse({"status": "recorded"})
+
+    return JsonResponse({"status": "ignored"}, status=400)
+
+
 
 
 @require_GET

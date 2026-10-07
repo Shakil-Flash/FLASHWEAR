@@ -887,6 +887,22 @@ def get_recommendations(
     # 4. Sort by final score (highest first)
     scored.sort(key=lambda e: e["score"]["total_raw"], reverse=True)
 
+    # Signal to customer-facing fashion reason mapping (Phase 31)
+    signal_reason_map = {
+        "purchase_history": "Because you liked your previous pieces",
+        "closet_complement": "Goes with your wardrobe",
+        "outfit_completion": "Complete your look",
+        "dna_category": "From your favorite category",
+        "category_match": "From your favorite category",
+        "dna_style": "New in your style",
+        "style_match": "New in your style",
+        "dna_color": "In your favorite palette",
+        "color_match": "In your favorite palette",
+        "dna_fit": "In your preferred fit",
+        "recency": "Fresh drop in your style",
+        "popularity": "Trending favorite",
+    }
+
     # 5. Build explanation strings and format output
     results: list[dict] = []
     for entry in scored[:max_results]:
@@ -894,18 +910,17 @@ def get_recommendations(
         product = entry["product"]
         contributions = score.get("contributions", {})
 
-        # Build a human-readable reason from the top contributing signals
-        reason_parts: list[str] = []
-        top_signals = sorted(contributions.items(), key=lambda x: abs(x[1]), reverse=True)[:3]
-        for sig_name, weight in top_signals:
-            if weight == 0:
-                continue
-            # Map signal name to human-readable text
-            sig_label = sig_name.replace("_", " ").title()
-            contributions_pct = abs(weight) / max(abs(score["total_raw"]), 0.1) * 100
-            reason_parts.append(f"{sig_label} ({contributions_pct:.0f}%)")
-
-        reason = "; ".join(reason_parts) if reason_parts else "Recommended for you"
+        # Select top positive signal for a clean, human reason
+        top_positive = [
+            (sig, val)
+            for sig, val in sorted(contributions.items(), key=lambda x: x[1], reverse=True)
+            if val > 0
+        ]
+        if top_positive:
+            top_sig = top_positive[0][0]
+            reason = signal_reason_map.get(top_sig, "Recommended for your style")
+        else:
+            reason = "Recommended for your style"
 
         results.append(
             {
@@ -922,7 +937,44 @@ def get_recommendations(
         "outfits": [],  # no outfit-specific results in this context
         "tips": _build_tips(context, results),
         "source": results[0]["source"] if results else "no_candidates",
+        "results": results,
+        "items": [r["product"] for r in results],
+        "recommendations": results,
     }
+
+
+def get_customer_recommendations(user, limit: int = 4) -> list[dict]:
+    """Return top grounded recommendations for the customer home page.
+
+    Cold-start safe: falls back to active new arrivals if the user has no
+    prior DNA or wardrobe activity.
+    """
+    if user and user.is_authenticated:
+        try:
+            res = get_recommendations(user, context="personalized", max_results=limit)
+            rec_list = res.get("recommendations", [])
+            if rec_list:
+                return rec_list[:limit]
+        except Exception:
+            pass
+
+    # Cold start fallback: active new arrivals
+    from apps.catalog.models import Product
+
+    qs = (
+        Product.objects.filter(status=Product.Status.ACTIVE)
+        .select_related("brand", "fit", "category")
+        .prefetch_related("images", "variants__stock")
+        .order_by("-is_featured", "-published_at", "-id")[:limit]
+    )
+    return [
+        {
+            "product": p,
+            "reason": "New arrival in the collection",
+            "source": "cold_start",
+        }
+        for p in qs
+    ]
 
 
 def _build_tips(context: str, results: list[dict]) -> list[str]:

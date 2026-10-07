@@ -10,17 +10,27 @@ All views follow the project's established patterns:
 """
 
 from django.core.paginator import Paginator
-from django.db import models, transaction
+from django.db.models import F, Q
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
+from django.views.decorators.cache import never_cache
+from django.views.decorators.http import require_POST
 from rest_framework import permissions, status
-from rest_framework.decorators import api_view, never_cache, permission_classes
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
+
+from apps.analytics.services import record_event
+from apps.catalog.models import Category, Product
+from apps.closet.models import ClosetItem
 
 from .models import (
     CreatorPost,
+    CreatorPostOutfit,
     CreatorPostReport,
     CreatorPostStatus,
     CreatorProfile,
+    CreatorStatus,
 )
 from .permissions import (
     check_like_toggle_duplicate,
@@ -38,7 +48,6 @@ from .selectors import (
     get_newest_posts,
     get_newest_profiles,
     get_pending_review_posts_by_creator,
-    get_popular_posts,
     get_post_media,
     get_post_outfit_tags,
     get_post_product_tags,
@@ -73,20 +82,25 @@ from .services import (
 )
 
 # =============================================================================
-# Server-rendered views (HTMX/Django template views)
+# Server-rendered views (Storefront fashion community & creator pages)
 # =============================================================================
 
 
 def creator_list(request):
-    """Public creator directory page."""
+    """Public fashion creator directory page."""
     profiles = get_active_profiles()
     featured = get_featured_profiles()
     newest = get_newest_profiles()
 
-    # Pagination
-    paginator = Paginator(profiles, 20)  # 20 per page
+    paginator = Paginator(profiles, 20)
     page_number = request.GET.get("page")
     page_obj = paginator.get_page(page_number)
+
+    record_event(
+        "creator_content_view",
+        request=request,
+        metadata={"view": "creator_directory"},
+    )
 
     return render(
         request,
@@ -100,22 +114,47 @@ def creator_list(request):
 
 
 def creator_detail(request, slug):
-    """Creator profile detail page."""
-    profile = get_object_or_404(CreatorProfile, slug=slug, status=CreatorProfile.Status.APPROVED)
+    """Creator profile detail page with looks, outfits, and shoppable products."""
+    profile = get_object_or_404(CreatorProfile, slug=slug, status=CreatorStatus.APPROVED)
     profile_stats = get_creator_stats(profile)
 
-    # Published posts only
+    # Published looks
     published_posts = get_posts_by_creator(profile, include_drafts=False)
 
-    # Pagination
-    paginator = Paginator(published_posts, 10)
+    # Tagged shoppable products
+    tagged_products = list(
+        Product.objects.filter(
+            creator_post_tags__post__creator=profile,
+            creator_post_tags__post__status=CreatorPostStatus.PUBLISHED,
+        )
+        .select_related("brand")
+        .prefetch_related("images", "variants")
+        .distinct()[:12]
+    )
+
+    # Creator outfits
+    outfits = list(
+        CreatorPostOutfit.objects.filter(
+            post__creator=profile,
+            post__status=CreatorPostStatus.PUBLISHED,
+        )
+        .select_related("outfit")
+        .prefetch_related(
+            "outfit__items__closet_item__product",
+            "outfit__items__closet_item__product__images",
+        )
+        .distinct()[:8]
+    )
+
+    paginator = Paginator(published_posts, 12)
     page_number = request.GET.get("page")
     page_obj = paginator.get_page(page_number)
 
-    # Check if current user is following/subscribed (basic check)
-    user_can_interact = False
-    if request.user.is_authenticated:
-        user_can_interact = True
+    record_event(
+        "creator_content_view",
+        request=request,
+        metadata={"creator_slug": profile.slug, "view": "creator_profile"},
+    )
 
     return render(
         request,
@@ -124,7 +163,9 @@ def creator_detail(request, slug):
             "profile": profile,
             "stats": profile_stats,
             "posts": page_obj,
-            "user_can_interact": user_can_interact,
+            "tagged_products": tagged_products,
+            "outfits": outfits,
+            "user_can_interact": request.user.is_authenticated,
         },
     )
 
@@ -132,22 +173,17 @@ def creator_detail(request, slug):
 def creator_me(request):
     """Creator dashboard page - only for authenticated creators."""
     if not request.user.is_authenticated:
-        return redirect("/accounts/signin/")
+        return redirect(reverse("accounts:login"))
 
     profile = get_or_create_profile(request.user)
     if profile is None:
-        # User is not a creator; show application page
-        return redirect("creator:apply")
+        return redirect("creator:creator_apply")
 
-    # If pending, show wait page
     if profile.is_pending:
         return render(request, "creator/creator_dashboard_pending.html", {"profile": profile})
 
-    # Published posts
     published_posts = get_posts_by_creator(profile, include_drafts=False)
     draft_posts = get_draft_posts_by_creator(profile)
-
-    # Pending moderation
     pending_posts = get_pending_review_posts_by_creator(profile)
 
     return render(
@@ -162,10 +198,17 @@ def creator_me(request):
     )
 
 
+def creator_me_posts(request):
+    """Creator dashboard posts overview."""
+    return creator_me(request)
+
+
 def creator_apply(request):
     """Creator application page."""
+    if not request.user.is_authenticated:
+        return redirect(f"{reverse('accounts:login')}?next=/creators/apply/")
+
     if request.method == "POST":
-        # Process application
         bio = request.POST.get("application_bio", "")
         display_name = request.POST.get("requested_display_name", "")
         social_links = request.POST.get("social_links", "{}")
@@ -179,47 +222,48 @@ def creator_apply(request):
                 social_links=social_links,
                 portfolio_url=portfolio_url,
             )
-            return redirect("creator:apply_success")
+            return render(request, "creator/creator_apply_success.html")
         except ValueError as e:
             return render(
                 request,
                 "creator/creator_apply.html",
-                {
-                    "error": str(e),
-                },
+                {"error": str(e)},
             )
 
     return render(request, "creator/creator_apply.html")
 
 
 def post_detail(request, slug):
-    """Individual creator post detail page."""
-    post = get_object_or_404(CreatorPost, slug=slug, status=CreatorPostStatus.PUBLISHED)
+    """Individual creator look detail page with shoppable product cards and styling."""
+    post = get_object_or_404(
+        CreatorPost.objects.select_related("creator"),
+        slug=slug,
+        status=CreatorPostStatus.PUBLISHED,
+        creator__status=CreatorStatus.APPROVED,
+    )
 
     # Increment view count
-    with transaction.atomic():
-        post.view_count = models.F("view_count") + 1
-        post.save(update_fields=["view_count"])
-        post.refresh_from_db(fields=["view_count"])
+    CreatorPost.objects.filter(pk=post.pk).update(view_count=F("view_count") + 1)
+    post.view_count += 1
 
-    # Get media
-    media = get_post_media(post, primary_only=True)
-
-    # Get product tags
+    media = get_post_media(post)
     product_tags = get_post_product_tags(post)
-
-    # Get outfit tags
     outfit_tags = get_post_outfit_tags(post)
+    more_from_creator = list(
+        get_posts_by_creator(post.creator).exclude(pk=post.pk)[:4]
+    )
 
-    # Check if user has liked/saved
-    user_liked = False
-    user_saved = False
-    if request.user.is_authenticated:
-        user_liked = has_user_liked(request.user, post)
-        user_saved = has_user_saved(request.user, post)
-
-    # Check if user can report
+    user_liked = has_user_liked(request.user, post)
+    user_saved = has_user_saved(request.user, post)
     can_report = is_post_reportable_by(request.user, post)
+
+    record_event(
+        "creator_content_view",
+        request=request,
+        object_type="creator_post",
+        object_id=post.pk,
+        metadata={"slug": post.slug, "creator": post.creator.slug},
+    )
 
     return render(
         request,
@@ -229,6 +273,7 @@ def post_detail(request, slug):
             "media": media,
             "product_tags": product_tags,
             "outfit_tags": outfit_tags,
+            "more_from_creator": more_from_creator,
             "user_liked": user_liked,
             "user_saved": user_saved,
             "can_report": can_report,
@@ -237,28 +282,138 @@ def post_detail(request, slug):
 
 
 def inspiration_list(request):
-    """Inspiration/content discovery page."""
-    featured = get_featured_posts()
-    newest = get_newest_posts()
-    popular = get_popular_posts()
+    """Fashion-community discovery feed with category/mood filters and shoppable looks."""
+    posts = get_newest_posts()
+    category_slug = (request.GET.get("category") or "").strip()
+    mood = (request.GET.get("mood") or "").strip()
 
-    # Pagination
-    paginator = Paginator(newest, 12)
+    if category_slug:
+        posts = posts.filter(product_tags__product__category__slug=category_slug)
+    if mood:
+        posts = posts.filter(
+            Q(product_tags__product__collections__slug=mood)
+            | Q(outfit_tags__outfit__style__iexact=mood)
+            | Q(outfit_tags__outfit__occasion__iexact=mood)
+        )
+    posts = posts.distinct()
+
+    paginator = Paginator(posts, 12)
     page_number = request.GET.get("page")
     page_obj = paginator.get_page(page_number)
 
-    user_can_interact = request.user.is_authenticated
+    featured = get_featured_posts(limit=3) if not (category_slug or mood) else []
+    categories = list(Category.objects.filter(is_active=True).order_by("name")[:10])
+    mood_choices = [c[0] for c in ClosetItem.Style.choices if c[0]]
+
+    record_event(
+        "creator_content_view",
+        request=request,
+        metadata={"view": "inspiration_feed", "category": category_slug, "mood": mood},
+    )
 
     return render(
         request,
         "creator/inspiration.html",
         {
             "featured": featured,
-            "newest": page_obj,
-            "popular": popular,
-            "user_can_interact": user_can_interact,
+            "posts": page_obj,
+            "categories": categories,
+            "selected_category": category_slug,
+            "mood_choices": mood_choices,
+            "selected_mood": mood,
+            "user_can_interact": request.user.is_authenticated,
         },
     )
+
+
+@require_POST
+def post_like(request, slug):
+    """Toggle like on a creator post (HTMX, fetch JSON, or standard POST)."""
+    post = get_object_or_404(
+        CreatorPost,
+        slug=slug,
+        status=CreatorPostStatus.PUBLISHED,
+        creator__status=CreatorStatus.APPROVED,
+    )
+    is_ajax = (
+        request.headers.get("x-requested-with") == "XMLHttpRequest"
+        or "application/json" in request.headers.get("accept", "")
+    )
+    if not request.user.is_authenticated:
+        if is_ajax:
+            login_url = f"{reverse('accounts:login')}?next={post.get_absolute_url()}"
+            return JsonResponse({"error": "login_required", "login_url": login_url}, status=401)
+        return redirect(f"{reverse('accounts:login')}?next={post.get_absolute_url()}")
+
+    already_liked = has_user_liked(request.user, post)
+    if already_liked:
+        unlike_post(request.user, post)
+        is_liked = False
+    else:
+        like_post(request.user, post)
+        is_liked = True
+
+    post.refresh_from_db(fields=["like_count"])
+
+    if is_ajax:
+        return JsonResponse({"liked": is_liked, "like_count": post.like_count})
+    return redirect(request.META.get("HTTP_REFERER", post.get_absolute_url()))
+
+
+@require_POST
+def post_save(request, slug):
+    """Toggle bookmark/save on a creator post (HTMX, fetch JSON, or standard POST)."""
+    post = get_object_or_404(
+        CreatorPost,
+        slug=slug,
+        status=CreatorPostStatus.PUBLISHED,
+        creator__status=CreatorStatus.APPROVED,
+    )
+    is_ajax = (
+        request.headers.get("x-requested-with") == "XMLHttpRequest"
+        or "application/json" in request.headers.get("accept", "")
+    )
+    if not request.user.is_authenticated:
+        if is_ajax:
+            login_url = f"{reverse('accounts:login')}?next={post.get_absolute_url()}"
+            return JsonResponse({"error": "login_required", "login_url": login_url}, status=401)
+        return redirect(f"{reverse('accounts:login')}?next={post.get_absolute_url()}")
+
+    already_saved = has_user_saved(request.user, post)
+    if already_saved:
+        unsave_post(request.user, post)
+        is_saved = False
+    else:
+        save_post(request.user, post)
+        is_saved = True
+
+    post.refresh_from_db(fields=["save_count"])
+
+    if is_ajax:
+        return JsonResponse({"saved": is_saved, "save_count": post.save_count})
+    return redirect(request.META.get("HTTP_REFERER", post.get_absolute_url()))
+
+
+@require_POST
+def post_report(request, slug):
+    """Report a creator post."""
+    post = get_object_or_404(CreatorPost, slug=slug, status=CreatorPostStatus.PUBLISHED)
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "login_required"}, status=401)
+
+    if not is_post_reportable_by(request.user, post):
+        return JsonResponse({"error": "cannot_report_own_post"}, status=400)
+
+    reason = request.POST.get("reason", CreatorPostReport.Reason.OTHER)
+    details = request.POST.get("details", "")
+    report_post(request.user, post, reason=reason, details=details)
+    return JsonResponse(
+        {
+            "status": "reported",
+            "message": "Thank you. Our moderation team will review this look.",
+        }
+    )
+
 
 
 # =============================================================================
