@@ -82,15 +82,57 @@ def center(request: HttpRequest) -> HttpResponse:
 @require_http_methods(["GET"])
 def detail(request: HttpRequest, pk: int) -> HttpResponse:
     """One notification. Read state flips here -- opening it *is* reading it."""
+    from apps.analytics.services import record_event
+
     notification = selectors.user_notification(request.user, pk)
     if notification is None:
         raise Http404(_("No notification matches the given id."))
     notification.mark_read()
+    record_event(
+        "notification_opened",
+        request=request,
+        user=request.user,
+        object_type="notification",
+        object_id=notification.pk,
+        metadata={
+            "category": notification.category,
+            "type": notification.notification_type,
+        },
+    )
     return render(
         request,
         "notifications/detail.html",
         {"notification": notification},
     )
+
+
+@login_required
+@require_http_methods(["GET"])
+def action_click(request: HttpRequest, pk: int) -> HttpResponse:
+    """Track CTA attribution when a customer clicks the related action in a notification."""
+    from apps.analytics.services import record_event
+
+    notification = selectors.user_notification(request.user, pk)
+    if notification is None:
+        raise Http404(_("No notification matches the given id."))
+
+    notification.mark_read()
+    record_event(
+        "notification_clicked",
+        request=request,
+        user=request.user,
+        object_type="notification",
+        object_id=notification.pk,
+        metadata={
+            "category": notification.category,
+            "type": notification.notification_type,
+            "action_url": notification.action_url,
+        },
+    )
+
+    if notification.action_url:
+        return redirect(notification.action_url)
+    return redirect("notifications:center")
 
 
 @login_required

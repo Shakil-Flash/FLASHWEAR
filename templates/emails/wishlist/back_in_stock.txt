@@ -1,0 +1,11 @@
+{% load i18n %}{% translate "FLASHWEAR — Back in Stock" %}
+
+{% if product_name %}{{ product_name }}{% else %}{{ notification_title }}{% endif %}
+
+{% blocktranslate with p=product_name|default:"An item you saved" var=variant_label %}
+Good news! {{ p }}{% if var %} ({{ var }}){% endif %} is back in stock and ready to order.
+{% endblocktranslate %}
+
+{% if action_url %}{% translate "View in store:" %} {{ action_url }}{% endif %}
+
+{% translate "Manage preferences:" %} {{ preferences_url }}{% if unsubscribe_url %} · {% translate "Unsubscribe:" %} {{ unsubscribe_url }}{% endif %}

@@ -546,6 +546,12 @@ class AccountDashboardView(TemplateView):
             and not bool(recently_viewed)
         )
 
+        from apps.notifications.services.reengagement import (
+            get_customer_reengagement_summary,
+        )
+
+        reengagement = get_customer_reengagement_summary(user)
+
         context.update(
             {
                 "profile": user.profile,
@@ -569,6 +575,7 @@ class AccountDashboardView(TemplateView):
                 "loyalty_points": loyalty_points,
                 "new_drops": new_drops,
                 "is_cold_start": is_cold_start,
+                "reengagement": reengagement,
             }
         )
         return context

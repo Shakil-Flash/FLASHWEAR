@@ -1,0 +1,9 @@
+{% load i18n %}{% translate "FLASHWEAR — Style Discovery" %}
+
+{% translate "New pieces tailored to your style" %}
+
+{% translate "We curated fresh arrivals that align with your style preferences and wardrobe pieces. Curated from genuine fashion compatibility with your saved tastes—never generic ads." %}
+
+{% if action_url %}{% translate "Explore your style:" %} {{ action_url }}{% endif %}
+
+{% translate "Manage preferences:" %} {{ preferences_url }}{% if unsubscribe_url %} · {% translate "Unsubscribe:" %} {{ unsubscribe_url }}{% endif %}

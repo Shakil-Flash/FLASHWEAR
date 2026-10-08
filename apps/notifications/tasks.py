@@ -37,9 +37,13 @@ __all__ = [
     "broadcast_batch",
     "send_email",
     "sweep_drop_events",
+    "sweep_drop_upcoming_reminders",
     "sweep_points_expiring",
     "sweep_queue",
     "sweep_retention",
+    "sweep_review_reminders",
+    "sweep_saved_bag_reminders",
+    "sweep_style_recommendations",
 ]
 
 
@@ -434,3 +438,68 @@ def broadcast_batch(
     except Exception:  # pragma: no cover - a bad payload must not kill a worker
         logger.exception("notifications.broadcast_batch failed for %s", notification_type)
         return {"count": 0}
+
+
+# =============================================================================
+# Smart Re-engagement & Customer Retention Sweepers (Phase 39)
+# =============================================================================
+
+
+@shared_task(name="notifications.sweep_review_reminders")
+def sweep_review_reminders() -> dict:
+    """Beat task: invite customers with delivered orders to leave a review. Never raises."""
+    try:
+        from apps.notifications.services.reengagement import (
+            check_and_trigger_order_review_reminders,
+        )
+
+        sent = check_and_trigger_order_review_reminders()
+        return {"sent": sent}
+    except Exception:  # pragma: no cover
+        logger.exception("notifications.sweep_review_reminders failed")
+        return {"sent": 0}
+
+
+@shared_task(name="notifications.sweep_saved_bag_reminders")
+def sweep_saved_bag_reminders() -> dict:
+    """Beat task: remind customers of in-stock items saved in their cart. Never raises."""
+    try:
+        from apps.notifications.services.reengagement import (
+            check_and_trigger_saved_bag_reminders,
+        )
+
+        sent = check_and_trigger_saved_bag_reminders()
+        return {"sent": sent}
+    except Exception:  # pragma: no cover
+        logger.exception("notifications.sweep_saved_bag_reminders failed")
+        return {"sent": 0}
+
+
+@shared_task(name="notifications.sweep_drop_upcoming_reminders")
+def sweep_drop_upcoming_reminders() -> dict:
+    """Beat task: remind subscribers of drops starting in the next 24h. Never raises."""
+    try:
+        from apps.notifications.services.reengagement import (
+            check_and_trigger_drop_reminders,
+        )
+
+        sent = check_and_trigger_drop_reminders()
+        return {"sent": sent}
+    except Exception:  # pragma: no cover
+        logger.exception("notifications.sweep_drop_upcoming_reminders failed")
+        return {"sent": 0}
+
+
+@shared_task(name="notifications.sweep_style_recommendations")
+def sweep_style_recommendations() -> dict:
+    """Beat task: provide style recommendations for completed FLASH DNA profiles. Never raises."""
+    try:
+        from apps.notifications.services.reengagement import (
+            check_and_trigger_style_recommendations,
+        )
+
+        sent = check_and_trigger_style_recommendations()
+        return {"sent": sent}
+    except Exception:  # pragma: no cover
+        logger.exception("notifications.sweep_style_recommendations failed")
+        return {"sent": 0}

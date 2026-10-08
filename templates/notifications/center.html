@@ -55,19 +55,29 @@
     <ul class="space-y-3">
         {% for notification in notifications %}
         <li>
-            <a href="{% url 'notifications:detail' notification.pk %}" class="block rounded-2xl border bg-white p-5 shadow-soft transition hover:border-slate-300 {% if notification.is_unread %}border-flash-200 bg-flash-50/40{% else %}border-slate-200{% endif %}">
+            <a href="{% url 'notifications:detail' notification.pk %}" class="block rounded-2xl border bg-white p-5 shadow-soft transition duration-200 hover:-translate-y-0.5 hover:shadow-md hover:border-slate-300 {% if notification.is_unread %}border-flash-200 bg-flash-50/40{% else %}border-slate-200{% endif %}">
                 <div class="flex items-start justify-between gap-4">
                     <div class="min-w-0">
-                        <p class="flex items-center gap-2 text-sm font-semibold text-slate-900">
+                        <div class="flex flex-wrap items-center gap-2">
+                            {% if notification.category == 'account' or notification.category == 'orders' or notification.category == 'payments' or notification.category == 'delivery' or notification.category == 'support' %}
+                                <span class="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-700">Transactional</span>
+                            {% elif notification.category == 'wishlist' or notification.category == 'drops' %}
+                                <span class="inline-flex items-center rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-800">Shopping Alert</span>
+                            {% else %}
+                                <span class="inline-flex items-center rounded-md bg-flash-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-flash-800">Personal Curation</span>
+                            {% endif %}
+                            <span class="text-xs text-slate-500">{{ notification.get_category_display }}</span>
+                        </div>
+                        <p class="mt-1.5 flex items-center gap-2 text-sm font-semibold text-slate-900">
                             {% if notification.is_unread %}
-                            <span class="inline-block h-2 w-2 flex-none rounded-full bg-flash-600" aria-hidden="true"></span>
+                            <span class="inline-block h-2 w-2 flex-none rounded-full bg-flash-600 motion-safe:animate-pulse" aria-hidden="true"></span>
                             <span class="sr-only">Unread. </span>
                             {% endif %}
                             <span class="truncate">{{ notification.title }}</span>
                         </p>
                         <p class="mt-1 line-clamp-2 text-sm text-slate-600">{{ notification.body }}</p>
-                        <p class="mt-2 text-xs text-slate-500">
-                            {{ notification.get_category_display }} · {{ notification.created_at|date:"N j, Y" }} · {{ notification.created_at|time:"g:i A" }}
+                        <p class="mt-2 text-xs text-slate-400">
+                            {{ notification.created_at|date:"N j, Y" }} · {{ notification.created_at|time:"g:i A" }}
                         </p>
                     </div>
                     <span aria-hidden="true" class="flex-none text-slate-300">

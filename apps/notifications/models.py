@@ -171,6 +171,11 @@ class NotificationType(models.TextChoices):
     # Wishlist & stock alerts (Phase 33)
     PRICE_DROP = "price_drop", _("Price drop alert")
     BACK_IN_STOCK = "back_in_stock", _("Back in stock alert")
+    # Smart Re-engagement & Customer Retention (Phase 39)
+    ORDER_REVIEW_REMINDER = "order_review_reminder", _("Review your purchase")
+    SAVED_BAG_REMINDER = "saved_bag_reminder", _("Saved bag reminder")
+    STYLE_RECOMMENDATION = "style_recommendation", _("Style recommendation")
+    RESTOCK_VIEWED = "restock_viewed", _("Viewed item restocked")
 
 
 class NotificationQuerySet(models.QuerySet):

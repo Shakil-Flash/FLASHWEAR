@@ -1,0 +1,14 @@
+{% load i18n %}{% translate "FLASHWEAR — Order Feedback" %}
+
+{% blocktranslate with p=product_name|default:"your recent purchase" %}
+How did your {{ p }} fit?
+{% endblocktranslate %}
+
+{% blocktranslate with p=product_name|default:"your recent purchase" num=order_number %}
+Your recent order {% if num %}(#{{ num }}){% endif %} was delivered. How did your {{ p }} feel?
+Leaving a review helps fellow customers find the right fit.
+{% endblocktranslate %}
+
+{% if action_url %}{% translate "Leave a review:" %} {{ action_url }}{% endif %}
+
+{% translate "Manage preferences:" %} {{ preferences_url }}{% if unsubscribe_url %} · {% translate "Unsubscribe:" %} {{ unsubscribe_url }}{% endif %}

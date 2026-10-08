@@ -1,0 +1,19 @@
+{# djlint:off H021 #}
+{% extends "emails/base.html" %}
+{% load i18n %}
+
+{% block eyebrow %}{% translate "Style Discovery" %}{% endblock eyebrow %}
+
+{% block heading %}{% translate "New pieces tailored to your style" %}{% endblock heading %}
+
+{% block content %}
+<p style="margin:0 0 12px 0;font-size:15px;line-height:1.6;color:#334155;">
+    {% translate "We curated fresh arrivals that align with your style preferences and wardrobe pieces." %}
+</p>
+<p style="margin:0 0 12px 0;font-size:14px;line-height:1.6;color:#64748b;">
+    {% translate "Curated from genuine fashion compatibility with your saved tastes—never generic ads." %}
+</p>
+{% endblock content %}
+
+{% block cta_label %}{% translate "Explore your style" %}{% endblock cta_label %}
+{# djlint:on #}

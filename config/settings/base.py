@@ -411,6 +411,12 @@ NOTIFICATIONS_POINTS_SWEEP_INTERVAL_SECONDS = env.int(
 # that reads it.
 SUPPORT_SWEEP_INTERVAL_SECONDS = env.int("SUPPORT_SWEEP_INTERVAL_SECONDS", default=3600)
 LOOP_SWEEP_INTERVAL_SECONDS = env.int("LOOP_SWEEP_INTERVAL_SECONDS", default=3600)
+NOTIFICATIONS_REENGAGEMENT_SWEEP_INTERVAL_SECONDS = env.int(
+    "NOTIFICATIONS_REENGAGEMENT_SWEEP_INTERVAL_SECONDS", default=86400
+)
+SHOP_ALERTS_SWEEP_INTERVAL_SECONDS = env.int(
+    "SHOP_ALERTS_SWEEP_INTERVAL_SECONDS", default=3600
+)
 
 CELERY_BEAT_SCHEDULE = {
     "inventory-sweep-expired-reservations": {
@@ -459,6 +465,27 @@ CELERY_BEAT_SCHEDULE = {
     "loop-expire-credits": {
         "task": "loop.expire_loop_credits",
         "schedule": LOOP_SWEEP_INTERVAL_SECONDS,
+    },
+    # Shop alerts & re-engagement (Phases 33, 39)
+    "shop-sweep-price-drop-alerts": {
+        "task": "shop.sweep_price_drop_alerts",
+        "schedule": SHOP_ALERTS_SWEEP_INTERVAL_SECONDS,
+    },
+    "shop-sweep-back-in-stock-alerts": {
+        "task": "shop.sweep_back_in_stock_alerts",
+        "schedule": SHOP_ALERTS_SWEEP_INTERVAL_SECONDS,
+    },
+    "notifications-sweep-review-reminders": {
+        "task": "notifications.sweep_review_reminders",
+        "schedule": NOTIFICATIONS_REENGAGEMENT_SWEEP_INTERVAL_SECONDS,
+    },
+    "notifications-sweep-saved-bag-reminders": {
+        "task": "notifications.sweep_saved_bag_reminders",
+        "schedule": NOTIFICATIONS_REENGAGEMENT_SWEEP_INTERVAL_SECONDS,
+    },
+    "notifications-sweep-drop-upcoming-reminders": {
+        "task": "notifications.sweep_drop_upcoming_reminders",
+        "schedule": NOTIFICATIONS_DROP_SWEEP_INTERVAL_SECONDS,
     },
 }
 

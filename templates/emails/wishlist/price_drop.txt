@@ -1,0 +1,11 @@
+{% load i18n %}{% translate "FLASHWEAR — Wishlist Alert" %}
+
+{% if product_name %}{{ product_name }}{% else %}{{ notification_title }}{% endif %}
+
+{% blocktranslate with p=product_name|default:"An item you saved" old=old_price|default:"regular price" new=new_price %}
+An item on your wishlist ({{ p }}) has dropped in price from {{ old }} to {{ new }}.
+{% endblocktranslate %}
+
+{% if action_url %}{% translate "View saved item:" %} {{ action_url }}{% endif %}
+
+{% translate "Manage preferences:" %} {{ preferences_url }}{% if unsubscribe_url %} · {% translate "Unsubscribe:" %} {{ unsubscribe_url }}{% endif %}

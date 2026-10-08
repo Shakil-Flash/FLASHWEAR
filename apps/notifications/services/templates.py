@@ -641,6 +641,8 @@ def registry() -> dict[str, TypeSpec]:
                 "dropped from {{ old_price|default:'regular price' }} to {{ new_price }}."
             ),
             email_subject=_("Price drop on an item in your wishlist"),
+            email_html="emails/wishlist/price_drop.html",
+            email_text="emails/wishlist/price_drop.txt",
             priority=Priority.NORMAL,
         ),
         _spec(
@@ -656,6 +658,67 @@ def registry() -> dict[str, TypeSpec]:
                 "{% if variant_label %} ({{ variant_label }}){% endif %} is available again."
             ),
             email_subject=_("An item on your wishlist is back in stock"),
+            email_html="emails/wishlist/back_in_stock.html",
+            email_text="emails/wishlist/back_in_stock.txt",
+            priority=Priority.NORMAL,
+        ),
+        # -- Smart Re-engagement & Customer Retention (Phase 39) ---------------
+        _spec(
+            NotificationType.ORDER_REVIEW_REMINDER,
+            NotificationCategory.RECOMMENDATIONS,
+            _EMAIL_AND_APP,
+            _(
+                "How did your {% if product_name %}{{ product_name }}{% else %}recent item{% endif %} fit?"
+            ),
+            _(
+                "Your order was delivered recently. How did your "
+                "{% if product_name %}{{ product_name }}{% else %}piece{% endif %} feel? "
+                "Share what you think to help other shoppers."
+            ),
+            email_subject=_("How did your recent order fit?"),
+            email_html="emails/reengagement/review_reminder.html",
+            email_text="emails/reengagement/review_reminder.txt",
+            priority=Priority.NORMAL,
+        ),
+        _spec(
+            NotificationType.SAVED_BAG_REMINDER,
+            NotificationCategory.RECOMMENDATIONS,
+            _EMAIL_AND_APP,
+            _("Items waiting in your bag"),
+            _(
+                "You have items waiting in your bag that are currently in stock and ready whenever you are."
+            ),
+            email_subject=_("Items waiting in your bag"),
+            email_html="emails/reengagement/saved_bag.html",
+            email_text="emails/reengagement/saved_bag.txt",
+            priority=Priority.NORMAL,
+        ),
+        _spec(
+            NotificationType.STYLE_RECOMMENDATION,
+            NotificationCategory.RECOMMENDATIONS,
+            _EMAIL_AND_APP,
+            _("New styles for your look"),
+            _(
+                "We found new arrivals matching your style preferences and wardrobe pieces."
+            ),
+            email_subject=_("New styles tailored to your FLASH DNA"),
+            email_html="emails/reengagement/style_recommendation.html",
+            email_text="emails/reengagement/style_recommendation.txt",
+            priority=Priority.NORMAL,
+        ),
+        _spec(
+            NotificationType.RESTOCK_VIEWED,
+            NotificationCategory.WISHLIST,
+            _EMAIL_AND_APP,
+            _(
+                "Back in stock: {% if product_name %}{{ product_name }}{% else %}An item you viewed{% endif %}"
+            ),
+            _(
+                "{% if product_name %}{{ product_name }}{% else %}An item you previously explored{% endif %} is available again."
+            ),
+            email_subject=_("An item you viewed is back in stock"),
+            email_html="emails/wishlist/back_in_stock.html",
+            email_text="emails/wishlist/back_in_stock.txt",
             priority=Priority.NORMAL,
         ),
     ]

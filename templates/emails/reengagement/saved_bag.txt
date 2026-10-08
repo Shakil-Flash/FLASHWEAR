@@ -1,0 +1,9 @@
+{% load i18n %}{% translate "FLASHWEAR — Shopping Bag" %}
+
+{% translate "Items waiting in your bag" %}
+
+{% translate "You left items in your FLASHWEAR bag that are in stock and ready whenever you want to complete your look. No rush—your saved items are safely stored in your account." %}
+
+{% if action_url %}{% translate "View your bag:" %} {{ action_url }}{% endif %}
+
+{% translate "Manage preferences:" %} {{ preferences_url }}{% if unsubscribe_url %} · {% translate "Unsubscribe:" %} {{ unsubscribe_url }}{% endif %}

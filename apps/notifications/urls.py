@@ -16,6 +16,7 @@ urlpatterns = [
     path("", views.center, name="center"),
     path("read-all/", views.read_all, name="read-all"),
     path("<int:pk>/", views.detail, name="detail"),
+    path("<int:pk>/action/", views.action_click, name="action-click"),
     # Last on purpose: a bare /notifications/unsubscribe/<garbage>/ must not shadow
     # anything, and the token is opaque enough that no other route can look like it.
     path("unsubscribe/<str:token>/", views.unsubscribe, name="unsubscribe"),

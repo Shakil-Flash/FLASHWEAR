@@ -1,0 +1,23 @@
+{# djlint:off H021 #}
+{% extends "emails/base.html" %}
+{% load i18n %}
+
+{% block eyebrow %}{% translate "Wishlist Alert" %}{% endblock eyebrow %}
+
+{% block heading %}{% if product_name %}{{ product_name }}{% else %}{{ notification_title }}{% endif %}{% endblock heading %}
+
+{% block content %}
+<p style="margin:0 0 12px 0;font-size:15px;line-height:1.6;color:#334155;">
+    {% blocktranslate with p=product_name|default:"An item you saved" old=old_price|default:"regular price" new=new_price %}
+    Great news! An item on your wishlist ({{ p }}) has dropped in price from {{ old }} to {{ new }}.
+    {% endblocktranslate %}
+</p>
+{% if product_image_url %}
+<div style="margin:20px 0;text-align:center;">
+    <img src="{{ product_image_url }}" alt="{{ product_name|default:'Saved item' }}" width="220" style="max-width:220px;height:auto;border-radius:12px;border:1px solid #e2e8f0;" />
+</div>
+{% endif %}
+{% endblock content %}
+
+{% block cta_label %}{% translate "View saved item" %}{% endblock cta_label %}
+{# djlint:on #}

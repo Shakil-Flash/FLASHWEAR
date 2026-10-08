@@ -74,8 +74,8 @@
     </div>
     {% endif %}
 
-    {# 3. RETURNING CUSTOMER CONTINUITY NOTICES #}
-    {% if cart_item_count > 0 or draft_outfit %}
+    {# 3. RETURNING CUSTOMER CONTINUITY & RE-ENGAGEMENT NOTICES #}
+    {% if cart_item_count > 0 or draft_outfit or reengagement.pending_reviews or reengagement.upcoming_drops %}
     <div class="mt-6 grid gap-4 sm:grid-cols-2">
         {% if cart_item_count > 0 %}
         <div class="flex items-center justify-between rounded-2xl border border-flash-200 bg-flash-50/60 p-4 shadow-soft">
@@ -96,6 +96,26 @@
             <a href="{% url 'account:outfit-detail' draft_outfit.pk %}" class="inline-flex items-center rounded-full bg-indigo-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-soft transition hover:bg-indigo-700">Resume Look →</a>
         </div>
         {% endif %}
+
+        {% for pr in reengagement.pending_reviews %}
+        <div class="flex items-center justify-between rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4 shadow-soft">
+            <div class="min-w-0 pr-2">
+                <p class="text-xs font-semibold uppercase tracking-wider text-emerald-800">Delivered Order Follow-up</p>
+                <p class="mt-0.5 text-sm font-medium text-slate-900 truncate">How did your {{ pr.product.name }} fit?</p>
+            </div>
+            <a href="{{ pr.action_url }}" class="inline-flex shrink-0 items-center rounded-full bg-emerald-700 px-3.5 py-1.5 text-xs font-semibold text-white shadow-soft transition hover:bg-emerald-800">Review Item →</a>
+        </div>
+        {% endfor %}
+
+        {% for ud in reengagement.upcoming_drops %}
+        <div class="flex items-center justify-between rounded-2xl border border-purple-200 bg-purple-50/60 p-4 shadow-soft">
+            <div class="min-w-0 pr-2">
+                <p class="text-xs font-semibold uppercase tracking-wider text-purple-800">Upcoming Subscribed Drop</p>
+                <p class="mt-0.5 text-sm font-medium text-slate-900 truncate">{{ ud.name }} starts {{ ud.starts_at|date:"N j, g:i A" }}</p>
+            </div>
+            <a href="/drops/{{ ud.slug }}/" class="inline-flex shrink-0 items-center rounded-full bg-purple-700 px-3.5 py-1.5 text-xs font-semibold text-white shadow-soft transition hover:bg-purple-800">View Drop →</a>
+        </div>
+        {% endfor %}
     </div>
     {% endif %}
 
@@ -356,15 +376,17 @@
 
                     {# Real signals #}
                     <div class="absolute inset-x-2 top-2 flex flex-col items-start gap-1">
-                        {% if entry.is_sold_out %}
+                        {% if entry.item.is_back_in_stock %}
+                            <span class="rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-semibold text-white shadow-soft">Back in stock</span>
+                        {% elif entry.is_sold_out %}
                             <span class="rounded-full bg-slate-900/90 px-2 py-0.5 text-[10px] font-semibold text-white shadow-soft">Sold out</span>
                         {% elif entry.is_low_stock %}
                             <span class="rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-semibold text-white shadow-soft">Low stock: {{ entry.stock }} left</span>
                         {% endif %}
-                        {% if entry.is_on_sale %}
-                            <span class="rounded-full bg-flash-600 px-2 py-0.5 text-[10px] font-semibold text-white shadow-soft">Price drop</span>
+                        {% if entry.item.has_price_drop or entry.is_on_sale %}
+                            <span class="rounded-full bg-flash-600 px-2 py-0.5 text-[10px] font-semibold text-white shadow-soft">Price drop{% if entry.item.price_drop_amount %}: -{{ entry.item.price_drop_amount|money }}{% endif %}</span>
                         {% endif %}
-                        {% if entry.is_recently_added and not entry.is_on_sale and not entry.is_low_stock %}
+                        {% if entry.is_recently_added and not entry.is_on_sale and not entry.is_low_stock and not entry.item.has_price_drop and not entry.item.is_back_in_stock %}
                             <span class="rounded-full bg-slate-800/80 px-2 py-0.5 text-[10px] font-semibold text-white shadow-soft">Recently saved</span>
                         {% endif %}
                     </div>

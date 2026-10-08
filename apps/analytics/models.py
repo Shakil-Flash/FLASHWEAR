@@ -94,6 +94,11 @@ class Event(models.Model):
         )
         BACK_IN_STOCK_TRIGGERED = "back_in_stock_triggered", _("back-in-stock notification sent")
         WISHLIST_TO_PRODUCT = "wishlist_to_product", _("wishlist to product")
+        # Smart Re-engagement & Customer Retention (Phase 39)
+        REENGAGEMENT_TRIGGERED = "reengagement_triggered", _("re-engagement alert triggered")
+        NOTIFICATION_OPENED = "notification_opened", _("notification opened")
+        NOTIFICATION_CLICKED = "notification_clicked", _("notification clicked")
+        REENGAGEMENT_CONVERTED = "reengagement_converted", _("re-engagement converted")
 
     name = models.CharField(_("name"), max_length=64, choices=Name.choices)
     user = models.ForeignKey(

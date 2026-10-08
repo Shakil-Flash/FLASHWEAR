@@ -1,0 +1,19 @@
+{# djlint:off H021 #}
+{% extends "emails/base.html" %}
+{% load i18n %}
+
+{% block eyebrow %}{% translate "Shopping Bag" %}{% endblock eyebrow %}
+
+{% block heading %}{% translate "Items waiting in your bag" %}{% endblock heading %}
+
+{% block content %}
+<p style="margin:0 0 12px 0;font-size:15px;line-height:1.6;color:#334155;">
+    {% translate "You left items in your FLASHWEAR bag that are in stock and ready whenever you want to complete your look." %}
+</p>
+<p style="margin:0 0 12px 0;font-size:14px;line-height:1.6;color:#64748b;">
+    {% translate "No rush—your saved items are safely stored in your account." %}
+</p>
+{% endblock content %}
+
+{% block cta_label %}{% translate "View your bag" %}{% endblock cta_label %}
+{# djlint:on #}

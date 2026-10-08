@@ -11,6 +11,7 @@ Guarantees:
 from __future__ import annotations
 
 import logging
+from decimal import Decimal
 from typing import Any
 
 from django.db import IntegrityError
@@ -213,16 +214,29 @@ def toggle_wishlist_alert(
     return item
 
 
+PRICE_DROP_COOLDOWN_HOURS = 48
+MIN_PRICE_DROP_PERCENT = Decimal("2.0")
+MIN_PRICE_DROP_AMOUNT = Decimal("5.00")
+STOCK_ALERT_COOLDOWN_HOURS = 12
+
+
 def check_and_trigger_price_drop_alerts(
     *, product: Product | None = None, variant: ProductVariant | None = None
 ) -> int:
     """Scan and dispatch price drop alerts for qualifying real price decreases.
 
-    Idempotent and deduplicated by price level.
+    Anti-spam rules:
+    1. Real price decrease strictly lower than baseline.
+    2. Meaningful threshold: at least 2% drop or at least ৳5.00 decrease.
+    3. Cooldown: do not notify if notified within 48 hours unless a major further drop (>=10%) occurs.
+    4. Deterministic idempotency key: price_drop:<item_pk>:<price>.
     """
+    from datetime import timedelta
+
     qs = (
         WishlistItem.objects.filter(notify_price_drop=True)
         .select_related("wishlist__user", "product__brand", "variant__color", "variant__size")
+        .prefetch_related("product__images")
     )
     if variant is not None:
         qs = qs.filter(Q(variant=variant) | Q(product=variant.product, variant__isnull=True))
@@ -230,6 +244,9 @@ def check_and_trigger_price_drop_alerts(
         qs = qs.filter(product=product)
 
     sent_count = 0
+    now = timezone.now()
+    cooldown_threshold = now - timedelta(hours=PRICE_DROP_COOLDOWN_HOURS)
+
     for item in qs:
         user = item.wishlist.user
         if not user or not user.is_active:
@@ -252,16 +269,42 @@ def check_and_trigger_price_drop_alerts(
         if curr_price >= baseline:
             continue
 
-        # Prevent duplicate notifications for the same price level
+        # Prevent duplicate notifications for the exact same price level
         if item.last_notified_price is not None and item.last_notified_price == curr_price:
             continue
 
+        # Anti-spam: enforce minimum drop threshold (avoid spam on tiny fractional rounding changes)
+        price_diff = baseline - curr_price
+        drop_pct = (price_diff / baseline) * Decimal("100.0") if baseline > 0 else Decimal("0.0")
+        if drop_pct < MIN_PRICE_DROP_PERCENT and price_diff < MIN_PRICE_DROP_AMOUNT:
+            continue
+
+        # Anti-spam cooldown: if recently notified, require a significant further decrease (>= 10%)
+        if item.last_notified_price is not None:
+            from apps.notifications.models import Channel, Notification
+            recent_notif = Notification.objects.filter(
+                user=user,
+                notification_type=NotificationType.PRICE_DROP,
+                related_object_id=item.product_id,
+                channel=Channel.IN_APP,
+                created_at__gte=cooldown_threshold,
+            ).first()
+            if recent_notif:
+                further_diff = item.last_notified_price - curr_price
+                further_pct = (further_diff / item.last_notified_price) * Decimal("100.0")
+                if further_pct < Decimal("10.0"):
+                    continue
+
         idempotency_key = f"price_drop:{item.pk}:{curr_price}"
+        primary_img = item.product.primary_image
+        img_url = primary_img.image.url if (primary_img and primary_img.image) else ""
+
         context = {
             "product_name": item.product.name,
             "variant_label": item.variant.option_label if item.variant else "",
             "old_price": f"৳{baseline:,.2f}",
             "new_price": f"৳{curr_price:,.2f}",
+            "product_image_url": img_url,
         }
 
         notifs = events.emit(
@@ -303,16 +346,20 @@ def check_and_trigger_back_in_stock_alerts(
 ) -> int:
     """Scan and dispatch back-in-stock alerts when an item transitions from out-of-stock.
 
-    Strict conditions:
+    Strict anti-spam conditions:
     1. Previous state was out of stock (was_out_of_stock is True).
     2. Real inventory is currently available (is_in_stock is True).
-    3. Resets was_out_of_stock to False to prevent repeated alerts on multiple updates.
+    3. Stock jitter protection: minimum cooldown of 12 hours since last back-in-stock alert.
+    4. Resets was_out_of_stock to False to prevent repeated alerts on multiple updates.
     """
+    from datetime import timedelta
+
     qs = (
         WishlistItem.objects.filter(notify_back_in_stock=True, was_out_of_stock=True)
         .select_related(
             "wishlist__user", "product", "variant__stock", "variant__color", "variant__size"
         )
+        .prefetch_related("product__images")
     )
     if variant is not None:
         qs = qs.filter(Q(variant=variant) | Q(product=variant.product, variant__isnull=True))
@@ -321,6 +368,8 @@ def check_and_trigger_back_in_stock_alerts(
 
     sent_count = 0
     now = timezone.now()
+    stock_cooldown_threshold = now - timedelta(hours=STOCK_ALERT_COOLDOWN_HOURS)
+
     for item in qs:
         user = item.wishlist.user
         if not user or not user.is_active:
@@ -330,10 +379,20 @@ def check_and_trigger_back_in_stock_alerts(
         if not item.is_in_stock:
             continue
 
+        # Jitter protection: do not re-alert if alerted in the last 12 hours
+        if item.last_notified_stock_at and item.last_notified_stock_at > stock_cooldown_threshold:
+            item.was_out_of_stock = False
+            item.save(update_fields=["was_out_of_stock", "updated_at"])
+            continue
+
         idempotency_key = f"back_in_stock:{item.pk}:{now.strftime('%Y%m%d%H')}"
+        primary_img = item.product.primary_image
+        img_url = primary_img.image.url if (primary_img and primary_img.image) else ""
+
         context = {
             "product_name": item.product.name,
             "variant_label": item.variant.option_label if item.variant else "",
+            "product_image_url": img_url,
         }
 
         notifs = events.emit(

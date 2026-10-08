@@ -23,7 +23,7 @@
 
         {% if notification.action_url %}
         <div class="mt-6">
-            <a href="{{ notification.action_url }}" class="inline-flex items-center justify-center rounded-full bg-flash-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-flash-700">Open related page</a>
+            <a href="{% url 'notifications:action-click' notification.pk %}" class="inline-flex items-center justify-center rounded-full bg-flash-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-flash-700">Open related page</a>
         </div>
         {% endif %}
 
