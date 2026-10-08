@@ -179,7 +179,6 @@ urlpatterns = [
         AdminProductImageCreateView.as_view(),
         name="catalog-admin-product-image-create",
     ),
-
     # Accounts: session-authenticated and customer-scoped (Phase 2).
     path("accounts/", AccountRegisterView.as_view(), name="account-register"),
     path("accounts/me/", AccountMeView.as_view(), name="account-me"),

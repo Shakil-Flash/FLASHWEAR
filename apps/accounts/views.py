@@ -465,18 +465,14 @@ class AccountDashboardView(TemplateView):
             .select_related("variant__product")
             .order_by("-created_at")[:4]
         )
-        closet_count = ClosetItem.objects.filter(
-            user=user, status=ClosetItem.Status.ACTIVE
-        ).count()
+        closet_count = ClosetItem.objects.filter(user=user, status=ClosetItem.Status.ACTIVE).count()
 
         saved_outfits = (
             Outfit.objects.filter(user=user, status=Outfit.Status.SAVED)
             .prefetch_related("items__item")
             .order_by("-updated_at")[:3]
         )
-        saved_outfits_count = Outfit.objects.filter(
-            user=user, status=Outfit.Status.SAVED
-        ).count()
+        saved_outfits_count = Outfit.objects.filter(user=user, status=Outfit.Status.SAVED).count()
         draft_outfit = (
             Outfit.objects.filter(user=user, status=Outfit.Status.DRAFT)
             .order_by("-updated_at")
@@ -489,10 +485,9 @@ class AccountDashboardView(TemplateView):
         wishlist = getattr(user, "wishlist", None)
         if wishlist is not None:
             now = timezone.now()
-            items_qs = (
-                wishlist.items.select_related("product", "variant")
-                .order_by("-created_at")[:4]
-            )
+            items_qs = wishlist.items.select_related("product", "variant").order_by("-created_at")[
+                :4
+            ]
             wishlist_count = wishlist.items.count()
             for w_item in items_qs:
                 stock_units = 0

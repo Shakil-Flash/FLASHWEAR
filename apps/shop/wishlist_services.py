@@ -228,7 +228,8 @@ def check_and_trigger_price_drop_alerts(
     Anti-spam rules:
     1. Real price decrease strictly lower than baseline.
     2. Meaningful threshold: at least 2% drop or at least ৳5.00 decrease.
-    3. Cooldown: do not notify if notified within 48 hours unless a major further drop (>=10%) occurs.
+    3. Cooldown: do not notify if notified within 48 hours unless a major further drop
+       (>=10%) occurs.
     4. Deterministic idempotency key: price_drop:<item_pk>:<price>.
     """
     from datetime import timedelta
@@ -282,6 +283,7 @@ def check_and_trigger_price_drop_alerts(
         # Anti-spam cooldown: if recently notified, require a significant further decrease (>= 10%)
         if item.last_notified_price is not None:
             from apps.notifications.models import Channel, Notification
+
             recent_notif = Notification.objects.filter(
                 user=user,
                 notification_type=NotificationType.PRICE_DROP,

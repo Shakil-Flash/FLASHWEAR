@@ -19,18 +19,15 @@ import logging
 from datetime import timedelta
 from typing import Any
 
-from django.db.models import Q
 from django.utils import timezone
 
 from apps.analytics.services import record_event
 from apps.notifications.models import (
-    Channel,
     Notification,
-    NotificationCategory,
     NotificationSubscription,
     NotificationType,
 )
-from apps.notifications.services import events, preferences
+from apps.notifications.services import events
 
 logger = logging.getLogger("flashwear.notifications.reengagement")
 
@@ -394,7 +391,11 @@ def check_and_trigger_style_recommendations(
             continue
 
         top_rec = recs[0]
-        product = getattr(top_rec, "product", None) or (top_rec.get("product") if isinstance(top_rec, dict) else None)
+        product = (
+            top_rec.get("product")
+            if isinstance(top_rec, dict)
+            else getattr(top_rec, "product", None)
+        )
         if not product:
             continue
 

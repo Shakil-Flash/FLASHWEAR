@@ -668,7 +668,8 @@ def registry() -> dict[str, TypeSpec]:
             NotificationCategory.RECOMMENDATIONS,
             _EMAIL_AND_APP,
             _(
-                "How did your {% if product_name %}{{ product_name }}{% else %}recent item{% endif %} fit?"
+                "How did your "
+                "{% if product_name %}{{ product_name }}{% else %}recent item{% endif %} fit?"
             ),
             _(
                 "Your order was delivered recently. How did your "
@@ -686,7 +687,8 @@ def registry() -> dict[str, TypeSpec]:
             _EMAIL_AND_APP,
             _("Items waiting in your bag"),
             _(
-                "You have items waiting in your bag that are currently in stock and ready whenever you are."
+                "You have items waiting in your bag that are currently in stock "
+                "and ready whenever you are."
             ),
             email_subject=_("Items waiting in your bag"),
             email_html="emails/reengagement/saved_bag.html",
@@ -698,9 +700,7 @@ def registry() -> dict[str, TypeSpec]:
             NotificationCategory.RECOMMENDATIONS,
             _EMAIL_AND_APP,
             _("New styles for your look"),
-            _(
-                "We found new arrivals matching your style preferences and wardrobe pieces."
-            ),
+            _("We found new arrivals matching your style preferences and wardrobe pieces."),
             email_subject=_("New styles tailored to your FLASH DNA"),
             email_html="emails/reengagement/style_recommendation.html",
             email_text="emails/reengagement/style_recommendation.txt",
@@ -711,10 +711,12 @@ def registry() -> dict[str, TypeSpec]:
             NotificationCategory.WISHLIST,
             _EMAIL_AND_APP,
             _(
-                "Back in stock: {% if product_name %}{{ product_name }}{% else %}An item you viewed{% endif %}"
+                "Back in stock: "
+                "{% if product_name %}{{ product_name }}{% else %}An item you viewed{% endif %}"
             ),
             _(
-                "{% if product_name %}{{ product_name }}{% else %}An item you previously explored{% endif %} is available again."
+                "{% if product_name %}{{ product_name }}{% else %}"
+                "An item you previously explored{% endif %} is available again."
             ),
             email_subject=_("An item you viewed is back in stock"),
             email_html="emails/wishlist/back_in_stock.html",

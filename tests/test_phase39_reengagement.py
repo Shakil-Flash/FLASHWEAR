@@ -24,7 +24,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from apps.analytics.models import Event
-from apps.catalog.models import Product, ProductVariant
+from apps.catalog.models import ProductVariant
 from apps.drops.models import DropStatus, FlashDrop
 from apps.engagement.models import Review
 from apps.inventory.models import Stock
@@ -40,7 +40,6 @@ from apps.notifications.services.reengagement import (
     check_and_trigger_drop_reminders,
     check_and_trigger_order_review_reminders,
     check_and_trigger_saved_bag_reminders,
-    check_and_trigger_style_recommendations,
     get_customer_reengagement_summary,
 )
 from apps.notifications.tasks import (
@@ -61,6 +60,7 @@ from apps.shop.wishlist_services import (
 @pytest.fixture
 def make_delivered_order(db, verified_user, product):
     """Helper to create a delivered order with one line item."""
+
     def _make(user=verified_user, prod=product, days_ago=3):
         from apps.shop.models import Cart, CheckoutSession
 
@@ -84,9 +84,11 @@ def make_delivered_order(db, verified_user, product):
         OrderItem.objects.create(
             order=order,
             variant=variant,
+            sku=variant.sku,
+            product_name=prod.name,
             quantity=1,
             unit_price=Decimal("49.00"),
-            total_price=Decimal("49.00"),
+            line_total=Decimal("49.00"),
         )
         # Set updated_at to simulate historical delivery
         Order.objects.filter(pk=order.pk).update(updated_at=now - timedelta(days=days_ago))
@@ -114,7 +116,8 @@ class TestPriceDropReengagement:
         # 1. No price change -> 0 notifications
         assert check_and_trigger_price_drop_alerts(variant=var) == 0
 
-        # 2. Minor fractional change below threshold (100 -> 99.80 = 0.2% drop, 0.20 taka) -> suppressed
+        # 2. Minor fractional change below threshold
+        # (100 -> 99.80 = 0.2% drop, 0.20 taka) -> suppressed
         ProductVariant.objects.filter(pk=var.pk).update(price=Decimal("99.80"))
         assert check_and_trigger_price_drop_alerts(variant=var) == 0
 
@@ -145,7 +148,7 @@ class TestPriceDropReengagement:
         ProductVariant.objects.filter(pk=var.pk).update(price=Decimal("90.00"))
         assert check_and_trigger_price_drop_alerts(variant=var) >= 1
 
-        # Second small drop within 48 hours: 90 -> 88 (only 2.2% further drop) -> suppressed by cooldown
+        # Second small drop within 48 hours: 90 -> 88 (only 2.2% drop) -> suppressed by cooldown
         ProductVariant.objects.filter(pk=var.pk).update(price=Decimal("88.00"))
         assert check_and_trigger_price_drop_alerts(variant=var) == 0
 
@@ -161,7 +164,9 @@ class TestPriceDropReengagement:
 
 @pytest.mark.django_db
 class TestBackInStockReengagement:
-    def test_back_in_stock_alert_and_jitter_cooldown(self, verified_user, make_product, colour, size):
+    def test_back_in_stock_alert_and_jitter_cooldown(
+        self, verified_user, make_product, colour, size
+    ):
         prod = make_product(name="Oxford Shirt")
         var = ProductVariant.objects.create(
             product=prod, sku="OX-01", color=colour, size=size, price=Decimal("60.00")
@@ -249,9 +254,7 @@ class TestPostPurchaseReviewReengagement:
             == 0
         )
 
-    def test_order_review_reminder_skips_undelivered_orders(
-        self, verified_user, product
-    ):
+    def test_order_review_reminder_skips_undelivered_orders(self, verified_user, product):
         from apps.shop.models import CheckoutSession
 
         cart = Cart.objects.create(user=verified_user, session_key="", status=Cart.Status.CONVERTED)
@@ -273,9 +276,11 @@ class TestPostPurchaseReviewReengagement:
         OrderItem.objects.create(
             order=order,
             variant=variant,
+            sku=variant.sku,
+            product_name=product.name,
             quantity=1,
             unit_price=Decimal("49.00"),
-            total_price=Decimal("49.00"),
+            line_total=Decimal("49.00"),
         )
         Order.objects.filter(pk=order.pk).update(updated_at=timezone.now() - timedelta(days=5))
 
@@ -286,12 +291,16 @@ class TestPostPurchaseReviewReengagement:
         self, verified_user, make_delivered_order, make_product, colour, size
     ):
         prod1 = make_product(name="Tee One")
-        ProductVariant.objects.create(product=prod1, sku="T1", color=colour, size=size, price=Decimal("40.00"))
-        order1 = make_delivered_order(user=verified_user, prod=prod1, days_ago=4)
+        ProductVariant.objects.create(
+            product=prod1, sku="T1", color=colour, size=size, price=Decimal("40.00")
+        )
+        make_delivered_order(user=verified_user, prod=prod1, days_ago=4)
 
         prod2 = make_product(name="Tee Two")
-        ProductVariant.objects.create(product=prod2, sku="T2", color=colour, size=size, price=Decimal("40.00"))
-        order2 = make_delivered_order(user=verified_user, prod=prod2, days_ago=3)
+        ProductVariant.objects.create(
+            product=prod2, sku="T2", color=colour, size=size, price=Decimal("40.00")
+        )
+        make_delivered_order(user=verified_user, prod=prod2, days_ago=3)
 
         # Triggering reviews: user should get at most 1 reminder per cooldown window (7 days)
         sent = check_and_trigger_order_review_reminders()
@@ -309,9 +318,7 @@ class TestPostPurchaseReviewReengagement:
 
 @pytest.mark.django_db
 class TestSavedBagReengagement:
-    def test_saved_bag_reminder_triggers_for_in_stock_cart(
-        self, verified_user, product
-    ):
+    def test_saved_bag_reminder_triggers_for_in_stock_cart(self, verified_user, product):
         variant = product.variants.first()
         Stock.objects.create(variant=variant, on_hand=5, reserved=0)
 
@@ -323,9 +330,7 @@ class TestSavedBagReengagement:
             price_snapshot=variant.price,
         )
         # Age cart past 24h
-        Cart.objects.filter(pk=cart.pk).update(
-            updated_at=timezone.now() - timedelta(hours=36)
-        )
+        Cart.objects.filter(pk=cart.pk).update(updated_at=timezone.now() - timedelta(hours=36))
 
         sent = check_and_trigger_saved_bag_reminders()
         assert sent >= 1
@@ -339,9 +344,7 @@ class TestSavedBagReengagement:
         # Idempotency check: repeat run sends 0
         assert check_and_trigger_saved_bag_reminders() == 0
 
-    def test_saved_bag_reminder_skips_out_of_stock_items(
-        self, verified_user, product
-    ):
+    def test_saved_bag_reminder_skips_out_of_stock_items(self, verified_user, product):
         variant = product.variants.first()
         Stock.objects.create(variant=variant, on_hand=0, reserved=0)  # Out of stock!
 
@@ -352,9 +355,7 @@ class TestSavedBagReengagement:
             quantity=1,
             price_snapshot=variant.price,
         )
-        Cart.objects.filter(pk=cart.pk).update(
-            updated_at=timezone.now() - timedelta(hours=36)
-        )
+        Cart.objects.filter(pk=cart.pk).update(updated_at=timezone.now() - timedelta(hours=36))
 
         sent = check_and_trigger_saved_bag_reminders()
         assert sent == 0
@@ -536,7 +537,7 @@ class TestCustomerHomeIntegration:
         self, client, verified_user, make_delivered_order, product
     ):
         client.force_login(verified_user)
-        order = make_delivered_order(user=verified_user, prod=product, days_ago=3)
+        make_delivered_order(user=verified_user, prod=product, days_ago=3)
 
         summary = get_customer_reengagement_summary(verified_user)
         assert summary["has_reengagement_content"] is True
@@ -550,9 +551,7 @@ class TestCustomerHomeIntegration:
         assert product.name in content
         assert "Review Item →" in content
 
-    def test_customer_home_clean_when_no_reengagement_data(
-        self, client, verified_user
-    ):
+    def test_customer_home_clean_when_no_reengagement_data(self, client, verified_user):
         client.force_login(verified_user)
         summary = get_customer_reengagement_summary(verified_user)
         assert summary["has_reengagement_content"] is False

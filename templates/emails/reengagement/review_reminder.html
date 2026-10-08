@@ -2,25 +2,27 @@
 {% extends "emails/base.html" %}
 {% load i18n %}
 
-{% block eyebrow %}{% translate "Order Feedback" %}{% endblock eyebrow %}
+{% block eyebrow %}
+    {% translate "Order Feedback" %}
+{% endblock eyebrow %}
 
 {% block heading %}{% blocktranslate with p=product_name|default:"your recent item" %}How did your {{ p }} fit?{% endblocktranslate %}{% endblock heading %}
 
 {% block content %}
-<p style="margin:0 0 12px 0;font-size:15px;line-height:1.6;color:#334155;">
-    {% blocktranslate with p=product_name|default:"your recent purchase" num=order_number %}
+    <p style="margin:0 0 12px 0;font-size:15px;line-height:1.6;color:#334155;">
+        {% blocktranslate with p=product_name|default:"your recent purchase" num=order_number %}
     Your recent order {% if num %}(#{{ num }}){% endif %} was delivered. How did your {{ p }} feel?
     {% endblocktranslate %}
-</p>
-<p style="margin:0 0 12px 0;font-size:14px;line-height:1.6;color:#64748b;">
-    {% translate "Leaving a review helps fellow customers find the right fit and helps us keep refining our designs." %}
-</p>
-{% if product_image_url %}
-<div style="margin:20px 0;text-align:center;">
-    <img src="{{ product_image_url }}" alt="{{ product_name|default:'Recent purchase' }}" width="220" style="max-width:220px;height:auto;border-radius:12px;border:1px solid #e2e8f0;" />
-</div>
-{% endif %}
+    </p>
+    <p style="margin:0 0 12px 0;font-size:14px;line-height:1.6;color:#64748b;">{% translate "Leaving a review helps fellow customers find the right fit and helps us keep refining our designs." %}</p>
+    {% if product_image_url %}
+        <div style="margin:20px 0;text-align:center;">
+            <img src="{{ product_image_url }}" alt="{{ product_name|default:'Recent purchase' }}" width="220" style="max-width:220px;height:auto;border-radius:12px;border:1px solid #e2e8f0;" />
+        </div>
+    {% endif %}
 {% endblock content %}
 
-{% block cta_label %}{% translate "Leave a review" %}{% endblock cta_label %}
+{% block cta_label %}
+    {% translate "Leave a review" %}
+{% endblock cta_label %}
 {# djlint:on #}

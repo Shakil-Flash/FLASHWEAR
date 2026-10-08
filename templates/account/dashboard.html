@@ -113,7 +113,7 @@
                 <p class="text-xs font-semibold uppercase tracking-wider text-purple-800">Upcoming Subscribed Drop</p>
                 <p class="mt-0.5 text-sm font-medium text-slate-900 truncate">{{ ud.name }} starts {{ ud.starts_at|date:"N j, g:i A" }}</p>
             </div>
-            <a href="/drops/{{ ud.slug }}/" class="inline-flex shrink-0 items-center rounded-full bg-purple-700 px-3.5 py-1.5 text-xs font-semibold text-white shadow-soft transition hover:bg-purple-800">View Drop →</a>
+            <a href="{% url 'catalog:product-list' %}" class="inline-flex shrink-0 items-center rounded-full bg-purple-700 px-3.5 py-1.5 text-xs font-semibold text-white shadow-soft transition hover:bg-purple-800">View Drop →</a>
         </div>
         {% endfor %}
     </div>

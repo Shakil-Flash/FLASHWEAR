@@ -1,10 +1,12 @@
 """Phase 37: Search Experience 2.0 regression and integration tests."""
 
 from decimal import Decimal
+
 import pytest
 from django.urls import reverse
 
 from apps.analytics.models import Event
+from apps.catalog import selectors
 from apps.catalog.models import (
     Brand,
     Category,
@@ -16,7 +18,6 @@ from apps.catalog.models import (
     ProductVariant,
     Size,
 )
-from apps.catalog import selectors
 from apps.catalog.templatetags.catalog_extras import (
     clear_filters_url,
     remove_filter_url,
@@ -49,9 +50,7 @@ def fashion_catalog(db, make_product, department, brand):
     color_black = Color.objects.create(
         name="Midnight Black", slug="midnight-black", hex_code="#000000"
     )
-    color_white = Color.objects.create(
-        name="Bone White", slug="bone-white", hex_code="#FFFFFF"
-    )
+    color_white = Color.objects.create(name="Bone White", slug="bone-white", hex_code="#FFFFFF")
 
     size_l = Size.objects.create(
         name="Large", slug="large", code="L", size_type=Size.SizeType.CLOTHING
@@ -169,9 +168,9 @@ class TestSearchSortingAndRelevance:
     def test_resolve_sort_defaults_to_relevance_when_query_present(self):
         assert selectors.resolve_sort(None, has_query=True) == "relevance"
         assert selectors.resolve_sort("", has_query=True) == "relevance"
-        assert selectors.resolve_sort(
-            Product.Sort.PRICE_ASC, has_query=True
-        ) == Product.Sort.PRICE_ASC
+        assert (
+            selectors.resolve_sort(Product.Sort.PRICE_ASC, has_query=True) == Product.Sort.PRICE_ASC
+        )
 
     def test_resolve_sort_defaults_to_newest_when_browsing(self):
         assert selectors.resolve_sort(None, has_query=False) == Product.Sort.NEWEST
