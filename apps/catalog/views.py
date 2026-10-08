@@ -73,6 +73,7 @@ def _parse_filters(request) -> dict:
         "tag_slugs": _split_param(request.GET.get("tag")),
         "min_price": _parse_decimal(request.GET.get("min_price")),
         "max_price": _parse_decimal(request.GET.get("max_price")),
+        "in_stock": request.GET.get("in_stock") in ("1", "true", "yes"),
     }
 
 
@@ -101,17 +102,22 @@ def _trail_schema(request, nodes: list[dict]) -> dict:
 @require_GET
 def product_list(request):
     """``/products/`` -- the whole catalogue, newest first unless asked otherwise."""
-    sort = selectors.resolve_sort(request.GET.get("sort"))
     filters = _parse_filters(request)
+    has_query = bool(filters["query"])
+    url_name = getattr(getattr(request, "resolver_match", None), "url_name", "")
+    is_search_page = bool(has_query or url_name == "product-search")
+    sort = selectors.resolve_sort(request.GET.get("sort"), has_query=has_query)
 
-    # Build the queryset using the new discovery selectors
+    # Build the queryset using the discovery selectors
     queryset = selectors.storefront_products(sort=sort)
 
     # Apply search
+    search_error = False
     if filters["query"]:
-        from apps.catalog.selectors import apply_search
-
-        queryset = apply_search(queryset, filters["query"])
+        try:
+            queryset = selectors.apply_search(queryset, filters["query"])
+        except Exception:
+            search_error = True
 
     # Apply price annotations (needed for price filtering/sorting)
     queryset = selectors.with_price_range(queryset)
@@ -128,29 +134,91 @@ def product_list(request):
         record_event(
             "product_search",
             request=request,
-            metadata={"query": filters["query"][:100], "result_count": paginator.count},
+            metadata={
+                "query": filters["query"][:100],
+                "result_count": paginator.count,
+                "zero_results": paginator.count == 0,
+                "sort": sort,
+            },
         )
     applied_filters = [key for key, value in filters.items() if key != "query" and value]
     if applied_filters:
-        record_event("filter_used", request=request, metadata={"filters": applied_filters})
+        record_event(
+            "filter_used",
+            request=request,
+            metadata={"filters": applied_filters, "sort": sort},
+        )
+
+    if has_query:
+        sort_choices = [("relevance", _("Relevance")), *Product.Sort.choices]
+    else:
+        sort_choices = list(Product.Sort.choices)
+
+    # Zero-results assistance (only queries when zero results actually occur)
+    zero_results_recommendations = []
+    spelling_suggestions = []
+    if paginator.count == 0 and has_query:
+        spelling_suggestions = selectors.get_spelling_suggestions(filters["query"])
+        try:
+            from apps.recommendations.services import get_customer_recommendations
+
+            rec_data = get_customer_recommendations(request.user, limit=4)
+            zero_results_recommendations = [r["product"] for r in rec_data if "product" in r]
+        except Exception:
+            zero_results_recommendations = list(
+                Product.objects.published()
+                .with_storefront_data()
+                .order_by("-is_featured", "-published_at", "-id")[:4]
+            )
+
+    # Landing recommendations for empty /search/ page
+    search_landing_recommendations = []
+    if is_search_page and not has_query:
+        from apps.catalog.merchandising import get_recently_viewed
+
+        search_landing_recommendations = get_recently_viewed(request, limit=4)
+
+    category_rail = selectors.storefront_categories(
+        limit=NAV_CATEGORY_LIMIT, with_children=False
+    )
+
+    filter_colors = selectors.get_filter_colors()
+    filter_sizes = selectors.get_filter_sizes()
+
+    if is_search_page:
+        if has_query:
+            page_title = f"{_('Search: ')}“{filters['query']}” | FLASHWEAR"
+            page_desc = f"Search results for “{filters['query']}” at FLASHWEAR."
+        else:
+            page_title = f"{_('Search Catalogue')} | FLASHWEAR"
+            page_desc = "Discover FLASHWEAR garments by silhouette, color, fit, and department."
+    else:
+        page_title = f"{_('All products')} | FLASHWEAR"
+        page_desc = _(
+            "Browse every FLASHWEAR product: t-shirts, hoodies, shirts, "
+            "cargo pants, denim and accessories."
+        )
 
     context = {
         "page_obj": page,
         "paginator": paginator,
         "products": page.object_list,
         "sort": sort,
-        "sort_choices": Product.Sort.choices,
+        "sort_choices": sort_choices,
         "total_count": paginator.count,
-        "category_rail": selectors.storefront_categories(
-            limit=NAV_CATEGORY_LIMIT, with_children=False
-        ),
+        "category_rail": category_rail,
         "filters": filters,
+        "is_search_page": is_search_page,
+        "has_query": has_query,
+        "search_error": search_error,
+        "spelling_suggestions": spelling_suggestions,
+        "zero_results_recommendations": zero_results_recommendations,
+        "search_landing_recommendations": search_landing_recommendations,
+        "filter_colors": filter_colors,
+        "filter_sizes": filter_sizes,
         **listing_metadata(
-            f"{_('All products')} | FLASHWEAR",
-            _(
-                "Browse every FLASHWEAR product: t-shirts, hoodies, shirts, "
-                "cargo pants, denim and accessories."
-            ),
+            page_title,
+            page_desc,
             request=request,
             page=page.number,
         ),

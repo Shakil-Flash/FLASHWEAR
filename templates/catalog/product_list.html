@@ -1,17 +1,21 @@
 {% extends "catalog/listing_base.html" %}
 {% load catalog_extras %}
 
-{% block crumb_label %}{% if filters.query %}Search: “{{ filters.query }}”{% else %}Shop{% endif %}{% endblock crumb_label %}
-{% block heading %}{% if filters.query %}Search: “{{ filters.query }}”{% else %}All products{% endif %}{% endblock heading %}
+{% block crumb_label %}{% if filters.query %}Search: “{{ filters.query }}”{% elif is_search_page %}Search{% else %}Shop{% endif %}{% endblock crumb_label %}
+{% block heading %}{% if filters.query %}Search: “{{ filters.query }}”{% elif is_search_page %}Search Catalogue{% else %}All products{% endif %}{% endblock heading %}
 
 {% block lede %}
     {% if filters.query %}
         <p class="mt-3 text-base leading-relaxed text-slate-600">
-            Matching garments found across title, category, brand and tags.
+            Matching garments found across title, category, brand, color, fit, and style tags.
+        </p>
+    {% elif is_search_page %}
+        <p class="mt-3 text-base leading-relaxed text-slate-600">
+            Search FLASHWEAR fashion across all silhouettes, fits, fabrics, colors, and collections.
         </p>
     {% else %}
         <p class="mt-3 text-base leading-relaxed text-slate-600">
-            Every garment FLASHWEAR makes and sells, in one place. Filter by department, or sort by
+            Every garment FLASHWEAR makes and sells, in one place. Filter by department, color, size, or sort by
             price.
         </p>
     {% endif %}

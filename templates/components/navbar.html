@@ -7,21 +7,46 @@
     searchQuery: '',
     suggestions: [],
     loadingSuggestions: false,
+    selectedIndex: -1,
+    searchError: false,
     fetchSuggestions() {
         if (this.searchQuery.trim().length < 2) {
             this.suggestions = [];
+            this.selectedIndex = -1;
             return;
         }
         this.loadingSuggestions = true;
+        this.searchError = false;
         fetch('/api/v1/products/suggestions/?q=' + encodeURIComponent(this.searchQuery.trim()))
-            .then(res => res.json())
+            .then(res => {
+                if (!res.ok) throw new Error('Search failed');
+                return res.json();
+            })
             .then(data => {
                 this.suggestions = Array.isArray(data) ? data : [];
                 this.loadingSuggestions = false;
+                this.selectedIndex = -1;
             })
             .catch(() => {
                 this.loadingSuggestions = false;
+                this.searchError = true;
             });
+    },
+    selectNext() {
+        if (this.suggestions.length > 0) {
+            this.selectedIndex = (this.selectedIndex + 1) % this.suggestions.length;
+        }
+    },
+    selectPrev() {
+        if (this.suggestions.length > 0) {
+            this.selectedIndex = (this.selectedIndex - 1 + this.suggestions.length) % this.suggestions.length;
+        }
+    },
+    handleSubmit(e) {
+        if (this.selectedIndex >= 0 && this.suggestions[this.selectedIndex]) {
+            e.preventDefault();
+            window.location.href = this.suggestions[this.selectedIndex].url;
+        }
     }
 }" @keydown.window.escape="searchOpen = false" @keydown.window.cmd.k.prevent="searchOpen = true; $nextTick(() => $refs.searchInput?.focus())" @keydown.window.ctrl.k.prevent="searchOpen = true; $nextTick(() => $refs.searchInput?.focus())" class="sticky top-0 z-50 border-b border-slate-200/70 bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/80">
     <nav class="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8" aria-label="Primary navigation">
@@ -209,7 +234,7 @@
         <div class="fixed inset-0" @click="searchOpen = false" aria-hidden="true"></div>
 
         <div class="relative mx-auto max-w-2xl transform overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-slate-900/10 transition-all">
-            <form method="get" action="{% url 'catalog:product-search' %}" class="relative flex items-center border-b border-slate-200 px-4">
+            <form method="get" action="{% url 'catalog:product-search' %}" @submit="handleSubmit($event)" class="relative flex items-center border-b border-slate-200 px-4">
                 <svg class="h-5 w-5 text-slate-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
                 </svg>
@@ -217,10 +242,21 @@
                        name="q"
                        x-ref="searchInput"
                        x-model="searchQuery"
-                       @input.debounce.250ms="fetchSuggestions()"
+                       @input.debounce.200ms="fetchSuggestions()"
+                       @keydown.arrow-down.prevent="selectNext()"
+                       @keydown.arrow-up.prevent="selectPrev()"
                        class="h-14 w-full border-0 bg-transparent pl-3 pr-10 text-base text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-0 sm:text-sm"
-                       placeholder="Search hoodies, tees, denim, collections..."
+                       placeholder="Search hoodies, tees, denim, collections, colors..."
                        autocomplete="off" />
+                <button type="button"
+                        x-show="searchQuery.length > 0"
+                        @click="searchQuery = ''; suggestions = []; selectedIndex = -1; $refs.searchInput?.focus()"
+                        class="mr-2 rounded-lg p-1.5 text-slate-400 hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-300"
+                        aria-label="Clear input">
+                    <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                    </svg>
+                </button>
                 <button type="button"
                         @click="searchOpen = false"
                         class="rounded-lg p-1.5 text-slate-400 hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-400"
@@ -233,22 +269,46 @@
 
             <!-- Live suggestions / Quick links -->
             <div class="max-h-96 overflow-y-auto p-4">
-                <div x-show="loadingSuggestions" class="py-6 text-center text-xs text-slate-500">
-                    Searching styles…
+                <div x-show="loadingSuggestions" class="py-6 text-center text-xs text-slate-500 animate-pulse">
+                    Searching garments and styles…
+                </div>
+
+                <div x-show="searchError" class="my-2 rounded-xl bg-amber-50 p-3 text-center text-xs text-amber-800">
+                    Couldn’t fetch live suggestions right now. Press Enter to view full catalogue results.
                 </div>
 
                 <template x-if="suggestions.length > 0">
                     <div class="space-y-3">
-                        <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Suggestions</p>
-                        <ul class="space-y-1">
-                            <template x-for="item in suggestions" :key="item.url">
+                        <div class="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-slate-400">
+                            <span>Suggestions</span>
+                            <span class="text-[10px] font-normal lowercase text-slate-400">use ↑ ↓ to navigate</span>
+                        </div>
+                        <ul class="space-y-1" role="listbox">
+                            <template x-for="(item, index) in suggestions" :key="item.url">
                                 <li>
-                                    <a :href="item.url" class="flex items-center justify-between rounded-xl px-3 py-2 text-sm text-slate-800 transition hover:bg-slate-50 hover:text-flash-700">
-                                        <span class="flex items-center gap-2">
-                                            <span class="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-slate-500" x-text="item.type"></span>
-                                            <span class="font-medium" x-text="item.name"></span>
-                                        </span>
-                                        <svg class="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <a :href="item.url"
+                                       @mouseenter="selectedIndex = index"
+                                       :class="selectedIndex === index ? 'bg-flash-50/80 ring-1 ring-flash-500 text-flash-900' : 'hover:bg-slate-50 text-slate-800'"
+                                       class="flex items-center justify-between rounded-xl p-2.5 text-sm transition"
+                                       role="option"
+                                       :aria-selected="selectedIndex === index">
+                                        <div class="flex items-center gap-3 min-w-0">
+                                            <template x-if="item.image_url">
+                                                <img :src="item.image_url" :alt="item.name" class="h-10 w-10 shrink-0 rounded-lg border border-slate-200 object-cover" />
+                                            </template>
+                                            <div class="min-w-0 flex flex-col">
+                                                <div class="flex items-center gap-2">
+                                                    <span class="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-slate-500" x-text="item.badge || item.type"></span>
+                                                    <span class="font-medium truncate" x-text="item.name"></span>
+                                                </div>
+                                                <div class="flex items-center gap-2 text-xs text-slate-500 mt-0.5" x-show="item.category || item.price">
+                                                    <span x-show="item.category" x-text="item.category"></span>
+                                                    <span x-show="item.category && item.price">·</span>
+                                                    <span class="font-semibold text-slate-900" x-show="item.price" x-text="item.price"></span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <svg class="h-4 w-4 shrink-0 text-slate-400 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
                                         </svg>
                                     </a>
@@ -288,8 +348,9 @@
                 </div>
             </div>
 
-            <div class="border-t border-slate-100 bg-slate-50 px-4 py-2.5 text-right text-xs text-slate-400">
-                Press <kbd class="rounded bg-white px-1 py-0.5 font-mono shadow-sm">Esc</kbd> to exit or <kbd class="rounded bg-white px-1 py-0.5 font-mono shadow-sm">Enter</kbd> to search
+            <div class="border-t border-slate-100 bg-slate-50 px-4 py-2.5 flex items-center justify-between text-xs text-slate-400">
+                <span><kbd class="rounded bg-white px-1 py-0.5 font-mono shadow-sm">↑</kbd> <kbd class="rounded bg-white px-1 py-0.5 font-mono shadow-sm">↓</kbd> Navigate</span>
+                <span><kbd class="rounded bg-white px-1 py-0.5 font-mono shadow-sm">Enter</kbd> Select / Search &nbsp;·&nbsp; <kbd class="rounded bg-white px-1 py-0.5 font-mono shadow-sm">Esc</kbd> Close</span>
             </div>
         </div>
     </div>

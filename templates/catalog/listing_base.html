@@ -2,25 +2,67 @@
 {% load catalog_extras %}
 
 {% comment %}
-Shared chrome for every paginated product listing: the all-products page, a category, a collection
-and a brand. Each child fills in ``heading``, ``lede``, optional ``filters`` and ``prelude``; the
-grid and the pagination live here so they cannot drift apart between pages.
-
-The count is announced to screen readers ("24 products") because a bare visual grid is meaningless
-without it.
+Shared chrome for every paginated product listing: the all-products page, dedicated search,
+categories, collections and brands. Child templates fill in ``heading``, ``lede``, optional
+``filters`` and ``prelude``; the search controls, filter drawer, grid, zero-results state and
+pagination live here so discovery UX remains consistent across the entire storefront.
 {% endcomment %}
 
 {% block content %}
-<div class="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+<div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8" x-data="{ filtersOpen: false }">
     <nav class="text-sm text-slate-500" aria-label="Breadcrumb">
         <ol class="flex flex-wrap items-center gap-2">
             {% block breadcrumbs %}
-            <li><a href="{% url 'core:home' %}" class="hover:text-slate-900">Home</a></li>
-            <li aria-hidden="true">/</li>
+            <li><a href="{% url 'core:home' %}" class="hover:text-slate-900 transition">Home</a></li>
+            <li aria-hidden="true" class="text-slate-400">/</li>
             <li aria-current="page" class="font-medium text-slate-900">{% block crumb_label %}Shop{% endblock crumb_label %}</li>
             {% endblock breadcrumbs %}
         </ol>
     </nav>
+
+    <!-- Prominent Search Box when on Search page or active search query -->
+    {% if is_search_page or filters.query %}
+    <div class="mt-6 rounded-3xl border border-slate-200/80 bg-white p-4 sm:p-6 shadow-soft">
+        <form method="get" action="{% url 'catalog:product-search' %}" class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            <div class="relative flex-1">
+                <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
+                    <svg class="h-5 w-5 text-slate-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                    </svg>
+                </div>
+                <input type="search"
+                       name="q"
+                       value="{{ filters.query }}"
+                       placeholder="Search garments, fits, colors (e.g. black oversized hoodie)..."
+                       class="h-12 w-full rounded-2xl border border-slate-300 bg-slate-50/50 pl-11 pr-10 text-sm text-slate-900 placeholder-slate-400 focus:border-flash-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-flash-500/20 transition"
+                       autocomplete="off" />
+                {% if filters.query %}
+                <a href="{% url 'catalog:product-search' %}"
+                   class="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600"
+                   aria-label="Clear search input">
+                    <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                    </svg>
+                </a>
+                {% endif %}
+            </div>
+            {% if filters.category_slug %}<input type="hidden" name="category" value="{{ filters.category_slug }}">{% endif %}
+            {% if filters.color_slugs %}<input type="hidden" name="color" value="{{ filters.color_slugs|join:',' }}">{% endif %}
+            {% if filters.size_codes %}<input type="hidden" name="size" value="{{ filters.size_codes|join:',' }}">{% endif %}
+            {% if filters.in_stock %}<input type="hidden" name="in_stock" value="1">{% endif %}
+            <button type="submit"
+                    class="inline-flex h-12 items-center justify-center rounded-2xl bg-flash-600 px-6 text-sm font-semibold text-white shadow-soft hover:bg-flash-700 focus:outline-none focus:ring-2 focus:ring-flash-500/20 transition">
+                Search
+            </button>
+        </form>
+
+        {% if search_error %}
+        <div class="mt-3 rounded-xl bg-amber-50 p-3 text-xs text-amber-800">
+            We had trouble processing that query. Showing all available garments below.
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
 
     <header class="mt-6 flex flex-wrap items-end justify-between gap-4">
         <div class="max-w-2xl">
@@ -31,7 +73,7 @@ without it.
             {% if category.description %}<p class="mt-3 text-base leading-relaxed text-slate-600">{{ category.description }}</p>{% endif %}
             {% endblock lede %}
         </div>
-        <p class="text-sm text-slate-500" role="status">
+        <p class="text-sm font-medium text-slate-500" role="status" aria-live="polite">
             {% block count %}
             {{ total_count }} {% if total_count == 1 %}product{% else %}products{% endif %}
             {% endblock count %}
@@ -39,52 +81,185 @@ without it.
     </header>
 
     {% block prelude %}{% endblock prelude %}
+
+    <!-- Filter Bar & Toggle -->
+    <div class="mt-6 flex flex-wrap items-center justify-between gap-3 border-y border-slate-200 py-3.5">
+        <div class="flex items-center gap-2">
+            <button type="button"
+                    @click="filtersOpen = !filtersOpen"
+                    class="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-900 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-flash-500/20"
+                    :aria-expanded="filtersOpen"
+                    aria-controls="discovery-filters-panel">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="h-4 w-4">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
+                </svg>
+                <span>Filters</span>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-3.5 w-3.5 transition-transform duration-200" :class="filtersOpen ? 'rotate-180' : ''">
+                    <path fill-rule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd" />
+                </svg>
+            </button>
+
+            <!-- Quick availability filter button -->
+            <a href="{% if filters.in_stock %}{% remove_filter_url 'in_stock' %}{% else %}{% query_transform in_stock='1' %}{% endif %}"
+               class="inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-semibold transition {% if filters.in_stock %}bg-emerald-600 text-white shadow-sm hover:bg-emerald-700{% else %}border border-slate-300 bg-white text-slate-700 hover:border-slate-900{% endif %}">
+                {% if filters.in_stock %}
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-3.5 w-3.5">
+                    <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd" />
+                </svg>
+                {% endif %}
+                In stock only
+            </a>
+        </div>
+
+        <!-- Sorting controls -->
+        <div class="flex flex-wrap items-center gap-1.5 sm:gap-2">
+            <span class="text-xs font-semibold uppercase tracking-wider text-slate-400 mr-1">Sort:</span>
+            {% for value, label in sort_choices %}
+                {% sort_link value label %}
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Collapsible Filter Panel (Drawer) -->
+    <div x-show="filtersOpen"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0 -translate-y-2"
+         x-transition:enter-end="opacity-100 translate-y-0"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100 translate-y-0"
+         x-transition:leave-end="opacity-0 -translate-y-2"
+         x-cloak
+         id="discovery-filters-panel"
+         class="mt-4 rounded-3xl border border-slate-200 bg-white p-5 sm:p-6 shadow-soft">
+        <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            <!-- Category Filter -->
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2.5">Department</p>
+                <div class="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto">
+                    {% for cat in category_rail %}
+                        <a href="{% if filters.category_slug == cat.slug %}{% remove_filter_url 'category' %}{% else %}{% query_transform category=cat.slug %}{% endif %}"
+                           class="rounded-xl px-3 py-1.5 text-xs font-medium transition {% if filters.category_slug == cat.slug %}bg-slate-900 text-white{% else %}border border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-400 hover:bg-white{% endif %}">
+                            {{ cat.name }}
+                        </a>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Size Filter -->
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2.5">Size</p>
+                <div class="flex flex-wrap gap-1.5">
+                    {% for size in filter_sizes %}
+                        <a href="{% toggle_filter_url 'size' size.code %}"
+                           class="inline-flex h-9 min-w-[2.25rem] items-center justify-center rounded-xl px-2.5 text-xs font-semibold transition {% if size.code in filters.size_codes %}bg-slate-900 text-white{% else %}border border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-900 hover:bg-white{% endif %}">
+                            {{ size.code }}
+                        </a>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Color Filter -->
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2.5">Color</p>
+                <div class="flex flex-wrap gap-2">
+                    {% for col in filter_colors %}
+                        <a href="{% toggle_filter_url 'color' col.slug %}"
+                           class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition {% if col.slug in filters.color_slugs %}ring-2 ring-slate-900 bg-slate-100 font-semibold text-slate-950{% else %}border border-slate-200 bg-white text-slate-700 hover:border-slate-400{% endif %}"
+                           title="{{ col.name }}">
+                            <span class="h-3 w-3 rounded-full border border-slate-300" style="{% if col.hex_code %}background-color: {{ col.hex_code }};{% else %}background-color: #cbd5e1;{% endif %}"></span>
+                            <span>{{ col.name }}</span>
+                        </a>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Price Range Filter -->
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2.5">Price Range (৳)</p>
+                <form method="get" action="{{ request.path }}" class="space-y-2">
+                    {% if filters.query %}<input type="hidden" name="q" value="{{ filters.query }}">{% endif %}
+                    {% if filters.category_slug %}<input type="hidden" name="category" value="{{ filters.category_slug }}">{% endif %}
+                    {% if filters.color_slugs %}<input type="hidden" name="color" value="{{ filters.color_slugs|join:',' }}">{% endif %}
+                    {% if filters.size_codes %}<input type="hidden" name="size" value="{{ filters.size_codes|join:',' }}">{% endif %}
+                    {% if filters.in_stock %}<input type="hidden" name="in_stock" value="1">{% endif %}
+                    {% if sort %}<input type="hidden" name="sort" value="{{ sort }}">{% endif %}
+                    <div class="flex items-center gap-2">
+                        <input type="number"
+                               name="min_price"
+                               value="{{ filters.min_price|default:'' }}"
+                               placeholder="Min ৳"
+                               class="w-full rounded-xl border border-slate-300 px-3 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:border-flash-600 focus:outline-none" />
+                        <span class="text-slate-400 text-xs">–</span>
+                        <input type="number"
+                               name="max_price"
+                               value="{{ filters.max_price|default:'' }}"
+                               placeholder="Max ৳"
+                               class="w-full rounded-xl border border-slate-300 px-3 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:border-flash-600 focus:outline-none" />
+                    </div>
+                    <button type="submit"
+                            class="w-full rounded-xl bg-slate-900 py-1.5 text-xs font-semibold text-white hover:bg-slate-800 transition">
+                        Apply Price
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
     {% block filters %}{% endblock filters %}
 
-    {% if filters.query or filters.category_slug or filters.color_slugs or filters.size_codes or filters.min_price or filters.max_price %}
-    <div class="mt-4 flex flex-wrap items-center gap-2 rounded-2xl bg-slate-50 p-3 text-xs text-slate-700">
+    <!-- Active Filters Row -->
+    {% if filters.query or filters.category_slug or filters.color_slugs or filters.size_codes or filters.min_price or filters.max_price or filters.in_stock %}
+    <div class="mt-4 flex flex-wrap items-center gap-2 rounded-2xl bg-slate-50 border border-slate-200/60 p-3 text-xs text-slate-700">
         <span class="font-semibold text-slate-900">Active filters:</span>
         {% if filters.query %}
-        <span class="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 ring-1 ring-slate-200">
+        <span class="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 ring-1 ring-slate-200 font-medium">
             Search: “{{ filters.query }}”
+            <a href="{% remove_filter_url 'q' %}" class="text-slate-400 hover:text-slate-700 font-bold ml-0.5" aria-label="Remove search filter">×</a>
         </span>
         {% endif %}
         {% if filters.category_slug %}
-        <span class="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 ring-1 ring-slate-200">
+        <span class="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 ring-1 ring-slate-200 font-medium">
             Category: {{ filters.category_slug }}
+            <a href="{% remove_filter_url 'category' %}" class="text-slate-400 hover:text-slate-700 font-bold ml-0.5" aria-label="Remove category filter">×</a>
         </span>
         {% endif %}
         {% for color in filters.color_slugs %}
-        <span class="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 ring-1 ring-slate-200">
+        <span class="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 ring-1 ring-slate-200 font-medium capitalize">
             Color: {{ color }}
+            <a href="{% remove_filter_url 'color' color %}" class="text-slate-400 hover:text-slate-700 font-bold ml-0.5" aria-label="Remove color filter {{ color }}">×</a>
         </span>
         {% endfor %}
         {% for size in filters.size_codes %}
-        <span class="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 ring-1 ring-slate-200">
+        <span class="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 ring-1 ring-slate-200 font-medium">
             Size: {{ size }}
+            <a href="{% remove_filter_url 'size' size %}" class="text-slate-400 hover:text-slate-700 font-bold ml-0.5" aria-label="Remove size filter {{ size }}">×</a>
         </span>
         {% endfor %}
+        {% if filters.in_stock %}
+        <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 text-emerald-800 px-3 py-1 ring-1 ring-emerald-200 font-medium">
+            In stock only
+            <a href="{% remove_filter_url 'in_stock' %}" class="text-emerald-500 hover:text-emerald-800 font-bold ml-0.5" aria-label="Remove in-stock filter">×</a>
+        </span>
+        {% endif %}
         {% if filters.min_price %}
-        <span class="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 ring-1 ring-slate-200">
+        <span class="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 ring-1 ring-slate-200 font-medium">
             Min: {{ filters.min_price|money }}
+            <a href="{% remove_filter_url 'min_price' %}" class="text-slate-400 hover:text-slate-700 font-bold ml-0.5" aria-label="Remove min price filter">×</a>
         </span>
         {% endif %}
         {% if filters.max_price %}
-        <span class="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 ring-1 ring-slate-200">
+        <span class="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 ring-1 ring-slate-200 font-medium">
             Max: {{ filters.max_price|money }}
+            <a href="{% remove_filter_url 'max_price' %}" class="text-slate-400 hover:text-slate-700 font-bold ml-0.5" aria-label="Remove max price filter">×</a>
         </span>
         {% endif %}
-        <a href="{{ request.path }}" class="ml-auto font-medium text-flash-700 underline hover:text-flash-800">
+        <a href="{% clear_filters_url %}" class="ml-auto font-semibold text-flash-700 underline hover:text-flash-800 transition">
             Clear all filters
         </a>
     </div>
     {% endif %}
 
-    <div class="mt-6 flex flex-wrap items-center gap-2 border-b border-slate-200 pb-4">
-        <span class="mr-2 text-sm font-medium text-slate-500">Sort</span>
-        {% for value, label in sort_choices %}{% sort_link value label %}{% endfor %}
-    </div>
-
+    <!-- Products Grid & Zero Results -->
     {% block products %}
     {% if products %}
     <div class="mt-8 grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-3 xl:grid-cols-4">
@@ -93,28 +268,76 @@ without it.
         {% endfor %}
     </div>
     {% else %}
-    <div class="mt-8 rounded-3xl border border-dashed border-slate-200 bg-white p-12 text-center">
+    <!-- Helpful, Genuinely Human Zero-Results Experience -->
+    <div class="mt-8 rounded-3xl border border-slate-200 bg-white p-8 sm:p-12 text-center shadow-soft">
         {% if filters.query %}
-        <p class="text-lg font-semibold text-slate-900">No luck with “{{ filters.query }}”</p>
-        <p class="mt-2 text-sm text-slate-500">
-            Try a broader term, check for typos, or browse by category instead.
-        </p>
-        {% else %}
-        <p class="text-lg font-semibold text-slate-900">Nothing here yet — this shelf is empty for now.</p>
-        <p class="mt-2 text-sm text-slate-500">
-            New pieces are always being added. Try browsing another category, or explore the full catalogue.
+        <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-500 mb-4">
+            <svg class="h-7 w-7" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+            </svg>
+        </div>
+        <h2 class="text-xl font-bold tracking-tight text-slate-900">No garments found for “{{ filters.query }}”</h2>
+        
+        {% if spelling_suggestions %}
+        <p class="mt-2 text-sm text-slate-700">
+            Did you mean:
+            {% for s in spelling_suggestions %}
+                <a href="{% url 'catalog:product-search' %}?q={{ s }}" class="font-semibold text-flash-600 underline hover:text-flash-700">{{ s }}</a>{% if not forloop.last %}, {% endif %}
+            {% endfor %}?
         </p>
         {% endif %}
+
+        <p class="mt-3 text-sm text-slate-500 max-w-md mx-auto leading-relaxed">
+            Check your spelling, try broader keywords (e.g. "hoodie", "cargo", "oversized"), or explore popular departments below.
+        </p>
+
+        <div class="mt-6 flex flex-wrap items-center justify-center gap-2">
+            {% for cat in category_rail|slice:":6" %}
+                <a href="{{ cat.get_absolute_url }}" class="rounded-full border border-slate-200 bg-slate-50 px-3.5 py-1.5 text-xs font-semibold text-slate-700 hover:border-slate-900 hover:bg-white transition">
+                    {{ cat.name }}
+                </a>
+            {% endfor %}
+            <a href="{% url 'catalog:visual-search' %}" class="rounded-full border border-flash-300 bg-flash-50 px-3.5 py-1.5 text-xs font-semibold text-flash-700 hover:bg-flash-100 transition">
+                Try Visual Discovery →
+            </a>
+        </div>
+
+        {% if zero_results_recommendations %}
+        <div class="mt-12 text-left border-t border-slate-100 pt-8">
+            <div class="flex items-center justify-between mb-6">
+                <div>
+                    <h3 class="text-lg font-bold text-slate-900">Recommended for You</h3>
+                    <p class="text-xs text-slate-500">Popular pieces from our current collection</p>
+                </div>
+                <a href="{% url 'catalog:product-list' %}" class="text-xs font-semibold text-flash-600 hover:underline">
+                    View full catalogue →
+                </a>
+            </div>
+            <div class="grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4">
+                {% for product in zero_results_recommendations %}
+                    {% include "catalog/_product_card.html" %}
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        {% else %}
+        <!-- Generic empty shelf -->
+        <p class="text-lg font-semibold text-slate-900">Nothing here yet — this shelf is empty for now.</p>
+        <p class="mt-2 text-sm text-slate-500">
+            New pieces are continuously dropping. Explore another department or browse the full catalogue.
+        </p>
         <div class="mt-6 flex flex-wrap items-center justify-center gap-3">
             <a href="{% url 'catalog:product-list' %}"
-                class="inline-flex items-center rounded-full bg-flash-600 px-6 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-flash-700">
+               class="inline-flex items-center rounded-full bg-flash-600 px-6 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-flash-700">
                 Browse all products
             </a>
             <a href="{% url 'catalog:visual-search' %}"
-                class="inline-flex items-center rounded-full border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 shadow-soft transition hover:border-slate-900">
+               class="inline-flex items-center rounded-full border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 shadow-soft transition hover:border-slate-900">
                 Try Visual Discovery
             </a>
         </div>
+        {% endif %}
     </div>
     {% endif %}
     {% endblock products %}

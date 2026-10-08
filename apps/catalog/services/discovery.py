@@ -161,6 +161,7 @@ SEARCH_RANK_WEIGHTS = {
 # Valid sort options (mirrors Product.Sort but defined here for reuse)
 VALID_SORTS = frozenset(
     [
+        "relevance",
         "newest",
         "price_asc",
         "price_desc",
@@ -366,38 +367,10 @@ def _build_search_rank_expression(query: str) -> Case:
 
 
 def apply_search(queryset, query: str):
-    """Apply full-text search with ranking to the queryset.
+    """Apply full-text search with ranking to the queryset."""
+    from apps.catalog import selectors
 
-    Adds a `search_rank` annotation (integer, higher = more relevant).
-    The queryset is NOT filtered here - that happens in `apply_filters` via the
-    EXISTS subquery approach. This annotation is used for ordering.
-
-    In production (PostgreSQL), replace with SearchVector/SearchRank.
-    """
-    if not query:
-        return queryset.annotate(search_rank=Value(0, output_field=IntegerField()))
-
-    # Filter to only products matching at least one term in any searchable field
-    # This uses the same logic as the ranking expression but as a filter
-    terms = [t.strip() for t in query.lower().split() if t.strip()]
-    if not terms:
-        return queryset.annotate(search_rank=Value(0, output_field=IntegerField()))
-
-    search_q = Q()
-    for term in terms:
-        search_q |= Q(name__icontains=term)
-        search_q |= Q(short_description__icontains=term)
-        search_q |= Q(description__icontains=term)
-        search_q |= Q(brand__name__icontains=term)
-        search_q |= Q(category__name__icontains=term)
-        search_q |= Q(collections__name__icontains=term)
-        search_q |= Q(variants__color__name__icontains=term)
-        search_q |= Q(variants__size__name__icontains=term)
-        search_q |= Q(materials__name__icontains=term)
-        search_q |= Q(fit__name__icontains=term)
-        search_q |= Q(tags__name__icontains=term)
-
-    return queryset.filter(search_q).annotate(search_rank=_build_search_rank_expression(query))
+    return selectors.apply_search(queryset, query)
 
 
 def apply_filters(queryset, filters: DiscoveryFilters):
@@ -480,19 +453,9 @@ def apply_sorting(queryset, sort: str):
 
     Always includes a deterministic tiebreaker.
     """
-    if sort == "price_asc":
-        # Products with no price sort last (NULLS LAST)
-        return queryset.order_by("price_min", "-id")
-    if sort == "price_desc":
-        return queryset.order_by("-price_max", "-id")
-    if sort == "featured":
-        return queryset.order_by("-is_featured", "-published_at", "-id")
-    if sort == "name_asc":
-        return queryset.order_by("name", "id")
-    if sort == "name_desc":
-        return queryset.order_by("-name", "-id")
-    # Default: newest first
-    return queryset.order_by("-published_at", "-id")
+    from apps.catalog import selectors
+
+    return selectors.apply_sorting(queryset, sort)
 
 
 # --------------------------------------------------------------------------------------
@@ -658,65 +621,7 @@ def build_discovery_queryset(base_queryset, request) -> DiscoveryResult:
 
 
 def get_search_suggestions(query: str, limit: int = SUGGESTIONS_LIMIT) -> list[dict]:
-    """Return search suggestions for autocomplete.
+    """Return search suggestions for autocomplete."""
+    from apps.catalog import selectors
 
-    Returns a list of dicts with: type, name, slug, url
-    Types: product, category, brand, collection
-    """
-    if not query or len(query) < MIN_SEARCH_LENGTH:
-        return []
-
-    from apps.catalog.models import Brand, Category, Product
-
-    suggestions = []
-
-    # Product name matches
-    products = Product.objects.published().filter(name__icontains=query)[:5]
-    for p in products:
-        suggestions.append(
-            {
-                "type": "product",
-                "name": p.name,
-                "slug": p.slug,
-                "url": p.get_absolute_url(),
-            }
-        )
-
-    # Category matches
-    categories = Category.objects.filter(is_active=True, name__icontains=query)[:3]
-    for cat in categories:
-        suggestions.append(
-            {
-                "type": "category",
-                "name": cat.name,
-                "slug": cat.slug,
-                "url": cat.get_absolute_url(),
-            }
-        )
-
-    # Brand matches
-    brands = Brand.objects.filter(is_active=True, name__icontains=query)[:2]
-    for brand in brands:
-        suggestions.append(
-            {
-                "type": "brand",
-                "name": brand.name,
-                "slug": brand.slug,
-                "url": brand.get_absolute_url(),
-            }
-        )
-
-    # Collection matches
-    collections = Collection.objects.filter(is_active=True, name__icontains=query)[:2]
-    for coll in collections:
-        if coll.is_current:
-            suggestions.append(
-                {
-                    "type": "collection",
-                    "name": coll.name,
-                    "slug": coll.slug,
-                    "url": coll.get_absolute_url(),
-                }
-            )
-
-    return suggestions[:limit]
+    return selectors.get_search_suggestions(query, limit=limit)

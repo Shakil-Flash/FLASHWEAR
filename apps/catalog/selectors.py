@@ -33,22 +33,21 @@ from apps.catalog.models import (
 # ======================================================================================
 
 
-VALID_SORTS = frozenset(
-    [
-        Product.Sort.NEWEST,
-        Product.Sort.PRICE_ASC,
-        Product.Sort.PRICE_DESC,
-        Product.Sort.FEATURED,
-        Product.Sort.NAME_ASC,
-        Product.Sort.NAME_DESC,
-    ]
-)
+VALID_SORTS = frozenset(Product.Sort.values)
+VALID_SEARCH_SORTS = frozenset(Product.Sort.values) | {"relevance"}
 
 
-def resolve_sort(value: str | None) -> str:
-    """Return ``value`` if it is a known sort, otherwise the newest-first default."""
+def resolve_sort(value: str | None, *, has_query: bool = False) -> str:
+    """Return ``value`` if it is a known sort, otherwise default.
+
+    When a search query is present, default is 'relevance'.
+    When browsing, default is 'newest'.
+    """
     candidate = (value or "").strip().lower()
-    return candidate if candidate in VALID_SORTS else Product.Sort.NEWEST
+    allowed = VALID_SEARCH_SORTS if has_query else VALID_SORTS
+    if candidate in allowed:
+        return candidate
+    return "relevance" if has_query else Product.Sort.NEWEST
 
 
 def _clean_slug(value: str | None) -> str | None:
@@ -80,89 +79,161 @@ SEARCH_RANK_WEIGHTS = {
 
 
 def _build_search_rank_expression(query: str):
-    """Build a CASE expression that ranks products by relevance to ``query``.
-
-    This is the SQLite fallback ranking. When PostgreSQL is available, the view should
-    use `SearchVector`/`SearchRank` instead (see the view implementation).
-    """
-    terms = [term.strip() for term in query.lower().split() if term.strip()]
+    """Build a CASE expression that ranks products by additive relevance to ``query``."""
+    clean_query = query.strip().lower()
+    terms = [t for t in clean_query.split() if t][:6]
     if not terms:
-        return Case(default=Value(0), output_field=IntegerField())
+        return Value(0, output_field=IntegerField())
 
-    when_clauses = []
+    score_expr = Value(0, output_field=IntegerField())
 
-    for term in terms:
-        when_clauses.append(When(name__icontains=term, then=Value(SEARCH_RANK_WEIGHTS["name"] * 3)))
-        when_clauses.append(
-            When(
-                short_description__icontains=term,
-                then=Value(SEARCH_RANK_WEIGHTS["short_description"] * 2),
-            )
-        )
-        when_clauses.append(
-            When(brand__name__icontains=term, then=Value(SEARCH_RANK_WEIGHTS["brand"] * 2))
-        )
-        when_clauses.append(
-            When(
-                category__name__icontains=term,
-                then=Value(SEARCH_RANK_WEIGHTS["category"] * 2),
-            )
-        )
-        when_clauses.append(
-            When(
-                collections__name__icontains=term,
-                then=Value(SEARCH_RANK_WEIGHTS["collection"] * 2),
-            )
-        )
-        when_clauses.append(
-            When(variants__color__name__icontains=term, then=Value(SEARCH_RANK_WEIGHTS["color"]))
-        )
-        when_clauses.append(
-            When(variants__size__name__icontains=term, then=Value(SEARCH_RANK_WEIGHTS["size"]))
-        )
-        when_clauses.append(
-            When(materials__name__icontains=term, then=Value(SEARCH_RANK_WEIGHTS["material"]))
-        )
-        when_clauses.append(When(fit__name__icontains=term, then=Value(SEARCH_RANK_WEIGHTS["fit"])))
-        when_clauses.append(
-            When(tags__name__icontains=term, then=Value(SEARCH_RANK_WEIGHTS["tag"]))
-        )
-        when_clauses.append(
-            When(description__icontains=term, then=Value(SEARCH_RANK_WEIGHTS["description"]))
+    # Phrase match bonus for full query in product name
+    if len(terms) > 1:
+        score_expr = score_expr + Case(
+            When(name__icontains=clean_query, then=Value(150)),
+            default=Value(0),
+            output_field=IntegerField(),
         )
 
-    return Case(*when_clauses, default=Value(0), output_field=IntegerField())
+    # Conjunction bonus when product matches all terms across attributes
+    if len(terms) > 1:
+        and_q = Q()
+        for t in terms:
+            and_q &= (
+                Q(name__icontains=t)
+                | Q(short_description__icontains=t)
+                | Q(description__icontains=t)
+                | Q(brand__name__icontains=t)
+                | Q(category__name__icontains=t)
+                | Q(collections__name__icontains=t)
+                | Q(variants__color__name__icontains=t)
+                | Q(variants__size__name__icontains=t)
+                | Q(variants__size__code__iexact=t)
+                | Q(materials__name__icontains=t)
+                | Q(fit__name__icontains=t)
+                | Q(tags__name__icontains=t)
+            )
+        score_expr = score_expr + Case(
+            When(and_q, then=Value(100)),
+            default=Value(0),
+            output_field=IntegerField(),
+        )
+
+    int_f = IntegerField()
+    for t in terms:
+        term_expr = (
+            Case(When(name__icontains=t, then=Value(30)), default=Value(0), output_field=int_f)
+            + Case(
+                When(category__name__icontains=t, then=Value(20)),
+                default=Value(0),
+                output_field=int_f,
+            )
+            + Case(
+                When(brand__name__icontains=t, then=Value(18)),
+                default=Value(0),
+                output_field=int_f,
+            )
+            + Case(
+                When(collections__name__icontains=t, then=Value(12)),
+                default=Value(0),
+                output_field=int_f,
+            )
+            + Case(
+                When(variants__color__name__icontains=t, then=Value(10)),
+                default=Value(0),
+                output_field=int_f,
+            )
+            + Case(
+                When(fit__name__icontains=t, then=Value(10)),
+                default=Value(0),
+                output_field=int_f,
+            )
+            + Case(
+                When(materials__name__icontains=t, then=Value(8)),
+                default=Value(0),
+                output_field=int_f,
+            )
+            + Case(
+                When(tags__name__icontains=t, then=Value(8)),
+                default=Value(0),
+                output_field=int_f,
+            )
+            + Case(
+                When(variants__size__code__iexact=t, then=Value(6)),
+                default=Value(0),
+                output_field=int_f,
+            )
+            + Case(
+                When(short_description__icontains=t, then=Value(5)),
+                default=Value(0),
+                output_field=int_f,
+            )
+            + Case(
+                When(description__icontains=t, then=Value(2)),
+                default=Value(0),
+                output_field=int_f,
+            )
+        )
+        score_expr = score_expr + term_expr
+
+    return score_expr
 
 
 def apply_search(queryset, query: str):
-    """Apply full-text search with ranking to the queryset.
+    """Apply fashion-friendly full-text search with ranking to the queryset.
 
     Adds a ``search_rank`` annotation (integer, higher = more relevant).
-    The queryset is NOT filtered here - that happens in ``apply_filters`` via the
-    EXISTS subquery approach. This annotation is used for ordering.
+    Matches across product name, category, brand, collection, color, size, material,
+    fit, tags, short_description and description.
     """
-    if not query:
+    clean_query = (query or "").strip()
+    if not clean_query:
         return queryset.annotate(search_rank=Value(0, output_field=IntegerField()))
 
-    terms = [t.strip() for t in query.lower().split() if t.strip()]
+    terms = [t.lower() for t in clean_query.split() if t][:6]
     if not terms:
         return queryset.annotate(search_rank=Value(0, output_field=IntegerField()))
 
-    search_q = Q()
-    for term in terms:
-        search_q |= Q(name__icontains=term)
-        search_q |= Q(short_description__icontains=term)
-        search_q |= Q(description__icontains=term)
-        search_q |= Q(brand__name__icontains=term)
-        search_q |= Q(category__name__icontains=term)
-        search_q |= Q(collections__name__icontains=term)
-        search_q |= Q(variants__color__name__icontains=term)
-        search_q |= Q(variants__size__name__icontains=term)
-        search_q |= Q(materials__name__icontains=term)
-        search_q |= Q(fit__name__icontains=term)
-        search_q |= Q(tags__name__icontains=term)
+    def _term_q(t: str) -> Q:
+        return (
+            Q(name__icontains=t)
+            | Q(short_description__icontains=t)
+            | Q(description__icontains=t)
+            | Q(brand__name__icontains=t)
+            | Q(category__name__icontains=t)
+            | Q(collections__name__icontains=t)
+            | Q(variants__color__name__icontains=t, variants__is_active=True)
+            | Q(variants__color__slug__iexact=t, variants__is_active=True)
+            | Q(variants__size__name__icontains=t, variants__is_active=True)
+            | Q(variants__size__code__iexact=t, variants__is_active=True)
+            | Q(materials__name__icontains=t, materials__is_active=True)
+            | Q(materials__slug__iexact=t, materials__is_active=True)
+            | Q(fit__name__icontains=t, fit__is_active=True)
+            | Q(fit__slug__iexact=t, fit__is_active=True)
+            | Q(tags__name__icontains=t, tags__is_active=True)
+            | Q(tags__slug__iexact=t, tags__is_active=True)
+        )
 
-    return queryset.filter(search_q).annotate(search_rank=_build_search_rank_expression(query))
+    if len(terms) == 1:
+        target_q = _term_q(terms[0])
+    else:
+        and_q = Q()
+        for t in terms:
+            and_q &= _term_q(t)
+        # Prioritize conjunction matches if any exist; fallback to partial disjunction matches
+        if queryset.filter(and_q).exists():
+            target_q = and_q
+        else:
+            or_q = Q()
+            for t in terms:
+                or_q |= _term_q(t)
+            target_q = or_q
+
+    return (
+        queryset.filter(target_q)
+        .annotate(search_rank=_build_search_rank_expression(clean_query))
+        .distinct()
+    )
 
 
 def _apply_filters(queryset, filters: dict):
@@ -234,6 +305,13 @@ def _apply_filters(queryset, filters: dict):
         if filters.get("max_price") is not None:
             queryset = queryset.filter(price_min__lte=filters["max_price"])
 
+    # In-stock / availability filter
+    if filters.get("in_stock"):
+        queryset = queryset.filter(
+            variants__stock__on_hand__gt=F("variants__stock__reserved"),
+            variants__is_active=True,
+        )
+
     return queryset.distinct()
 
 
@@ -242,6 +320,10 @@ def apply_sorting(queryset, sort: str):
 
     Always includes a deterministic tiebreaker.
     """
+    if sort == "relevance":
+        if "search_rank" not in queryset.query.annotations:
+            queryset = queryset.annotate(search_rank=Value(0, output_field=IntegerField()))
+        return queryset.order_by("-search_rank", "-published_at", "-id")
     if sort == Product.Sort.PRICE_ASC:
         return queryset.order_by("price_min", "-id")
     if sort == Product.Sort.PRICE_DESC:
@@ -353,23 +435,19 @@ def get_facet_counts(queryset, filters: dict) -> dict:
 def get_search_suggestions(query: str, limit: int = 10):
     """Return search suggestions for autocomplete.
 
-    Returns a list of dicts with: type, name, slug, url
-    Types: product, category, brand, collection
+    Returns a list of dicts with: type, name, slug, url, and optional metadata.
+    Types: product, category, brand, collection, tag
     """
-    if not query or len(query) < 2:
+    if not query or len(query.strip()) < 2:
         return []
 
-    from apps.catalog.models import Brand, Category, Collection, Product
+    from apps.catalog.models import Brand, Category, Collection, Product, ProductTag
 
+    clean = query.strip()
     suggestions = []
 
-    products = Product.objects.published().filter(name__icontains=query)[:5]
-    for p in products:
-        suggestions.append(
-            {"type": "product", "name": p.name, "slug": p.slug, "url": p.get_absolute_url()}
-        )
-
-    categories = Category.objects.filter(is_active=True, name__icontains=query)[:3]
+    # 1. Matching categories
+    categories = Category.objects.filter(is_active=True, name__icontains=clean)[:3]
     for cat in categories:
         suggestions.append(
             {
@@ -377,10 +455,53 @@ def get_search_suggestions(query: str, limit: int = 10):
                 "name": cat.name,
                 "slug": cat.slug,
                 "url": cat.get_absolute_url(),
+                "badge": "Department",
             }
         )
 
-    brands = Brand.objects.filter(is_active=True, name__icontains=query)[:2]
+    # 2. Matching products with image, price, and category
+    products = (
+        Product.objects.published()
+        .filter(
+            Q(name__icontains=clean)
+            | Q(category__name__icontains=clean)
+            | Q(brand__name__icontains=clean)
+            | Q(tags__name__icontains=clean)
+        )
+        .select_related("category")
+        .prefetch_related("images", "variants")
+        .distinct()[:5]
+    )
+    for p in products:
+        primary_img = getattr(p, "primary_image", None)
+        img_url = ""
+        if primary_img and getattr(primary_img, "image", None):
+            img_url = primary_img.image.url
+        elif p.images.all():
+            first_img = p.images.all()[0]
+            if getattr(first_img, "image", None):
+                img_url = first_img.image.url
+
+        price_str = ""
+        first_variant = p.variants.filter(is_active=True).first()
+        if first_variant and getattr(first_variant, "price", None):
+            price_str = f"৳{first_variant.price:,.0f}"
+
+        suggestions.append(
+            {
+                "type": "product",
+                "name": p.name,
+                "slug": p.slug,
+                "url": p.get_absolute_url(),
+                "category": p.category.name if p.category else "",
+                "price": price_str,
+                "image_url": img_url,
+                "badge": "Product",
+            }
+        )
+
+    # 3. Matching brands
+    brands = Brand.objects.filter(is_active=True, name__icontains=clean)[:2]
     for brand in brands:
         suggestions.append(
             {
@@ -388,10 +509,12 @@ def get_search_suggestions(query: str, limit: int = 10):
                 "name": brand.name,
                 "slug": brand.slug,
                 "url": brand.get_absolute_url(),
+                "badge": "Brand",
             }
         )
 
-    collections = Collection.objects.filter(is_active=True, name__icontains=query)[:2]
+    # 4. Matching collections
+    collections = Collection.objects.filter(is_active=True, name__icontains=clean)[:2]
     for coll in collections:
         if coll.is_current:
             suggestions.append(
@@ -400,10 +523,79 @@ def get_search_suggestions(query: str, limit: int = 10):
                     "name": coll.name,
                     "slug": coll.slug,
                     "url": coll.get_absolute_url(),
+                    "badge": "Collection",
                 }
             )
 
+    # 5. Matching style tags
+    tags = ProductTag.objects.filter(is_active=True, name__icontains=clean)[:2]
+    for tag in tags:
+        suggestions.append(
+            {
+                "type": "tag",
+                "name": tag.name,
+                "slug": tag.slug,
+                "url": f"/search/?q={tag.name}",
+                "badge": "Style",
+            }
+        )
+
     return suggestions[:limit]
+
+
+_DEFAULT_CATALOG_VOCABULARY = {
+    "hoodie", "hoodies", "t-shirt", "t-shirts", "tee", "tees", "jacket", "jackets",
+    "shirt", "shirts", "oversized", "cargo", "cargos", "pants", "denim", "jeans",
+    "sweatshirt", "sweatshirts", "knitwear", "shorts", "streetwear", "blazer", "vest",
+    "cotton", "fleece", "linen", "leather", "wool", "nylon", "black", "white", "grey",
+    "navy", "beige", "olive", "vintage", "graphic", "monochrome", "relaxed", "slim",
+}
+
+_DEFAULT_FILTER_COLORS = [
+    {"name": "Black", "slug": "black", "hex_code": "#000000"},
+    {"name": "White", "slug": "white", "hex_code": "#FFFFFF"},
+    {"name": "Grey", "slug": "grey", "hex_code": "#6B7280"},
+    {"name": "Navy", "slug": "navy", "hex_code": "#1E3A8A"},
+    {"name": "Beige", "slug": "beige", "hex_code": "#D4C5B9"},
+    {"name": "Olive", "slug": "olive", "hex_code": "#556B2F"},
+]
+
+_DEFAULT_FILTER_SIZES = [
+    {"name": "Extra Small", "code": "XS"},
+    {"name": "Small", "code": "S"},
+    {"name": "Medium", "code": "M"},
+    {"name": "Large", "code": "L"},
+    {"name": "Extra Large", "code": "XL"},
+    {"name": "Double Extra Large", "code": "XXL"},
+]
+
+
+def get_spelling_suggestions(query: str) -> list[str]:
+    """Find close catalog term matches for misspelled words without query overhead."""
+    import difflib
+
+    words = [w.strip().lower() for w in (query or "").split() if len(w.strip()) >= 3]
+    if not words:
+        return []
+
+    suggestions = []
+    for word in words:
+        matches = difflib.get_close_matches(word, _DEFAULT_CATALOG_VOCABULARY, n=2, cutoff=0.6)
+        for m in matches:
+            if m not in suggestions and m.lower() != word:
+                suggestions.append(m)
+
+    return suggestions[:3]
+
+
+def get_filter_colors():
+    """Retrieve standard color filter swatches without listing query overhead."""
+    return _DEFAULT_FILTER_COLORS
+
+
+def get_filter_sizes():
+    """Retrieve standard size filter chips without listing query overhead."""
+    return _DEFAULT_FILTER_SIZES
 
 
 def with_price_range(queryset):
@@ -472,6 +664,8 @@ def _apply_sort(queryset, sort: str):
     The price sorts annotate ``price_min`` / ``price_max`` on demand: they cost two subqueries per
     row, and paying for them on a "newest first" grid would be waste.
     """
+    if sort == "relevance":
+        return queryset.order_by("-published_at", "-id")
     if sort == Product.Sort.PRICE_ASC:
         # Products with no active variant sort last rather than first: a NULL price means
         # "unknown", not "free".

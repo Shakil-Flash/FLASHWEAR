@@ -20,7 +20,7 @@ from decimal import Decimal
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.db.models import Count, Prefetch, Q
+from django.db.models import Count, F, Prefetch, Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.decorators import method_decorator
@@ -77,7 +77,8 @@ def _slug(request, name: str) -> str | None:
 
 def _sort(request) -> str:
     """Resolve ``?sort=`` against the same allow-list the storefront uses."""
-    return selectors.resolve_sort(request.query_params.get("sort"))
+    has_query = bool((request.query_params.get("q") or "").strip())
+    return selectors.resolve_sort(request.query_params.get("sort"), has_query=has_query)
 
 
 def _published_filter(prefix: str = "") -> Q:
@@ -177,6 +178,14 @@ class ProductListView(ListAPIView):
             for slug in slugs:
                 tag_q |= Q(tags__slug=slug, tags__is_active=True)
             queryset = queryset.filter(tag_q)
+
+        # In-stock availability
+        in_stock_param = (self.request.query_params.get("in_stock") or "").strip().lower()
+        if in_stock_param in ("1", "true", "yes"):
+            queryset = queryset.filter(
+                variants__stock__on_hand__gt=F("variants__stock__reserved"),
+                variants__is_active=True,
+            )
 
         # Price range
         min_price = (self.request.query_params.get("min_price") or "").strip()
@@ -645,4 +654,3 @@ class AdminProductImageCreateView(APIView):
             ProductImageSerializer(image_instance).data,
             status=status.HTTP_201_CREATED,
         )
-
