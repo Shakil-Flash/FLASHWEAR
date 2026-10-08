@@ -99,7 +99,110 @@ def home(request: HttpRequest) -> HttpResponse:
         pass
 
     continue_shopping = merchandising.get_continue_shopping_items(request, limit=4)
-    recently_viewed = merchandising.get_recently_viewed(request, limit=4)
+    recently_viewed_raw = merchandising.get_recently_viewed(request, limit=6)
+    cs_pks = {p.pk for p in continue_shopping}
+    recently_viewed = [p for p in recently_viewed_raw if p.pk not in cs_pks][:4]
+
+    # Returning Customer Personalization (Isolated to authenticated shoppers
+    # to protect query budget)
+    wishlist_items = []
+    personalized_recommendations = []
+    closet_pairing = None
+    dna_style_goal = None
+
+    if user and user.is_authenticated:
+        # 1. Wishlist Items
+        try:
+            from apps.shop.models import WishlistItem
+
+            wish_seen = cs_pks | {p.pk for p in recently_viewed}
+            wish_qs = (
+                WishlistItem.objects.filter(wishlist__user=user)
+                .select_related("product", "product__brand")
+                .prefetch_related("product__images", "product__variants")
+                .order_by("-created_at")
+            )
+            if wish_seen:
+                wish_qs = wish_qs.exclude(product_id__in=wish_seen)
+            wishlist_items = [
+                item.product
+                for item in wish_qs[:4]
+                if item.product and getattr(item.product, "status", None) == "active"
+            ]
+        except Exception:
+            wishlist_items = []
+
+        # 2. Personalized Recommendations based on FLASH DNA, closet, or orders
+        try:
+            from apps.recommendations.services import get_recommendations
+
+            has_dna = hasattr(user, "flash_dna")
+            has_closet = (
+                hasattr(user, "closet_items")
+                and user.closet_items.filter(status="active").exists()
+            )
+            has_orders = hasattr(user, "orders") and user.orders.exists()
+
+            if has_dna or has_closet or has_orders:
+                rec_res = get_recommendations(user, context="personalized", max_results=4)
+                seen_all = cs_pks | {p.pk for p in recently_viewed} | {p.pk for p in wishlist_items}
+                for rec in rec_res.get("recommendations", []):
+                    prod = rec.get("product")
+                    if (
+                        prod
+                        and prod.pk not in seen_all
+                        and getattr(prod, "status", None) == "active"
+                    ):
+                        personalized_recommendations.append(rec)
+                        seen_all.add(prod.pk)
+                    if len(personalized_recommendations) >= 4:
+                        break
+        except Exception:
+            personalized_recommendations = []
+
+        # 3. DNA Style Goal / Direction
+        try:
+            if hasattr(user, "flash_dna") and user.flash_dna:
+                dna_style_goal = (
+                    getattr(user.flash_dna, "style_goal", None)
+                    or getattr(user.flash_dna, "fashion_goal", None)
+                    or getattr(user.flash_dna, "styles", None)
+                )
+        except Exception:
+            dna_style_goal = None
+
+        # 4. Closet Pairing (Complete the look with user's own wardrobe)
+        try:
+            if hasattr(user, "closet_items") and user.closet_items.filter(status="active").exists():
+                lead_piece = None
+                if continue_shopping:
+                    lead_piece = continue_shopping[0]
+                elif personalized_recommendations:
+                    lead_piece = personalized_recommendations[0].get("product")
+                elif wishlist_items:
+                    lead_piece = wishlist_items[0]
+
+                if lead_piece:
+                    from apps.closet.services.matching import get_closet_matches_for_product
+
+                    matches = get_closet_matches_for_product(user, lead_piece, limit=2)
+                    if matches:
+                        closet_pairing = {
+                            "product": lead_piece,
+                            "closet_item": matches[0],
+                            "closet_items": matches,
+                        }
+        except Exception:
+            closet_pairing = None
+
+    is_returning_customer = bool(
+        continue_shopping
+        or recently_viewed
+        or wishlist_items
+        or personalized_recommendations
+        or closet_pairing
+    )
+
     essentials = list(
         selectors.storefront_products()
         .filter(collections__slug="core-essentials")
@@ -111,14 +214,24 @@ def home(request: HttpRequest) -> HttpResponse:
     is_preview = bool(is_team_member and request.GET.get("preview") == "content")
     managed_sections = get_active_homepage_sections(include_unpublished=is_preview)
 
-    creator_community_looks = []
-    if any(s.section_type == "creator" for s in managed_sections):
-        try:
-            from apps.creator.selectors import get_featured_posts
+    managed_hero = None
+    managed_banners = []
+    managed_curated_rails = []
+    for s in managed_sections:
+        if s.section_type == "hero" and managed_hero is None:
+            managed_hero = s
+        elif s.section_type == "banner":
+            managed_banners.append(s)
+        else:
+            managed_curated_rails.append(s)
 
-            creator_community_looks = get_featured_posts(limit=4)
-        except Exception:
-            pass
+    creator_community_looks = []
+    try:
+        from apps.creator.selectors import get_featured_posts
+
+        creator_community_looks = get_featured_posts(limit=4)
+    except Exception:
+        pass
 
     # Track homepage_section_view for live store visits (not staff previews)
     if not is_preview and managed_sections:
@@ -145,11 +258,19 @@ def home(request: HttpRequest) -> HttpResponse:
         "essentials": essentials,
         "continue_shopping": continue_shopping,
         "recently_viewed": recently_viewed,
+        "wishlist_items": wishlist_items,
+        "personalized_recommendations": personalized_recommendations,
+        "closet_pairing": closet_pairing,
+        "dna_style_goal": dna_style_goal,
+        "is_returning_customer": is_returning_customer,
         "featured_collections": list(selectors.live_collections(featured_only=True)[:3]),
         "active_drops": active_drops,
         "loop_highlights": loop_highlights,
-        # Content Studio (Phase 29)
+        # Content Studio (Phase 29 & 38)
         "managed_sections": managed_sections,
+        "managed_hero": managed_hero,
+        "managed_banners": managed_banners,
+        "managed_curated_rails": managed_curated_rails,
         "is_content_preview": is_preview,
         "creator_community_looks": creator_community_looks,
         # Phase 20: who runs this site and how to search it, from the real config row.
@@ -216,8 +337,6 @@ def track_content_interaction(request: HttpRequest) -> HttpResponse:
         return JsonResponse({"status": "recorded"})
 
     return JsonResponse({"status": "ignored"}, status=400)
-
-
 
 
 @require_GET

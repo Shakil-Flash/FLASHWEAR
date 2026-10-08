@@ -94,7 +94,7 @@ class ProductQuerySet(models.QuerySet):
             Prefetch(
                 "variants",
                 queryset=ProductVariant.objects.filter(is_active=True).select_related(
-                    "color", "size"
+                    "color", "size", "stock"
                 ),
             ),
         )

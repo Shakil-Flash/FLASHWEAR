@@ -17,226 +17,109 @@
 </div>
 {% endif %}
 
-{% if managed_sections %}
-    {# ======================================================================= #}
-    {# MANAGED CONTENT STUDIO SECTIONS                                         #}
-    {# ======================================================================= #}
-    {% for section in managed_sections %}
-        {% include "pages/sections/_section.html" with section=section %}
-    {% endfor %}
-
-    {% if continue_shopping %}
-    <section class="border-t border-slate-100 bg-white" aria-labelledby="continue-shopping-heading">
-        <div class="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
-            <div class="reveal reveal-up flex flex-wrap items-end justify-between gap-4">
-                <div>
-                    <p class="editorial-label">Pick up where you left off</p>
-                    <h2 id="continue-shopping-heading" class="mt-2 editorial-headline">
-                        Still thinking about these?
-                    </h2>
-                </div>
-                <a href="{% url 'catalog:track-merchandising' %}?type=continue_shopping_click&next={% url 'catalog:product-list' %}&src=home_continue"
-                   class="text-sm font-semibold text-slate-900 underline-offset-4 hover:underline">
-                    Continue browsing →
-                </a>
-            </div>
-            <div class="mt-8">
-                <div class="-mx-4 flex gap-4 overflow-x-auto px-4 pb-4 snap-x snap-mandatory sm:mx-0 sm:grid sm:grid-cols-2 sm:gap-6 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-4 reveal-stagger">
-                    {% for product in continue_shopping %}
-                        <div class="reveal reveal-up w-[72vw] max-w-xs flex-shrink-0 snap-start sm:w-auto sm:max-w-none">
-                            {% include "catalog/_product_card.html" with product=product %}
-                        </div>
-                    {% endfor %}
-                </div>
-            </div>
-        </div>
-    </section>
-    {% endif %}
-
-    {% if recently_viewed %}
-    <section class="border-t border-slate-100 bg-slate-50/50" aria-labelledby="recently-viewed-heading">
-        <div class="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
-            <div class="reveal reveal-up flex flex-wrap items-end justify-between gap-4">
-                <div>
-                    <p class="editorial-label">Recently viewed</p>
-                    <h2 id="recently-viewed-heading" class="mt-2 editorial-headline">
-                        Your recently explored pieces
-                    </h2>
-                </div>
-                <a href="{% url 'catalog:track-merchandising' %}?type=recently_viewed_click&next={% url 'catalog:product-list' %}&src=home_recent"
-                   class="text-sm font-semibold text-slate-900 underline-offset-4 hover:underline">
-                    Explore catalogue →
-                </a>
-            </div>
-            <div class="mt-8">
-                <div class="-mx-4 flex gap-4 overflow-x-auto px-4 pb-4 snap-x snap-mandatory sm:mx-0 sm:grid sm:grid-cols-2 sm:gap-6 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-4 reveal-stagger">
-                    {% for product in recently_viewed %}
-                        <div class="reveal reveal-up w-[72vw] max-w-xs flex-shrink-0 snap-start sm:w-auto sm:max-w-none">
-                            {% include "catalog/_product_card.html" with product=product %}
-                        </div>
-                    {% endfor %}
-                </div>
-            </div>
-        </div>
-    </section>
-    {% endif %}
-
+{# ======================================================================= #}
+{# 1. BRAND / FASHION STORY (HERO)                                         #}
+{# Source of truth: Content Studio managed_hero, fallback to editorial hero#}
+{# ======================================================================= #}
+{% if managed_hero %}
+    {% include "pages/sections/_section.html" with section=managed_hero %}
 {% else %}
-{# ======================================================================= #}
-{# EDITORIAL HERO — image-forward, fashion-first, minimal text.            #}
-{# No feature checklists, no SaaS badges, no stats.                        #}
-{# ======================================================================= #}
-<section class="relative isolate overflow-hidden bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-white">
+    <section class="relative isolate overflow-hidden bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-white" aria-label="Brand Story">
+        <!-- Subtle layered depth glow -->
+        <div class="hero-anim-bg pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_80%_60%_at_50%_-10%,rgba(94,123,255,0.22),transparent)]"></div>
+        <div class="pointer-events-none absolute -right-40 top-20 -z-10 h-96 w-96 rounded-full bg-flash-500/10 blur-3xl"></div>
 
-    <!-- Subtle layered depth glow -->
-    <div class="hero-anim-bg pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_80%_60%_at_50%_-10%,rgba(94,123,255,0.22),transparent)]"></div>
-    <div class="pointer-events-none absolute -right-40 top-20 -z-10 h-96 w-96 rounded-full bg-flash-500/10 blur-3xl"></div>
+        <div class="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-24 lg:px-8">
+            <div class="grid items-center gap-12 lg:grid-cols-12 lg:gap-8">
+                <!-- Left: Editorial Headline & Actions -->
+                <div class="space-y-6 lg:col-span-7">
+                    <div class="hero-anim-eyebrow inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3.5 py-1 text-xs font-semibold uppercase tracking-widest text-flash-300 backdrop-blur">
+                        <span class="h-1.5 w-1.5 rounded-full bg-flash-400"></span>
+                        Autumn / Winter Editorial
+                    </div>
 
-    <div class="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-24 lg:px-8">
-        <div class="grid items-center gap-12 lg:grid-cols-12 lg:gap-8">
-            <!-- Left: Editorial Headline & Actions (Staggered Load Animations) -->
-            <div class="space-y-6 lg:col-span-7">
-                <div class="hero-anim-eyebrow inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3.5 py-1 text-xs font-semibold uppercase tracking-widest text-flash-300 backdrop-blur">
-                    <span class="h-1.5 w-1.5 rounded-full bg-flash-400"></span>
-                    Autumn / Winter Editorial
-                </div>
+                    <h1 class="hero-anim-title text-5xl font-semibold tracking-tight sm:text-6xl lg:text-7xl leading-[1.08]" style="text-wrap: balance;">
+                        Wear what feels like you.
+                    </h1>
 
-                <h1 class="hero-anim-title text-5xl font-semibold tracking-tight sm:text-6xl lg:text-7xl leading-[1.08]" style="text-wrap: balance;">
-                    Wear what feels like you.
-                </h1>
+                    <p class="hero-anim-desc max-w-xl text-lg leading-relaxed text-slate-300 sm:text-xl">
+                        Real garments. Personal style. Crafted with authentic materials and cut to outlast fast-moving trends.
+                    </p>
 
-                <p class="hero-anim-desc max-w-xl text-lg leading-relaxed text-slate-300 sm:text-xl">
-                    Real garments. Personal style. Crafted with authentic materials and cut to outlast fast-moving trends.
-                </p>
-
-                <div class="hero-anim-cta flex flex-wrap items-center gap-4 pt-2">
-                    <a href="{% url 'catalog:product-list' %}"
-                       class="inline-flex items-center justify-center rounded-full bg-white px-8 py-4 text-sm font-semibold text-slate-950 shadow-soft transition duration-300 hover:bg-slate-100 hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-white/40 focus:ring-offset-2 focus:ring-offset-slate-950">
-                        Explore the Drop →
-                    </a>
-                    <a href="{% url 'catalog:collection-list' %}"
-                       class="inline-flex items-center justify-center rounded-full border border-white/20 bg-white/5 px-7 py-4 text-sm font-medium text-white backdrop-blur transition duration-300 hover:bg-white/10 hover:border-white/30">
-                        View Collections
-                    </a>
-                </div>
-
-                <!-- Department pills -->
-                {% if nav_categories %}
-                <nav class="hero-anim-pills mt-8 flex flex-wrap items-center gap-2 pt-2" aria-label="Departments">
-                    <span class="mr-2 text-xs uppercase tracking-wider text-slate-400">Curated:</span>
-                    {% for category in nav_categories %}
-                        <a href="{{ category.get_absolute_url }}"
-                           class="rounded-full border border-white/15 bg-white/5 px-4 py-1.5 text-xs font-medium text-white/80 backdrop-blur transition hover:bg-white/15 hover:text-white hover:border-white/30">
-                            {{ category.name }}
+                    <div class="hero-anim-cta flex flex-wrap items-center gap-4 pt-2">
+                        <a href="{% url 'catalog:product-list' %}"
+                           class="inline-flex items-center justify-center rounded-full bg-white px-8 py-4 text-sm font-semibold text-slate-950 shadow-soft transition duration-300 hover:bg-slate-100 hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-white/40 focus:ring-offset-2 focus:ring-offset-slate-950">
+                            Explore the Drop →
                         </a>
-                    {% endfor %}
-                </nav>
-                {% endif %}
-            </div>
+                        <a href="{% url 'catalog:collection-list' %}"
+                           class="inline-flex items-center justify-center rounded-full border border-white/20 bg-white/5 px-7 py-4 text-sm font-medium text-white backdrop-blur transition duration-300 hover:bg-white/10 hover:border-white/30">
+                            View Collections
+                        </a>
+                    </div>
 
-            <!-- Right: Real Fashion Imagery & Floating Product Showcase Card -->
-            <div class="hero-anim-visual relative lg:col-span-5">
-                <div class="relative mx-auto aspect-[4/5] max-w-md overflow-hidden rounded-3xl border border-white/15 bg-slate-900/80 shadow-2xl backdrop-blur">
-                    {% with lead=featured_products.0 %}
-                        {% if lead and lead.primary_image %}
-                            <img src="{{ lead.primary_image.image.url }}"
-                                 alt="{{ lead.name }}"
-                                 width="800"
-                                 height="1000"
-                                 loading="eager"
-                                 fetchpriority="high"
-                                 class="h-full w-full object-cover transition duration-1000 group-hover:scale-105" />
-                            <!-- Floating editorial tag on image -->
-                            <div class="absolute inset-x-4 bottom-4 rounded-2xl border border-white/15 bg-slate-950/70 p-4 backdrop-blur-md">
-                                <div class="flex items-center justify-between">
-                                    <div class="min-w-0 pr-2">
-                                        <p class="text-xs uppercase tracking-wider text-flash-300">Curated Piece</p>
-                                        <p class="truncate text-sm font-semibold text-white">{{ lead.name }}</p>
+                    <!-- Department pills -->
+                    {% if nav_categories %}
+                    <nav class="hero-anim-pills mt-8 flex flex-wrap items-center gap-2 pt-2" aria-label="Departments">
+                        <span class="mr-2 text-xs uppercase tracking-wider text-slate-400">Curated:</span>
+                        {% for category in nav_categories %}
+                            <a href="{{ category.get_absolute_url }}"
+                               class="rounded-full border border-white/15 bg-white/5 px-4 py-1.5 text-xs font-medium text-white/80 backdrop-blur transition hover:bg-white/15 hover:text-white hover:border-white/30">
+                                {{ category.name }}
+                            </a>
+                        {% endfor %}
+                    </nav>
+                    {% endif %}
+                </div>
+
+                <!-- Right: Real Fashion Imagery & Floating Product Showcase Card -->
+                <div class="hero-anim-visual relative lg:col-span-5">
+                    <div class="relative mx-auto aspect-[4/5] max-w-md overflow-hidden rounded-3xl border border-white/15 bg-slate-900/80 shadow-2xl backdrop-blur">
+                        {% with lead=featured_products.0 %}
+                            {% if lead and lead.primary_image %}
+                                <img src="{{ lead.primary_image.image.url }}"
+                                     alt="{{ lead.name }}"
+                                     width="800"
+                                     height="1000"
+                                     loading="eager"
+                                     fetchpriority="high"
+                                     class="h-full w-full object-cover transition duration-1000 group-hover:scale-105" />
+                                <div class="absolute inset-x-4 bottom-4 rounded-2xl border border-white/15 bg-slate-950/70 p-4 backdrop-blur-md">
+                                    <div class="flex items-center justify-between">
+                                        <div class="min-w-0 pr-2">
+                                            <p class="text-xs uppercase tracking-wider text-flash-300">Curated Piece</p>
+                                            <p class="truncate text-sm font-semibold text-white">{{ lead.name }}</p>
+                                        </div>
+                                        <a href="{{ lead.get_absolute_url }}" class="inline-flex shrink-0 items-center rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-950 transition hover:bg-slate-200">
+                                            View →
+                                        </a>
                                     </div>
-                                    <a href="{{ lead.get_absolute_url }}" class="inline-flex shrink-0 items-center rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-950 transition hover:bg-slate-200">
-                                        View →
-                                    </a>
                                 </div>
-                            </div>
-                        {% else %}
-                            <div class="flex h-full w-full flex-col items-center justify-center p-8 text-center bg-gradient-to-br from-flash-600/30 via-slate-900 to-slate-950">
-                                <span class="rounded-full bg-white/10 px-4 py-1.5 text-xs font-medium uppercase tracking-widest text-flash-300">Signature Series</span>
-                                <p class="mt-4 text-2xl font-semibold tracking-tight text-white">{{ site_tagline|default:'Fashion Beyond Ordinary' }}</p>
-                                <p class="mt-2 text-xs text-slate-400">Garment-dyed cotton, technical layers, everyday silhouettes.</p>
-                            </div>
-                        {% endif %}
-                    {% endwith %}
+                            {% else %}
+                                <div class="flex h-full w-full flex-col items-center justify-center p-8 text-center bg-gradient-to-br from-flash-600/30 via-slate-900 to-slate-950">
+                                    <span class="rounded-full bg-white/10 px-4 py-1.5 text-xs font-medium uppercase tracking-widest text-flash-300">Signature Series</span>
+                                    <p class="mt-4 text-2xl font-semibold tracking-tight text-white">{{ site_tagline|default:'Fashion Beyond Ordinary' }}</p>
+                                    <p class="mt-2 text-xs text-slate-400">Garment-dyed cotton, technical layers, everyday silhouettes.</p>
+                                </div>
+                            {% endif %}
+                        {% endwith %}
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
-</section>
-
-{# ======================================================================= #}
-{# FLASH DROPS — urgent, exclusive, dark.                                  #}
-{# ======================================================================= #}
-{% if active_drops %}
-<section class="border-b border-slate-800 bg-slate-950 text-white" aria-labelledby="drops-heading">
-    <div class="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-        <div class="reveal reveal-up">
-            <span class="inline-flex items-center gap-1.5 rounded-full bg-flash-500/20 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-flash-400 ring-1 ring-flash-500/30">
-                <span class="h-2 w-2 rounded-full bg-flash-400 animate-pulse"></span>
-                Live now
-            </span>
-            <h2 id="drops-heading" class="mt-3 editorial-headline text-white">Exclusive Limited Drops</h2>
-            <p class="mt-2 text-sm text-slate-400">Limited pieces. Once they're gone, they're gone.</p>
-        </div>
-        <div class="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3 reveal-stagger">
-            {% for drop in active_drops %}
-            <a href="{% url 'catalog:product-list' %}" class="reveal reveal-up group relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/60 p-6 backdrop-blur transition hover:border-flash-500/40 hover:bg-slate-900/80">
-                <h3 class="text-lg font-bold text-white group-hover:text-flash-300 transition">{{ drop.name }}</h3>
-                {% if drop.description %}<p class="mt-2 text-sm text-slate-300 line-clamp-2">{{ drop.description }}</p>{% endif %}
-                <div class="mt-6 flex items-center justify-between text-xs text-slate-400">
-                    <span>{{ drop.product_count|default:"Limited" }} pieces</span>
-                    <span class="font-semibold text-flash-400 transition group-hover:text-white">Shop drop →</span>
-                </div>
-            </a>
-            {% endfor %}
-        </div>
-    </div>
-</section>
+    </section>
 {% endif %}
 
 {# ======================================================================= #}
-{# FEATURED — editorial asymmetric layout, not a uniform grid.             #}
+{# 2. PROMOTIONAL BANNERS (Content Studio)                                 #}
 {# ======================================================================= #}
-<section class="mx-auto max-w-7xl px-4 py-20 sm:px-6 sm:py-24 lg:px-8" aria-labelledby="featured-heading">
-    <div class="reveal reveal-up flex flex-wrap items-end justify-between gap-4">
-        <div>
-            <p class="editorial-label">Curated</p>
-            <h2 id="featured-heading" class="mt-2 editorial-headline">
-                Featured
-            </h2>
-        </div>
-        <a href="{% url 'catalog:product-list' %}"
-           class="text-sm font-semibold text-slate-900 underline-offset-4 hover:underline">
-            View all →
-        </a>
-    </div>
-
-    {% if featured_products %}
-        <div class="mt-10 grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4 reveal-stagger">
-            {% for product in featured_products %}
-                <div class="reveal reveal-up">
-                    {% include "catalog/_product_card.html" %}
-                </div>
-            {% endfor %}
-        </div>
-    {% else %}
-        <div class="reveal reveal-up mt-10 rounded-2xl border border-dashed border-slate-200 bg-white p-10 text-center">
-            <p class="text-base font-medium text-slate-700">Nothing is featured yet — new pieces are on the way.</p>
-            <p class="mt-1 text-sm text-slate-500">Check back soon, or browse the <a href="{% url 'catalog:product-list' %}" class="font-semibold text-slate-900 underline underline-offset-4">full catalogue</a>.</p>
-        </div>
-    {% endif %}
-</section>
+{% if managed_banners %}
+    {% for banner in managed_banners %}
+        {% include "pages/sections/_section.html" with section=banner %}
+    {% endfor %}
+{% endif %}
 
 {# ======================================================================= #}
-{# STILL THINKING ABOUT THESE? — contextual recent activity                #}
+{# 3. RETURNING CUSTOMER PERSONALIZATION (Only when authenticated & active)#}
 {# ======================================================================= #}
 {% if continue_shopping %}
 <section class="border-t border-slate-100 bg-white" aria-labelledby="continue-shopping-heading">
@@ -266,9 +149,212 @@
 </section>
 {% endif %}
 
+{% if wishlist_items %}
+<section class="border-t border-slate-100 bg-slate-50/50" aria-labelledby="wishlist-heading">
+    <div class="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
+        <div class="reveal reveal-up flex flex-wrap items-end justify-between gap-4">
+            <div>
+                <p class="editorial-label">Saved by you</p>
+                <h2 id="wishlist-heading" class="mt-2 editorial-headline">
+                    Saved in your Wishlist
+                </h2>
+            </div>
+            <a href="{% url 'shop:wishlist' %}"
+               class="text-sm font-semibold text-slate-900 underline-offset-4 hover:underline">
+                View all saved items →
+            </a>
+        </div>
+        <div class="mt-8">
+            <div class="-mx-4 flex gap-4 overflow-x-auto px-4 pb-4 snap-x snap-mandatory sm:mx-0 sm:grid sm:grid-cols-2 sm:gap-6 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-4 reveal-stagger">
+                {% for product in wishlist_items %}
+                    <div class="reveal reveal-up w-[72vw] max-w-xs flex-shrink-0 snap-start sm:w-auto sm:max-w-none">
+                        {% include "catalog/_product_card.html" with product=product %}
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</section>
+{% endif %}
+
+{% if personalized_recommendations %}
+<section class="border-t border-slate-100 bg-white" aria-labelledby="recommended-heading">
+    <div class="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
+        <div class="reveal reveal-up flex flex-wrap items-end justify-between gap-4">
+            <div>
+                <p class="editorial-label">
+                    {% if dna_style_goal %}Tuned for {{ dna_style_goal }}{% else %}Based on your style{% endif %}
+                </p>
+                <h2 id="recommended-heading" class="mt-2 editorial-headline">
+                    Picked for you
+                </h2>
+                <p class="mt-1 text-sm text-slate-500">Selections curated for your wardrobe direction.</p>
+            </div>
+            <a href="{% url 'account:studio' %}"
+               class="text-sm font-semibold text-slate-900 underline-offset-4 hover:underline">
+                Customize style profile →
+            </a>
+        </div>
+        <div class="mt-8">
+            <div class="-mx-4 flex gap-4 overflow-x-auto px-4 pb-4 snap-x snap-mandatory sm:mx-0 sm:grid sm:grid-cols-2 sm:gap-6 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-4 reveal-stagger">
+                {% for rec in personalized_recommendations %}
+                    <div class="reveal reveal-up w-[72vw] max-w-xs flex-shrink-0 snap-start sm:w-auto sm:max-w-none flex flex-col">
+                        {% include "catalog/_product_card.html" with product=rec.product %}
+                        {% if rec.reason %}
+                            <div class="mt-2 text-center">
+                                <span class="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-medium text-slate-600">
+                                    <span class="h-1.5 w-1.5 rounded-full bg-flash-500"></span>
+                                    {{ rec.reason }}
+                                </span>
+                            </div>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</section>
+{% endif %}
+
+{% if closet_pairing %}
+<section class="border-t border-slate-100 bg-slate-50/70" aria-labelledby="closet-pairing-heading">
+    <div class="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
+        <div class="reveal reveal-up flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+            <div class="max-w-xl">
+                <span class="inline-flex items-center gap-2 rounded-full bg-flash-100 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-flash-800">
+                    Wardrobe Synergy
+                </span>
+                <h2 id="closet-pairing-heading" class="mt-3 editorial-headline">
+                    Coordinates with your closet
+                </h2>
+                <p class="mt-2 text-sm text-slate-600">
+                    Pair our <span class="font-semibold text-slate-900">{{ closet_pairing.product.name }}</span> with your
+                    <span class="font-semibold text-slate-900">{{ closet_pairing.closet_item.name|default:"wardrobe piece" }}</span> for a seamless look.
+                </p>
+            </div>
+            <div class="flex items-center gap-4">
+                <a href="{% url 'account:closet' %}" class="text-xs font-semibold text-slate-700 hover:text-flash-600 underline underline-offset-4">
+                    Open Digital Closet →
+                </a>
+            </div>
+        </div>
+        <div class="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 items-center">
+            <div class="sm:col-span-2 lg:col-span-2 flex items-center justify-center gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-soft">
+                <!-- Closet Item representation -->
+                <div class="text-center w-1/2">
+                    <div class="aspect-square rounded-xl bg-slate-100 flex items-center justify-center overflow-hidden border border-slate-200">
+                        {% if closet_pairing.closet_item.image %}
+                            <img src="{{ closet_pairing.closet_item.image.url }}" alt="{{ closet_pairing.closet_item.name }}" class="h-full w-full object-cover" />
+                        {% else %}
+                            <span class="text-xs text-slate-500 font-medium">Your Wardrobe Piece</span>
+                        {% endif %}
+                    </div>
+                    <p class="mt-2 text-xs font-semibold text-slate-800 truncate">{{ closet_pairing.closet_item.name }}</p>
+                    <span class="text-[10px] uppercase tracking-wider text-slate-400">From your closet</span>
+                </div>
+                <!-- Plus separator -->
+                <div class="text-slate-400 font-light text-2xl shrink-0">+</div>
+                <!-- Catalog pairing piece -->
+                <div class="text-center w-1/2">
+                    <a href="{{ closet_pairing.product.get_absolute_url }}" class="block aspect-square rounded-xl bg-slate-100 overflow-hidden border border-slate-200 group">
+                        {% if closet_pairing.product.primary_image %}
+                            <img src="{{ closet_pairing.product.primary_image.image.url }}" alt="{{ closet_pairing.product.name }}" class="h-full w-full object-cover transition group-hover:scale-105" />
+                        {% else %}
+                            <span class="flex h-full w-full items-center justify-center text-xs text-slate-400">FW Piece</span>
+                        {% endif %}
+                    </a>
+                    <p class="mt-2 text-xs font-semibold text-slate-800 truncate">{{ closet_pairing.product.name }}</p>
+                    <span class="text-[10px] font-semibold text-flash-600">{{ closet_pairing.product.min_price|money }}</span>
+                </div>
+            </div>
+            <div class="sm:col-span-2 lg:col-span-2 flex flex-col justify-center space-y-4 p-4">
+                <p class="text-sm text-slate-600 leading-relaxed">
+                    Designed to complement existing tones and silhouettes in your private collection. Tap below to inspect styling notes.
+                </p>
+                <div>
+                    <a href="{{ closet_pairing.product.get_absolute_url }}"
+                       class="inline-flex items-center rounded-full bg-slate-950 px-6 py-2.5 text-xs font-semibold text-white shadow-soft transition hover:bg-slate-800">
+                        View Complete Look →
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endif %}
+
 {# ======================================================================= #}
-{# NEW ARRIVALS — horizontal scroll rail on mobile, grid on desktop.       #}
+{# 4. SEASONAL / CAMPAIGN MERCHANDISING (DROPS)                            #}
 {# ======================================================================= #}
+{% if active_drops %}
+<section class="border-b border-slate-800 bg-slate-950 text-white" aria-labelledby="drops-heading">
+    <div class="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+        <div class="reveal reveal-up">
+            <span class="inline-flex items-center gap-1.5 rounded-full bg-flash-500/20 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-flash-400 ring-1 ring-flash-500/30">
+                <span class="h-2 w-2 rounded-full bg-flash-400 animate-pulse"></span>
+                Live now
+            </span>
+            <h2 id="drops-heading" class="mt-3 editorial-headline text-white">Exclusive Limited Drops</h2>
+            <p class="mt-2 text-sm text-slate-400">Limited pieces. Once they're gone, they're gone.</p>
+        </div>
+        <div class="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3 reveal-stagger">
+            {% for drop in active_drops %}
+            <a href="{% url 'catalog:product-list' %}" class="reveal reveal-up group relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/60 p-6 backdrop-blur transition hover:border-flash-500/40 hover:bg-slate-900/80">
+                <h3 class="text-lg font-bold text-white group-hover:text-flash-300 transition">{{ drop.name }}</h3>
+                {% if drop.description %}<p class="mt-2 text-sm text-slate-300 line-clamp-2">{{ drop.description }}</p>{% endif %}
+                <div class="mt-6 flex items-center justify-between text-xs text-slate-400">
+                    <span>{{ drop.product_count|default:"Limited" }} pieces</span>
+                    <span class="font-semibold text-flash-400 transition group-hover:text-white">Shop drop →</span>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+{% endif %}
+
+{# ======================================================================= #}
+{# 5. CONTENT STUDIO CURATED RAILS                                         #}
+{# ======================================================================= #}
+{% if managed_curated_rails %}
+    {% for section in managed_curated_rails %}
+        {% include "pages/sections/_section.html" with section=section %}
+    {% endfor %}
+{% endif %}
+
+{# ======================================================================= #}
+{# 6. RELEVANT PRODUCTS & CORE CATALOG                                     #}
+{# ======================================================================= #}
+<section class="mx-auto max-w-7xl px-4 py-20 sm:px-6 sm:py-24 lg:px-8" aria-labelledby="featured-heading">
+    <div class="reveal reveal-up flex flex-wrap items-end justify-between gap-4">
+        <div>
+            <p class="editorial-label">Curated</p>
+            <h2 id="featured-heading" class="mt-2 editorial-headline">
+                Featured
+            </h2>
+        </div>
+        <a href="{% url 'catalog:product-list' %}"
+           class="text-sm font-semibold text-slate-900 underline-offset-4 hover:underline">
+            View all →
+        </a>
+    </div>
+
+    {% if featured_products %}
+        <div class="mt-10 grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4 reveal-stagger">
+            {% for product in featured_products %}
+                <div class="reveal reveal-up">
+                    {% include "catalog/_product_card.html" with product=product %}
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="reveal reveal-up mt-10 rounded-2xl border border-dashed border-slate-200 bg-white p-10 text-center">
+            <p class="text-base font-medium text-slate-700">Nothing is featured yet — new pieces are on the way.</p>
+            <p class="mt-1 text-sm text-slate-500">Check back soon, or browse the <a href="{% url 'catalog:product-list' %}" class="font-semibold text-slate-900 underline underline-offset-4">full catalogue</a>.</p>
+        </div>
+    {% endif %}
+</section>
+
 {% if new_arrivals %}
 <section class="border-t border-slate-100 bg-slate-50/50" aria-labelledby="new-heading">
     <div class="mx-auto max-w-7xl px-4 py-20 sm:px-6 sm:py-24 lg:px-8">
@@ -284,12 +370,11 @@
                 See all new →
             </a>
         </div>
-        {# Mobile: horizontal scroll. Desktop: standard grid. #}
         <div class="mt-10">
             <div class="-mx-4 flex gap-4 overflow-x-auto px-4 pb-4 snap-x snap-mandatory sm:mx-0 sm:grid sm:grid-cols-2 sm:gap-6 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-4 reveal-stagger">
                 {% for product in new_arrivals %}
                     <div class="reveal reveal-up w-[72vw] max-w-xs flex-shrink-0 snap-start sm:w-auto sm:max-w-none">
-                        {% include "catalog/_product_card.html" %}
+                        {% include "catalog/_product_card.html" with product=product %}
                     </div>
                 {% endfor %}
             </div>
@@ -298,9 +383,6 @@
 </section>
 {% endif %}
 
-{# ======================================================================= #}
-{# THE ESSENTIALS — curated foundational wardrobe pieces                   #}
-{# ======================================================================= #}
 {% if essentials %}
 <section class="border-t border-slate-100 bg-white" aria-labelledby="essentials-heading">
     <div class="mx-auto max-w-7xl px-4 py-20 sm:px-6 sm:py-24 lg:px-8">
@@ -329,7 +411,7 @@
 {% endif %}
 
 {# ======================================================================= #}
-{# COLLECTIONS — editorial magazine-style cards.                           #}
+{# 7. COLLECTIONS (INSPIRATION & EDITORIAL)                                #}
 {# ======================================================================= #}
 {% if featured_collections %}
 <section class="border-t border-slate-200 bg-white" aria-labelledby="collections-heading">
@@ -378,7 +460,7 @@
 {% endif %}
 
 {# ======================================================================= #}
-{# FLASH LOOP — sustainability story, not just a product grid.             #}
+{# 8. CIRCULAR FASHION (FLASH LOOP)                                        #}
 {# ======================================================================= #}
 {% if loop_highlights %}
 <section class="border-t border-slate-200 bg-slate-50/70" aria-labelledby="loop-heading">
@@ -432,7 +514,7 @@
 {% endif %}
 
 {# ======================================================================= #}
-{# SHOP BY MOOD — emotive styling discovery.                             #}
+{# 9. SHOP BY MOOD — emotive styling discovery                             #}
 {# ======================================================================= #}
 <section class="border-t border-slate-200 bg-white" aria-labelledby="mood-heading">
     <div class="mx-auto max-w-7xl px-4 py-20 sm:px-6 sm:py-24 lg:px-8">
@@ -458,7 +540,7 @@
                     <p class="mt-1 text-xs text-slate-500">Understated essentials</p>
                 </div>
             </a>
-            <a href="{% url 'catalog:product-list' %}"
+            <a href="{% url 'catalog:product-list' %}?q=casual"
                class="reveal reveal-up group relative flex flex-col justify-between overflow-hidden rounded-2xl bg-gradient-to-b from-flash-500/10 to-flash-500/20 p-6 transition duration-500 hover:-translate-y-1 hover:shadow-elevated">
                 <span class="text-xs font-semibold uppercase tracking-wider text-flash-600">02</span>
                 <div class="mt-12">
@@ -466,7 +548,7 @@
                     <p class="mt-1 text-xs text-slate-500">Relaxed silhouettes</p>
                 </div>
             </a>
-            <a href="{% url 'catalog:product-list' %}"
+            <a href="{% url 'catalog:product-list' %}?q=evening"
                class="reveal reveal-up group relative flex flex-col justify-between overflow-hidden rounded-2xl bg-gradient-to-b from-indigo-950 to-slate-900 p-6 text-white transition duration-500 hover:-translate-y-1 hover:shadow-elevated">
                 <span class="text-xs font-semibold uppercase tracking-wider text-indigo-300">03</span>
                 <div class="mt-12">
@@ -474,7 +556,7 @@
                     <p class="mt-1 text-xs text-slate-300">Structured statement pieces</p>
                 </div>
             </a>
-            <a href="{% url 'catalog:product-list' %}"
+            <a href="{% url 'catalog:product-list' %}?q=comfort"
                class="reveal reveal-up group relative flex flex-col justify-between overflow-hidden rounded-2xl bg-gradient-to-b from-amber-50 to-amber-100/70 p-6 transition duration-500 hover:-translate-y-1 hover:shadow-elevated">
                 <span class="text-xs font-semibold uppercase tracking-wider text-amber-700">04</span>
                 <div class="mt-12">
@@ -482,7 +564,7 @@
                     <p class="mt-1 text-xs text-slate-500">Soft drape &amp; cozy comfort</p>
                 </div>
             </a>
-            <a href="{% url 'catalog:product-list' %}"
+            <a href="{% url 'catalog:product-list' %}?q=bold"
                class="reveal reveal-up group relative flex flex-col justify-between overflow-hidden rounded-2xl bg-gradient-to-b from-rose-50 to-rose-100/80 p-6 transition duration-500 hover:-translate-y-1 hover:shadow-elevated">
                 <span class="text-xs font-semibold uppercase tracking-wider text-rose-600">05</span>
                 <div class="mt-12">
@@ -495,7 +577,7 @@
 </section>
 
 {# ======================================================================= #}
-{# STYLE STUDIO — editorial invitation, not a feature list.               #}
+{# 10. STYLE STUDIO INVITATION                                             #}
 {# ======================================================================= #}
 <section class="border-t border-slate-200 bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 text-white">
     <div class="mx-auto max-w-7xl px-4 py-20 sm:px-6 sm:py-24 lg:px-8">
@@ -522,55 +604,56 @@
 </section>
 
 {# ======================================================================= #}
-{# COMMUNITY & STORIES — human connection, real wardrobe moments.          #}
+{# 11. COMMUNITY & CREATOR LOOKS (Real creators & community, no fake quotes)#}
 {# ======================================================================= #}
 <section class="border-t border-slate-200 bg-slate-50/70" aria-labelledby="community-heading">
     <div class="mx-auto max-w-7xl px-4 py-20 sm:px-6 sm:py-24 lg:px-8">
-        <div class="reveal reveal-up mx-auto max-w-2xl text-center">
-            <span class="editorial-label text-slate-500">Styled by You</span>
-            <h2 id="community-heading" class="mt-2 editorial-headline">
-                Worn in the Real World
-            </h2>
-            <p class="mt-3 editorial-body">
-                Clothes don’t come alive until you put them on. See how our community styles everyday essentials.
-            </p>
+        <div class="reveal reveal-up flex flex-wrap items-end justify-between gap-4 mb-10">
+            <div>
+                <span class="editorial-label text-slate-500">Styled by You</span>
+                <h2 id="community-heading" class="mt-2 editorial-headline">
+                    Worn in the Real World
+                </h2>
+                <p class="mt-2 text-sm text-slate-600">
+                    Clothes don’t come alive until you put them on. Explore looks from our creators and community.
+                </p>
+            </div>
+            <a href="{% url 'inspiration:list' %}"
+               class="text-sm font-semibold text-slate-900 underline-offset-4 hover:underline">
+                Explore community feed →
+            </a>
         </div>
-        <div class="mt-12 grid gap-6 sm:grid-cols-3 reveal-stagger">
-            <div class="reveal reveal-up flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
-                <p class="text-sm font-medium italic text-slate-800">
-                    &ldquo;The drape of the heavyweight cotton is unmatched. Holds its shape after endless washes.&rdquo;
+
+        {% if creator_community_looks %}
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 reveal-stagger">
+                {% for look in creator_community_looks %}
+                    <div class="reveal reveal-up">
+                        {% include "creator/_seen_on_people.html" with post=look %}
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="reveal reveal-up rounded-3xl border border-slate-200 bg-white p-8 sm:p-12 text-center max-w-3xl mx-auto shadow-soft">
+                <span class="inline-flex items-center gap-1.5 rounded-full bg-flash-500/10 px-3 py-1 text-xs font-semibold text-flash-700">
+                    Community Styling
+                </span>
+                <h3 class="mt-4 text-xl font-bold text-slate-900">Share your FLASHWEAR aesthetic</h3>
+                <p class="mt-2 text-sm text-slate-600 max-w-lg mx-auto">
+                    Tag your outfits on the platform to be featured on our storefront and inspire other creators.
                 </p>
-                <div class="mt-6 flex items-center justify-between border-t border-slate-100 pt-4">
-                    <span class="text-xs font-semibold text-slate-900">Verified Shopper</span>
-                    <span class="text-xs text-slate-500">Heavyweight Tee</span>
+                <div class="mt-6">
+                    <a href="{% url 'inspiration:list' %}"
+                       class="inline-flex items-center rounded-full bg-slate-950 px-6 py-2.5 text-xs font-semibold text-white shadow-soft hover:bg-slate-800 transition">
+                        View Community Gallery →
+                    </a>
                 </div>
             </div>
-            <div class="reveal reveal-up flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
-                <p class="text-sm font-medium italic text-slate-800">
-                    &ldquo;Finally, trousers that balance sharp tailoring with all-day comfort. My daily go-to.&rdquo;
-                </p>
-                <div class="mt-6 flex items-center justify-between border-t border-slate-100 pt-4">
-                    <span class="text-xs font-semibold text-slate-900">Verified Shopper</span>
-                    <span class="text-xs text-slate-500">Tailored Trousers</span>
-                </div>
-            </div>
-            <div class="reveal reveal-up flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
-                <p class="text-sm font-medium italic text-slate-800">
-                    &ldquo;Bought it pre-loved via FLASH Loop. Arrived in pristine condition—sustainable luxury done right.&rdquo;
-                </p>
-                <div class="mt-6 flex items-center justify-between border-t border-slate-100 pt-4">
-                    <span class="text-xs font-semibold text-slate-900">Verified Shopper</span>
-                    <span class="text-xs text-slate-500">FLASH Loop Capsule</span>
-                </div>
-            </div>
-        </div>
+        {% endif %}
     </div>
 </section>
-{% endif %}
 
 {# ======================================================================= #}
-{# FINAL BRAND MOMENT — emotional closing CTA.                            #}
-
+{# 12. FINAL BRAND MOMENT                                                  #}
 {# ======================================================================= #}
 <section class="border-t border-slate-200 bg-white text-slate-900">
     <div class="mx-auto max-w-7xl px-4 py-24 text-center sm:px-6 lg:px-8">
