@@ -36,7 +36,7 @@ MOOD_CATALOG: dict[str, dict[str, Any]] = {
     "minimal": {
         "slug": "minimal",
         "name": "Minimal",
-        "tagline": "Clean lines, pure silhouettes & essential tones",
+        "tagline": "Clean & Quiet — pure silhouettes & essential tones",
         "description": (
             "Understated staples, neutral palettes, and refined fits designed "
             "for calm, timeless dressing."

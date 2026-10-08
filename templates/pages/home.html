@@ -544,7 +544,7 @@
                    class="reveal reveal-up group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200/80 bg-slate-50/70 p-5 transition duration-500 hover:-translate-y-1 hover:border-slate-900 hover:bg-white hover:shadow-elevated">
                     <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">0{{ forloop.counter }}</span>
                     <div class="mt-8">
-                        <p class="text-base font-bold text-slate-900 group-hover:text-flash-600 transition">{{ m.name }}</p>
+                        <p class="text-base font-bold text-slate-900 group-hover:text-flash-600 transition">{{ m.name }}{% if m.slug == 'minimal' %} <span class="text-xs font-normal text-slate-400">· Clean &amp; Quiet</span>{% endif %}</p>
                         <p class="mt-1 line-clamp-2 text-xs text-slate-500">{{ m.tagline }}</p>
                     </div>
                 </a>
