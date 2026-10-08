@@ -56,9 +56,7 @@ class TestSmartWishlistStates:
         )
         Stock.objects.create(variant=var, on_hand=8, reserved=0)
 
-        item, created = add_to_wishlist(
-            verified_user, prod, variant=var, note="For winter trip"
-        )
+        item, created = add_to_wishlist(verified_user, prod, variant=var, note="For winter trip")
         assert created is True
         assert item.current_price == Decimal("250.00")
         assert item.previous_price == Decimal("300.00")
@@ -71,9 +69,7 @@ class TestSmartWishlistStates:
 
     def test_low_stock_only_triggers_on_real_inventory(self, make_product, verified_user):
         prod = make_product(name="Cashmere Beanie")
-        var = ProductVariant.objects.create(
-            product=prod, sku="BEANIE-BLK", price=Decimal("45.00")
-        )
+        var = ProductVariant.objects.create(product=prod, sku="BEANIE-BLK", price=Decimal("45.00"))
         # Exactly 3 units available
         Stock.objects.create(variant=var, on_hand=3, reserved=0)
 
@@ -84,9 +80,7 @@ class TestSmartWishlistStates:
 
     def test_out_of_stock_state(self, make_product, verified_user):
         prod = make_product(name="Limited Leather Jacket")
-        var = ProductVariant.objects.create(
-            product=prod, sku="JACKET-01", price=Decimal("450.00")
-        )
+        var = ProductVariant.objects.create(product=prod, sku="JACKET-01", price=Decimal("450.00"))
         Stock.objects.create(variant=var, on_hand=0, reserved=0)
 
         item, _ = add_to_wishlist(verified_user, prod, variant=var)
@@ -101,9 +95,7 @@ class TestSmartWishlistStates:
         )
         stock = Stock.objects.create(variant=var, on_hand=0, reserved=0)
 
-        item, _ = add_to_wishlist(
-            verified_user, prod, variant=var, notify_back_in_stock=True
-        )
+        item, _ = add_to_wishlist(verified_user, prod, variant=var, notify_back_in_stock=True)
         assert item.was_out_of_stock is True
         assert item.is_out_of_stock is True
 
@@ -120,9 +112,7 @@ class TestSmartWishlistStates:
 
     def test_unavailable_product_state(self, make_product, verified_user):
         prod = make_product(name="Draft Pants", status=Product.Status.DRAFT)
-        var = ProductVariant.objects.create(
-            product=prod, sku="PANTS-DRAFT", price=Decimal("75.00")
-        )
+        var = ProductVariant.objects.create(product=prod, sku="PANTS-DRAFT", price=Decimal("75.00"))
         item, _ = add_to_wishlist(verified_user, prod, variant=var)
         assert item.is_available is False
         assert item.stock_state == "unavailable"
@@ -136,9 +126,7 @@ class TestSmartWishlistStates:
 class TestPriceDropAlerts:
     def test_toggle_price_drop_alert_and_analytics(self, make_product, verified_user):
         prod = make_product(name="Tailored Blazer")
-        var = ProductVariant.objects.create(
-            product=prod, sku="BLZ-01", price=Decimal("200.00")
-        )
+        var = ProductVariant.objects.create(product=prod, sku="BLZ-01", price=Decimal("200.00"))
         item, _ = add_to_wishlist(verified_user, prod, variant=var)
         assert item.notify_price_drop is False
 
@@ -167,9 +155,7 @@ class TestPriceDropAlerts:
         )
         Stock.objects.create(variant=var, on_hand=15, reserved=0)
 
-        _item, _ = add_to_wishlist(
-            verified_user, prod, variant=var, notify_price_drop=True
-        )
+        _item, _ = add_to_wishlist(verified_user, prod, variant=var, notify_price_drop=True)
 
         # 1. Price unchanged: sweep should send 0 notifications
         sent_same = check_and_trigger_price_drop_alerts(variant=var)
@@ -212,13 +198,9 @@ class TestPriceDropAlerts:
         sent_increase = check_and_trigger_price_drop_alerts(variant=var)
         assert sent_increase == 0
 
-    def test_price_drop_signal_dispatch_on_variant_save(
-        self, make_product, verified_user
-    ):
+    def test_price_drop_signal_dispatch_on_variant_save(self, make_product, verified_user):
         prod = make_product(name="Silk Blouse")
-        var = ProductVariant.objects.create(
-            product=prod, sku="BLOUSE-01", price=Decimal("150.00")
-        )
+        var = ProductVariant.objects.create(product=prod, sku="BLOUSE-01", price=Decimal("150.00"))
         Stock.objects.create(variant=var, on_hand=10, reserved=0)
 
         add_to_wishlist(verified_user, prod, variant=var, notify_price_drop=True)
@@ -240,9 +222,7 @@ class TestPriceDropAlerts:
 
 
 class TestBackInStockAlerts:
-    def test_back_in_stock_alert_flow_and_deduplication(
-        self, make_product, verified_user
-    ):
+    def test_back_in_stock_alert_flow_and_deduplication(self, make_product, verified_user):
         prod = make_product(name="Chunky Knit Sweater")
         size_s = Size.objects.create(name="Small", slug="size-s-knit", code="S-KNIT")
         size_m = Size.objects.create(name="Medium", slug="size-m-knit", code="M-KNIT")
@@ -256,9 +236,7 @@ class TestBackInStockAlerts:
         Stock.objects.create(variant=v2, on_hand=5, reserved=0)
 
         # User saves out-of-stock variant v1 and opts into back-in-stock alert
-        item, _ = add_to_wishlist(
-            verified_user, prod, variant=v1, notify_back_in_stock=True
-        )
+        item, _ = add_to_wishlist(verified_user, prod, variant=v1, notify_back_in_stock=True)
         assert item.was_out_of_stock is True
 
         # Restock unrelated variant v2: v1 must NOT notify
@@ -305,13 +283,9 @@ class TestBackInStockAlerts:
             == sent
         )
 
-    def test_back_in_stock_signal_dispatch_on_stock_save(
-        self, make_product, verified_user
-    ):
+    def test_back_in_stock_signal_dispatch_on_stock_save(self, make_product, verified_user):
         prod = make_product(name="Linen Shorts")
-        v = ProductVariant.objects.create(
-            product=prod, sku="SHORTS-01", price=Decimal("65.00")
-        )
+        v = ProductVariant.objects.create(product=prod, sku="SHORTS-01", price=Decimal("65.00"))
         s = Stock.objects.create(variant=v, on_hand=0, reserved=0)
 
         add_to_wishlist(verified_user, prod, variant=v, notify_back_in_stock=True)
@@ -374,13 +348,9 @@ class TestNotificationPreferencesIntegration:
 
 
 class TestProductPageIntegration:
-    def test_pdp_displays_save_and_saved_button(
-        self, client, verified_user, make_product
-    ):
+    def test_pdp_displays_save_and_saved_button(self, client, verified_user, make_product):
         prod = make_product(name="Structured Linen Vest")
-        var = ProductVariant.objects.create(
-            product=prod, sku="VEST-01", price=Decimal("85.00")
-        )
+        var = ProductVariant.objects.create(product=prod, sku="VEST-01", price=Decimal("85.00"))
         Stock.objects.create(variant=var, on_hand=10, reserved=0)
 
         # 1. Anonymous visitor sees "Save"
@@ -423,17 +393,13 @@ class TestWishlistPageAndFilters:
     def test_filter_pills_and_filtering(self, client, verified_user, make_product):
         # Product 1: in stock
         p1 = make_product(name="In Stock Shirt")
-        v1 = ProductVariant.objects.create(
-            product=p1, sku="SHIRT-1", price=Decimal("70.00")
-        )
+        v1 = ProductVariant.objects.create(product=p1, sku="SHIRT-1", price=Decimal("70.00"))
         Stock.objects.create(variant=v1, on_hand=10, reserved=0)
         add_to_wishlist(verified_user, p1, variant=v1)
 
         # Product 2: out of stock
         p2 = make_product(name="Sold Out Trench")
-        v2 = ProductVariant.objects.create(
-            product=p2, sku="TRENCH-2", price=Decimal("220.00")
-        )
+        v2 = ProductVariant.objects.create(product=p2, sku="TRENCH-2", price=Decimal("220.00"))
         Stock.objects.create(variant=v2, on_hand=0, reserved=0)
         add_to_wishlist(verified_user, p2, variant=v2)
 
@@ -469,9 +435,7 @@ class TestWishlistPageAndFilters:
 class TestWishlistToCartFlow:
     def test_move_single_item_to_bag(self, client, verified_user, make_product):
         prod = make_product(name="Pleated Trousers")
-        var = ProductVariant.objects.create(
-            product=prod, sku="TR-01", price=Decimal("110.00")
-        )
+        var = ProductVariant.objects.create(product=prod, sku="TR-01", price=Decimal("110.00"))
         Stock.objects.create(variant=var, on_hand=5, reserved=0)
 
         item, _ = add_to_wishlist(verified_user, prod, variant=var)
@@ -495,22 +459,16 @@ class TestWishlistToCartFlow:
         ).first()
         assert ev is not None
 
-    def test_add_all_available_to_bag_action(
-        self, client, verified_user, make_product
-    ):
+    def test_add_all_available_to_bag_action(self, client, verified_user, make_product):
         # Item 1: Available
         p1 = make_product(name="Polo Shirt")
-        v1 = ProductVariant.objects.create(
-            product=p1, sku="POLO-1", price=Decimal("60.00")
-        )
+        v1 = ProductVariant.objects.create(product=p1, sku="POLO-1", price=Decimal("60.00"))
         Stock.objects.create(variant=v1, on_hand=5, reserved=0)
         item1, _ = add_to_wishlist(verified_user, p1, variant=v1)
 
         # Item 2: Out of stock (should be skipped safely)
         p2 = make_product(name="Sold Out Cap")
-        v2 = ProductVariant.objects.create(
-            product=p2, sku="CAP-1", price=Decimal("30.00")
-        )
+        v2 = ProductVariant.objects.create(product=p2, sku="CAP-1", price=Decimal("30.00"))
         Stock.objects.create(variant=v2, on_hand=0, reserved=0)
         item2, _ = add_to_wishlist(verified_user, p2, variant=v2)
 
@@ -538,9 +496,7 @@ class TestWishlistPermissionsAndSecurity:
         self, client, verified_user, other_user, make_product
     ):
         prod = make_product(name="Private Watch")
-        var = ProductVariant.objects.create(
-            product=prod, sku="WATCH-01", price=Decimal("300.00")
-        )
+        var = ProductVariant.objects.create(product=prod, sku="WATCH-01", price=Decimal("300.00"))
         Stock.objects.create(variant=var, on_hand=2, reserved=0)
 
         # Item belongs to verified_user
@@ -550,9 +506,7 @@ class TestWishlistPermissionsAndSecurity:
         client.force_login(other_user)
 
         # 1. Attacker tries to remove victim's item
-        del_res = client.post(
-            reverse("shop:wishlist-remove", kwargs={"item_pk": item.pk})
-        )
+        del_res = client.post(reverse("shop:wishlist-remove", kwargs={"item_pk": item.pk}))
         assert del_res.status_code == 404
         assert WishlistItem.objects.filter(pk=item.pk).exists()
 
@@ -564,17 +518,13 @@ class TestWishlistPermissionsAndSecurity:
         assert alert_res.status_code == 404
 
         # 3. Attacker tries to move victim's item to cart
-        move_res = client.post(
-            reverse("shop:wishlist-move-to-bag", kwargs={"item_pk": item.pk})
-        )
+        move_res = client.post(reverse("shop:wishlist-move-to-bag", kwargs={"item_pk": item.pk}))
         assert move_res.status_code == 404
 
     def test_endpoints_require_authentication(self, client, make_product):
         prod = make_product(name="Public Item")
         # Anonymous POST to add
-        res_add = client.post(
-            reverse("shop:wishlist-add"), {"product_id": prod.pk}
-        )
+        res_add = client.post(reverse("shop:wishlist-add"), {"product_id": prod.pk})
         assert res_add.status_code == 302
         assert reverse("accounts:login") in res_add["Location"]
 
@@ -590,9 +540,7 @@ class TestWishlistPermissionsAndSecurity:
 
 
 class TestSuggestionsAndRedirectTracking:
-    def test_wishlist_to_product_tracking_and_redirect(
-        self, client, verified_user, make_product
-    ):
+    def test_wishlist_to_product_tracking_and_redirect(self, client, verified_user, make_product):
         prod = make_product(name="Silk Bandana")
         item, _ = add_to_wishlist(verified_user, prod)
 
@@ -609,9 +557,7 @@ class TestSuggestionsAndRedirectTracking:
         assert ev is not None
         assert ev.metadata["wishlist_item"] == item.pk
 
-    def test_ajax_htmx_endpoints_return_json(
-        self, client, verified_user, make_product
-    ):
+    def test_ajax_htmx_endpoints_return_json(self, client, verified_user, make_product):
         prod = make_product(name="Minimalist Cardholder")
         client.force_login(verified_user)
 
@@ -650,3 +596,37 @@ class TestSuggestionsAndRedirectTracking:
         remove_data = remove_res.json()
         assert remove_data["success"] is True
         assert remove_data["count"] == 0
+
+    def test_account_wishlist_alias_resolves_and_renders(self, client, verified_user, make_product):
+        prod = make_product(name="Minimalist Belt")
+        add_to_wishlist(verified_user, prod)
+
+        # Unauthenticated redirect to login
+        res_anon = client.get(reverse("account:wishlist"))
+        assert res_anon.status_code == 302
+        assert reverse("accounts:login") in res_anon["Location"]
+
+        # Authenticated renders successfully
+        client.force_login(verified_user)
+        res_auth = client.get(reverse("account:wishlist"))
+        assert res_auth.status_code == 200
+        assert "Minimalist Belt" in res_auth.content.decode()
+
+    def test_wishlist_renders_recently_viewed_items(self, client, verified_user, make_product):
+        from apps.catalog.merchandising import SESSION_KEY_RECENTLY_VIEWED
+
+        prod_saved = make_product(name="Saved Parka")
+        prod_recent = make_product(name="Recently Browsed Boots")
+        add_to_wishlist(verified_user, prod_saved)
+
+        client.force_login(verified_user)
+        session = client.session
+        session[SESSION_KEY_RECENTLY_VIEWED] = [prod_recent.pk]
+        session.save()
+
+        res = client.get(reverse("shop:wishlist"))
+        assert res.status_code == 200
+        assert prod_recent in res.context["recently_viewed"]
+        content = res.content.decode()
+        assert "Recently viewed" in content
+        assert "Recently Browsed Boots" in content

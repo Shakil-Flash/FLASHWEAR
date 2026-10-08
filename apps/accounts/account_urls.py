@@ -30,6 +30,7 @@ from apps.orders.views import (
     return_cancel,
 )
 from apps.quests import views as quest_views
+from apps.shop import views as shop_views
 from apps.styling import views as styling_views
 
 app_name = "account"
@@ -161,4 +162,6 @@ urlpatterns += [
     protected("studio/", styling_views.studio, "studio"),
     protected("studio/mood/", styling_views.studio_mood, "studio-mood"),
     protected("studio/goals/", styling_views.studio_goals, "studio-goals"),
+    # Phase 33: Smart Wishlist alias under /account/
+    protected("wishlist/", shop_views.wishlist_detail, "wishlist"),
 ]

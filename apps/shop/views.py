@@ -491,13 +491,23 @@ def wishlist_detail(request):
         displayed_items = enriched_items
 
     # Smart suggestions (Section 8)
+    wishlist_product_ids = {item.product_id for item in items}
     recommendations = []
     try:
         raw_recs = get_customer_recommendations(request.user, limit=6)
-        wishlist_product_ids = {item.product_id for item in items}
         recommendations = [r for r in raw_recs if r["product"].pk not in wishlist_product_ids][:4]
     except Exception:
         recommendations = []
+
+    # Recently viewed (Section 6)
+    recently_viewed = []
+    try:
+        from apps.catalog.merchandising import get_recently_viewed
+
+        rv_raw = get_recently_viewed(request, limit=6)
+        recently_viewed = [p for p in rv_raw if p.pk not in wishlist_product_ids][:4]
+    except Exception:
+        recently_viewed = []
 
     return render(
         request,
@@ -510,6 +520,7 @@ def wishlist_detail(request):
             "active_filter": active_filter,
             "has_available_items": filter_counts["available"] > 0,
             "recommendations": recommendations,
+            "recently_viewed": recently_viewed,
         },
     )
 
@@ -561,12 +572,14 @@ def wishlist_add(request):
     if _is_htmx(request):
         return JsonResponse({"count": wishlist.get_item_count()})
     if request.headers.get("accept") == "application/json":
-        return JsonResponse({
-            "count": wishlist.get_item_count(),
-            "item_id": item.pk,
-            "success": True,
-            "created": created,
-        })
+        return JsonResponse(
+            {
+                "count": wishlist.get_item_count(),
+                "item_id": item.pk,
+                "success": True,
+                "created": created,
+            }
+        )
 
     messages.success(request, _("Added to wishlist"))
     return redirect("shop:wishlist")
@@ -617,12 +630,14 @@ def wishlist_toggle_alert(request, item_pk: int):
     )
 
     if _is_htmx(request) or request.headers.get("accept") == "application/json":
-        return JsonResponse({
-            "success": True,
-            "item_id": updated_item.pk,
-            "alert_type": alert_type,
-            "enabled": is_enabled,
-        })
+        return JsonResponse(
+            {
+                "success": True,
+                "item_id": updated_item.pk,
+                "alert_type": alert_type,
+                "enabled": is_enabled,
+            }
+        )
 
     msg = (
         _("Price drop alert updated.")
@@ -767,18 +782,20 @@ def cart_mini(request):
 
     cart = get_cart_for_request(request)
     if cart is None or cart.is_empty():
-        return JsonResponse({
-            "is_empty": True,
-            "items": [],
-            "totals": {
-                "item_count": 0,
-                "total_quantity": 0,
-                "subtotal": "0.00",
-                "currency": "USD",
-            },
-            "free_shipping_threshold": "100.00",
-            "amount_for_free_shipping": "100.00",
-        })
+        return JsonResponse(
+            {
+                "is_empty": True,
+                "items": [],
+                "totals": {
+                    "item_count": 0,
+                    "total_quantity": 0,
+                    "subtotal": "0.00",
+                    "currency": "USD",
+                },
+                "free_shipping_threshold": "100.00",
+                "amount_for_free_shipping": "100.00",
+            }
+        )
 
     items = list(cart.get_items())
     totals = get_cart_totals(cart, items=items)
@@ -791,28 +808,32 @@ def cart_mini(request):
         img_url = ""
         if item.variant and item.variant.product.primary_image:
             img_url = item.variant.product.primary_image.image.url
-        items_data.append({
-            "id": item.pk,
-            "product_name": item.variant.product.name,
-            "product_url": item.variant.product.get_absolute_url(),
-            "option_label": item.variant.option_label or "",
-            "sku": item.variant.sku,
-            "quantity": item.quantity,
-            "price": str(item.price_snapshot),
-            "line_total": str(item.line_total),
-            "image_url": img_url,
-            "is_eligible": item.variant_is_eligible,
-        })
+        items_data.append(
+            {
+                "id": item.pk,
+                "product_name": item.variant.product.name,
+                "product_url": item.variant.product.get_absolute_url(),
+                "option_label": item.variant.option_label or "",
+                "sku": item.variant.sku,
+                "quantity": item.quantity,
+                "price": str(item.price_snapshot),
+                "line_total": str(item.line_total),
+                "image_url": img_url,
+                "is_eligible": item.variant_is_eligible,
+            }
+        )
 
-    return JsonResponse({
-        "is_empty": False,
-        "items": items_data,
-        "totals": {
-            "item_count": totals["item_count"],
-            "total_quantity": totals["total_quantity"],
-            "subtotal": str(subtotal),
-            "currency": totals["currency"],
-        },
-        "free_shipping_threshold": str(free_threshold),
-        "amount_for_free_shipping": str(needed_for_free),
-    })
+    return JsonResponse(
+        {
+            "is_empty": False,
+            "items": items_data,
+            "totals": {
+                "item_count": totals["item_count"],
+                "total_quantity": totals["total_quantity"],
+                "subtotal": str(subtotal),
+                "currency": totals["currency"],
+            },
+            "free_shipping_threshold": str(free_threshold),
+            "amount_for_free_shipping": str(needed_for_free),
+        }
+    )
