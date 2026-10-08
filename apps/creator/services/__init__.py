@@ -202,9 +202,7 @@ def remove_product_tag(post: CreatorPost, product_id: int) -> bool:
     return deleted > 0
 
 
-def add_outfit_tag(
-    post: CreatorPost, outfit: Any, display_order: int = 0
-) -> CreatorPostOutfit:
+def add_outfit_tag(post: CreatorPost, outfit: Any, display_order: int = 0) -> CreatorPostOutfit:
     """Tag an outfit look on a post."""
     tag, _ = CreatorPostOutfit.objects.get_or_create(
         post=post, outfit=outfit, defaults={"display_order": display_order}

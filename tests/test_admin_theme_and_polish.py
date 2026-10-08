@@ -1,5 +1,4 @@
-"""Regression tests for Backoffice & Django Admin Theme Reliability, Navigation UX & Visual Polish.
-"""
+"""Regression tests for Backoffice & Admin Theme Reliability, Navigation UX & Polish."""
 
 from __future__ import annotations
 
@@ -146,15 +145,15 @@ class TestTableUsabilityAndImageUX:
         """Products list table header must contain select-all checkbox."""
         template_path = Path("templates/backoffice/products.html")
         content = template_path.read_text(encoding="utf-8")
-        assert "id=\"select-all-products\"" in content
-        assert "aria-label=\"Select all products\"" in content
+        assert 'id="select-all-products"' in content
+        assert 'aria-label="Select all products"' in content
 
     def test_reviews_template_has_select_all_checkbox(self):
         """Reviews list table header must contain select-all checkbox."""
         template_path = Path("templates/backoffice/reviews.html")
         content = template_path.read_text(encoding="utf-8")
-        assert "id=\"select-all-reviews\"" in content
-        assert "aria-label=\"Select all reviews\"" in content
+        assert 'id="select-all-reviews"' in content
+        assert 'aria-label="Select all reviews"' in content
 
     def test_content_forms_render_image_preview_thumbnails(self):
         """Homepage, editorial, and campaign form templates must display thumbnail previews."""

@@ -514,64 +514,68 @@
 {% endif %}
 
 {# ======================================================================= #}
-{# 9. SHOP BY MOOD — emotive styling discovery                             #}
+{# 9. FASHION DISCOVERY 2.0: SHOP BY MOOD & OCCASION                      #}
 {# ======================================================================= #}
 <section class="border-t border-slate-200 bg-white" aria-labelledby="mood-heading">
     <div class="mx-auto max-w-7xl px-4 py-20 sm:px-6 sm:py-24 lg:px-8">
+        <!-- Mood Discovery -->
         <div class="reveal reveal-up flex flex-wrap items-end justify-between gap-4">
             <div>
                 <p class="editorial-label">Curated Atmospheres</p>
                 <h2 id="mood-heading" class="mt-2 editorial-headline">
                     Shop by Mood
                 </h2>
-                <p class="mt-2 text-sm text-slate-500">Dress for the state of mind, not just the weather.</p>
+                <p class="mt-2 text-sm text-slate-500">Dress for how you want to feel, connecting your aesthetic directly to existing silhouettes.</p>
             </div>
-            <a href="{% url 'account:studio' %}"
-               class="text-sm font-semibold text-slate-900 underline-offset-4 hover:underline">
-                Explore Style Studio →
-            </a>
+            <div class="flex items-center gap-3">
+                <a href="{% url 'catalog:discovery-hub' %}"
+                   class="text-sm font-semibold text-flash-600 underline-offset-4 hover:underline">
+                    Discovery Hub →
+                </a>
+                <a href="{% url 'account:studio' %}"
+                   class="text-sm font-semibold text-slate-900 underline-offset-4 hover:underline">
+                    Style Studio →
+                </a>
+            </div>
         </div>
-        <div class="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5 reveal-stagger">
-            <a href="{% url 'catalog:product-list' %}?sort=newest"
-               class="reveal reveal-up group relative flex flex-col justify-between overflow-hidden rounded-2xl bg-gradient-to-b from-slate-100 to-slate-200/80 p-6 transition duration-500 hover:-translate-y-1 hover:shadow-elevated">
-                <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">01</span>
-                <div class="mt-12">
-                    <p class="text-lg font-bold text-slate-900 group-hover:text-flash-600 transition">Clean &amp; Quiet</p>
-                    <p class="mt-1 text-xs text-slate-500">Understated essentials</p>
+        <div class="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6 reveal-stagger">
+            {% for m in discovery_moods %}
+                <a href="{% url 'catalog:product-list' %}?mood={{ m.slug }}"
+                   class="reveal reveal-up group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200/80 bg-slate-50/70 p-5 transition duration-500 hover:-translate-y-1 hover:border-slate-900 hover:bg-white hover:shadow-elevated">
+                    <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">0{{ forloop.counter }}</span>
+                    <div class="mt-8">
+                        <p class="text-base font-bold text-slate-900 group-hover:text-flash-600 transition">{{ m.name }}</p>
+                        <p class="mt-1 line-clamp-2 text-xs text-slate-500">{{ m.tagline }}</p>
+                    </div>
+                </a>
+            {% endfor %}
+        </div>
+
+        <!-- Occasion Discovery -->
+        <div class="mt-16 border-t border-slate-100 pt-12">
+            <div class="reveal reveal-up flex flex-wrap items-end justify-between gap-4 mb-6">
+                <div>
+                    <span class="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-slate-700">
+                        Contextual Dressing
+                    </span>
+                    <h3 class="mt-2 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">
+                        What are you dressing for?
+                    </h3>
+                    <p class="mt-1 text-sm text-slate-500">From everyday rotation to evening occasions — find looks built for the moment.</p>
                 </div>
-            </a>
-            <a href="{% url 'catalog:product-list' %}?q=casual"
-               class="reveal reveal-up group relative flex flex-col justify-between overflow-hidden rounded-2xl bg-gradient-to-b from-flash-500/10 to-flash-500/20 p-6 transition duration-500 hover:-translate-y-1 hover:shadow-elevated">
-                <span class="text-xs font-semibold uppercase tracking-wider text-flash-600">02</span>
-                <div class="mt-12">
-                    <p class="text-lg font-bold text-slate-900 group-hover:text-flash-600 transition">Weekend Energy</p>
-                    <p class="mt-1 text-xs text-slate-500">Relaxed silhouettes</p>
-                </div>
-            </a>
-            <a href="{% url 'catalog:product-list' %}?q=evening"
-               class="reveal reveal-up group relative flex flex-col justify-between overflow-hidden rounded-2xl bg-gradient-to-b from-indigo-950 to-slate-900 p-6 text-white transition duration-500 hover:-translate-y-1 hover:shadow-elevated">
-                <span class="text-xs font-semibold uppercase tracking-wider text-indigo-300">03</span>
-                <div class="mt-12">
-                    <p class="text-lg font-bold text-white group-hover:text-indigo-200 transition">After Dark</p>
-                    <p class="mt-1 text-xs text-slate-300">Structured statement pieces</p>
-                </div>
-            </a>
-            <a href="{% url 'catalog:product-list' %}?q=comfort"
-               class="reveal reveal-up group relative flex flex-col justify-between overflow-hidden rounded-2xl bg-gradient-to-b from-amber-50 to-amber-100/70 p-6 transition duration-500 hover:-translate-y-1 hover:shadow-elevated">
-                <span class="text-xs font-semibold uppercase tracking-wider text-amber-700">04</span>
-                <div class="mt-12">
-                    <p class="text-lg font-bold text-slate-900 group-hover:text-amber-800 transition">Easy Sunday</p>
-                    <p class="mt-1 text-xs text-slate-500">Soft drape &amp; cozy comfort</p>
-                </div>
-            </a>
-            <a href="{% url 'catalog:product-list' %}?q=bold"
-               class="reveal reveal-up group relative flex flex-col justify-between overflow-hidden rounded-2xl bg-gradient-to-b from-rose-50 to-rose-100/80 p-6 transition duration-500 hover:-translate-y-1 hover:shadow-elevated">
-                <span class="text-xs font-semibold uppercase tracking-wider text-rose-600">05</span>
-                <div class="mt-12">
-                    <p class="text-lg font-bold text-slate-900 group-hover:text-rose-700 transition">Main Character</p>
-                    <p class="mt-1 text-xs text-slate-500">Bold cuts &amp; distinct presence</p>
-                </div>
-            </a>
+                <a href="{% url 'catalog:discovery-hub' %}" class="text-xs font-semibold text-slate-700 hover:text-slate-950 underline underline-offset-4">
+                    View all occasions →
+                </a>
+            </div>
+            <div class="flex flex-wrap items-center gap-2.5">
+                {% for occ in discovery_occasions %}
+                    <a href="{% url 'catalog:product-list' %}?occasion={{ occ.slug }}"
+                       class="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white px-5 py-2.5 text-xs font-semibold text-slate-800 shadow-sm transition hover:border-slate-900 hover:bg-slate-950 hover:text-white">
+                        <span>{{ occ.name }}</span>
+                        <span class="text-slate-400 group-hover:text-slate-300">→</span>
+                    </a>
+                {% endfor %}
+            </div>
         </div>
     </div>
 </section>

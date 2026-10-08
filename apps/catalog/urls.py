@@ -12,13 +12,19 @@ from django.urls import path
 
 from apps.catalog import views
 from apps.engagement.views import review_create
-from apps.styling.views import complete_look_fragment, recommendation_click
+from apps.styling.views import (
+    complete_look_add_all,
+    complete_look_create_outfit,
+    complete_look_fragment,
+    recommendation_click,
+)
 
 app_name = "catalog"
 
 urlpatterns = [
     # Specific names before the catch-all-ish patterns; each slug pattern is anchored to its own
     # prefix, so order here is only for readability.
+    path("discovery/", views.discovery_hub, name="discovery-hub"),
     path("products/", views.product_list, name="product-list"),
     path("search/", views.product_search, name="product-search"),
     path("search/visual/", views.visual_search, name="visual-search"),
@@ -26,12 +32,21 @@ urlpatterns = [
     # Phase 7: the review form lives on the product page and posts here (view in engagement,
     # URL in the namespace the page itself belongs to -- same split as the account area).
     path("products/<slug:slug>/review/", review_create, name="review-create"),
-    # Phase 21: Complete the Look is an htmx fragment the product page loads lazily, so the
-    # product detail view keeps its query budget; the tracker attributes outbound clicks.
+    # Phase 21 & Phase 34: Complete the Look fragment, batch add-to-bag, and outfit creation
     path(
         "products/<slug:slug>/complete-look/",
         complete_look_fragment,
         name="complete-look",
+    ),
+    path(
+        "products/<slug:slug>/complete-look/add-all/",
+        complete_look_add_all,
+        name="complete-look-add-all",
+    ),
+    path(
+        "products/<slug:slug>/complete-look/create-outfit/",
+        complete_look_create_outfit,
+        name="complete-look-create-outfit",
     ),
     path("track/look/", recommendation_click, name="track-click"),
     path("products/<slug:slug>/quick-view/", views.quick_view, name="quick-view"),

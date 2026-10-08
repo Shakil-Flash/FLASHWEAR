@@ -295,6 +295,18 @@ def _apply_filters(queryset, filters: dict):
             tag_q |= Q(tags__slug=slug, tags__is_active=True)
         queryset = queryset.filter(tag_q)
 
+    # Mood filter (Phase 34: Fashion Discovery 2.0)
+    if filters.get("mood"):
+        from apps.catalog.fashion_discovery import filter_by_mood
+
+        queryset = filter_by_mood(queryset, filters["mood"], user=filters.get("_user"))
+
+    # Occasion filter (Phase 34: Fashion Discovery 2.0)
+    if filters.get("occasion"):
+        from apps.catalog.fashion_discovery import filter_by_occasion
+
+        queryset = filter_by_occasion(queryset, filters["occasion"], user=filters.get("_user"))
+
     # Price range filter
     if filters.get("min_price") is not None or filters.get("max_price") is not None:
         if not hasattr(filters, "_price_annotated"):
@@ -313,6 +325,9 @@ def _apply_filters(queryset, filters: dict):
         )
 
     return queryset.distinct()
+
+
+apply_filters = _apply_filters
 
 
 def apply_sorting(queryset, sort: str):
@@ -544,11 +559,46 @@ def get_search_suggestions(query: str, limit: int = 10):
 
 
 _DEFAULT_CATALOG_VOCABULARY = {
-    "hoodie", "hoodies", "t-shirt", "t-shirts", "tee", "tees", "jacket", "jackets",
-    "shirt", "shirts", "oversized", "cargo", "cargos", "pants", "denim", "jeans",
-    "sweatshirt", "sweatshirts", "knitwear", "shorts", "streetwear", "blazer", "vest",
-    "cotton", "fleece", "linen", "leather", "wool", "nylon", "black", "white", "grey",
-    "navy", "beige", "olive", "vintage", "graphic", "monochrome", "relaxed", "slim",
+    "hoodie",
+    "hoodies",
+    "t-shirt",
+    "t-shirts",
+    "tee",
+    "tees",
+    "jacket",
+    "jackets",
+    "shirt",
+    "shirts",
+    "oversized",
+    "cargo",
+    "cargos",
+    "pants",
+    "denim",
+    "jeans",
+    "sweatshirt",
+    "sweatshirts",
+    "knitwear",
+    "shorts",
+    "streetwear",
+    "blazer",
+    "vest",
+    "cotton",
+    "fleece",
+    "linen",
+    "leather",
+    "wool",
+    "nylon",
+    "black",
+    "white",
+    "grey",
+    "navy",
+    "beige",
+    "olive",
+    "vintage",
+    "graphic",
+    "monochrome",
+    "relaxed",
+    "slim",
 }
 
 _DEFAULT_FILTER_COLORS = [

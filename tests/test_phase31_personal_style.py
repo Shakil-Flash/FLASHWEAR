@@ -109,9 +109,7 @@ class TestColdStartExperience:
 
 
 class TestYourStyleSummary:
-    def test_style_profile_summary_service_extracts_clean_attributes(
-        self, verified_user, colour
-    ):
+    def test_style_profile_summary_service_extracts_clean_attributes(self, verified_user, colour):
         dna = FlashDNA.objects.create(
             user=verified_user,
             styles="Streetwear, Minimalist",
@@ -132,9 +130,7 @@ class TestYourStyleSummary:
         assert "Tops" in summary["category_focus"]
         assert "Classic" in summary["style_goal_label"]
 
-    def test_style_summary_renders_colors_fits_and_styles(
-        self, client, verified_user, colour
-    ):
+    def test_style_summary_renders_colors_fits_and_styles(self, client, verified_user, colour):
         dna = FlashDNA.objects.create(
             user=verified_user,
             styles="Streetwear",
@@ -177,19 +173,13 @@ class TestStyleEvolution:
         assert evolution["has_data"] is False
         assert evolution["summary"] == ""
 
-    def test_style_evolution_detects_relaxed_silhouette_shift(
-        self, verified_user, make_product
-    ):
+    def test_style_evolution_detects_relaxed_silhouette_shift(self, verified_user, make_product):
         relaxed_fit = Fit.objects.create(name="Relaxed", slug="relaxed-test")
         p1 = make_product(name="Relaxed Hoodie", fit=relaxed_fit)
         p2 = make_product(name="Boxy Oversized Tee", fit=relaxed_fit)
 
-        var1 = ProductVariant.objects.create(
-            product=p1, sku="RLX-1", price=Decimal("60.00")
-        )
-        var2 = ProductVariant.objects.create(
-            product=p2, sku="RLX-2", price=Decimal("40.00")
-        )
+        var1 = ProductVariant.objects.create(product=p1, sku="RLX-1", price=Decimal("60.00"))
+        var2 = ProductVariant.objects.create(product=p2, sku="RLX-2", price=Decimal("40.00"))
 
         ClosetItem.objects.create(
             user=verified_user,
@@ -257,10 +247,9 @@ class TestStyleEvolution:
         summary_lower = evolution["summary"].lower()
         assert "monochrome" in summary_lower or "minimalist" in summary_lower
 
+
 class TestRecommendationsPresentation:
-    def test_recommendations_human_fashion_reasons(
-        self, client, verified_user, make_product
-    ):
+    def test_recommendations_human_fashion_reasons(self, client, verified_user, make_product):
         FlashDNA.objects.create(
             user=verified_user,
             styles="Streetwear",
@@ -291,9 +280,7 @@ class TestRecommendationsPresentation:
 
 
 class TestClosetAndOutfitIntegration:
-    def test_closet_matching_service_finds_complementary_pieces(
-        self, verified_user, make_product
-    ):
+    def test_closet_matching_service_finds_complementary_pieces(self, verified_user, make_product):
         top_product = make_product(name="Oversized Linen Shirt")
         bottom_item = ClosetItem.objects.create(
             user=verified_user,
@@ -325,9 +312,7 @@ class TestClosetAndOutfitIntegration:
         assert "in your closet" in content
         assert "Pleated Trousers" in content
 
-    def test_product_detail_omits_closet_section_for_anonymous_user(
-        self, client, make_product
-    ):
+    def test_product_detail_omits_closet_section_for_anonymous_user(self, client, make_product):
         shirt = make_product(name="Cotton Oxford Shirt")
         response = client.get(shirt.get_absolute_url())
         assert response.status_code == 200
@@ -348,13 +333,9 @@ class TestClosetAndOutfitIntegration:
 
 
 class TestWishlistIntelligence:
-    def test_wishlist_intelligence_flags_low_stock(
-        self, client, verified_user, make_product
-    ):
+    def test_wishlist_intelligence_flags_low_stock(self, client, verified_user, make_product):
         p = make_product(name="Exclusive Silk Shirt")
-        v = ProductVariant.objects.create(
-            product=p, sku="SILK-1", price=Decimal("120.00")
-        )
+        v = ProductVariant.objects.create(product=p, sku="SILK-1", price=Decimal("120.00"))
         Stock.objects.create(variant=v, on_hand=3, reserved=0)
 
         wishlist = Wishlist.objects.create(user=verified_user)
@@ -366,9 +347,7 @@ class TestWishlistIntelligence:
         content = response.content.decode()
         assert "Low stock: 3 left" in content
 
-    def test_wishlist_intelligence_flags_price_drop(
-        self, client, verified_user, make_product
-    ):
+    def test_wishlist_intelligence_flags_price_drop(self, client, verified_user, make_product):
         p = make_product(name="Discounted Trench")
         v = ProductVariant.objects.create(
             product=p,
@@ -387,13 +366,9 @@ class TestWishlistIntelligence:
         content = response.content.decode()
         assert "Price drop" in content
 
-    def test_wishlist_intelligence_flags_sold_out(
-        self, client, verified_user, make_product
-    ):
+    def test_wishlist_intelligence_flags_sold_out(self, client, verified_user, make_product):
         p = make_product(name="Sold Out Boots")
-        v = ProductVariant.objects.create(
-            product=p, sku="BOOT-1", price=Decimal("180.00")
-        )
+        v = ProductVariant.objects.create(product=p, sku="BOOT-1", price=Decimal("180.00"))
         Stock.objects.create(variant=v, on_hand=0, reserved=0)
 
         wishlist = Wishlist.objects.create(user=verified_user)
@@ -405,13 +380,9 @@ class TestWishlistIntelligence:
         content = response.content.decode()
         assert "Sold out" in content
 
-    def test_wishlist_intelligence_flags_recently_added(
-        self, client, verified_user, make_product
-    ):
+    def test_wishlist_intelligence_flags_recently_added(self, client, verified_user, make_product):
         p = make_product(name="Recent Sneaker")
-        v = ProductVariant.objects.create(
-            product=p, sku="SNK-1", price=Decimal("90.00")
-        )
+        v = ProductVariant.objects.create(product=p, sku="SNK-1", price=Decimal("90.00"))
         Stock.objects.create(variant=v, on_hand=20, reserved=0)
 
         wishlist = Wishlist.objects.create(user=verified_user)
@@ -425,13 +396,9 @@ class TestWishlistIntelligence:
         content = response.content.decode()
         assert "Recently added" in content
 
-    def test_wishlist_preview_on_customer_home(
-        self, client, verified_user, make_product
-    ):
+    def test_wishlist_preview_on_customer_home(self, client, verified_user, make_product):
         p = make_product(name="Home Preview Tee")
-        v = ProductVariant.objects.create(
-            product=p, sku="PREV-1", price=Decimal("35.00")
-        )
+        v = ProductVariant.objects.create(product=p, sku="PREV-1", price=Decimal("35.00"))
         Stock.objects.create(variant=v, on_hand=4, reserved=0)
 
         wishlist = Wishlist.objects.create(user=verified_user)
@@ -462,9 +429,7 @@ class TestPrivacyAndDataOwnership:
         assert response.status_code == 200
         assert b"Secret Vintage Leather Jacket" not in response.content
 
-    def test_privacy_controls_section_provides_clear_links(
-        self, client, verified_user
-    ):
+    def test_privacy_controls_section_provides_clear_links(self, client, verified_user):
         client.force_login(verified_user)
         response = client.get(reverse("account:dashboard"))
         content = response.content.decode()

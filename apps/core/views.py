@@ -76,6 +76,7 @@ def home(request: HttpRequest) -> HttpResponse:
         return render(request, "pages/maintenance.html", status=503)
 
     from apps.catalog import merchandising, selectors
+    from apps.catalog.fashion_discovery import get_mood_catalog, get_occasion_catalog
 
     active_drops = []
     try:
@@ -138,8 +139,7 @@ def home(request: HttpRequest) -> HttpResponse:
 
             has_dna = hasattr(user, "flash_dna")
             has_closet = (
-                hasattr(user, "closet_items")
-                and user.closet_items.filter(status="active").exists()
+                hasattr(user, "closet_items") and user.closet_items.filter(status="active").exists()
             )
             has_orders = hasattr(user, "orders") and user.orders.exists()
 
@@ -273,6 +273,9 @@ def home(request: HttpRequest) -> HttpResponse:
         "managed_curated_rails": managed_curated_rails,
         "is_content_preview": is_preview,
         "creator_community_looks": creator_community_looks,
+        # Fashion Discovery 2.0 (Phase 34)
+        "discovery_moods": get_mood_catalog(),
+        "discovery_occasions": get_occasion_catalog(),
         # Phase 20: who runs this site and how to search it, from the real config row.
         "organization_schema": organization_schema(request),
         "website_schema": website_schema(request),

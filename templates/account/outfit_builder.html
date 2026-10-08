@@ -33,8 +33,24 @@
         {% for link in links %}
         <li class="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-soft" aria-label="Piece {{ forloop.counter }}">
             <div class="flex-1 min-w-0">
-                <p class="truncate text-sm font-semibold text-slate-900" title="{{ link.closet_item.name }}">{{ link.closet_item.name }}</p>
-                <p class="mt-0.5 text-xs text-slate-500">{{ link.get_role_display }}</p>
+                <p class="truncate text-sm font-semibold text-slate-900" title="{{ link.closet_item.name }}">
+                    {% if link.closet_item.product %}
+                        <a href="{{ link.closet_item.product.get_absolute_url }}" class="hover:underline">{{ link.closet_item.name }}</a>
+                    {% else %}
+                        {{ link.closet_item.name }}
+                    {% endif %}
+                </p>
+                <div class="flex items-center gap-2 mt-0.5">
+                    <span class="text-xs text-slate-500">{{ link.get_role_display }}</span>
+                    {% if link.closet_item.variant and link.closet_item.variant.is_active %}
+                        <form method="post" action="{% url 'shop:cart-add' %}" class="inline">
+                            {% csrf_token %}
+                            <input type="hidden" name="variant_id" value="{{ link.closet_item.variant.pk }}">
+                            <input type="hidden" name="quantity" value="1">
+                            <button type="submit" class="text-[11px] font-semibold text-flash-600 hover:text-flash-700 underline">Add to Bag</button>
+                        </form>
+                    {% endif %}
+                </div>
             </div>
             <div class="flex gap-2">
                 <form method="post" action="{% url 'account:outfit-item-remove' outfit.pk link.pk %}" class="flex-1" data-confirm="Remove {{ link.closet_item.name|escapejs }} from this outfit?">

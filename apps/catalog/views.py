@@ -66,6 +66,8 @@ def _parse_filters(request) -> dict:
         "category_slug": selectors._clean_slug(request.GET.get("category")),
         "brand_slug": selectors._clean_slug(request.GET.get("brand")),
         "collection_slug": selectors._clean_slug(request.GET.get("collection")),
+        "mood": selectors._clean_slug(request.GET.get("mood")),
+        "occasion": selectors._clean_slug(request.GET.get("occasion")),
         "color_slugs": _split_param(request.GET.get("color")),
         "size_codes": _split_param(request.GET.get("size"), upper=True),
         "material_slugs": _split_param(request.GET.get("material")),
@@ -74,6 +76,7 @@ def _parse_filters(request) -> dict:
         "min_price": _parse_decimal(request.GET.get("min_price")),
         "max_price": _parse_decimal(request.GET.get("max_price")),
         "in_stock": request.GET.get("in_stock") in ("1", "true", "yes"),
+        "_user": getattr(request, "user", None),
     }
 
 
@@ -178,12 +181,24 @@ def product_list(request):
 
         search_landing_recommendations = get_recently_viewed(request, limit=4)
 
-    category_rail = selectors.storefront_categories(
-        limit=NAV_CATEGORY_LIMIT, with_children=False
-    )
+    category_rail = selectors.storefront_categories(limit=NAV_CATEGORY_LIMIT, with_children=False)
 
     filter_colors = selectors.get_filter_colors()
     filter_sizes = selectors.get_filter_sizes()
+
+    from apps.catalog.fashion_discovery import (
+        get_mood_by_slug,
+        get_mood_catalog,
+        get_occasion_by_slug,
+        get_occasion_catalog,
+    )
+
+    active_mood = get_mood_by_slug(filters.get("mood")) if filters.get("mood") else None
+    active_occasion = (
+        get_occasion_by_slug(filters.get("occasion")) if filters.get("occasion") else None
+    )
+    mood_catalog = get_mood_catalog()
+    occasion_catalog = get_occasion_catalog()
 
     if is_search_page:
         if has_query:
@@ -192,6 +207,12 @@ def product_list(request):
         else:
             page_title = f"{_('Search Catalogue')} | FLASHWEAR"
             page_desc = "Discover FLASHWEAR garments by silhouette, color, fit, and department."
+    elif active_mood:
+        page_title = f"{active_mood['name']} Mood | FLASHWEAR"
+        page_desc = active_mood["description"]
+    elif active_occasion:
+        page_title = f"{active_occasion['name']} | FLASHWEAR"
+        page_desc = active_occasion["description"]
     else:
         page_title = f"{_('All products')} | FLASHWEAR"
         page_desc = _(
@@ -208,6 +229,12 @@ def product_list(request):
         "total_count": paginator.count,
         "category_rail": category_rail,
         "filters": filters,
+        "active_mood": filters.get("mood"),
+        "active_mood_obj": active_mood,
+        "active_occasion": filters.get("occasion"),
+        "active_occasion_obj": active_occasion,
+        "mood_catalog": mood_catalog,
+        "occasion_catalog": occasion_catalog,
         "is_search_page": is_search_page,
         "has_query": has_query,
         "search_error": search_error,
@@ -297,9 +324,7 @@ def product_detail(request, slug: str):
         wishlist = getattr(request.user, "wishlist", None)
         if wishlist is not None:
             if selected:
-                wishlist_item = wishlist.items.filter(
-                    product=product, variant=selected
-                ).first()
+                wishlist_item = wishlist.items.filter(product=product, variant=selected).first()
             if not wishlist_item:
                 wishlist_item = wishlist.items.filter(product=product).first()
             in_wishlist = wishlist_item is not None
@@ -369,13 +394,8 @@ def product_detail(request, slug: str):
                 reasons = []
                 if product.fit_id and dna.preferred_fits.filter(pk=product.fit_id).exists():
                     reasons.append(f"Cut in your preferred {product.fit.name.lower()} fit")
-                if (
-                    product.brand_id
-                    and dna.preferred_brands.filter(pk=product.brand_id).exists()
-                ):
-                    reasons.append(
-                        f"From your preferred label {product.brand.name}"
-                    )
+                if product.brand_id and dna.preferred_brands.filter(pk=product.brand_id).exists():
+                    reasons.append(f"From your preferred label {product.brand.name}")
                 if reasons:
                     dna_match = " · ".join(reasons)
         except Exception:
@@ -386,16 +406,18 @@ def product_detail(request, slug: str):
     for size_obj in matrix.sizes:
         var = matrix.variant_for(selected_color_id, size_obj.pk) if selected_color_id else None
         if not var:
-            size_options.append({
-                "size": size_obj,
-                "variant": None,
-                "is_available": False,
-                "is_in_stock": False,
-                "is_sold_out": True,
-                "is_selected": bool(selected and selected.size_id == size_obj.pk),
-                "stock_msg": "Unavailable",
-                "units_left": 0,
-            })
+            size_options.append(
+                {
+                    "size": size_obj,
+                    "variant": None,
+                    "is_available": False,
+                    "is_in_stock": False,
+                    "is_sold_out": True,
+                    "is_selected": bool(selected and selected.size_id == size_obj.pk),
+                    "stock_msg": "Unavailable",
+                    "units_left": 0,
+                }
+            )
             continue
 
         var_stock = getattr(var, "stock", None)
@@ -408,16 +430,18 @@ def product_detail(request, slug: str):
         elif units is not None and units <= 5:
             stk_label = f"Only {units} left"
 
-        size_options.append({
-            "size": size_obj,
-            "variant": var,
-            "is_available": True,
-            "is_in_stock": in_stk,
-            "is_sold_out": sold,
-            "is_selected": bool(selected and selected.size_id == size_obj.pk),
-            "stock_msg": stk_label,
-            "units_left": units if units is not None else 999,
-        })
+        size_options.append(
+            {
+                "size": size_obj,
+                "variant": var,
+                "is_available": True,
+                "is_in_stock": in_stk,
+                "is_sold_out": sold,
+                "is_selected": bool(selected and selected.size_id == size_obj.pk),
+                "stock_msg": stk_label,
+                "units_left": units if units is not None else 999,
+            }
+        )
 
     context = {
         "product": product,
@@ -941,3 +965,66 @@ def pdp_discovery_extra(request, slug: str):
         "recently_viewed": discovery["recently_viewed"],
     }
     return render(request, "catalog/_pdp_discovery_extra.html", context)
+
+
+@storefront_open
+@never_cache
+@require_GET
+def discovery_hub(request):
+    """``/discovery/`` -- Fashion Discovery 2.0: Mood, Occasion & Curated Looks."""
+    from apps.catalog.fashion_discovery import get_discovery_context
+    from apps.catalog.merchandising import get_recently_viewed
+
+    mood_param = selectors._clean_slug(request.GET.get("mood"))
+    occasion_param = selectors._clean_slug(request.GET.get("occasion"))
+
+    discovery_ctx = get_discovery_context(
+        request, mood_slug=mood_param, occasion_slug=occasion_param
+    )
+
+    filters = _parse_filters(request)
+    sort = selectors.resolve_sort(request.GET.get("sort"), has_query=False)
+
+    queryset = selectors.storefront_products(sort=sort)
+    queryset = selectors.with_price_range(queryset)
+    queryset = selectors._apply_filters(queryset, filters)
+    queryset = selectors.apply_sorting(queryset, sort)
+
+    paginator, page = _paginate(request, queryset)
+    recently_viewed = get_recently_viewed(request, limit=4)
+
+    record_event(
+        name="filter_used",
+        request=request,
+        metadata={
+            "view": "discovery_hub",
+            "mood": mood_param,
+            "occasion": occasion_param,
+            "results": paginator.count,
+        },
+    )
+
+    page_title = _("Fashion Discovery: Mood & Occasion")
+    if discovery_ctx.get("active_mood"):
+        page_title = f"{discovery_ctx['active_mood']['name']} Mood | {_('Fashion Discovery')}"
+    elif discovery_ctx.get("active_occasion"):
+        page_title = f"{discovery_ctx['active_occasion']['name']} | {_('Fashion Discovery')}"
+
+    context = {
+        **discovery_ctx,
+        "page_obj": page,
+        "paginator": paginator,
+        "products": page.object_list,
+        "total_count": paginator.count,
+        "filters": filters,
+        "sort": sort,
+        "sort_choices": list(Product.Sort.choices),
+        "recently_viewed": recently_viewed,
+        **listing_metadata(
+            page_title,
+            _("Explore curated styles by mood, occasion, and your personal Flash DNA aesthetic."),
+            request=request,
+            page=page.number,
+        ),
+    }
+    return render(request, "catalog/discovery_hub.html", context)

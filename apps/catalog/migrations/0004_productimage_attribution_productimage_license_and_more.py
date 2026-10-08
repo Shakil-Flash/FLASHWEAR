@@ -4,30 +4,49 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('catalog', '0003_product_cat_prod_featured_idx'),
+        ("catalog", "0003_product_cat_prod_featured_idx"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='productimage',
-            name='attribution',
-            field=models.CharField(blank=True, help_text='Attribution statement or copyright notice for external image.', max_length=255, verbose_name='attribution'),
+            model_name="productimage",
+            name="attribution",
+            field=models.CharField(
+                blank=True,
+                help_text="Attribution statement or copyright notice for external image.",
+                max_length=255,
+                verbose_name="attribution",
+            ),
         ),
         migrations.AddField(
-            model_name='productimage',
-            name='license',
-            field=models.CharField(blank=True, help_text='License or usage terms for the external image.', max_length=200, verbose_name='license'),
+            model_name="productimage",
+            name="license",
+            field=models.CharField(
+                blank=True,
+                help_text="License or usage terms for the external image.",
+                max_length=200,
+                verbose_name="license",
+            ),
         ),
         migrations.AddField(
-            model_name='productimage',
-            name='photographer',
-            field=models.CharField(blank=True, help_text='Credit for the image source.', max_length=200, verbose_name='photographer'),
+            model_name="productimage",
+            name="photographer",
+            field=models.CharField(
+                blank=True,
+                help_text="Credit for the image source.",
+                max_length=200,
+                verbose_name="photographer",
+            ),
         ),
         migrations.AddField(
-            model_name='productimage',
-            name='source_url',
-            field=models.URLField(blank=True, default='', help_text='Original external image URL, if imported from the web.', verbose_name='source URL'),
+            model_name="productimage",
+            name="source_url",
+            field=models.URLField(
+                blank=True,
+                default="",
+                help_text="Original external image URL, if imported from the web.",
+                verbose_name="source URL",
+            ),
         ),
     ]

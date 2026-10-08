@@ -82,9 +82,7 @@ class OrderDetailView(DetailView):
         ]
         user_reviews = {
             r.product_id: r
-            for r in Review.objects.filter(
-                author=self.request.user, product_id__in=product_ids
-            )
+            for r in Review.objects.filter(author=self.request.user, product_id__in=product_ids)
         }
 
         item_review_info = {}
@@ -136,7 +134,8 @@ class OrderDetailView(DetailView):
             {
                 "key": "paid",
                 "label": "Payment Confirmed",
-                "completed": order.status in {
+                "completed": order.status
+                in {
                     Order.Status.PAID,
                     Order.Status.PROCESSING,
                     Order.Status.SHIPPED,
@@ -148,7 +147,8 @@ class OrderDetailView(DetailView):
             {
                 "key": "processing",
                 "label": "Processing",
-                "completed": order.status in {
+                "completed": order.status
+                in {
                     Order.Status.PROCESSING,
                     Order.Status.SHIPPED,
                     Order.Status.DELIVERED,
@@ -159,7 +159,8 @@ class OrderDetailView(DetailView):
             {
                 "key": "shipped",
                 "label": "Shipped",
-                "completed": order.status in {
+                "completed": order.status
+                in {
                     Order.Status.SHIPPED,
                     Order.Status.DELIVERED,
                 },

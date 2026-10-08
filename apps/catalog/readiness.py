@@ -42,9 +42,7 @@ def evaluate_product_readiness(product) -> ProductReadiness:
         if missing_alt:
             warnings.append(
                 str(
-                    _(
-                        "%(count)d image(s) missing alt text for accessibility."
-                    )
+                    _("%(count)d image(s) missing alt text for accessibility.")
                     % {"count": len(missing_alt)}
                 )
             )
@@ -60,10 +58,7 @@ def evaluate_product_readiness(product) -> ProductReadiness:
         warnings.append(str(_("No category assigned.")))
     elif hasattr(product, "category") and product.category and not product.category.is_active:
         warnings.append(
-            str(
-                _("Assigned category '%(cat)s' is inactive.")
-                % {"cat": product.category.name}
-            )
+            str(_("Assigned category '%(cat)s' is inactive.") % {"cat": product.category.name})
         )
 
     if (
@@ -73,10 +68,7 @@ def evaluate_product_readiness(product) -> ProductReadiness:
         and not product.brand.is_active
     ):
         warnings.append(
-            str(
-                _("Assigned brand '%(brand)s' is inactive.")
-                % {"brand": product.brand.name}
-            )
+            str(_("Assigned brand '%(brand)s' is inactive.") % {"brand": product.brand.name})
         )
 
     # 4. Variants checks
@@ -97,9 +89,7 @@ def evaluate_product_readiness(product) -> ProductReadiness:
             if missing_price:
                 warnings.append(
                     str(
-                        _(
-                            "%(count)d active variant(s) have zero or missing price."
-                        )
+                        _("%(count)d active variant(s) have zero or missing price.")
                         % {"count": len(missing_price)}
                     )
                 )
@@ -112,10 +102,7 @@ def evaluate_product_readiness(product) -> ProductReadiness:
             if invalid_compare:
                 warnings.append(
                     str(
-                        _(
-                            "%(count)d variant(s) have compare-at price "
-                            "not exceeding selling price."
-                        )
+                        _("%(count)d variant(s) have compare-at price not exceeding selling price.")
                         % {"count": len(invalid_compare)}
                     )
                 )

@@ -80,7 +80,7 @@ def catalog_setup(db, category):
     )
 
     seed_stock(v_m, 10)  # In stock
-    seed_stock(v_l, 3)   # Low stock
+    seed_stock(v_l, 3)  # Low stock
     seed_stock(v_xl, 0)  # Sold out
 
     # Alternative product
@@ -323,9 +323,7 @@ class TestCheckoutProgressionAndRecovery:
         assert payment.failure_message == ""
 
     def test_order_ownership_enforced_on_retry(self, client, django_user_model, catalog_setup):
-        owner = django_user_model.objects.create_user(
-            email="owner@test.com", password="password"
-        )
+        owner = django_user_model.objects.create_user(email="owner@test.com", password="password")
         intruder = django_user_model.objects.create_user(
             email="intruder@test.com", password="password"
         )

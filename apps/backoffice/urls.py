@@ -80,7 +80,6 @@ urlpatterns = [
         views.content_campaign_delete,
         name="content_campaign_delete",
     ),
-
     # Merchandising Studio (Phase 29)
     path(
         "merchandising/featured-products/",
@@ -108,7 +107,6 @@ urlpatterns = [
         name="merch_featured_collections",
     ),
     path("merchandising/scheduled/", views.merch_scheduled, name="merch_scheduled"),
-
     # Merchandising
     path("products/", views.products, name="products"),
     path("products/bulk/", views.products_bulk, name="products_bulk"),
@@ -117,7 +115,6 @@ urlpatterns = [
     path("drops/", views.drops, name="drops"),
     path("promotions/", views.promotions, name="promotions"),
     path("quests/", views.quests, name="quests"),
-
     # Community
     path("reviews/", views.reviews, name="reviews"),
     path("reviews/bulk/", views.reviews_bulk, name="reviews_bulk"),

@@ -66,8 +66,6 @@ def validate_cta_destination(url: str | None) -> None:
         raise ValidationError(_("Relative destinations must start with '/' (e.g. '/catalog/')."))
 
 
-
-
 def invalidate_homepage_cache() -> None:
     """Clear all cached storefront homepage configuration and section data."""
     try:

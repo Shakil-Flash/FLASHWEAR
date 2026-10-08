@@ -57,9 +57,7 @@ def catalog_staff(db, django_user_model):
     product_ct = ContentType.objects.get_for_model(Product)
     variant_ct = ContentType.objects.get_for_model(ProductVariant)
     image_ct = ContentType.objects.get_for_model(ProductImage)
-    perms = Permission.objects.filter(
-        content_type__in=[product_ct, variant_ct, image_ct]
-    )
+    perms = Permission.objects.filter(content_type__in=[product_ct, variant_ct, image_ct])
     user.user_permissions.set(perms)
     return user
 
@@ -421,9 +419,7 @@ class TestVariantManagement:
 
 
 class TestProductPreview:
-    def test_staff_can_preview_draft_product(
-        self, admin_client, make_product, make_variant, size
-    ):
+    def test_staff_can_preview_draft_product(self, admin_client, make_product, make_variant, size):
         """Staff can safely preview a draft product with preview banner and without publishing."""
         draft = make_product(
             name="Secret Unreleased Jacket",
@@ -508,8 +504,7 @@ class TestEditorialReadiness:
         assert response.status_code == 200
         content = response.content.decode()
         has_box = (
-            "Recommended before publishing" in content
-            or "All editorial checks passed" in content
+            "Recommended before publishing" in content or "All editorial checks passed" in content
         )
         assert has_box
 

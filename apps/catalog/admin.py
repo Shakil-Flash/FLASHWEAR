@@ -112,7 +112,7 @@ class ProductImageInline(admin.TabularInline):
         return format_html(
             '<a href="{url}" target="_blank" rel="noopener noreferrer">'
             '<img src="{url}" style="{style}" alt="{alt}" />'
-            '</a>',
+            "</a>",
             url=url,
             style=img_style,
             alt=image.alt_text or "Preview",
@@ -131,7 +131,7 @@ class ProductImageInline(admin.TabularInline):
                 '<span class="source-badge-external">'
                 '🌐 External (<a href="{url}" target="_blank" rel="noopener noreferrer"'
                 ' style="{link_style}">{domain}</a>)'
-                '</span>',
+                "</span>",
                 url=image.source_url,
                 domain=domain,
                 link_style=link_style,
@@ -450,7 +450,7 @@ class ProductAdmin(admin.ModelAdmin):
         if not image_obj or not image_obj.image:
             return mark_safe(
                 '<div style="width:38px;height:38px;border-radius:4px;background:#f1f5f9;'
-                'display:flex;align-items:center;justify-content:center;color:#94a3b8;'
+                "display:flex;align-items:center;justify-content:center;color:#94a3b8;"
                 'font-size:10px;border:1px solid #e2e8f0;">—</div>'
             )
         try:
@@ -533,8 +533,7 @@ class ProductAdmin(admin.ModelAdmin):
             )
         tooltip = escape("; ".join(readiness.warnings))
         return format_html(
-            '<span class="readiness-badge readiness-badge-warn"'
-            ' title="{}">⚠ {} warnings</span>',
+            '<span class="readiness-badge readiness-badge-warn" title="{}">⚠ {} warnings</span>',
             tooltip,
             readiness.warning_count,
         )
@@ -574,11 +573,11 @@ class ProductAdmin(admin.ModelAdmin):
             '<div style="display:flex;gap:10px;align-items:center;padding:4px 0;">'
             '<a href="{preview}" target="_blank" rel="noopener noreferrer" class="button" '
             'style="{btn_dark}">'
-            '👁 Admin Preview</a>'
+            "👁 Admin Preview</a>"
             '<a href="{store}" target="_blank" rel="noopener noreferrer" class="button" '
             'style="{btn_light}">'
-            '↗ View Storefront</a>'
-            '</div>',
+            "↗ View Storefront</a>"
+            "</div>",
             preview=preview_url,
             store=store_url,
             btn_dark=btn_dark,
@@ -597,8 +596,8 @@ class ProductAdmin(admin.ModelAdmin):
         if readiness.is_ready:
             return format_html(
                 '<div style="color:#059669;font-weight:600;padding:6px 0;">'
-                '✓ Product is ready for storefront publication. All editorial checks passed.'
-                '</div>'
+                "✓ Product is ready for storefront publication. All editorial checks passed."
+                "</div>"
             )
         items = "".join(
             f"<li style='margin-bottom:4px;'>{escape(w)}</li>" for w in readiness.warnings
@@ -607,10 +606,10 @@ class ProductAdmin(admin.ModelAdmin):
             '<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:6px;'
             'padding:12px;color:#92400e;">'
             '<strong style="display:block;margin-bottom:6px;">'
-            '⚠️ Recommended before publishing ({count} items):'
-            '</strong>'
+            "⚠️ Recommended before publishing ({count} items):"
+            "</strong>"
             '<ul style="margin:0;padding-left:20px;font-size:12px;">{items}</ul>'
-            '</div>',
+            "</div>",
             count=readiness.warning_count,
             items=mark_safe(items),
         )
@@ -645,16 +644,16 @@ class ProductAdmin(admin.ModelAdmin):
             )
             rows.append(
                 format_html(
-                    '<tr>'
+                    "<tr>"
                     '<td style="font-family:monospace;font-weight:600;">{}</td>'
-                    '<td>{}</td>'
-                    '<td>{}</td>'
-                    '<td>{}</td>'
-                    '<td>{}</td>'
-                    '<td>{}</td>'
-                    '<td><strong>{}</strong> avail ({} on hand)</td>'
-                    '<td>{}</td>'
-                    '</tr>',
+                    "<td>{}</td>"
+                    "<td>{}</td>"
+                    "<td>{}</td>"
+                    "<td>{}</td>"
+                    "<td>{}</td>"
+                    "<td><strong>{}</strong> avail ({} on hand)</td>"
+                    "<td>{}</td>"
+                    "</tr>",
                     v.sku,
                     v.color.name if v.color else "—",
                     v.size.code if v.size else "—",
@@ -669,12 +668,12 @@ class ProductAdmin(admin.ModelAdmin):
 
         return format_html(
             '<table class="variant-matrix-table">'
-            '<thead><tr>'
-            '<th>SKU</th><th>Colour</th><th>Size</th><th>Price</th>'
-            '<th>Compare At</th><th>Margin</th><th>Inventory</th><th>Status</th>'
-            '</tr></thead>'
-            '<tbody>{}</tbody>'
-            '</table>',
+            "<thead><tr>"
+            "<th>SKU</th><th>Colour</th><th>Size</th><th>Price</th>"
+            "<th>Compare At</th><th>Margin</th><th>Inventory</th><th>Status</th>"
+            "</tr></thead>"
+            "<tbody>{}</tbody>"
+            "</table>",
             mark_safe("".join(rows)),
         )
 
@@ -695,7 +694,7 @@ class ProductAdmin(admin.ModelAdmin):
             '<div class="seo-preview-title">{}</div>'
             '<div class="seo-preview-url">{}</div>'
             '<div class="seo-preview-desc">{}</div>'
-            '</div>',
+            "</div>",
             meta.get("seo_title", ""),
             meta.get("canonical_url", ""),
             meta.get("seo_description", ""),
@@ -722,12 +721,12 @@ class ProductAdmin(admin.ModelAdmin):
         return format_html(
             '<div style="max-width:400px;border:1px solid #cbd5e1;border-radius:6px;'
             'background:#ffffff;overflow:hidden;">'
-            '{img_tag}'
+            "{img_tag}"
             '<div style="padding:10px 12px;">'
             '<div style="font-weight:700;font-size:13px;color:#0f172a;">{title}</div>'
             '<div style="font-size:12px;color:#64748b;margin-top:4px;">{desc}</div>'
-            '</div>'
-            '</div>',
+            "</div>"
+            "</div>",
             img_tag=img_tag,
             title=meta.get("og_title", ""),
             desc=meta.get("og_description", ""),
@@ -771,9 +770,7 @@ class ProductAdmin(admin.ModelAdmin):
             color=Color.objects.filter(slug=color_slug, is_active=True).first()
             if color_slug
             else None,
-            size=Size.objects.filter(code=size_code, is_active=True).first()
-            if size_code
-            else None,
+            size=Size.objects.filter(code=size_code, is_active=True).first() if size_code else None,
         )
         selected = matrix.selected
         gallery = services.product_gallery(product)
@@ -906,10 +903,7 @@ class ProductAdmin(admin.ModelAdmin):
                 or "Inventory Manager" in [g.name for g in request.user.groups.all()]
             )
             for variant_form in formset.forms:
-                if (
-                    variant_form.instance.pk
-                    and variant_form.cleaned_data.get("stock_adjustment")
-                ):
+                if variant_form.instance.pk and variant_form.cleaned_data.get("stock_adjustment"):
                     delta = variant_form.cleaned_data["stock_adjustment"]
                     if delta != 0:
                         if not can_inventory:
@@ -1326,10 +1320,7 @@ class ProductAdmin(admin.ModelAdmin):
     def has_delete_permission(self, request, obj=None):
         if not request.user.is_authenticated or not request.user.is_staff:
             return False
-        return (
-            request.user.is_superuser
-            or request.user.has_perm("catalog.delete_product")
-        )
+        return request.user.is_superuser or request.user.has_perm("catalog.delete_product")
 
 
 @admin.register(ProductVariant)
@@ -1409,7 +1400,7 @@ class ProductImageAdmin(admin.ModelAdmin):
         return format_html(
             '<a href="{url}" target="_blank" rel="noopener noreferrer">'
             '<img src="{url}" style="{style}" alt="{alt}" />'
-            '</a>',
+            "</a>",
             url=url,
             style=img_style,
             alt=image.alt_text or "Preview",
@@ -1428,7 +1419,7 @@ class ProductImageAdmin(admin.ModelAdmin):
                 '<span class="source-badge-external">'
                 '🌐 External (<a href="{url}" target="_blank" rel="noopener noreferrer"'
                 ' style="{link_style}">{domain}</a>)'
-                '</span>',
+                "</span>",
                 url=image.source_url,
                 domain=domain,
                 link_style=link_style,
@@ -1654,7 +1645,6 @@ class CollectionAdmin(admin.ModelAdmin):
     class Media:
         css = {"all": ("admin/css/image_url_manager.css",)}
         js = ("admin/js/image_url_manager.js",)
-
 
     def get_queryset(self, request):
         # ``product_total`` rather than ``products``: ``Brand.products`` is the reverse

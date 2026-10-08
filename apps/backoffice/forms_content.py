@@ -229,7 +229,6 @@ class SectionProductForm(StyledModelForm):
         widget=forms.Select(attrs={"class": _SELECT}),
     )
 
-
     class Meta:
         model = SectionProduct
         fields = [

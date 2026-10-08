@@ -1,0 +1,212 @@
+{% extends "base.html" %}
+{% load catalog_extras %}
+
+{% block content %}
+<div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <!-- Breadcrumbs -->
+    <nav class="text-sm text-slate-500" aria-label="Breadcrumb">
+        <ol class="flex flex-wrap items-center gap-2">
+            <li><a href="{% url 'core:home' %}" class="hover:text-slate-900 transition">Home</a></li>
+            <li aria-hidden="true" class="text-slate-400">/</li>
+            <li><a href="{% url 'catalog:product-list' %}" class="hover:text-slate-900 transition">Shop</a></li>
+            <li aria-hidden="true" class="text-slate-400">/</li>
+            <li aria-current="page" class="font-medium text-slate-900">
+                {% if active_mood %}
+                    {{ active_mood.name }} Mood
+                {% elif active_occasion %}
+                    {{ active_occasion.name }}
+                {% else %}
+                    Fashion Discovery
+                {% endif %}
+            </li>
+        </ol>
+    </nav>
+
+    <!-- Header -->
+    <header class="mt-6 flex flex-col md:flex-row md:items-end md:justify-between gap-6 border-b border-slate-200/80 pb-8">
+        <div class="max-w-2xl">
+            <span class="inline-flex items-center gap-2 rounded-full bg-slate-900 px-3.5 py-1 text-xs font-semibold uppercase tracking-widest text-white shadow-soft">
+                <span class="h-1.5 w-1.5 rounded-full bg-flash-400 animate-pulse"></span>
+                Fashion Discovery 2.0
+            </span>
+            <h1 class="mt-3 text-3xl font-extrabold tracking-tight text-slate-950 sm:text-4xl lg:text-5xl">
+                {% if active_mood %}
+                    {{ active_mood.name }} Mood
+                {% elif active_occasion %}
+                    {{ active_occasion.name }}
+                {% else %}
+                    Mood &amp; Occasion Discovery
+                {% endif %}
+            </h1>
+            <p class="mt-3 text-base leading-relaxed text-slate-600 sm:text-lg">
+                {% if active_mood %}
+                    {{ active_mood.description }}
+                {% elif active_occasion %}
+                    {{ active_occasion.description }}
+                {% else %}
+                    Discover garments that match how you want to feel and where you are headed. Curated silhouettes tailored to your aesthetic.
+                {% endif %}
+            </p>
+            {% if has_personalization %}
+                <div class="mt-4 inline-flex items-center gap-2 rounded-2xl bg-flash-50 px-3.5 py-1.5 text-xs font-medium text-flash-800 ring-1 ring-flash-200">
+                    <span>✨</span>
+                    <span>Ranked with your <strong>FLASH DNA</strong> preferences</span>
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="flex items-center gap-3">
+            {% if active_mood or active_occasion %}
+                <a href="{% url 'catalog:discovery-hub' %}" class="inline-flex items-center gap-1.5 rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-soft transition hover:border-slate-900 hover:text-slate-950">
+                    <span>Clear Mood / Occasion</span>
+                    <span aria-hidden="true">✕</span>
+                </a>
+            {% endif %}
+            <a href="{% url 'account:studio' %}" class="inline-flex items-center gap-2 rounded-full bg-flash-600 px-5 py-2.5 text-xs font-semibold text-white shadow-soft transition hover:bg-flash-700">
+                <span>Smart Styling Studio</span>
+                <span>→</span>
+            </a>
+        </div>
+    </header>
+
+    <!-- 1. Shop by Mood Rail -->
+    <section class="mt-10" aria-labelledby="discovery-moods-title">
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <p class="text-xs font-bold uppercase tracking-wider text-slate-400">Step 1: Choose Your Vibe</p>
+                <h2 id="discovery-moods-title" class="text-xl font-bold tracking-tight text-slate-950">Shop by Mood</h2>
+            </div>
+            <span class="text-xs text-slate-500 hidden sm:inline">Select a mood to filter</span>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
+            {% for m in moods %}
+                <a href="{% if active_mood.slug == m.slug %}{% url 'catalog:discovery-hub' %}{% else %}{% url 'catalog:discovery-hub' %}?mood={{ m.slug }}{% endif %}"
+                   class="group relative flex flex-col justify-between rounded-2xl border p-4 transition-all duration-300 hover:-translate-y-1 hover:shadow-soft {% if active_mood.slug == m.slug %}border-slate-950 bg-slate-950 text-white shadow-md{% else %}border-slate-200 bg-white text-slate-900 hover:border-slate-400{% endif %}">
+                    <div>
+                        <span class="text-[10px] font-bold uppercase tracking-widest {% if active_mood.slug == m.slug %}text-flash-300{% else %}text-slate-400{% endif %}">
+                            0{{ forloop.counter }}
+                        </span>
+                        <h3 class="mt-2 text-sm font-bold truncate {% if active_mood.slug == m.slug %}text-white{% else %}text-slate-900 group-hover:text-flash-600{% endif %}">
+                            {{ m.name }}
+                        </h3>
+                    </div>
+                    <p class="mt-3 text-[11px] leading-snug line-clamp-2 {% if active_mood.slug == m.slug %}text-slate-300{% else %}text-slate-500{% endif %}">
+                        {{ m.tagline }}
+                    </p>
+                </a>
+            {% endfor %}
+        </div>
+    </section>
+
+    <!-- 2. Shop by Occasion Rail -->
+    <section class="mt-10" aria-labelledby="discovery-occasions-title">
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <p class="text-xs font-bold uppercase tracking-wider text-slate-400">Step 2: Dressing For</p>
+                <h2 id="discovery-occasions-title" class="text-xl font-bold tracking-tight text-slate-950">What are you dressing for?</h2>
+            </div>
+            <span class="text-xs text-slate-500 hidden sm:inline">Shop by context</span>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2">
+            {% for occ in occasions %}
+                <a href="{% if active_occasion.slug == occ.slug %}{% url 'catalog:discovery-hub' %}{% else %}{% url 'catalog:discovery-hub' %}?occasion={{ occ.slug }}{% endif %}"
+                   class="inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold transition {% if active_occasion.slug == occ.slug %}bg-slate-950 text-white shadow-soft{% else %}border border-slate-200 bg-white text-slate-700 hover:border-slate-400 hover:text-slate-950 hover:bg-slate-50{% endif %}">
+                    <span>{{ occ.name }}</span>
+                    {% if active_occasion.slug == occ.slug %}
+                        <span class="h-1.5 w-1.5 rounded-full bg-flash-400"></span>
+                    {% endif %}
+                </a>
+            {% endfor %}
+        </div>
+    </section>
+
+    <!-- Products Grid & Controls -->
+    <section class="mt-12" aria-labelledby="discovery-products-heading">
+        <div class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-4">
+            <div>
+                <h2 id="discovery-products-heading" class="text-lg font-bold text-slate-950">
+                    Curated Pieces
+                    <span class="text-sm font-normal text-slate-500">({{ total_count }} item{{ total_count|pluralize }})</span>
+                </h2>
+                {% if active_mood or active_occasion %}
+                    <p class="text-xs text-slate-500 mt-0.5">
+                        Filtered by
+                        {% if active_mood %}Mood: <strong>{{ active_mood.name }}</strong>{% endif %}
+                        {% if active_mood and active_occasion %} · {% endif %}
+                        {% if active_occasion %}Occasion: <strong>{{ active_occasion.name }}</strong>{% endif %}
+                    </p>
+                {% endif %}
+            </div>
+
+            <!-- Sorting -->
+            <div class="flex items-center gap-2">
+                <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Sort:</span>
+                {% for value, label in sort_choices %}
+                    {% sort_link value label %}
+                {% endfor %}
+            </div>
+        </div>
+
+        {% if products %}
+            <div class="mt-8 grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4">
+                {% for prod in products %}
+                    {% include "catalog/_product_card.html" with product=prod %}
+                {% endfor %}
+            </div>
+
+            {% if page_obj.has_other_pages %}
+                <nav class="mt-12 flex items-center justify-between border-t border-slate-200 pt-6" aria-label="Discovery pagination">
+                    <div>
+                        {% if page_obj.has_previous %}
+                            <a href="{% query_transform page=page_obj.previous_page_number %}"
+                               class="inline-flex items-center gap-1.5 rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:border-slate-900 transition">
+                                ← Previous
+                            </a>
+                        {% endif %}
+                    </div>
+                    <span class="text-xs text-slate-500">
+                        Page {{ page_obj.number }} of {{ paginator.num_pages }}
+                    </span>
+                    <div>
+                        {% if page_obj.has_next %}
+                            <a href="{% query_transform page=page_obj.next_page_number %}"
+                               class="inline-flex items-center gap-1.5 rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:border-slate-900 transition">
+                                Next →
+                            </a>
+                        {% endif %}
+                    </div>
+                </nav>
+            {% endif %}
+        {% else %}
+            <div class="mt-12 rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-12 text-center">
+                <p class="text-base font-bold text-slate-900">No garments matched this exact combination right now.</p>
+                <p class="mt-1 text-sm text-slate-600">Try switching your mood or clearing occasion filters to explore more of the collection.</p>
+                <div class="mt-6 flex flex-wrap justify-center gap-3">
+                    <a href="{% url 'catalog:discovery-hub' %}" class="rounded-full bg-slate-950 px-5 py-2 text-xs font-semibold text-white shadow-soft transition hover:bg-slate-800">
+                        Clear Filters
+                    </a>
+                    <a href="{% url 'catalog:product-list' %}" class="rounded-full border border-slate-300 bg-white px-5 py-2 text-xs font-semibold text-slate-700 shadow-soft transition hover:border-slate-900">
+                        Browse All Products
+                    </a>
+                </div>
+            </div>
+        {% endif %}
+    </section>
+
+    <!-- Recently Viewed (if available) -->
+    {% if recently_viewed %}
+        <section class="mt-20 border-t border-slate-200 pt-10" aria-labelledby="discovery-recent-heading">
+            <h2 id="discovery-recent-heading" class="text-xl font-bold tracking-tight text-slate-950">
+                Recently Viewed
+            </h2>
+            <div class="mt-6 grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4">
+                {% for item in recently_viewed %}
+                    {% include "catalog/_product_card.html" with product=item %}
+                {% endfor %}
+            </div>
+        </section>
+    {% endif %}
+</div>
+{% endblock content %}

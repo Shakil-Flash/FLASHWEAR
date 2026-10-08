@@ -254,7 +254,6 @@ def test_section_product_pinning_and_ordering(sample_catalog):
     SectionProduct.objects.create(section=sec, product=p2, display_order=2)
     sp1 = SectionProduct.objects.create(section=sec, product=p1, display_order=1)
 
-
     # get_active_products should return p1 then p2
     active = sec.get_active_products()
     assert active == [p1, p2]
@@ -346,7 +345,6 @@ def test_preview_mode_does_not_leak_to_public_storefront(client, sample_catalog)
         section_type=HomepageSection.SectionType.HERO,
         is_enabled=False,
     )
-
 
     # Anonymous visitor to homepage
     resp = client.get("/")
@@ -531,9 +529,7 @@ def test_content_interaction_tracking_endpoint(client, db):
 def test_content_interaction_get_redirect(client):
     """GET /content/track/?event=...&destination=... records event and safely redirects."""
     endpoint = reverse("core:track_content_interaction")
-    resp = client.get(
-        f"{endpoint}?event=homepage_section_click&section_id=1&destination=/catalog/"
-    )
+    resp = client.get(f"{endpoint}?event=homepage_section_click&section_id=1&destination=/catalog/")
     assert resp.status_code == 302
     assert resp.url == "/catalog/"
     assert Event.objects.filter(name="homepage_section_click").exists()

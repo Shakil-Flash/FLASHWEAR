@@ -87,5 +87,3 @@ class EditorialStoryAdmin(admin.ModelAdmin):
     search_fields = ("title", "subtitle", "story")
     prepopulated_fields = {"slug": ("title",)}
     filter_horizontal = ("linked_products",)
-
-

@@ -14,17 +14,20 @@ against a controlled vocabulary before it reaches a service, and analytics go th
 from __future__ import annotations
 
 from django.contrib import messages
-from django.http import HttpResponseRedirect
+from django.http import HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme, urlencode
 from django.utils.translation import gettext as _
-from django.views.decorators.http import require_GET
+from django.views.decorators.http import require_GET, require_POST
 
 from apps.analytics.services import record_event
-from apps.catalog.models import Product
-from apps.closet.models import ClosetItem, OutfitItem
+from apps.catalog.models import Product, ProductVariant
+from apps.closet.models import ClosetItem, Outfit, OutfitItem
+from apps.closet.services import outfits as outfit_services
+from apps.closet.services.closet import guess_category
 from apps.closet.services.errors import OutfitError
+from apps.shop.services import add_to_cart, get_or_create_cart
 from apps.styling.models.flash_dna import STYLE_GOALS, FlashDNA, get_flash_dna
 from apps.styling.services import signals as maps
 from apps.styling.services.complete_look import complete_look
@@ -39,6 +42,8 @@ from apps.styling.services.outfit_generation import (
 from apps.styling.services.signals import WeatherContext
 
 __all__ = [
+    "complete_look_add_all",
+    "complete_look_create_outfit",
     "complete_look_fragment",
     "recommendation_click",
     "studio",
@@ -454,3 +459,171 @@ def recommendation_click(request):
         },
     )
     return redirect(destination or "catalog:product-list")
+
+
+@require_POST
+def complete_look_add_all(request, slug: str):
+    """``POST /products/<slug>/complete-look/add-all/`` -- add look pieces into cart together.
+
+    Supports both HTMX/AJAX JSON response and traditional form submit with redirect.
+    Respects existing cart calculations and inventory validation.
+    """
+    product = get_object_or_404(Product.objects.published(), slug=slug)
+    cart = get_or_create_cart(request)
+    variant_ids = request.POST.getlist("variant_ids")
+    if not variant_ids:
+        raw = request.POST.get("variant_id")
+        if raw:
+            variant_ids = [v.strip() for v in raw.split(",") if v.strip()]
+
+    if not variant_ids:
+        # Collect first purchasable variant from complete_look items
+        look = complete_look(product, user=request.user)
+        for item in look.items:
+            first_v = item.product.purchasable_variants.first()
+            if first_v:
+                variant_ids.append(str(first_v.pk))
+
+    added_count = 0
+    errors: list[str] = []
+    for var_id in variant_ids:
+        try:
+            variant = ProductVariant.objects.filter(pk=var_id, is_active=True).first()
+            if variant:
+                add_to_cart(cart, variant, quantity=1)
+                added_count += 1
+                record_event(
+                    "cart_add",
+                    request=request,
+                    object_type="variant",
+                    object_id=variant.pk,
+                    metadata={
+                        "quantity": 1,
+                        "product": variant.product_id,
+                        "source": "complete_look",
+                    },
+                )
+        except Exception as err:
+            errors.append(str(err))
+
+    record_event(
+        name="cart_add",
+        request=request,
+        object_type="product",
+        object_id=product.pk,
+        metadata={
+            "source": "complete_the_look",
+            "added_count": added_count,
+            "items_requested": len(variant_ids),
+        },
+    )
+
+    is_ajax = (
+        request.headers.get("HX-Request") == "true"
+        or request.headers.get("accept") == "application/json"
+        or request.headers.get("x-requested-with") == "XMLHttpRequest"
+    )
+
+    if is_ajax:
+        return JsonResponse(
+            {
+                "success": added_count > 0,
+                "added_count": added_count,
+                "errors": errors,
+                "message": (
+                    _("Added %(count)d pieces to your bag.") % {"count": added_count}
+                    if added_count > 0
+                    else _("Could not add pieces to bag.")
+                ),
+            }
+        )
+
+    if added_count > 0:
+        messages.success(
+            request,
+            _("Added %(count)d item%(plural)s from this look to your bag.")
+            % {"count": added_count, "plural": "s" if added_count != 1 else ""},
+        )
+    else:
+        messages.error(request, _("No available items were selected to add."))
+
+    next_url = request.POST.get("next") or product.get_absolute_url()
+    return redirect(next_url)
+
+
+@require_POST
+def complete_look_create_outfit(request, slug: str):
+    """Save look to private closet outfits (``POST /products/<slug>/complete-look/create-outfit/``).
+
+    Connects Complete the Look directly to the Outfit Builder.
+    """
+    if not request.user.is_authenticated:
+        messages.info(request, _("Please sign in to save outfits to your closet."))
+        login_url = reverse("accounts:login")
+        return redirect(f"{login_url}?next={request.path}")
+
+    product = get_object_or_404(Product.objects.published(), slug=slug)
+    look = complete_look(product, user=request.user)
+
+    outfit_name = f"Look with {product.name}"[:120]
+    outfit = outfit_services.create_outfit(
+        request.user,
+        name=outfit_name,
+        description=_("Curated look composed from Complete the Look on FLASHWEAR."),
+        status=Outfit.Status.DRAFT,
+    )
+
+    req_product_ids = request.POST.getlist("product_ids")
+    if req_product_ids:
+        p_dict = {str(p.pk): p for p in Product.objects.published().filter(pk__in=req_product_ids)}
+        items_to_add = [p_dict[pid] for pid in req_product_ids if pid in p_dict]
+    else:
+        items_to_add = [product] + [item.product for item in look.items]
+
+    added_to_outfit = 0
+
+    for p in items_to_add:
+        cat = guess_category(p)
+        first_variant = p.purchasable_variants[0] if p.purchasable_variants else None
+        closet_item = ClosetItem.objects.filter(
+            user=request.user,
+            name=p.name,
+            status=ClosetItem.Status.ACTIVE,
+        ).first()
+        if not closet_item:
+            closet_item = ClosetItem.objects.create(
+                user=request.user,
+                source=ClosetItem.Source.MANUAL,
+                variant=first_variant,
+                category=cat,
+                name=p.name,
+                brand=p.brand.name if p.brand else "",
+                color=first_variant.color.name if first_variant and first_variant.color else "",
+                size=first_variant.size.name if first_variant and first_variant.size else "",
+                material=", ".join(m.name for m in p.materials.all()),
+                status=ClosetItem.Status.ACTIVE,
+            )
+        try:
+            outfit_services.add_item(outfit, closet_item)
+            added_to_outfit += 1
+        except OutfitError:
+            pass
+
+    record_event(
+        name="outfit_saved",
+        request=request,
+        object_type="outfit",
+        object_id=outfit.pk,
+        metadata={
+            "source": "complete_the_look",
+            "product_id": product.pk,
+            "pieces_count": added_to_outfit,
+        },
+    )
+
+    messages.success(
+        request,
+        _("Outfit created with %(count)d piece%(plural)s! Refine your look in the Outfit Studio.")
+        % {"count": added_to_outfit, "plural": "s" if added_to_outfit != 1 else ""},
+    )
+    return redirect("account:outfit-detail", pk=outfit.pk)

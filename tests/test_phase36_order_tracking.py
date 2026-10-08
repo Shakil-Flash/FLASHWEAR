@@ -89,9 +89,7 @@ class TestOrderHistory:
         assert "Your first FLASHWEAR order is waiting to happen" in content
         assert reverse("catalog:product-list") in content
 
-    def test_order_history_ownership_isolation(
-        self, client, user, other_user, order_fixture
-    ):
+    def test_order_history_ownership_isolation(self, client, user, other_user, order_fixture):
         # order belongs to `user`
         client.force_login(other_user)
 

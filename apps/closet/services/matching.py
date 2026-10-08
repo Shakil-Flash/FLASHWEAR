@@ -46,9 +46,9 @@ def get_closet_matches_for_product(user, product: Product, limit: int = 4) -> li
 
     # 3. Prefer items with images or purchased pieces first
     def _rank(item: ClosetItem) -> tuple[int, int]:
-        has_img = 1 if (
-            item.image or (item.variant and item.variant.product.images.exists())
-        ) else 0
+        has_img = (
+            1 if (item.image or (item.variant and item.variant.product.images.exists())) else 0
+        )
         is_purchased = 1 if item.source == ClosetItem.Source.PURCHASED else 0
         return (has_img, is_purchased)
 

@@ -172,7 +172,6 @@ class Campaign(models.Model):
         return self.banner_image_url or ""
 
 
-
 class HomepageSection(models.Model):
     """Dynamic visual section rendered on the FLASHWEAR storefront homepage."""
 
@@ -358,11 +357,8 @@ class HomepageSection(models.Model):
         current = now or timezone.now()
         items = [sp for sp in self.section_products.all() if sp.is_visible(current)]
         return [
-            sp.product
-            for sp in items
-            if getattr(sp.product, "is_available_for_purchase", True)
+            sp.product for sp in items if getattr(sp.product, "is_available_for_purchase", True)
         ]
-
 
 
 class SectionProduct(models.Model):
@@ -417,7 +413,6 @@ class SectionProduct(models.Model):
         if self.ends_at and current > self.ends_at:
             return False
         return True
-
 
 
 class EditorialStory(models.Model):
@@ -525,5 +520,3 @@ class EditorialStory(models.Model):
         if self.image:
             return self.image.url
         return self.image_url or ""
-
-

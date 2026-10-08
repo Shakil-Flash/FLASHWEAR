@@ -1,4 +1,3 @@
-
 import pytest
 from django.conf import settings
 from django.urls import reverse
@@ -108,7 +107,7 @@ class TestHorizontalOverflowPrevention:
         assert response.status_code == 200
         content = response.content.decode()
 
-        assert 'overflow-x-hidden' in content
+        assert "overflow-x-hidden" in content
 
     def test_new_arrivals_container_has_responsive_scroll_safety(self, client, make_product):
         make_product(name="Arrival Alpha", is_new=True)

@@ -31,42 +31,34 @@ def get_style_profile_summary(user) -> dict[str, Any]:
     styles: list[str] = [s.strip().title() for s in dna.styles.split(",") if s.strip()]
 
     # Colors
-    favorite_colors = list(
-        dna.favorite_colors.all().order_by("name")
-    )
-    disliked_colors = list(
-        dna.disliked_colors.all().order_by("name")
-    )
+    favorite_colors = list(dna.favorite_colors.all().order_by("name"))
+    disliked_colors = list(dna.disliked_colors.all().order_by("name"))
 
     # Fits
-    preferred_fits = list(
-        dna.preferred_fits.all().order_by("name")
-    )
+    preferred_fits = list(dna.preferred_fits.all().order_by("name"))
 
     # Materials
-    preferred_materials = list(
-        dna.preferred_materials.all().order_by("name")
-    )
+    preferred_materials = list(dna.preferred_materials.all().order_by("name"))
 
     # Categories
-    categories = [
-        dict(ClosetItem.Category.choices).get(c.strip(), c.strip().title())
-        for c in dna.preferred_categories.split(",")
-        if c.strip()
-    ] if dna.preferred_categories else []
+    categories = (
+        [
+            dict(ClosetItem.Category.choices).get(c.strip(), c.strip().title())
+            for c in dna.preferred_categories.split(",")
+            if c.strip()
+        ]
+        if dna.preferred_categories
+        else []
+    )
 
     # Occasions & Seasons
     occasions = (
-        dict(dna._meta.get_field("preferred_occasions").choices).get(
-            dna.preferred_occasions, ""
-        )
+        dict(dna._meta.get_field("preferred_occasions").choices).get(dna.preferred_occasions, "")
         if dna.preferred_occasions
         else ""
     )
     seasons = (
-        dict(dna._meta.get_field("preferred_seasons").choices).get(
-            dna.preferred_seasons, ""
-        )
+        dict(dna._meta.get_field("preferred_seasons").choices).get(dna.preferred_seasons, "")
         if dna.preferred_seasons
         else ""
     )
@@ -78,9 +70,7 @@ def get_style_profile_summary(user) -> dict[str, Any]:
         else ""
     )
     style_goal = (
-        dict(dna._meta.get_field("style_goal").choices).get(
-            dna.style_goal, ""
-        )
+        dict(dna._meta.get_field("style_goal").choices).get(dna.style_goal, "")
         if dna.style_goal
         else ""
     )
@@ -162,7 +152,7 @@ def get_style_evolution_insight(user) -> dict[str, Any]:
 
     # Inspect recent fits from variants
     recent_fits: list[str] = []
-    for item in (purchased_items[:4] + closet_items[:4]):
+    for item in purchased_items[:4] + closet_items[:4]:
         var = getattr(item, "variant", None)
         if var and var.product and var.product.fit:
             recent_fits.append(var.product.fit.name.lower())

@@ -78,12 +78,12 @@ class TestSSRFProtection:
             "192.168.0.1",
             "192.168.1.254",
             "169.254.169.254",  # AWS/GCP/Azure IMDS
-            "169.254.1.1",      # link-local
-            "100.64.0.1",       # CGNAT
+            "169.254.1.1",  # link-local
+            "100.64.0.1",  # CGNAT
             "100.100.100.200",  # Alibaba metadata
             "0.0.0.0",
-            "224.0.0.1",        # multicast
-            "240.0.0.1",        # reserved
+            "224.0.0.1",  # multicast
+            "240.0.0.1",  # reserved
         ],
     )
     def test_safe_ip_rejects_dangerous_and_private_ips(self, ip_str):
@@ -134,9 +134,7 @@ class TestSSRFProtection:
 
     def test_validate_url_accepts_valid_public_https_url(self):
         with patch("socket.getaddrinfo") as mock_dns:
-            mock_dns.return_value = [
-                (2, 1, 6, "", ("93.184.216.34", 443))
-            ]
+            mock_dns.return_value = [(2, 1, 6, "", ("93.184.216.34", 443))]
             scheme, host, port, safe_ip = validate_url_for_ssrf("https://example.com/image.jpg")
             assert scheme == "https"
             assert host == "example.com"
@@ -154,8 +152,12 @@ class TestSSRFProtection:
             with patch("apps.catalog.image_fetcher._SSRFSafeHTTPSConnection") as mock_conn:
                 instance = MagicMock()
                 instance.getresponse.return_value.status = 302
-                instance.getresponse.return_value.getheader.return_value = "http://127.0.0.1/private.png"
-                instance.getresponse.return_value.getheaders.return_value = [("location", "http://127.0.0.1/private.png")]
+                instance.getresponse.return_value.getheader.return_value = (
+                    "http://127.0.0.1/private.png"
+                )
+                instance.getresponse.return_value.getheaders.return_value = [
+                    ("location", "http://127.0.0.1/private.png")
+                ]
                 mock_conn.return_value = instance
 
                 with pytest.raises(ValidationError) as err:
@@ -532,7 +534,9 @@ class TestStaffImageAPI:
     """Ensure staff endpoints enforce authentication, staff checks, and SSRF rules."""
 
     def test_inspect_endpoint_requires_staff_authentication(self, client):
-        resp = client.get("/api/v1/catalog/admin/images/inspect-url/?url=https://example.com/img.jpg")
+        resp = client.get(
+            "/api/v1/catalog/admin/images/inspect-url/?url=https://example.com/img.jpg"
+        )
         assert resp.status_code in (401, 403)
 
     def test_inspect_endpoint_rejects_regular_non_staff_customer(self, client):
@@ -542,7 +546,9 @@ class TestStaffImageAPI:
             is_staff=False,
         )
         client.force_login(customer)
-        resp = client.get("/api/v1/catalog/admin/images/inspect-url/?url=https://example.com/img.jpg")
+        resp = client.get(
+            "/api/v1/catalog/admin/images/inspect-url/?url=https://example.com/img.jpg"
+        )
         assert resp.status_code == 403
 
     @patch("apps.catalog.image_fetcher.fetch_url_content")
@@ -563,7 +569,9 @@ class TestStaffImageAPI:
             headers={"content-type": "image/png"},
         )
 
-        resp = client.get("/api/v1/catalog/admin/images/inspect-url/?url=https://images.example.com/jacket.png")
+        resp = client.get(
+            "/api/v1/catalog/admin/images/inspect-url/?url=https://images.example.com/jacket.png"
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["type"] == "image"
@@ -579,7 +587,9 @@ class TestStaffImageAPI:
         )
         client.force_login(staff)
 
-        resp = client.get("/api/v1/catalog/admin/images/inspect-url/?url=http://127.0.0.1/admin.png")
+        resp = client.get(
+            "/api/v1/catalog/admin/images/inspect-url/?url=http://127.0.0.1/admin.png"
+        )
         assert resp.status_code == 400
         assert "error" in resp.json()
 

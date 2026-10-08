@@ -249,9 +249,7 @@ def post_detail(request, slug):
     media = get_post_media(post)
     product_tags = get_post_product_tags(post)
     outfit_tags = get_post_outfit_tags(post)
-    more_from_creator = list(
-        get_posts_by_creator(post.creator).exclude(pk=post.pk)[:4]
-    )
+    more_from_creator = list(get_posts_by_creator(post.creator).exclude(pk=post.pk)[:4])
 
     user_liked = has_user_liked(request.user, post)
     user_saved = has_user_saved(request.user, post)
@@ -335,10 +333,9 @@ def post_like(request, slug):
         status=CreatorPostStatus.PUBLISHED,
         creator__status=CreatorStatus.APPROVED,
     )
-    is_ajax = (
-        request.headers.get("x-requested-with") == "XMLHttpRequest"
-        or "application/json" in request.headers.get("accept", "")
-    )
+    is_ajax = request.headers.get(
+        "x-requested-with"
+    ) == "XMLHttpRequest" or "application/json" in request.headers.get("accept", "")
     if not request.user.is_authenticated:
         if is_ajax:
             login_url = f"{reverse('accounts:login')}?next={post.get_absolute_url()}"
@@ -369,10 +366,9 @@ def post_save(request, slug):
         status=CreatorPostStatus.PUBLISHED,
         creator__status=CreatorStatus.APPROVED,
     )
-    is_ajax = (
-        request.headers.get("x-requested-with") == "XMLHttpRequest"
-        or "application/json" in request.headers.get("accept", "")
-    )
+    is_ajax = request.headers.get(
+        "x-requested-with"
+    ) == "XMLHttpRequest" or "application/json" in request.headers.get("accept", "")
     if not request.user.is_authenticated:
         if is_ajax:
             login_url = f"{reverse('accounts:login')}?next={post.get_absolute_url()}"
@@ -413,7 +409,6 @@ def post_report(request, slug):
             "message": "Thank you. Our moderation team will review this look.",
         }
     )
-
 
 
 # =============================================================================

@@ -83,7 +83,7 @@ def sort_link(context, value, label=None) -> str:
     has_query = bool((request.GET.get("q") or "").strip())
     default_sort = "relevance" if has_query else "newest"
     active_sort = current_sort if current_sort else default_sort
-    is_active = (active_sort == value)
+    is_active = active_sort == value
 
     href = f"{request.path}{query_transform(context, sort=value)}"
     css = (

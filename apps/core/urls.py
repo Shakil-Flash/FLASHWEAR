@@ -17,4 +17,3 @@ urlpatterns = [
     path("health/ready/", views.ready_view, name="health_ready"),
     path("content/track/", views.track_content_interaction, name="track_content_interaction"),
 ]
-

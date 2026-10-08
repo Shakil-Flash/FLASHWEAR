@@ -80,6 +80,9 @@
                         </svg>
                     </button>
                     <div x-show="discoverOpen" x-transition.opacity.duration.150ms x-cloak class="absolute left-0 mt-3 w-56 origin-top-left rounded-2xl border border-slate-200 bg-white p-2 shadow-elevated">
+                        <a href="{% url 'catalog:discovery-hub' %}" class="block rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:text-slate-950">
+                            Mood &amp; Occasion
+                        </a>
                         <a href="{% url 'catalog:category-list' %}" class="block rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:text-slate-950">
                             Categories
                         </a>
@@ -190,6 +193,7 @@
         <div class="space-y-1 px-4 py-4 sm:px-6">
             <a href="{% url 'core:home' %}" class="block rounded-xl px-3 py-2 text-base font-medium text-slate-700 transition hover:bg-slate-50">Home</a>
             <a href="{% url 'catalog:product-list' %}" class="block rounded-xl px-3 py-2 text-base font-medium text-slate-700 transition hover:bg-slate-50">Shop</a>
+            <a href="{% url 'catalog:discovery-hub' %}" class="block rounded-xl px-3 py-2 text-base font-medium text-slate-700 transition hover:bg-slate-50">Mood &amp; Occasion</a>
             <a href="{% url 'catalog:category-list' %}" class="block rounded-xl px-3 py-2 text-base font-medium text-slate-700 transition hover:bg-slate-50">Categories</a>
             <a href="{% url 'catalog:collection-list' %}" class="block rounded-xl px-3 py-2 text-base font-medium text-slate-700 transition hover:bg-slate-50">Collections</a>
             <a href="{% url 'account:studio' %}" class="block rounded-xl px-3 py-2 text-base font-medium text-slate-700 transition hover:bg-slate-50">Styling Studio</a>

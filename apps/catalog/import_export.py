@@ -186,9 +186,7 @@ def validate_catalog_csv(csv_text_or_file) -> ImportValidationResult:
     existing_categories.update({c.name.lower(): c for c in Category.objects.all()})
     existing_brands = {b.name.lower(): b for b in Brand.objects.all()}
     existing_brands.update({b.slug: b for b in Brand.objects.all()})
-    existing_variants = {
-        v.sku: v.product_id for v in ProductVariant.objects.all()
-    }
+    existing_variants = {v.sku: v.product_id for v in ProductVariant.objects.all()}
     existing_products = {p.slug: p.id for p in Product.objects.all()}
 
     preview_rows = []
@@ -256,9 +254,7 @@ def validate_catalog_csv(csv_text_or_file) -> ImportValidationResult:
                         ImportRowError(index, sku, f"Price '{price_str}' cannot be negative.")
                     )
             except InvalidOperation:
-                errors.append(
-                    ImportRowError(index, sku, f"Price '{price_str}' is invalid.")
-                )
+                errors.append(ImportRowError(index, sku, f"Price '{price_str}' is invalid."))
 
         # Compare at price validation
         compare_str = row_clean.get("compare_at_price", "")
@@ -424,9 +420,7 @@ def execute_catalog_import(csv_text_or_file, *, user=None) -> ImportExecutionRes
             size_code = row_clean.get("size_code") or row_clean.get("size", "")
             size = None
             if size_code:
-                size = Size.objects.filter(
-                    Q(code__iexact=size_code) | Q(slug=size_code)
-                ).first()
+                size = Size.objects.filter(Q(code__iexact=size_code) | Q(slug=size_code)).first()
                 if not size:
                     size = Size.objects.create(
                         code=size_code, name=size_code, slug=slugify(size_code)
@@ -438,11 +432,7 @@ def execute_catalog_import(csv_text_or_file, *, user=None) -> ImportExecutionRes
                 if row_clean.get("compare_at_price")
                 else None
             )
-            cost_price = (
-                Decimal(row_clean["cost_price"])
-                if row_clean.get("cost_price")
-                else None
-            )
+            cost_price = Decimal(row_clean["cost_price"]) if row_clean.get("cost_price") else None
             var_active = row_clean.get("variant_active", "yes").lower() in ("yes", "true", "1")
 
             variant, var_created = ProductVariant.objects.get_or_create(

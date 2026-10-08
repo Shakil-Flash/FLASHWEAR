@@ -423,18 +423,15 @@ def get_smart_alternatives(
     Grounded purely in matching category, brand, and fit without duplicating the viewed product.
     """
     excluded = {product.pk}
-    candidates = (
-        Product.objects.published()
-        .with_storefront_data()
-        .exclude(pk__in=excluded)
-    )
+    candidates = Product.objects.published().with_storefront_data().exclude(pk__in=excluded)
 
     matches: list[Product] = []
     # 1. Match category
     if product.category_id:
         cat_matches = list(
-            candidates.filter(category=product.category)
-            .order_by("-is_featured", "-published_at")[:limit]
+            candidates.filter(category=product.category).order_by("-is_featured", "-published_at")[
+                :limit
+            ]
         )
         matches.extend(cat_matches)
         for m in cat_matches:
@@ -492,11 +489,13 @@ def get_product_sizing_guide(product: Product, user=None) -> dict[str, Any]:
     for variant in product.purchasable_variants:
         if variant.size and variant.size.code not in seen_codes:
             seen_codes.add(variant.size.code)
-            sizes.append({
-                "code": variant.size.code,
-                "name": variant.size.name or variant.size.code,
-                "size_type": variant.size.get_size_type_display(),
-            })
+            sizes.append(
+                {
+                    "code": variant.size.code,
+                    "name": variant.size.name or variant.size.code,
+                    "size_type": variant.size.get_size_type_display(),
+                }
+            )
 
     # Sort sizes logically by code/order
     sizes.sort(key=lambda s: s["code"])

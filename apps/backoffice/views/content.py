@@ -208,7 +208,6 @@ def content_editorial(request):
         .order_by("display_order", "-created_at")
     )
 
-
     q = request.GET.get("q", "").strip()
     if q:
         stories = stories.filter(title__icontains=q)

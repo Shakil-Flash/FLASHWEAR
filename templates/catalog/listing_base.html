@@ -49,6 +49,8 @@ pagination live here so discovery UX remains consistent across the entire storef
             {% if filters.category_slug %}<input type="hidden" name="category" value="{{ filters.category_slug }}">{% endif %}
             {% if filters.color_slugs %}<input type="hidden" name="color" value="{{ filters.color_slugs|join:',' }}">{% endif %}
             {% if filters.size_codes %}<input type="hidden" name="size" value="{{ filters.size_codes|join:',' }}">{% endif %}
+            {% if filters.mood %}<input type="hidden" name="mood" value="{{ filters.mood }}">{% endif %}
+            {% if filters.occasion %}<input type="hidden" name="occasion" value="{{ filters.occasion }}">{% endif %}
             {% if filters.in_stock %}<input type="hidden" name="in_stock" value="1">{% endif %}
             <button type="submit"
                     class="inline-flex h-12 items-center justify-center rounded-2xl bg-flash-600 px-6 text-sm font-semibold text-white shadow-soft hover:bg-flash-700 focus:outline-none focus:ring-2 focus:ring-flash-500/20 transition">
@@ -181,6 +183,8 @@ pagination live here so discovery UX remains consistent across the entire storef
                     {% if filters.category_slug %}<input type="hidden" name="category" value="{{ filters.category_slug }}">{% endif %}
                     {% if filters.color_slugs %}<input type="hidden" name="color" value="{{ filters.color_slugs|join:',' }}">{% endif %}
                     {% if filters.size_codes %}<input type="hidden" name="size" value="{{ filters.size_codes|join:',' }}">{% endif %}
+                    {% if filters.mood %}<input type="hidden" name="mood" value="{{ filters.mood }}">{% endif %}
+                    {% if filters.occasion %}<input type="hidden" name="occasion" value="{{ filters.occasion }}">{% endif %}
                     {% if filters.in_stock %}<input type="hidden" name="in_stock" value="1">{% endif %}
                     {% if sort %}<input type="hidden" name="sort" value="{{ sort }}">{% endif %}
                     <div class="flex items-center gap-2">
@@ -202,19 +206,61 @@ pagination live here so discovery UX remains consistent across the entire storef
                     </button>
                 </form>
             </div>
+
+            <!-- Mood Filter (Phase 34) -->
+            {% if mood_catalog %}
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2.5">Shop by Mood</p>
+                <div class="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto">
+                    {% for m in mood_catalog %}
+                        <a href="{% if filters.mood == m.slug %}{% remove_filter_url 'mood' %}{% else %}{% query_transform mood=m.slug %}{% endif %}"
+                           class="rounded-xl px-2.5 py-1 text-xs font-medium transition {% if filters.mood == m.slug %}bg-slate-900 text-white font-semibold{% else %}border border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-400 hover:bg-white{% endif %}">
+                            {{ m.name }}
+                        </a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Occasion Filter (Phase 34) -->
+            {% if occasion_catalog %}
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2.5">Dressing For</p>
+                <div class="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto">
+                    {% for occ in occasion_catalog %}
+                        <a href="{% if filters.occasion == occ.slug %}{% remove_filter_url 'occasion' %}{% else %}{% query_transform occasion=occ.slug %}{% endif %}"
+                           class="rounded-xl px-2.5 py-1 text-xs font-medium transition {% if filters.occasion == occ.slug %}bg-slate-900 text-white font-semibold{% else %}border border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-400 hover:bg-white{% endif %}">
+                            {{ occ.name }}
+                        </a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
         </div>
     </div>
 
     {% block filters %}{% endblock filters %}
 
     <!-- Active Filters Row -->
-    {% if filters.query or filters.category_slug or filters.color_slugs or filters.size_codes or filters.min_price or filters.max_price or filters.in_stock %}
+    {% if filters.query or filters.category_slug or filters.color_slugs or filters.size_codes or filters.min_price or filters.max_price or filters.in_stock or filters.mood or filters.occasion %}
     <div class="mt-4 flex flex-wrap items-center gap-2 rounded-2xl bg-slate-50 border border-slate-200/60 p-3 text-xs text-slate-700">
         <span class="font-semibold text-slate-900">Active filters:</span>
         {% if filters.query %}
         <span class="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 ring-1 ring-slate-200 font-medium">
             Search: “{{ filters.query }}”
             <a href="{% remove_filter_url 'q' %}" class="text-slate-400 hover:text-slate-700 font-bold ml-0.5" aria-label="Remove search filter">×</a>
+        </span>
+        {% endif %}
+        {% if filters.mood %}
+        <span class="inline-flex items-center gap-1.5 rounded-full bg-slate-900 text-white px-3 py-1 font-medium shadow-sm">
+            Mood: {{ active_mood.name|default:filters.mood }}
+            <a href="{% remove_filter_url 'mood' %}" class="text-slate-300 hover:text-white font-bold ml-0.5" aria-label="Remove mood filter">×</a>
+        </span>
+        {% endif %}
+        {% if filters.occasion %}
+        <span class="inline-flex items-center gap-1.5 rounded-full bg-slate-900 text-white px-3 py-1 font-medium shadow-sm">
+            Occasion: {{ active_occasion.name|default:filters.occasion }}
+            <a href="{% remove_filter_url 'occasion' %}" class="text-slate-300 hover:text-white font-bold ml-0.5" aria-label="Remove occasion filter">×</a>
         </span>
         {% endif %}
         {% if filters.category_slug %}

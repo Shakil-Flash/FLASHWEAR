@@ -400,8 +400,6 @@ class BrandAdminForm(forms.ModelForm):
         return cleaned
 
 
-
-
 class ProductAdminForm(forms.ModelForm):
     """Admin form for the product itself.
 
@@ -538,4 +536,3 @@ class BulkArchiveConfirmForm(forms.Form):
             "I understand this will retire and hide all selected products from the storefront."
         ),
     )
-

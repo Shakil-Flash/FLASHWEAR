@@ -122,5 +122,3 @@ class CreatorProfile(models.Model):
     @property
     def is_suspended(self) -> bool:
         return self.status == CreatorStatus.SUSPENDED
-
-

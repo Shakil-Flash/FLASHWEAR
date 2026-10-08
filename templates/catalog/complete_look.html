@@ -4,20 +4,24 @@ Inner HTML of the product page's "Complete the look" section, fetched lazily wit
 (``hx-trigger="load"``) so the product detail view keeps its query-count budget. Public and
 always friendly: no complementary pieces renders a calm empty state, never an error, and
 every outbound link runs through the click tracker so ``recommendation_clicked`` fires.
+Phase 34: Added multi-item "Add Look to Bag" and "Create Outfit in Closet" actions.
 {% endcomment %}
 
 <h2 id="complete-look-heading" class="text-xl font-semibold tracking-tight text-slate-950">
     Complete the look
 </h2>
+<p class="mt-1 text-xs text-slate-500">
+    Compatible pieces selected to complete your silhouette. Add individual items, bag the look, or compose an outfit in your closet.
+</p>
 
 {% if look.items %}
     <ul class="mt-6 grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4">
         {% for item in look.items %}
-        <li class="flex flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-soft">
+        <li class="flex flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-soft transition hover:border-slate-300">
             <a href="{% url 'catalog:track-click' %}?next={{ item.product.get_absolute_url|urlencode }}&amp;src=complete_look"
-               class="block aspect-[4/5] overflow-hidden rounded-xl bg-slate-100">
+               class="group block aspect-[4/5] overflow-hidden rounded-xl bg-slate-100">
                 {% if item.product.primary_image %}
-                <img src="{{ item.product.primary_image.image.url }}" alt="{{ item.product.name }}" width="640" height="800" loading="lazy" decoding="async" class="h-full w-full object-cover transition group-hover:scale-105" />
+                <img src="{{ item.product.primary_image.image.url }}" alt="{{ item.product.name }}" width="640" height="800" loading="lazy" decoding="async" class="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
                 {% else %}
                 <span class="flex h-full w-full items-center justify-center text-xs text-slate-400">No photo yet</span>
                 {% endif %}
@@ -52,6 +56,45 @@ every outbound link runs through the click tracker so ``recommendation_clicked``
         </li>
         {% endfor %}
     </ul>
+
+    <!-- Phase 34: Complete Look Batch Actions -->
+    <div class="mt-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:p-5">
+        <div class="flex items-center gap-2">
+            <span class="text-sm font-semibold text-slate-900">Look Actions</span>
+            <span class="text-xs text-slate-500">({{ look.items|length }} complementary piece{{ look.items|length|pluralize }})</span>
+        </div>
+        <div class="flex flex-wrap items-center gap-3">
+            <form method="post" action="{% url 'catalog:complete-look-add-all' slug=product.slug %}" class="inline">
+                {% csrf_token %}
+                {% for item in look.items %}
+                    {% with fv=item.product.purchasable_variants.0 %}
+                        {% if fv %}
+                            <input type="hidden" name="variant_ids" value="{{ fv.pk }}" />
+                        {% endif %}
+                    {% endwith %}
+                {% endfor %}
+                <button type="submit"
+                        id="add-entire-look-btn"
+                        class="inline-flex items-center justify-center gap-2 rounded-full bg-slate-950 px-5 py-2.5 text-xs font-semibold text-white shadow-soft transition hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900/30">
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                    </svg>
+                    <span>Add Look to Bag</span>
+                </button>
+            </form>
+            <form method="post" action="{% url 'catalog:complete-look-create-outfit' slug=product.slug %}" class="inline">
+                {% csrf_token %}
+                <button type="submit"
+                        id="create-outfit-from-look-btn"
+                        class="inline-flex items-center justify-center gap-2 rounded-full border border-slate-300 bg-white px-5 py-2.5 text-xs font-semibold text-slate-700 shadow-soft transition hover:border-slate-900 hover:text-slate-950 focus:outline-none focus:ring-2 focus:ring-flash-500/30">
+                    <svg class="h-4 w-4 text-flash-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                    </svg>
+                    <span>Create Outfit in Closet</span>
+                </button>
+            </form>
+        </div>
+    </div>
 {% else %}
     <p class="mt-4 rounded-2xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-600">
         {% for warning in look.warnings %}{{ warning }}{% empty %}No matching pieces right now.{% endfor %}

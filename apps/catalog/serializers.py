@@ -252,9 +252,7 @@ class ProductImageCreateSerializer(serializers.Serializer):
 
         if source_url and not image:
             try:
-                downloaded = fetch_and_validate_image_file(
-                    source_url, candidate_url=candidate_url
-                )
+                downloaded = fetch_and_validate_image_file(source_url, candidate_url=candidate_url)
                 attrs["image"] = downloaded.file
                 if not attrs.get("photographer") and downloaded.suggested_photographer:
                     attrs["photographer"] = downloaded.suggested_photographer
@@ -267,7 +265,6 @@ class ProductImageCreateSerializer(serializers.Serializer):
                 raise serializers.ValidationError({"source_url": str(err)}) from err
 
         return attrs
-
 
 
 class ProductVariantSerializer(serializers.ModelSerializer):

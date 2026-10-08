@@ -404,7 +404,6 @@ def merch_product_remove(request, section_pk, product_pk):
     prod_title = sp.product.name
     sp.delete()
 
-
     record_audit(
         actor=request.user,
         domain=AuditEvent.Domain.CATALOG,
@@ -463,9 +462,7 @@ def merch_scheduled(request):
         .select_related("section", "product")
         .order_by("starts_at")
     )
-    scheduled_stories = (
-        EditorialStory.objects.filter(starts_at__isnull=False).order_by("starts_at")
-    )
+    scheduled_stories = EditorialStory.objects.filter(starts_at__isnull=False).order_by("starts_at")
 
     return render_bo(
         request,
@@ -477,4 +474,3 @@ def merch_scheduled(request):
         products=scheduled_products,
         stories=scheduled_stories,
     )
-

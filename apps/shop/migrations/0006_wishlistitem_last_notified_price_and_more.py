@@ -4,40 +4,70 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('shop', '0005_checkoutsession_loyalty_points_and_more'),
+        ("shop", "0005_checkoutsession_loyalty_points_and_more"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='wishlistitem',
-            name='last_notified_price',
-            field=models.DecimalField(blank=True, decimal_places=2, help_text='Price at which the last price drop notification was sent.', max_digits=10, null=True, verbose_name='last notified price'),
+            model_name="wishlistitem",
+            name="last_notified_price",
+            field=models.DecimalField(
+                blank=True,
+                decimal_places=2,
+                help_text="Price at which the last price drop notification was sent.",
+                max_digits=10,
+                null=True,
+                verbose_name="last notified price",
+            ),
         ),
         migrations.AddField(
-            model_name='wishlistitem',
-            name='last_notified_stock_at',
-            field=models.DateTimeField(blank=True, help_text='Timestamp when back-in-stock notification was last sent.', null=True, verbose_name='last notified back in stock at'),
+            model_name="wishlistitem",
+            name="last_notified_stock_at",
+            field=models.DateTimeField(
+                blank=True,
+                help_text="Timestamp when back-in-stock notification was last sent.",
+                null=True,
+                verbose_name="last notified back in stock at",
+            ),
         ),
         migrations.AddField(
-            model_name='wishlistitem',
-            name='notify_back_in_stock',
-            field=models.BooleanField(default=False, help_text='Alert customer when this item is back in stock.', verbose_name='notify back in stock'),
+            model_name="wishlistitem",
+            name="notify_back_in_stock",
+            field=models.BooleanField(
+                default=False,
+                help_text="Alert customer when this item is back in stock.",
+                verbose_name="notify back in stock",
+            ),
         ),
         migrations.AddField(
-            model_name='wishlistitem',
-            name='notify_price_drop',
-            field=models.BooleanField(default=False, help_text='Alert customer when price decreases.', verbose_name='notify on price drop'),
+            model_name="wishlistitem",
+            name="notify_price_drop",
+            field=models.BooleanField(
+                default=False,
+                help_text="Alert customer when price decreases.",
+                verbose_name="notify on price drop",
+            ),
         ),
         migrations.AddField(
-            model_name='wishlistitem',
-            name='price_when_added',
-            field=models.DecimalField(blank=True, decimal_places=2, help_text='Price at the time the product or variant was saved.', max_digits=10, null=True, verbose_name='price when added'),
+            model_name="wishlistitem",
+            name="price_when_added",
+            field=models.DecimalField(
+                blank=True,
+                decimal_places=2,
+                help_text="Price at the time the product or variant was saved.",
+                max_digits=10,
+                null=True,
+                verbose_name="price when added",
+            ),
         ),
         migrations.AddField(
-            model_name='wishlistitem',
-            name='was_out_of_stock',
-            field=models.BooleanField(default=False, help_text='Tracks if item was out of stock when alert was enabled or last checked.', verbose_name='was out of stock'),
+            model_name="wishlistitem",
+            name="was_out_of_stock",
+            field=models.BooleanField(
+                default=False,
+                help_text="Tracks if item was out of stock when alert was enabled or last checked.",
+                verbose_name="was out of stock",
+            ),
         ),
     ]
