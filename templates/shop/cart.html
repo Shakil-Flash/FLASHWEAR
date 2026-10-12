@@ -125,8 +125,9 @@
                     <div class="flex gap-4 sm:gap-5">
                         <a href="{{ item.variant.get_absolute_url }}" class="block h-28 w-24 shrink-0 overflow-hidden rounded-xl bg-slate-100 border border-slate-200 dark:border-slate-800 dark:bg-slate-800 sm:h-32 sm:w-28">
                             {% with image=item.variant.product.primary_image %}
-                                {% if image %}
+                                {% if image and image.image %}
                                 <img src="{{ image.image.url }}" alt="{{ image.alt_text|default:item.variant.product.name }}" width="640" height="800" loading="lazy" decoding="async" class="h-full w-full object-cover transition duration-300 hover:scale-105" />
+                                <div class="hidden flex h-full w-full items-center justify-center text-xs text-slate-400 image-fallback-placeholder">No image</div>
                                 {% else %}
                                 <div class="flex h-full w-full items-center justify-center text-xs text-slate-400">No image</div>
                                 {% endif %}
@@ -297,8 +298,11 @@
                     <div class="flex items-center gap-3 rounded-xl border border-slate-100 p-2.5 transition hover:border-slate-300 dark:border-slate-800 dark:hover:border-slate-700">
                         <a href="{{ suggestion.get_absolute_url }}" class="h-16 w-14 shrink-0 overflow-hidden rounded-lg bg-slate-100 dark:bg-slate-800">
                             {% with image=suggestion.primary_image %}
-                                {% if image %}
-                                <img src="{{ image.image.url }}" alt="{{ suggestion.name }}" class="h-full w-full object-cover" loading="lazy" />
+                                {% if image and image.image %}
+                                <img src="{{ image.image.url }}" alt="{{ suggestion.name }}" width="112" height="128" class="h-full w-full object-cover" loading="lazy" decoding="async" />
+                                <div class="hidden flex h-full w-full items-center justify-center text-[10px] text-slate-400 image-fallback-placeholder">Piece</div>
+                                {% else %}
+                                <div class="flex h-full w-full items-center justify-center text-[10px] text-slate-400">Piece</div>
                                 {% endif %}
                             {% endwith %}
                         </a>

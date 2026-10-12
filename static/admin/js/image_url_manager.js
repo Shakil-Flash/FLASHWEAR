@@ -107,7 +107,7 @@ document.addEventListener("DOMContentLoaded", function () {
             data.candidates.forEach(function (cand, idx) {
                 html += `
                     <div class="image-url-candidate-item" data-url="${escapeHtml(cand.url)}" data-alt="${escapeHtml(cand.alt || '')}">
-                        <img src="${escapeHtml(cand.url)}" alt="${escapeHtml(cand.alt || 'Candidate ' + (idx + 1))}" />
+                        <img src="${escapeHtml(cand.url)}" alt="${escapeHtml(cand.alt || 'Candidate ' + (idx + 1))}" onerror="this.style.opacity='0.3'; this.title='Image preview unavailable';" />
                     </div>
                 `;
             });

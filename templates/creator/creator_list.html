@@ -49,7 +49,11 @@
                     <div class="flex items-center gap-4">
                         {% if creator.avatar %}
                             <img src="{{ creator.avatar.url }}" alt="{{ creator.display_name }}"
+                                 width="64" height="64" loading="lazy" decoding="async"
                                  class="h-16 w-16 rounded-full object-cover ring-2 ring-flash-400/50" />
+                            <div class="hidden flex h-16 w-16 items-center justify-center rounded-full bg-flash-500 font-bold text-slate-950 text-xl image-fallback-placeholder">
+                                {{ creator.display_name|slice:":1"|upper }}
+                            </div>
                         {% else %}
                             <div class="flex h-16 w-16 items-center justify-center rounded-full bg-flash-500 font-bold text-slate-950 text-xl">
                                 {{ creator.display_name|slice:":1"|upper }}
@@ -93,7 +97,10 @@
                     <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft transition hover:border-slate-300">
                         <div class="flex items-center gap-3">
                             {% if creator.avatar %}
-                                <img src="{{ creator.avatar.url }}" alt="{{ creator.display_name }}" class="h-12 w-12 rounded-full object-cover" />
+                                <img src="{{ creator.avatar.url }}" alt="{{ creator.display_name }}" width="48" height="48" loading="lazy" decoding="async" class="h-12 w-12 rounded-full object-cover" />
+                                <div class="hidden flex h-12 w-12 items-center justify-center rounded-full bg-slate-200 font-bold text-slate-700 image-fallback-placeholder">
+                                    {{ creator.display_name|slice:":1"|upper }}
+                                </div>
                             {% else %}
                                 <div class="flex h-12 w-12 items-center justify-center rounded-full bg-slate-200 font-bold text-slate-700">
                                     {{ creator.display_name|slice:":1"|upper }}

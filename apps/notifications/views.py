@@ -131,7 +131,14 @@ def action_click(request: HttpRequest, pk: int) -> HttpResponse:
     )
 
     if notification.action_url:
-        return redirect(notification.action_url)
+        from django.utils.http import url_has_allowed_host_and_scheme
+
+        if url_has_allowed_host_and_scheme(
+            notification.action_url,
+            allowed_hosts={request.get_host()},
+            require_https=request.is_secure(),
+        ):
+            return redirect(notification.action_url)
     return redirect("notifications:center")
 
 

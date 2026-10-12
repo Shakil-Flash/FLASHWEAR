@@ -40,6 +40,9 @@ its page 404s too, and there is nothing to link to from here.
                                          loading="lazy"
                                          decoding="async"
                                          class="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+                                    <span class="hidden flex h-full w-full items-center justify-center bg-gradient-to-br from-flash-500/15 to-slate-100 text-sm text-slate-500">
+                                        {{ collection.name }}
+                                    </span>
                                 {% else %}
                                     <span class="flex h-full w-full items-center justify-center bg-gradient-to-br from-flash-500/15 to-slate-100 text-sm text-slate-500">
                                         {{ collection.name }}

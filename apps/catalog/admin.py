@@ -91,6 +91,10 @@ class ProductImageInline(admin.TabularInline):
     readonly_fields = ("color_name", "preview", "source_badge")
     autocomplete_fields = ("variant",)
 
+    class Media:
+        css = {"all": ("admin/css/image_url_manager.css",)}
+        js = ("admin/js/image_url_manager.js",)
+
     @admin.display(description=_("Colour"))
     def color_name(self, image: ProductImage):
         """Named ``color_name`` rather than ``color`` so it cannot shadow the model property."""
@@ -109,13 +113,18 @@ class ProductImageInline(admin.TabularInline):
             "max-height:75px;max-width:90px;object-fit:cover;"
             "border-radius:6px;border:1px solid #e5e7eb;"
         )
+        missing_span = (
+            "<span style='color:#ef4444;font-size:11px;font-weight:600;'>⚠️ Missing File</span>"
+        )
         return format_html(
             '<a href="{url}" target="_blank" rel="noopener noreferrer">'
-            '<img src="{url}" style="{style}" alt="{alt}" />'
+            '<img src="{url}" style="{style}" alt="{alt}" '
+            "onerror=\"this.onerror=null;this.parentElement.innerHTML='{missing}';\" />"
             "</a>",
             url=url,
             style=img_style,
             alt=image.alt_text or "Preview",
+            missing=mark_safe(missing_span),
         )
 
     @admin.display(description=_("Source"))
@@ -460,7 +469,8 @@ class ProductAdmin(admin.ModelAdmin):
 
         return format_html(
             '<img src="{url}" style="width:38px;height:38px;object-fit:cover;'
-            'border-radius:4px;border:1px solid #cbd5e1;" alt="{alt}" />',
+            'border-radius:4px;border:1px solid #cbd5e1;" alt="{alt}" '
+            "onerror=\"this.onerror=null;this.style.opacity='0.3';\" />",
             url=url,
             alt=image_obj.alt_text or product.name,
         )
@@ -789,6 +799,17 @@ class ProductAdmin(admin.ModelAdmin):
             },
         ]
 
+        gallery_data = [
+            {
+                "id": getattr(img, "pk", i),
+                "url": getattr(img, "image_url", "")
+                or (img.image.url if getattr(img, "image", None) and bool(img.image) else ""),
+                "alt": getattr(img, "alt_text", "") or product.name,
+            }
+            for i, img in enumerate(gallery_images)
+            if getattr(img, "image_url", "") or (getattr(img, "image", None) and bool(img.image))
+        ]
+
         context = {
             "product": product,
             "matrix": matrix,
@@ -798,6 +819,7 @@ class ProductAdmin(admin.ModelAdmin):
             "gallery": gallery,
             "hero_image": gallery_images[0] if gallery_images else None,
             "gallery_images": gallery_images,
+            "gallery_data": gallery_data,
             "product_schema": seo.product_schema(product, request=request),
             "breadcrumb_schema": breadcrumb_schema(breadcrumbs),
             "breadcrumbs": breadcrumbs,
@@ -1397,13 +1419,18 @@ class ProductImageAdmin(admin.ModelAdmin):
         except Exception:
             return "—"
         img_style = "max-height:80px;border-radius:8px;border:1px solid #e5e7eb;"
+        missing_span = (
+            "<span style='color:#ef4444;font-size:11px;font-weight:600;'>⚠️ Missing File</span>"
+        )
         return format_html(
             '<a href="{url}" target="_blank" rel="noopener noreferrer">'
-            '<img src="{url}" style="{style}" alt="{alt}" />'
+            '<img src="{url}" style="{style}" alt="{alt}" '
+            "onerror=\"this.onerror=null;this.parentElement.innerHTML='{missing}';\" />"
             "</a>",
             url=url,
             style=img_style,
             alt=image.alt_text or "Preview",
+            missing=mark_safe(missing_span),
         )
 
     @admin.display(description=_("Source"))

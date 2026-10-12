@@ -14,6 +14,7 @@
             <div class="flex items-center gap-4 sm:gap-5">
                 {% if user.profile.avatar %}
                     <img src="{{ user.profile.avatar.url }}" alt="{{ user.get_full_name }}" width="80" height="80" decoding="async" class="h-20 w-20 rounded-full object-cover ring-2 ring-white shadow-soft" />
+                    <span aria-hidden="true" class="hidden inline-flex h-20 w-20 items-center justify-center rounded-full bg-flash-600 text-3xl font-semibold text-white shadow-soft ring-4 ring-white">{{ user.get_short_name|slice:":1"|upper }}</span>
                 {% else %}
                     <span aria-hidden="true" class="inline-flex h-20 w-20 items-center justify-center rounded-full bg-flash-600 text-3xl font-semibold text-white shadow-soft ring-4 ring-white">{{ user.get_short_name|slice:":1"|upper }}</span>
                 {% endif %}
@@ -260,10 +261,17 @@
             <article class="group relative flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft hover-lift hover:shadow-elevated transition">
                 <a href="{{ rec.product.get_absolute_url }}" class="relative block aspect-[4/5] overflow-hidden bg-slate-100">
                     {% with image=rec.product.primary_image %}
-                        {% if image %}
+                        {% if image and image.image %}
                             <img src="{{ image.image.url }}" alt="{{ image.alt_text|default:rec.product.name }}" width="640" height="800" loading="lazy" decoding="async" class="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+                            <div class="hidden flex h-full w-full flex-col items-center justify-center bg-gradient-to-b from-slate-50 to-slate-100 p-4 text-center">
+                                <svg class="h-8 w-8 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" /></svg>
+                                <span class="mt-2 text-[11px] font-medium tracking-wider uppercase text-slate-400">FLASHWEAR</span>
+                            </div>
                         {% else %}
-                            <span class="flex h-full w-full items-center justify-center text-xs text-slate-400">No image</span>
+                            <div class="flex h-full w-full flex-col items-center justify-center bg-gradient-to-b from-slate-50 to-slate-100 p-4 text-center">
+                                <svg class="h-8 w-8 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" /></svg>
+                                <span class="mt-2 text-[11px] font-medium tracking-wider uppercase text-slate-400">FLASHWEAR</span>
+                            </div>
                         {% endif %}
                     {% endwith %}
                     <div class="absolute inset-x-2 bottom-2 z-10">
@@ -312,8 +320,10 @@
                 <div class="aspect-square overflow-hidden rounded-xl bg-slate-200/80">
                     {% if item.image %}
                         <img src="{{ item.image.url }}" alt="{{ item.name }}" width="300" height="300" loading="lazy" decoding="async" class="h-full w-full object-cover transition group-hover:scale-105" />
-                    {% elif item.product and item.product.primary_image %}
+                        <span class="hidden flex h-full w-full items-center justify-center text-xs text-slate-400">Wardrobe piece</span>
+                    {% elif item.product and item.product.primary_image and item.product.primary_image.image %}
                         <img src="{{ item.product.primary_image.image.url }}" alt="{{ item.name }}" width="300" height="300" loading="lazy" decoding="async" class="h-full w-full object-cover transition group-hover:scale-105" />
+                        <span class="hidden flex h-full w-full items-center justify-center text-xs text-slate-400">Wardrobe piece</span>
                     {% else %}
                         <span class="flex h-full w-full items-center justify-center text-xs text-slate-400">Wardrobe piece</span>
                     {% endif %}
@@ -369,8 +379,17 @@
             <article class="group relative flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft transition hover-lift">
                 <a href="{{ entry.product.get_absolute_url }}" class="relative block aspect-[4/5] overflow-hidden bg-slate-100">
                     {% with image=entry.product.primary_image %}
-                        {% if image %}
+                        {% if image and image.image %}
                             <img src="{{ image.image.url }}" alt="{{ entry.product.name }}" width="640" height="800" loading="lazy" decoding="async" class="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+                            <div class="hidden flex h-full w-full flex-col items-center justify-center bg-gradient-to-b from-slate-50 to-slate-100 p-4 text-center">
+                                <svg class="h-8 w-8 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" /></svg>
+                                <span class="mt-2 text-[11px] font-medium tracking-wider uppercase text-slate-400">FLASHWEAR</span>
+                            </div>
+                        {% else %}
+                            <div class="flex h-full w-full flex-col items-center justify-center bg-gradient-to-b from-slate-50 to-slate-100 p-4 text-center">
+                                <svg class="h-8 w-8 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" /></svg>
+                                <span class="mt-2 text-[11px] font-medium tracking-wider uppercase text-slate-400">FLASHWEAR</span>
+                            </div>
                         {% endif %}
                     {% endwith %}
 

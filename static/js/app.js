@@ -16,6 +16,29 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   // ---------------------------------------------------------------------------
+  // Phase 37: Global image resilience & graceful degradation
+  // ---------------------------------------------------------------------------
+  window.addEventListener(
+    "error",
+    (event) => {
+      const target = event.target;
+      if (target && target.tagName === "IMG") {
+        target.classList.add("is-broken-img");
+        target.style.display = "none";
+        const fallback =
+          target.parentElement?.querySelector(".image-fallback-placeholder") ||
+          (target.nextElementSibling?.classList.contains("hidden")
+            ? target.nextElementSibling
+            : null);
+        if (fallback) {
+          fallback.classList.remove("hidden");
+        }
+      }
+    },
+    true
+  );
+
+  // ---------------------------------------------------------------------------
   // Phase 27: Reliable, fail-safe scroll-reveal system
   //
   // Every element with class `reveal` starts 100% visible by default in CSS.

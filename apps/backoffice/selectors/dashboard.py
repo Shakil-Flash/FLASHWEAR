@@ -38,7 +38,7 @@ from apps.drops.models import DropStatus, FlashDrop
 from apps.engagement.models import PointsTransaction, Promotion, Review
 from apps.inventory.models import Reservation, Stock
 from apps.orders.models import Order, ReturnRequest
-from apps.payments.models import Payment
+from apps.payments.models import Payment, Refund
 from apps.quests.models import Quest
 from apps.support.models import SupportTicket
 
@@ -93,6 +93,15 @@ def dashboard_summary(*, date_range: DateRange) -> dict:
     gross = revenue["gross"]
     paid_count = revenue["count"]
     aov = (gross / paid_count).quantize(Decimal("0.01")) if paid_count else Decimal("0.00")
+
+    # Refunds and net sales in window
+    refunds = Refund.objects.filter(
+        status=Refund.Status.SUCCEEDED,
+        **_window(date_range, "processed_at" if date_range.start else "created_at"),
+    ).aggregate(total=Coalesce(Sum("amount"), Decimal("0.00")), count=Count("pk"))
+    refunds_total = refunds["total"]
+    refunds_count = refunds["count"]
+    net = max(Decimal("0.00"), gross - refunds_total)
 
     pipeline = {
         row["status"]: row["n"]
@@ -188,8 +197,11 @@ def dashboard_summary(*, date_range: DateRange) -> dict:
             "placed": placed["count"],
             "paid": paid_count,
             "gross": gross,
+            "net": net,
             "discounts": placed["discounts"],
             "aov": aov,
+            "refunds_count": refunds_count,
+            "refunds_total": refunds_total,
         },
         "pipeline": pipeline,
         "payments": payments,

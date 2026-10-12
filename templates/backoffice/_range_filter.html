@@ -1,10 +1,20 @@
 {% comment %}
-Date-window switcher. Links, not a form: ``range`` is the only parameter this partial
-owns, and ``query_transform`` carries every other filter the operator already set.
+Date-window switcher. Quick presets plus custom date range inputs.
 {% endcomment %}
 {% load catalog_extras %}
-<nav class="flex flex-wrap items-center gap-1.5" aria-label="Date range">
-    {% for key, label in range_choices %}
-        <a href="{% query_transform range=key page=1 %}" class="rounded-full px-3 py-1 text-sm transition {% if current_range == key %}bg-slate-900 dark:bg-amber-500 font-medium text-white dark:text-slate-950 shadow-xs{% else %}border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:border-slate-900 dark:hover:border-slate-500{% endif %}" {% if current_range == key %}aria-current="true"{% endif %}>{{ label }}</a>
-    {% endfor %}
-</nav>
+<div class="flex flex-wrap items-center gap-3">
+    <nav class="flex flex-wrap items-center gap-1.5" aria-label="Date range">
+        {% for key, label in range_choices %}
+            <a href="{% query_transform range=key from="" to="" page=1 %}" class="rounded-full px-3 py-1 text-sm transition {% if current_range == key %}bg-slate-900 dark:bg-amber-500 font-medium text-white dark:text-slate-950 shadow-xs{% else %}border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:border-slate-900 dark:hover:border-slate-500{% endif %}" {% if current_range == key %}aria-current="true"{% endif %}>{{ label }}</a>
+        {% endfor %}
+    </nav>
+    <form method="get" class="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300">
+        <input type="hidden" name="range" value="custom">
+        <label for="filter-from-date" class="sr-only">From date</label>
+        <input id="filter-from-date" type="date" name="from" value="{{ from_date }}" class="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs text-slate-800 shadow-xs focus:border-slate-900 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+        <span aria-hidden="true" class="text-slate-400">to</span>
+        <label for="filter-to-date" class="sr-only">To date</label>
+        <input id="filter-to-date" type="date" name="to" value="{{ to_date }}" class="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs text-slate-800 shadow-xs focus:border-slate-900 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+        <button type="submit" class="rounded-lg bg-slate-900 px-2.5 py-1 text-xs font-medium text-white transition hover:bg-slate-800 dark:bg-amber-500 dark:text-slate-950 dark:hover:bg-amber-400">Apply</button>
+    </form>
+</div>

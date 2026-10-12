@@ -75,14 +75,20 @@
                 <div class="hero-anim-visual relative lg:col-span-5">
                     <div class="relative mx-auto aspect-[4/5] max-w-md overflow-hidden rounded-3xl border border-white/15 bg-slate-900/80 shadow-2xl backdrop-blur">
                         {% with lead=featured_products.0 %}
-                            {% if lead and lead.primary_image %}
+                            {% if lead and lead.primary_image and lead.primary_image.image %}
                                 <img src="{{ lead.primary_image.image.url }}"
                                      alt="{{ lead.name }}"
                                      width="800"
                                      height="1000"
                                      loading="eager"
                                      fetchpriority="high"
+                                     decoding="async"
                                      class="h-full w-full object-cover transition duration-1000 group-hover:scale-105" />
+                                <div class="hidden flex h-full w-full flex-col items-center justify-center p-8 text-center bg-gradient-to-br from-flash-600/30 via-slate-900 to-slate-950 image-fallback-placeholder">
+                                    <span class="rounded-full bg-white/10 px-4 py-1.5 text-xs font-medium uppercase tracking-widest text-flash-300">Signature Series</span>
+                                    <p class="mt-4 text-2xl font-semibold tracking-tight text-white">{{ site_tagline|default:'Fashion Beyond Ordinary' }}</p>
+                                    <p class="mt-2 text-xs text-slate-400">Garment-dyed cotton, technical layers, everyday silhouettes.</p>
+                                </div>
                                 <div class="absolute inset-x-4 bottom-4 rounded-2xl border border-white/15 bg-slate-950/70 p-4 backdrop-blur-md">
                                     <div class="flex items-center justify-between">
                                         <div class="min-w-0 pr-2">
@@ -486,10 +492,12 @@
             <article class="reveal reveal-up group relative flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft transition hover:shadow-elevated">
                 <a href="{{ item.get_absolute_url }}" class="block aspect-[4/5] overflow-hidden bg-slate-100">
                     {% with primary_img=item.loop_item.primary_image %}
-                        {% if primary_img %}
+                        {% if primary_img and primary_img.image %}
                             <img src="{{ primary_img.image.url }}" alt="{{ item.loop_item.product.name|default:'Pre-loved garment' }}" width="640" height="800" loading="lazy" decoding="async" class="h-full w-full object-cover transition duration-700 group-hover:scale-105" />
-                        {% elif item.loop_item.product and item.loop_item.product.primary_image %}
+                            <div class="hidden flex h-full w-full items-center justify-center text-xs text-slate-400 image-fallback-placeholder">Pre-loved piece</div>
+                        {% elif item.loop_item.product and item.loop_item.product.primary_image and item.loop_item.product.primary_image.image %}
                             <img src="{{ item.loop_item.product.primary_image.image.url }}" alt="{{ item.loop_item.product.name }}" width="640" height="800" loading="lazy" decoding="async" class="h-full w-full object-cover transition duration-700 group-hover:scale-105" />
+                            <div class="hidden flex h-full w-full items-center justify-center text-xs text-slate-400 image-fallback-placeholder">Pre-loved piece</div>
                         {% else %}
                             <span class="flex h-full w-full items-center justify-center text-xs text-slate-400">Pre-loved piece</span>
                         {% endif %}

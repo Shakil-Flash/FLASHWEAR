@@ -764,7 +764,7 @@ def cart_count(request):
 def wishlist_count(request):
     """Return the wishlist item count as JSON."""
     if request.user.is_authenticated:
-        wishlist = _get_or_create_wishlist(request.user)
+        wishlist = get_or_create_wishlist(request.user)
         return JsonResponse({"count": wishlist.get_item_count()})
     return JsonResponse({"count": 0})
 

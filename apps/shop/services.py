@@ -273,6 +273,7 @@ def merge_carts(guest_cart, user_cart) -> int:
                 )
             existing.quantity = new_qty
             existing.save(update_fields=["quantity", "updated_at"])
+            guest_item.delete()
         else:
             # Move the item to the user cart
             guest_item.cart = user_cart

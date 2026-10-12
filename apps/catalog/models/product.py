@@ -389,6 +389,12 @@ class Product(TimestampedModel, SEOMixin):
                 return image
         return images[0] if images else None
 
+    @property
+    def primary_image_url(self) -> str:
+        """Safe URL for the primary product image, or empty string if absent or unassigned."""
+        primary = self.primary_image
+        return primary.image_url if primary else ""
+
     # -- validation ---------------------------------------------------------------------
 
     def clean(self):
@@ -731,6 +737,14 @@ class ProductImage(TimestampedModel):
     def image_source(self) -> str:
         """Indicator showing whether image was uploaded directly or from an external URL."""
         return "External URL" if bool(self.source_url) else "Uploaded File"
+
+    @property
+    def image_url(self) -> str:
+        """Safe URL for the image, returning empty string if no file is attached."""
+        try:
+            return self.image.url if bool(self.image) else ""
+        except (ValueError, AttributeError):
+            return ""
 
     def clean(self):
         super().clean()

@@ -48,6 +48,8 @@ def merge_guest_cart(sender, request, user, **kwargs):
     )
     try:
         merge_carts(guest_cart, user_cart)
+        if hasattr(request, "_fw_cart"):
+            request._fw_cart = user_cart
     except CartMergeError:
         # Never fail a login over a cart. The guest cart stays active (it is still
         # reachable by its session key until that session expires); the customer can

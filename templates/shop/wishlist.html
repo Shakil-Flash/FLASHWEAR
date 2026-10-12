@@ -120,8 +120,13 @@
                                 {# Thumbnail #}
                                 <a href="{% url 'shop:wishlist-to-product' item.pk %}" class="relative block h-28 w-24 shrink-0 overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-800 sm:h-32 sm:w-28">
                                     {% with image=item.product.primary_image %}
-                                        {% if image %}
+                                        {% if image and image.image %}
                                             <img src="{{ image.image.url }}" alt="{{ image.alt_text|default:item.product.name }}" width="640" height="800" loading="lazy" decoding="async" class="h-full w-full object-cover transition duration-300 group-hover:scale-105" />
+                                            <div class="hidden flex h-full w-full items-center justify-center text-slate-400 image-fallback-placeholder">
+                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor" class="h-8 w-8">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+                                                </svg>
+                                            </div>
                                         {% else %}
                                             <div class="flex h-full w-full items-center justify-center text-slate-400">
                                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor" class="h-8 w-8">
@@ -338,10 +343,23 @@
                     {% for rec in recommendations %}
                         {% with p=rec.product %}
                             <div class="group relative flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
-                                <a href="{{ p.get_absolute_url }}" class="block aspect-3/4 w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
+                                <a href="{{ p.get_absolute_url }}" class="block aspect-[3/4] w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
                                     {% with image=p.primary_image %}
-                                        {% if image %}
+                                        {% if image and image.image %}
                                             <img src="{{ image.image.url }}" alt="{{ image.alt_text|default:p.name }}" width="480" height="640" loading="lazy" decoding="async" class="h-full w-full object-cover transition duration-300 group-hover:scale-105" />
+                                            <div class="hidden flex h-full w-full flex-col items-center justify-center text-slate-400 p-2 text-center image-fallback-placeholder">
+                                                <svg class="h-6 w-6 text-slate-300 dark:text-slate-600 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+                                                </svg>
+                                                <span class="text-[10px] text-slate-400 truncate max-w-full">{{ p.name }}</span>
+                                            </div>
+                                        {% else %}
+                                            <div class="flex h-full w-full flex-col items-center justify-center text-slate-400 p-2 text-center">
+                                                <svg class="h-6 w-6 text-slate-300 dark:text-slate-600 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+                                                </svg>
+                                                <span class="text-[10px] text-slate-400 truncate max-w-full">{{ p.name }}</span>
+                                            </div>
                                         {% endif %}
                                     {% endwith %}
                                 </a>
@@ -399,10 +417,23 @@
                 <div class="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4 sm:gap-6">
                     {% for p in recently_viewed %}
                         <div class="group relative flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
-                            <a href="{{ p.get_absolute_url }}" class="block aspect-3/4 w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
+                            <a href="{{ p.get_absolute_url }}" class="block aspect-[3/4] w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
                                 {% with image=p.primary_image %}
-                                    {% if image %}
+                                    {% if image and image.image %}
                                         <img src="{{ image.image.url }}" alt="{{ image.alt_text|default:p.name }}" width="480" height="640" loading="lazy" decoding="async" class="h-full w-full object-cover transition duration-300 group-hover:scale-105" />
+                                        <div class="hidden flex h-full w-full flex-col items-center justify-center text-slate-400 p-2 text-center image-fallback-placeholder">
+                                            <svg class="h-6 w-6 text-slate-300 dark:text-slate-600 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+                                            </svg>
+                                            <span class="text-[10px] text-slate-400 truncate max-w-full">{{ p.name }}</span>
+                                        </div>
+                                    {% else %}
+                                        <div class="flex h-full w-full flex-col items-center justify-center text-slate-400 p-2 text-center">
+                                            <svg class="h-6 w-6 text-slate-300 dark:text-slate-600 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+                                            </svg>
+                                            <span class="text-[10px] text-slate-400 truncate max-w-full">{{ p.name }}</span>
+                                        </div>
                                     {% endif %}
                                 {% endwith %}
                             </a>

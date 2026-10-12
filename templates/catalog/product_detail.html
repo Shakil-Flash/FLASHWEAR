@@ -107,23 +107,29 @@ A high-converting, accessible, and beautifully designed fashion shopping journey
             {# Left Column: Interactive Product Gallery (7 Cols) #}
             <div class="lg:col-span-7">
                 <div class="relative overflow-hidden rounded-3xl border border-slate-200 bg-slate-100 shadow-soft dark:border-slate-800 dark:bg-slate-900 aspect-[4/5] group">
-                    {% if hero_image %}
-                        <template x-if="images.length > 0">
-                            <img :src="images[activeIdx]?.url || '{{ hero_image.image.url }}'"
-                                 :alt="images[activeIdx]?.alt || '{{ hero_image.alt_text|default:product.name|escapejs }}'"
-                                 width="1000"
-                                 height="1250"
-                                 fetchpriority="high"
-                                 decoding="async"
-                                 class="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105 cursor-zoom-in"
-                                 @click="lightboxOpen = true" />
-                        </template>
-                        <noscript>
-                            <img src="{{ hero_image.image.url }}" alt="{{ hero_image.alt_text|default:product.name }}" width="1000" height="1250" fetchpriority="high" decoding="async" class="h-full w-full object-cover" />
-                        </noscript>
+                    {% if hero_image and hero_image.image_url %}
+                        <img :src="images[activeIdx]?.url || '{{ hero_image.image_url }}'"
+                             src="{{ hero_image.image_url }}"
+                             :alt="images[activeIdx]?.alt || '{{ hero_image.alt_text|default:product.name|escapejs }}'"
+                             alt="{{ hero_image.alt_text|default:product.name }}"
+                             width="1000"
+                             height="1250"
+                             fetchpriority="high"
+                             decoding="async"
+                             class="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105 cursor-zoom-in"
+                             @click="lightboxOpen = true" />
+                        <div class="hidden flex h-full w-full flex-col items-center justify-center bg-slate-100 dark:bg-slate-800 text-slate-400 p-8 text-center image-fallback-placeholder">
+                            <svg class="h-12 w-12 text-slate-300 dark:text-slate-600 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+                            </svg>
+                            <span class="text-sm font-medium text-slate-400 dark:text-slate-500">{{ product.name }}</span>
+                        </div>
                     {% else %}
-                        <div class="flex h-full w-full items-center justify-center text-sm text-slate-400 dark:text-slate-600">
-                            No photography available yet
+                        <div class="flex h-full w-full flex-col items-center justify-center bg-slate-100 dark:bg-slate-800 text-slate-400 p-8 text-center">
+                            <svg class="h-12 w-12 text-slate-300 dark:text-slate-600 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+                            </svg>
+                            <span class="text-sm font-medium text-slate-400 dark:text-slate-500">No photography available yet</span>
                         </div>
                     {% endif %}
 
@@ -169,15 +175,17 @@ A high-converting, accessible, and beautifully designed fashion shopping journey
                 {% if gallery_images|length > 1 %}
                     <ul class="mt-4 flex gap-3 overflow-x-auto pb-2" aria-label="Product photography thumbnails">
                         {% for image in gallery_images %}
+                            {% if image.image_url %}
                             <li>
                                 <button type="button"
                                         @click="activeIdx = {{ forloop.counter0 }}"
-                                        :class="activeIdx === {{ forloop.counter0 }} ? 'ring-2 ring-slate-900 dark:ring-white border-transparent' : 'opacity-70 hover:opacity-100 border-slate-200 dark:border-slate-800'"
+                                        :class="activeIdx === {{ forloop.counter0 }} ? 'ring-2 ring-slate-900 dark:ring-white ring-offset-2 border-transparent' : 'opacity-70 hover:opacity-100 border-slate-200 dark:border-slate-800'"
                                         class="relative aspect-[4/5] w-20 shrink-0 overflow-hidden rounded-2xl border bg-slate-100 dark:bg-slate-800 transition focus:outline-none focus:ring-2 focus:ring-flash-500"
                                         aria-label="Select photo {{ forloop.counter }}">
-                                    <img src="{{ image.image.url }}" alt="{{ image.alt_text|default:product.name }}" width="120" height="150" loading="lazy" decoding="async" class="h-full w-full object-cover" />
+                                    <img src="{{ image.image_url }}" alt="{{ image.alt_text|default:product.name }}" width="120" height="150" loading="lazy" decoding="async" class="h-full w-full object-cover" />
                                 </button>
                             </li>
+                            {% endif %}
                         {% endfor %}
                     </ul>
                 {% endif %}
@@ -673,8 +681,8 @@ A high-converting, accessible, and beautifully designed fashion shopping journey
                             {% for alt in smart_alternatives %}
                                 <a href="{% url 'catalog:track-merchandising' %}?type=alternative_product_clicked&amp;product_id={{ alt.pk }}&amp;next={{ alt.get_absolute_url|urlencode }}&amp;src=pdp_sold_out" class="group block rounded-2xl bg-white p-2 shadow-sm transition hover:shadow dark:bg-slate-900 dark:border dark:border-slate-800">
                                     <div class="aspect-[4/5] overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-800">
-                                        {% if alt.primary_image %}
-                                            <img src="{{ alt.primary_image.image.url }}" alt="{{ alt.name }}" class="h-full w-full object-cover transition group-hover:scale-105" />
+                                        {% if alt.primary_image and alt.primary_image.image_url %}
+                                            <img src="{{ alt.primary_image.image_url }}" alt="{{ alt.name }}" class="h-full w-full object-cover transition group-hover:scale-105" />
                                         {% endif %}
                                     </div>
                                     <p class="mt-2 truncate text-xs font-semibold text-slate-900 dark:text-white group-hover:underline">
@@ -828,8 +836,8 @@ A high-converting, accessible, and beautifully designed fashion shopping journey
                             <div class="mt-4 flex items-center gap-2 overflow-x-auto pb-1">
                                 {% for item in ot.outfit.items.all %}
                                     <a href="{{ item.closet_item.product.get_absolute_url }}" title="{{ item.closet_item.product.name }}" class="h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-slate-50 border border-slate-200 dark:border-slate-700 {% if item.closet_item.product_id == product.id %}ring-2 ring-flash-500{% endif %}">
-                                        {% if item.closet_item.product.primary_image %}
-                                            <img src="{{ item.closet_item.product.primary_image.url }}" alt="{{ item.closet_item.product.name }}" class="h-full w-full object-cover" />
+                                        {% if item.closet_item.product.primary_image_url %}
+                                            <img src="{{ item.closet_item.product.primary_image_url }}" alt="{{ item.closet_item.product.name }}" class="h-full w-full object-cover" />
                                         {% endif %}
                                     </a>
                                 {% endfor %}

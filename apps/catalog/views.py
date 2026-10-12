@@ -295,11 +295,12 @@ def product_detail(request, slug: str):
     gallery_data = [
         {
             "id": getattr(img, "pk", i),
-            "url": img.image.url,
+            "url": getattr(img, "image_url", "")
+            or (img.image.url if getattr(img, "image", None) and bool(img.image) else ""),
             "alt": getattr(img, "alt_text", "") or product.name,
         }
         for i, img in enumerate(gallery_images)
-        if getattr(img, "image", None)
+        if getattr(img, "image_url", "") or (getattr(img, "image", None) and bool(img.image))
     ]
 
     breadcrumbs = _trail_schema(

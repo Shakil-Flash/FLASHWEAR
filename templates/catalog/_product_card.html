@@ -11,18 +11,27 @@ Phase 27: quieter metadata, larger visual presence, subtle interactions.
 <article class="group relative flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft hover-lift hover:shadow-elevated">
     <a href="{{ product.get_absolute_url }}" class="block aspect-[4/5] overflow-hidden bg-slate-100">
         {% with image=product.primary_image %}
-            {% if image %}
+            {% if image and image.image %}
                 <img src="{{ image.image.url }}"
-                     alt="{{ image.alt_text }}"
+                     alt="{{ image.alt_text|default:product.name }}"
                      width="640"
                      height="800"
                      loading="lazy"
                      decoding="async"
                      class="h-full w-full object-cover transition duration-700 group-hover:scale-105" />
+                <div class="hidden flex h-full w-full flex-col items-center justify-center bg-slate-100 text-slate-400 p-4 text-center image-fallback-placeholder">
+                    <svg class="h-8 w-8 text-slate-300 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+                    </svg>
+                    <span class="text-xs font-medium text-slate-400">{{ product.name|truncatechars:20 }}</span>
+                </div>
             {% else %}
-                <span class="flex h-full w-full items-center justify-center text-sm text-slate-400">
-                    No image yet
-                </span>
+                <div class="flex h-full w-full flex-col items-center justify-center bg-slate-100 text-slate-400 p-4 text-center">
+                    <svg class="h-8 w-8 text-slate-300 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+                    </svg>
+                    <span class="text-xs font-medium text-slate-400">{{ product.name|truncatechars:20 }}</span>
+                </div>
             {% endif %}
         {% endwith %}
     </a>

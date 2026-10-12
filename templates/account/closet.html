@@ -81,6 +81,7 @@
             <div class="relative aspect-[4/5] bg-slate-100">
                 {% if item.display_image %}
                 <img src="{{ item.display_image.url }}" alt="{{ item.name }}" width="640" height="800" loading="lazy" decoding="async" class="h-full w-full object-cover" />
+                <span aria-hidden="true" class="hidden flex h-full w-full items-center justify-center text-3xl font-semibold text-slate-300">{{ item.name|slice:":1"|upper }}</span>
                 {% else %}
                 <span aria-hidden="true" class="flex h-full w-full items-center justify-center text-3xl font-semibold text-slate-300">{{ item.name|slice:":1"|upper }}</span>
                 {% endif %}

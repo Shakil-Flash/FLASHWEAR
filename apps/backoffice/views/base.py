@@ -21,9 +21,18 @@ def render_bo(request, template_name: str, *, active: str = "", **context):
     context.setdefault("capabilities", capabilities_for(request.user))
     context.setdefault("active_key", active)
     context.setdefault("range_choices", RANGES)
+    context.setdefault("from_date", request.GET.get("from", "") if request else "")
+    context.setdefault("to_date", request.GET.get("to", "") if request else "")
     return render(request, template_name, context)
 
 
 def range_from_request(request):
     """The requested date window (defaults to the last seven days)."""
-    return resolve_range(request.GET.get("range"))
+    if request is None:
+        return resolve_range("7d")
+    key = request.GET.get("range")
+    start = request.GET.get("from")
+    end = request.GET.get("to")
+    if not key and start and end:
+        key = "custom"
+    return resolve_range(key, start_date=start, end_date=end)

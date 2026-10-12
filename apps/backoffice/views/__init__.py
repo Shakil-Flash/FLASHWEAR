@@ -12,7 +12,7 @@ Three conventions every screen here follows:
 
 from __future__ import annotations
 
-from apps.backoffice.views.analytics import analytics
+from apps.backoffice.views.analytics import analytics, export_analytics_csv
 from apps.backoffice.views.community import (
     loop,
     loop_action,
@@ -92,6 +92,7 @@ __all__ = [
     "customers",
     "dashboard",
     "drops",
+    "export_analytics_csv",
     "health",
     "inventory",
     "loop",
