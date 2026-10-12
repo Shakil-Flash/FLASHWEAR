@@ -253,35 +253,65 @@ per-row requeue, and the audit log (append-only, readable, never writable from a
 surface). Capability groups are in `apps/backoffice/permissions.py`; a missing
 capability answers **404, never 403**.
 
-## Backups and restore
+## Backups and disaster recovery
 
-| Data | Where | Backup |
-| --- | --- | --- |
-| PostgreSQL | `db` volume (`pg_data`) | `pg_dump` on a schedule — this is the order, customer and payment record |
-| Media uploads | `media` volume | File-level snapshot; support attachments live outside it in `private/support/` and need their own copy |
-| Redis | `redis` volume | **Do not back up.** It holds cache and broker state; both rebuild themselves |
-| Logs | `logs` volume | Ship off-box (or to Sentry); a volume snapshot is a stopgap |
+| Data | Where | Backup | RPO / RTO Targets |
+| --- | --- | --- | --- |
+| PostgreSQL | `db` volume (`pg_data`) | `python manage.py backup_db` or `./scripts/backup.sh` | **RPO Target:** ≤ 24h (nightly cron) or ≤ 1h (WAL)<br>**RTO Target:** ≤ 15m (automated pg_restore) |
+| Media uploads | `media` volume | File-level snapshot or S3 object versioning | **RPO Target:** ≤ 24h<br>**RTO Target:** ≤ 30m |
+| Redis | `redis` volume | **Do not back up.** Rebuilds from DB & task scheduling | N/A |
+| Logs | `logs` volume | Ship off-box (or to Sentry); local rotation kept for diagnostics | N/A |
 
-Nightly dump, retained to your policy:
+### Automated Backup Procedure
+
+FLASHWEAR includes both a containerized script and a native Django management command:
 
 ```bash
-docker compose -f docker-compose.prod.yml exec db \
-  pg_dump -U flashwear -Fc flashwear > "backup-$(date +%F).dump"
+# Via Django management command:
+python manage.py backup_db --backup-dir=/app/backups --retention-days=14
+
+# Via Docker Compose in production:
+docker compose -f docker-compose.prod.yml exec web \
+  python manage.py backup_db --backup-dir=/app/backups --retention-days=7
+
+# Or using the shell automation:
+./scripts/backup.sh
 ```
 
-Restore drill (do this before you need it):
+**Guarantees & Controls:**
+- **Timestamped naming:** `flashwear_backup_YYYYMMDD_HHMMSS.dump` prevents accidental overwrites.
+- **Archive integrity check:** Validates magic headers (`PGDMP`) and tests index catalog (`pg_restore -l`).
+- **Secret security:** Passwords passed through `PGPASSWORD` environment variable, never command-line arguments.
+- **Restrictive permissions:** Automatically sets file mode `0600` (owner read/write only).
+- **Retention policy:** Automatically prunes expired dumps based on `--retention-days`, always retaining the newest backup.
+
+### Disaster Recovery & Restoration Drill
+
+To prevent catastrophic data loss during rehearsal, restorations have strict safety guards:
+
+1. **Safety Guard:** Restoring to the active production database is rejected unless `--confirm-destructive` is explicitly passed.
+2. **Disposable Drill Database:** You can test restoring into a disposable verification database using `--target-db`.
+3. **Verify Archive Without Modifying:** Run `--verify-only` to validate an archive file without writing.
 
 ```bash
+# 1. Verify archive integrity without touching any database:
+python manage.py restore_db /app/backups/flashwear_backup_20261013_000000.dump --verify-only
+
+# 2. Drill restoration into a disposable/test database:
+docker compose -f docker-compose.prod.yml exec web \
+  python manage.py restore_db /app/backups/flashwear_backup_20261013_000000.dump --target-db=disposable_test_db
+
+# 3. Full emergency restore over primary database (Downtime procedure):
 docker compose -f docker-compose.prod.yml stop web worker beat
-docker compose -f docker-compose.prod.yml exec -T db \
-  pg_restore -U flashwear -d flashwear --clean --if-exists < backup-2026-10-05.dump
+docker compose -f docker-compose.prod.yml exec -T web \
+  python manage.py restore_db /app/backups/flashwear_backup_20261013_000000.dump --confirm-destructive
 docker compose -f docker-compose.prod.yml up -d web worker beat
 curl -fsS https://your-host/health/ready/
 ```
 
-A restore is a point-in-time rollback of everything: orders placed after the dump are
-gone, which is exactly why the drill matters and why payment records should be
-reconciled against the provider after any restore.
+**Post-Restore Verification:**
+- Verifies migration count (`SELECT count(*) FROM django_migrations;`).
+- Reconciles Stripe/payment webhooks with the payment provider for transactions placed between backup and restore.
 
 ## Rollback
 
