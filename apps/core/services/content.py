@@ -89,9 +89,12 @@ def get_active_homepage_sections(
     current_time = now or timezone.now()
 
     if not include_unpublished:
-        cached = cache.get(HOMEPAGE_SECTIONS_CACHE_KEY)
-        if cached is not None:
-            return cached
+        try:
+            cached = cache.get(HOMEPAGE_SECTIONS_CACHE_KEY)
+            if cached is not None:
+                return cached
+        except Exception:
+            pass
 
     from apps.core.models import HomepageSection
 
@@ -117,7 +120,10 @@ def get_active_homepage_sections(
             sections.append(section)
 
     if not include_unpublished:
-        cache.set(HOMEPAGE_SECTIONS_CACHE_KEY, sections, CACHE_TTL)
+        try:
+            cache.set(HOMEPAGE_SECTIONS_CACHE_KEY, sections, CACHE_TTL)
+        except Exception:
+            pass
 
     return sections
 

@@ -84,7 +84,10 @@ class SiteConfiguration(models.Model):
         """Force the singleton primary key and drop any cached copy."""
         self.pk = self.SINGLETON_PK
         super().save(*args, **kwargs)
-        cache.delete(self.CACHE_KEY)
+        try:
+            cache.delete(self.CACHE_KEY)
+        except Exception:
+            pass
 
     def delete(self, *args, **kwargs):
         """Refuse deletion so the storefront always has configuration available."""
@@ -93,14 +96,20 @@ class SiteConfiguration(models.Model):
     @classmethod
     def load(cls) -> SiteConfiguration | None:
         """Return the cached singleton, or ``None`` before the first migration."""
-        cached = cache.get(cls.CACHE_KEY)
+        try:
+            cached = cache.get(cls.CACHE_KEY)
+        except Exception:
+            cached = None
         if cached is not None:
             return cached
         try:
             instance = cls.objects.get(pk=cls.SINGLETON_PK)
         except cls.DoesNotExist:
             return None
-        cache.set(cls.CACHE_KEY, instance, cls.CACHE_TTL)
+        try:
+            cache.set(cls.CACHE_KEY, instance, cls.CACHE_TTL)
+        except Exception:
+            pass
         return instance
 
     @classmethod
