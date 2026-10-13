@@ -45,9 +45,16 @@ class ReviewForm(forms.ModelForm):
         max_length=4000,
     )
 
+    fit_feedback = forms.ChoiceField(
+        choices=[("", "How did it fit? (Optional)"), *Review.FitFeedback.choices],
+        required=False,
+        widget=forms.Select(attrs=input_attrs()),
+        label="Fit feedback",
+    )
+
     class Meta:
         model = Review
-        fields = ("rating", "title", "body")
+        fields = ("rating", "fit_feedback", "title", "body")
 
     def clean_title(self) -> str:
         return (self.cleaned_data["title"] or "").strip()

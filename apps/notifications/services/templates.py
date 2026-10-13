@@ -774,32 +774,39 @@ def render_email(notification) -> tuple[str, str, str]:
 
     spec = get_spec(notification.notification_type)
     user = notification.user
-    base_url = resolve_base_url(None)
-    context: dict[str, Any] = {
-        **notification.safe_metadata,
-        "recipient_name": (getattr(user, "first_name", "") or "").strip()
-        or (getattr(user, "email", "") or "").split("@")[0],
-        "site_name": "FLASHWEAR",
-        "base_url": base_url,
-        "notification_title": _render(spec.title, notification.safe_metadata),
-        "notification_body": _render(spec.body, notification.safe_metadata),
-    }
-    if notification.action_url:
-        context["action_url"] = absolute_url(notification.action_url)
+    lang = getattr(getattr(user, "profile", None), "preferred_language", None)
 
-    # Footer links. Mandatory categories cannot be unsubscribed from -- offering the
-    # button would be a lie -- so they only get the preferences link.
-    from django.urls import reverse
+    from django.utils import translation
 
-    context["preferences_url"] = absolute_url(reverse("account:notifications"))
-    if spec.category in MARKETING_CATEGORIES:
-        token = ensure_unsubscribe_token(user)
-        context["unsubscribe_url"] = absolute_url(
-            reverse("notifications:unsubscribe", args=[token.token])
-        )
+    with translation.override(lang or translation.get_language()):
+        base_url = resolve_base_url(None)
+        context: dict[str, Any] = {
+            **notification.safe_metadata,
+            "recipient_name": (getattr(user, "first_name", "") or "").strip()
+            or (getattr(user, "email", "") or "").split("@")[0],
+            "site_name": "FLASHWEAR",
+            "base_url": base_url,
+            "notification_title": _render(spec.title, notification.safe_metadata),
+            "notification_body": _render(spec.body, notification.safe_metadata),
+        }
+        if notification.action_url:
+            context["action_url"] = absolute_url(notification.action_url)
 
-    subject = _render(spec.email_subject or spec.title, context)
-    subject = " ".join(subject.split())[:200]  # subjects must stay single-line
-    text = render_to_string(spec.email_text or "emails/generic_notification.txt", context).strip()
-    html = render_to_string(spec.email_html or "emails/generic_notification.html", context).strip()
-    return subject, text, html
+        # Footer links. Mandatory categories cannot be unsubscribed from -- offering the
+        # button would be a lie -- so they only get the preferences link.
+        from django.urls import reverse
+
+        context["preferences_url"] = absolute_url(reverse("account:notifications"))
+        if spec.category in MARKETING_CATEGORIES:
+            token = ensure_unsubscribe_token(user)
+            context["unsubscribe_url"] = absolute_url(
+                reverse("notifications:unsubscribe", args=[token.token])
+            )
+
+        subject = _render(spec.email_subject or spec.title, context)
+        subject = " ".join(subject.split())[:200]  # subjects must stay single-line
+        tmpl_txt = spec.email_text or "emails/generic_notification.txt"
+        tmpl_html = spec.email_html or "emails/generic_notification.html"
+        text = render_to_string(tmpl_txt, context).strip()
+        html = render_to_string(tmpl_html, context).strip()
+        return subject, text, html

@@ -1,5 +1,4 @@
-{% load static %}
-{% load flashwear %}
+{% load i18n static flashwear %}
 
 <footer class="border-t border-slate-200 bg-white">
     <div class="mx-auto max-w-7xl px-4 pt-16 pb-8 sm:px-6 lg:px-8">
@@ -15,51 +14,68 @@
                     <p class="text-lg font-semibold tracking-tight text-slate-950">{{ site_name|default:'FLASHWEAR' }}</p>
                 </div>
                 <p class="max-w-md text-sm leading-relaxed text-slate-500">
-                    Real garments crafted with authentic materials, designed around personal style.
+                    {% translate "Real garments crafted with authentic materials, designed around personal style." %}
                 </p>
                 <p class="text-xs text-slate-400">
-                    Questions? <a href="mailto:{{ support_email|default:'support@flashwear.local' }}" class="text-slate-600 underline underline-offset-4 hover:text-slate-900">{{ support_email|default:'support@flashwear.local' }}</a>
+                    {% translate "Questions?" %} <a href="mailto:{{ support_email|default:'support@flashwear.local' }}" class="text-slate-600 underline underline-offset-4 hover:text-slate-900">{{ support_email|default:'support@flashwear.local' }}</a>
                 </p>
             </div>
 
             <div>
-                <h3 class="editorial-label">Shop</h3>
+                <h3 class="editorial-label">{% translate "Shop" %}</h3>
                 <ul class="mt-4 space-y-2.5 text-sm text-slate-500">
-                    <li><a href="{% url 'catalog:product-list' %}" class="transition hover:text-slate-900">All products</a></li>
-                    <li><a href="{% url 'catalog:category-list' %}" class="transition hover:text-slate-900">Categories</a></li>
-                    <li><a href="{% url 'catalog:collection-list' %}" class="transition hover:text-slate-900">Collections</a></li>
-                    <li><a href="{% url 'loop:resale-list' %}" class="transition hover:text-slate-900">FLASH Loop</a></li>
-                    <li><a href="{% url 'catalog:visual-search' %}" class="transition hover:text-slate-900">Visual Discovery</a></li>
+                    <li><a href="{% url 'catalog:product-list' %}" class="transition hover:text-slate-900">{% translate "All products" %}</a></li>
+                    <li><a href="{% url 'catalog:category-list' %}" class="transition hover:text-slate-900">{% translate "Categories" %}</a></li>
+                    <li><a href="{% url 'catalog:collection-list' %}" class="transition hover:text-slate-900">{% translate "Collections" %}</a></li>
+                    <li><a href="{% url 'loop:resale-list' %}" class="transition hover:text-slate-900">{% translate "FLASH Loop" %}</a></li>
+                    <li><a href="{% url 'catalog:visual-search' %}" class="transition hover:text-slate-900">{% translate "Visual Discovery" %}</a></li>
                 </ul>
             </div>
 
             <div>
-                <h3 class="editorial-label">Style</h3>
+                <h3 class="editorial-label">{% translate "Style" %}</h3>
                 <ul class="mt-4 space-y-2.5 text-sm text-slate-500">
-                    <li><a href="{% url 'account:studio' %}" class="transition hover:text-slate-900">Style Studio</a></li>
-                    <li><a href="{% url 'account:outfits' %}" class="transition hover:text-slate-900">My Outfits</a></li>
-                    <li><a href="{% url 'account:closet' %}" class="transition hover:text-slate-900">FLASH Closet</a></li>
-                    <li><a href="{% url 'shop:wishlist' %}" class="transition hover:text-slate-900">Wishlist</a></li>
+                    <li><a href="{% url 'account:studio' %}" class="transition hover:text-slate-900">{% translate "Style Studio" %}</a></li>
+                    <li><a href="{% url 'account:outfits' %}" class="transition hover:text-slate-900">{% translate "My Outfits" %}</a></li>
+                    <li><a href="{% url 'account:closet' %}" class="transition hover:text-slate-900">{% translate "FLASH Closet" %}</a></li>
+                    <li><a href="{% url 'shop:wishlist' %}" class="transition hover:text-slate-900">{% translate "Wishlist" %}</a></li>
                 </ul>
             </div>
 
             <div>
-                <h3 class="editorial-label">Account</h3>
+                <h3 class="editorial-label">{% translate "Account" %}</h3>
                 <ul class="mt-4 space-y-2.5 text-sm text-slate-500">
-                    <li><a href="{% url 'account:dashboard' %}" class="transition hover:text-slate-900">My Account</a></li>
-                    <li><a href="{% url 'account:orders' %}" class="transition hover:text-slate-900">Orders</a></li>
-                    <li><a href="{% url 'account:returns' %}" class="transition hover:text-slate-900">Returns</a></li>
-                    <li><a href="{% url 'support:home' %}" class="transition hover:text-slate-900">Support</a></li>
-                    <li><a href="{% url 'account:loyalty' %}" class="transition hover:text-slate-900">FLASH Points</a></li>
+                    <li><a href="{% url 'account:dashboard' %}" class="transition hover:text-slate-900">{% translate "My Account" %}</a></li>
+                    <li><a href="{% url 'account:orders' %}" class="transition hover:text-slate-900">{% translate "Orders" %}</a></li>
+                    <li><a href="{% url 'account:returns' %}" class="transition hover:text-slate-900">{% translate "Returns" %}</a></li>
+                    <li><a href="{% url 'support:home' %}" class="transition hover:text-slate-900">{% translate "Support" %}</a></li>
+                    <li><a href="{% url 'account:loyalty' %}" class="transition hover:text-slate-900">{% translate "FLASH Points" %}</a></li>
                 </ul>
             </div>
         </div>
 
         <div class="mt-12 border-t border-slate-100 pt-6 flex flex-col items-center justify-between gap-4 sm:flex-row">
             <p class="text-xs text-slate-400">
-                &copy; {% now "Y" %} {{ site_name|default:'FLASHWEAR' }} &middot; Platform under development
+                &copy; {% now "Y" %} {{ site_name|default:'FLASHWEAR' }} &middot; {% translate "Platform under development" %}
             </p>
-            <span class="text-xs text-slate-400">{% flashwear_version %}</span>
+            <div class="flex items-center gap-4">
+                <form action="{% url 'set_language' %}" method="post" class="inline-flex items-center gap-1.5">
+                    {% csrf_token %}
+                    <input name="next" type="hidden" value="{{ request.path }}">
+                    <label for="footer-language-select" class="text-xs text-slate-500">{% translate "Language" %}:</label>
+                    <select id="footer-language-select" name="language" @change="$el.form.submit()" class="cursor-pointer rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-700 shadow-soft focus:outline-none focus:ring-2 focus:ring-flash-500/20">
+                        {% get_current_language as CURRENT_LANG %}
+                        {% get_available_languages as AVAIL_LANGS %}
+                        {% get_language_info_list for AVAIL_LANGS as languages %}
+                        {% for lang in languages %}
+                            <option value="{{ lang.code }}"{% if lang.code == CURRENT_LANG %} selected{% endif %}>
+                                {{ lang.name_local }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </form>
+                <span class="text-xs text-slate-400">{% flashwear_version %}</span>
+            </div>
         </div>
     </div>
 </footer>

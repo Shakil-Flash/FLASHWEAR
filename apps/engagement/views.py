@@ -53,6 +53,7 @@ def review_create(request, slug: str):
                 rating=form.cleaned_data["rating"],
                 title=form.cleaned_data["title"],
                 body=form.cleaned_data["body"],
+                fit_feedback=form.cleaned_data.get("fit_feedback"),
             )
         except ReviewError as exc:
             messages.error(request, exc.message)
@@ -82,6 +83,7 @@ def review_edit(request, pk: int):
                 rating=form.cleaned_data["rating"],
                 title=form.cleaned_data["title"],
                 body=form.cleaned_data["body"],
+                fit_feedback=form.cleaned_data.get("fit_feedback"),
             )
             if updated.status == Review.Status.PENDING:
                 messages.success(request, _("Your changes are saved and awaiting moderation."))

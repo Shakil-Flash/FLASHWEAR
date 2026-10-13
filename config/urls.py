@@ -21,9 +21,14 @@ from django.conf import settings
 from django.contrib import admin
 from django.urls import include, path
 
+from apps.core.views import set_language_view
+
 # ``config.api.v1.urls`` declares ``app_name = "v1"``, so the namespace comes from
 # the module itself; adding ``namespace=`` here would produce ``v1:v1``.
 urlpatterns = [
+    # Phase 40: Internationalization
+    path("i18n/setlang/", set_language_view, name="set_language"),
+    path("i18n/", include("django.conf.urls.i18n")),
     # Catalogue first: it owns the site root patterns (``/products/``, ``/collections/``) and would
     # otherwise be shadowed by ``apps.core.urls``' catch-all home page.
     path("", include("apps.catalog.urls")),

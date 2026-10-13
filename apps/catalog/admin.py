@@ -42,6 +42,8 @@ from apps.catalog.forms import (
     ProductAdminForm,
     ProductImageForm,
     ProductVariantForm,
+    SizeGuideAdminForm,
+    SizeGuideRowForm,
 )
 from apps.catalog.import_export import (
     execute_catalog_import,
@@ -60,6 +62,8 @@ from apps.catalog.models import (
     ProductTag,
     ProductVariant,
     Size,
+    SizeGuide,
+    SizeGuideRow,
 )
 from apps.catalog.readiness import evaluate_product_readiness
 from apps.catalog.seo import breadcrumb_schema
@@ -303,6 +307,7 @@ class ProductAdmin(admin.ModelAdmin):
         "category",
         "brand",
         "fit",
+        "fabric_stretch",
         "collections",
         "tags",
         "published_at",
@@ -319,7 +324,7 @@ class ProductAdmin(admin.ModelAdmin):
         "category__name",
     )
     prepopulated_fields = {"slug": ("name",)}
-    autocomplete_fields = ("brand", "category", "fit")
+    autocomplete_fields = ("brand", "category", "fit", "model_wearing_size")
     filter_horizontal = ("collections", "materials", "tags")
     inlines = (ProductVariantInline, ProductImageInline)
 
@@ -340,10 +345,26 @@ class ProductAdmin(admin.ModelAdmin):
         (
             _("Categories & Brand"),
             {
-                "fields": ("category", "brand", "fit", "materials"),
+                "fields": ("category", "brand", "materials"),
                 "description": _(
-                    "Primary product hierarchy, brand ownership, garment silhouette fit, "
-                    "and textile materials."
+                    "Primary product hierarchy, brand ownership, and textile materials."
+                ),
+            },
+        ),
+        (
+            _("Size, Fit & Silhouette"),
+            {
+                "fields": (
+                    "fit",
+                    "fabric_stretch",
+                    "silhouette",
+                    "model_height_cm",
+                    "model_wearing_size",
+                    "model_measurements",
+                ),
+                "description": _(
+                    "Garment silhouette, fabric elasticity, and optional "
+                    "model photography measurements."
                 ),
             },
         ),
@@ -1804,3 +1825,92 @@ class ProductTagAdmin(admin.ModelAdmin):
     @admin.display(description=_("Products"), ordering="product_total")
     def product_count(self, tag: ProductTag) -> int:
         return getattr(tag, "product_total", 0)
+
+
+class SizeGuideRowInline(admin.TabularInline):
+    """Tabular inline for individual size rows within a size guide."""
+
+    model = SizeGuideRow
+    form = SizeGuideRowForm
+    extra = 1
+    autocomplete_fields = ("size",)
+    fields = (
+        "size",
+        "chest_min",
+        "chest_max",
+        "waist_min",
+        "waist_max",
+        "hips_min",
+        "hips_max",
+        "shoulder",
+        "length",
+        "inseam",
+        "display_order",
+    )
+    ordering = ("display_order", "size__display_order")
+
+
+@admin.register(SizeGuide)
+class SizeGuideAdmin(admin.ModelAdmin):
+    """Management dashboard for category and product-level size charts."""
+
+    form = SizeGuideAdminForm
+    list_display = (
+        "name",
+        "target_display",
+        "measurement_type",
+        "unit",
+        "row_count",
+        "is_active",
+        "updated_at",
+    )
+    list_filter = ("is_active", "measurement_type", "unit")
+    search_fields = ("name", "category__name", "product__name", "description")
+    autocomplete_fields = ("category", "product")
+    inlines = (SizeGuideRowInline,)
+    readonly_fields = ("created_at", "updated_at")
+
+    def get_queryset(self, request):
+        return (
+            super()
+            .get_queryset(request)
+            .annotate(row_total=Count("rows", distinct=True))
+            .select_related("product", "category")
+        )
+
+    @admin.display(description=_("Sizes Count"), ordering="row_total")
+    def row_count(self, obj: SizeGuide) -> int:
+        return getattr(obj, "row_total", 0)
+
+    def has_view_permission(self, request, obj=None):
+        if not request.user.is_authenticated or not request.user.is_staff:
+            return False
+        return (
+            request.user.is_superuser
+            or request.user.has_perm("catalog.view_sizeguide")
+            or "Catalog Manager" in [g.name for g in request.user.groups.all()]
+            or "Back Office Operator" in [g.name for g in request.user.groups.all()]
+        )
+
+    def has_change_permission(self, request, obj=None):
+        if not request.user.is_authenticated or not request.user.is_staff:
+            return False
+        return (
+            request.user.is_superuser
+            or request.user.has_perm("catalog.change_sizeguide")
+            or "Catalog Manager" in [g.name for g in request.user.groups.all()]
+        )
+
+    def has_add_permission(self, request):
+        if not request.user.is_authenticated or not request.user.is_staff:
+            return False
+        return (
+            request.user.is_superuser
+            or request.user.has_perm("catalog.add_sizeguide")
+            or "Catalog Manager" in [g.name for g in request.user.groups.all()]
+        )
+
+    def has_delete_permission(self, request, obj=None):
+        if not request.user.is_authenticated or not request.user.is_staff:
+            return False
+        return request.user.is_superuser or request.user.has_perm("catalog.delete_sizeguide")

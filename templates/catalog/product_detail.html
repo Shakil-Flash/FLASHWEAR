@@ -70,6 +70,7 @@ A high-converting, accessible, and beautifully designed fashion shopping journey
                  adding: false,
                  added: false,
                  showSizeGuide: false,
+                 sizeUnit: 'cm',
                  activeIdx: 0,
                  lightboxOpen: false,
                  images: JSON.parse(document.getElementById('pdp-gallery-data')?.textContent || '[]'),
@@ -438,11 +439,48 @@ A high-converting, accessible, and beautifully designed fashion shopping journey
                                         {% endif %}
                                     </legend>
                                     {% if sizing_guide %}
-                                        <button type="button" @click="showSizeGuide = true" class="text-xs font-semibold text-flash-600 dark:text-flash-400 underline-offset-4 hover:underline">
-                                            Find your size
+                                        <button type="button" @click="showSizeGuide = true" class="inline-flex items-center gap-1 text-xs font-semibold text-flash-600 dark:text-flash-400 underline-offset-4 hover:underline">
+                                            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" />
+                                            </svg>
+                                            <span>Size &amp; Fit Guide</span>
                                         </button>
                                     {% endif %}
                                 </div>
+
+                                {# Fit Assistant Recommendation Banner #}
+                                {% if fit_assistant.has_recommendation %}
+                                    <div class="mt-2.5 flex items-center justify-between rounded-xl bg-flash-50/90 px-3 py-2 text-xs text-flash-950 ring-1 ring-flash-200/80 dark:bg-flash-950/40 dark:text-flash-200 dark:ring-flash-800/60">
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-sm" aria-hidden="true">✨</span>
+                                            <span>Recommended size for you: <strong class="font-bold text-flash-700 dark:text-flash-300">{{ fit_assistant.recommended_size }}</strong></span>
+                                        </div>
+                                        <button type="button" @click="showSizeGuide = true" class="text-[11px] font-semibold text-flash-700 underline hover:text-flash-950 dark:text-flash-300 dark:hover:text-white">
+                                            Why this size?
+                                        </button>
+                                    </div>
+                                {% endif %}
+
+                                {# Garment Fit & Fabric Attribute Badges #}
+                                <div class="mt-2.5 flex flex-wrap items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
+                                    <span class="rounded-md bg-slate-100 px-2 py-0.5 font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                                        Fit: {{ fit_assistant.fit_name }}
+                                    </span>
+                                    <span class="rounded-md bg-slate-100 px-2 py-0.5 font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                                        Stretch: {{ fit_assistant.fabric_stretch }}
+                                    </span>
+                                    {% if fit_assistant.silhouette %}
+                                        <span class="rounded-md bg-slate-100 px-2 py-0.5 font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                                            Cut: {{ fit_assistant.silhouette }}
+                                        </span>
+                                    {% endif %}
+                                    {% if fit_assistant.review_fit.has_enough_data %}
+                                        <span class="rounded-md bg-emerald-50 px-2 py-0.5 font-semibold text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:ring-emerald-800/40">
+                                            {{ fit_assistant.review_fit.summary_text }}
+                                        </span>
+                                    {% endif %}
+                                </div>
+
                                 <ul class="mt-3 flex flex-wrap items-center gap-2.5">
                                     {% for opt in size_options %}
                                         <li>
@@ -454,6 +492,10 @@ A high-converting, accessible, and beautifully designed fashion shopping journey
                                                     {% if opt.units_left <= 5 and opt.units_left > 0 %}
                                                         <span class="text-[9px] font-normal leading-tight text-amber-500 {% if opt.is_selected %}text-amber-300{% endif %}">
                                                             {{ opt.units_left }} left
+                                                        </span>
+                                                    {% elif opt.size.code == fit_assistant.recommended_size %}
+                                                        <span class="text-[9px] font-semibold leading-tight text-flash-600 dark:text-flash-400">
+                                                            Fit match
                                                         </span>
                                                     {% endif %}
                                                 </a>
@@ -474,56 +516,243 @@ A high-converting, accessible, and beautifully designed fashion shopping journey
                     {% endif %}
                 </div>
 
-                {# Sizing Guide Modal #}
+                {# Sizing Guide & Fit Assistant Modal #}
                 {% if sizing_guide %}
                     <div x-show="showSizeGuide"
                          x-cloak
-                         x-transition.opacity
-                         class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm"
+                         x-transition:enter="transition ease-out duration-200"
+                         x-transition:enter-start="opacity-0 scale-95"
+                         x-transition:enter-end="opacity-100 scale-100"
+                         x-transition:leave="transition ease-in duration-150"
+                         x-transition:leave-start="opacity-100 scale-100"
+                         x-transition:leave-end="opacity-0 scale-95"
+                         class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm motion-reduce:transition-none"
                          role="dialog"
                          aria-modal="true"
-                         aria-labelledby="size-guide-heading">
-                        <div class="relative w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl dark:bg-slate-900 dark:border dark:border-slate-800" @click.outside="showSizeGuide = false">
-                            <div class="flex items-center justify-between border-b border-slate-100 pb-3 dark:border-slate-800">
-                                <h3 id="size-guide-heading" class="text-base font-bold text-slate-950 dark:text-white">
-                                    Find Your Size
-                                </h3>
-                                <button type="button" @click="showSizeGuide = false" class="rounded-full p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
-                                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                </button>
-                            </div>
-                            <div class="mt-4 space-y-4 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+                         aria-labelledby="size-guide-heading"
+                         @keydown.escape.window="showSizeGuide = false">
+                        <div class="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl dark:bg-slate-900 dark:border dark:border-slate-800"
+                             @click.outside="showSizeGuide = false">
+                            
+                            {# Modal Header #}
+                            <div class="flex items-center justify-between border-b border-slate-100 pb-4 dark:border-slate-800">
                                 <div>
-                                    <h4 class="font-bold text-slate-900 dark:text-white">
-                                        Fit Silhouette: {{ sizing_guide.fit_name }}
-                                    </h4>
-                                    <p class="mt-1">
-                                        {{ sizing_guide.fit_description }}
+                                    <h3 id="size-guide-heading" class="text-base font-bold text-slate-950 dark:text-white">
+                                        Size &amp; Fit Assistant
+                                    </h3>
+                                    <p class="text-xs text-slate-500 dark:text-slate-400">
+                                        {{ product.name }}
                                     </p>
                                 </div>
-                                {% if sizing_guide.recommended_size %}
-                                    <div class="rounded-2xl bg-flash-50 border border-flash-200 p-3 text-flash-900 dark:bg-flash-950/50 dark:border-flash-800/60 dark:text-flash-200">
-                                        <span class="font-bold">DNA Fit Match:</span> Based on your profile preferences, size <strong>{{ sizing_guide.recommended_size }}</strong> is recommended for you.
+                                
+                                <div class="flex items-center gap-3">
+                                    {# Unit Switcher Toggle #}
+                                    <div class="inline-flex rounded-xl bg-slate-100 p-0.5 text-xs font-semibold dark:bg-slate-800" role="group" aria-label="Measurement units">
+                                        <button type="button"
+                                                @click="sizeUnit = 'cm'"
+                                                :class="sizeUnit === 'cm' ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'"
+                                                class="rounded-lg px-2.5 py-1 transition">
+                                            CM
+                                        </button>
+                                        <button type="button"
+                                                @click="sizeUnit = 'in'"
+                                                :class="sizeUnit === 'in' ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'"
+                                                class="rounded-lg px-2.5 py-1 transition">
+                                            INCHES
+                                        </button>
                                     </div>
-                                {% endif %}
-                                <div>
-                                    <h4 class="font-bold text-slate-900 dark:text-white">
-                                        Available Sizes for This Piece
-                                    </h4>
-                                    <div class="mt-2 flex flex-wrap gap-2">
-                                        {% for s in sizing_guide.available_sizes %}
-                                            <span class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-800 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">{{ s }}</span>
-                                        {% endfor %}
-                                    </div>
-                                </div>
-                                <div class="rounded-2xl bg-slate-50 p-3 text-[11px] text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">
-                                    FLASHWEAR garments are cut to standard streetwear dimensions. If between sizes, choose your typical fit or enjoy our free 30-day exchange window.
+                                    
+                                    <button type="button"
+                                            @click="showSizeGuide = false"
+                                            aria-label="Close size guide"
+                                            class="rounded-full p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-200">
+                                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    </button>
                                 </div>
                             </div>
-                            <div class="mt-5 flex justify-end">
-                                <button type="button" @click="showSizeGuide = false" class="rounded-full bg-slate-900 px-5 py-2 text-xs font-semibold text-white hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100">
+
+                            <div class="mt-5 space-y-6 text-xs text-slate-600 dark:text-slate-300">
+                                {# Fit Silhouette Profile #}
+                                <div class="rounded-2xl border border-slate-100 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-800/50">
+                                    <div class="flex flex-wrap items-baseline justify-between gap-2">
+                                        <span class="font-bold text-slate-950 dark:text-white text-sm">
+                                            Fit Profile: {{ fit_assistant.fit_name }}
+                                        </span>
+                                        <span class="rounded-full bg-slate-200/70 px-2 py-0.5 text-[11px] font-medium text-slate-700 dark:bg-slate-700 dark:text-slate-300">
+                                            Stretch: {{ fit_assistant.fabric_stretch }}
+                                        </span>
+                                    </div>
+                                    <p class="mt-1 leading-relaxed text-slate-600 dark:text-slate-300">
+                                        {{ fit_assistant.fit_description }}
+                                    </p>
+                                    {% if fit_assistant.silhouette %}
+                                        <p class="mt-1 text-slate-500 dark:text-slate-400">
+                                            <strong class="text-slate-700 dark:text-slate-300">Silhouette:</strong> {{ fit_assistant.silhouette }}
+                                        </p>
+                                    {% endif %}
+                                </div>
+
+                                {# Genuine Model Specs #}
+                                {% if fit_assistant.has_model_info %}
+                                    <div class="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm dark:border-slate-800 dark:bg-slate-900/60">
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-base" aria-hidden="true">🧍</span>
+                                            <span class="font-semibold text-slate-900 dark:text-white">Model Sizing:</span>
+                                            <span>
+                                                {% if fit_assistant.model_height_cm %}Height: {{ fit_assistant.model_height_cm }} cm{% endif %}
+                                                {% if fit_assistant.model_wearing_size %} · Wearing size <strong>{{ fit_assistant.model_wearing_size }}</strong>{% endif %}
+                                                {% if fit_assistant.model_measurements %} · {{ fit_assistant.model_measurements }}{% endif %}
+                                            </span>
+                                        </div>
+                                    </div>
+                                {% endif %}
+
+                                {# Fit Assistant Analysis Card #}
+                                <div class="rounded-2xl border border-flash-200 bg-flash-50/70 p-4 text-flash-950 dark:border-flash-800/60 dark:bg-flash-950/40 dark:text-flash-200">
+                                    <div class="flex items-start gap-2.5">
+                                        <span class="text-base" aria-hidden="true">💡</span>
+                                        <div class="flex-1">
+                                            <h4 class="font-bold text-flash-900 dark:text-flash-100">
+                                                Fit Assistant Analysis
+                                            </h4>
+                                            <p class="mt-1 leading-relaxed text-flash-950/90 dark:text-flash-200">
+                                                {{ fit_assistant.explanation }}
+                                            </p>
+                                            <div class="mt-2.5 flex items-center justify-between text-[11px]">
+                                                {% if user.is_authenticated %}
+                                                    <a href="{% url 'account:measurements' %}" class="font-semibold text-flash-700 underline hover:text-flash-950 dark:text-flash-300 dark:hover:text-white">
+                                                        {% if fit_assistant.has_user_measurements %}Update your private measurements{% else %}Add your private measurements{% endif %} →
+                                                    </a>
+                                                {% else %}
+                                                    <a href="{% url 'account:login' %}?next={{ request.path }}" class="font-semibold text-flash-700 underline hover:text-flash-950 dark:text-flash-300 dark:hover:text-white">
+                                                        Sign in to save private measurements →
+                                                    </a>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {# Dimensional Size Table #}
+                                {% if fit_assistant.has_guide %}
+                                    <div>
+                                        <div class="flex items-baseline justify-between mb-2">
+                                            <h4 class="font-bold text-slate-900 dark:text-white">
+                                                {% if fit_assistant.measurement_type == 'garment' %}
+                                                    Garment Dimensions (Laid flat)
+                                                {% else %}
+                                                    Recommended Body Measurements
+                                                {% endif %}
+                                            </h4>
+                                            <span class="text-[11px] text-slate-400">
+                                                Displayed in <span class="uppercase font-semibold" x-text="sizeUnit"></span>
+                                            </span>
+                                        </div>
+
+                                        <div class="overflow-x-auto rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+                                            <table class="w-full text-left text-xs">
+                                                <thead class="bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                                                    <tr>
+                                                        <th scope="col" class="py-2.5 px-3">Size</th>
+                                                        <th scope="col" class="py-2.5 px-3">Chest</th>
+                                                        <th scope="col" class="py-2.5 px-3">Waist</th>
+                                                        <th scope="col" class="py-2.5 px-3">Hips</th>
+                                                        <th scope="col" class="py-2.5 px-3">Length</th>
+                                                        <th scope="col" class="py-2.5 px-3">Shoulder</th>
+                                                        <th scope="col" class="py-2.5 px-3">Inseam</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                                                    {% for row in fit_assistant.rows %}
+                                                        <tr class="{% if row.size.code == fit_assistant.recommended_size %}bg-flash-50/50 dark:bg-flash-950/30 font-semibold{% endif %}">
+                                                            <td class="py-2.5 px-3 font-bold text-slate-900 dark:text-white">
+                                                                {{ row.size.code }}
+                                                                {% if row.size.code == fit_assistant.recommended_size %}
+                                                                    <span class="ml-1 rounded-full bg-flash-600 px-1.5 py-0.5 text-[9px] text-white">Match</span>
+                                                                {% endif %}
+                                                            </td>
+                                                            <td class="py-2.5 px-3">
+                                                                <span x-show="sizeUnit === 'cm'">{{ row.chest_cm }}</span>
+                                                                <span x-show="sizeUnit === 'in'" style="display:none">{{ row.chest_in }}</span>
+                                                            </td>
+                                                            <td class="py-2.5 px-3">
+                                                                <span x-show="sizeUnit === 'cm'">{{ row.waist_cm }}</span>
+                                                                <span x-show="sizeUnit === 'in'" style="display:none">{{ row.waist_in }}</span>
+                                                            </td>
+                                                            <td class="py-2.5 px-3">
+                                                                <span x-show="sizeUnit === 'cm'">{{ row.hips_cm }}</span>
+                                                                <span x-show="sizeUnit === 'in'" style="display:none">{{ row.hips_in }}</span>
+                                                            </td>
+                                                            <td class="py-2.5 px-3">
+                                                                <span x-show="sizeUnit === 'cm'">{{ row.length_cm }}</span>
+                                                                <span x-show="sizeUnit === 'in'" style="display:none">{{ row.length_in }}</span>
+                                                            </td>
+                                                            <td class="py-2.5 px-3">
+                                                                <span x-show="sizeUnit === 'cm'">{{ row.shoulder_cm }}</span>
+                                                                <span x-show="sizeUnit === 'in'" style="display:none">{{ row.shoulder_in }}</span>
+                                                            </td>
+                                                            <td class="py-2.5 px-3">
+                                                                <span x-show="sizeUnit === 'cm'">{{ row.inseam_cm }}</span>
+                                                                <span x-show="sizeUnit === 'in'" style="display:none">{{ row.inseam_in }}</span>
+                                                            </td>
+                                                        </tr>
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                {% else %}
+                                    <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-center text-slate-500 dark:border-slate-800 dark:bg-slate-800/40">
+                                        <p class="font-medium text-slate-700 dark:text-slate-300">
+                                            Dimensional measurement chart is currently being prepared for this piece.
+                                        </p>
+                                        <p class="mt-1 text-[11px]">
+                                            FLASHWEAR garments fit standard contemporary streetwear proportions. All orders are backed by our 30-day exchange window.
+                                        </p>
+                                    </div>
+                                {% endif %}
+
+                                {# Customer Review Fit Feedback (only if genuine votes >= 3) #}
+                                {% if fit_assistant.review_fit.has_enough_data %}
+                                    <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                                        <div class="flex items-center justify-between">
+                                            <h4 class="font-bold text-slate-900 dark:text-white">
+                                                Verified Shopper Fit Feedback
+                                            </h4>
+                                            <span class="text-[11px] text-slate-400">
+                                                Based on {{ fit_assistant.review_fit.total_votes }} reviews
+                                            </span>
+                                        </div>
+                                        <p class="mt-1 text-[11px] text-emerald-700 font-semibold dark:text-emerald-400">
+                                            {{ fit_assistant.review_fit.summary_text }}
+                                        </p>
+                                        <div class="mt-3 grid grid-cols-3 gap-2 text-center text-[10px]">
+                                            <div class="rounded-xl bg-slate-50 p-2 dark:bg-slate-800">
+                                                <div class="font-bold text-slate-900 dark:text-white">{{ fit_assistant.review_fit.runs_small_percent }}%</div>
+                                                <div class="text-slate-500">Runs small</div>
+                                            </div>
+                                            <div class="rounded-xl bg-slate-50 p-2 dark:bg-slate-800 ring-1 ring-flash-500/30">
+                                                <div class="font-bold text-slate-900 dark:text-white">{{ fit_assistant.review_fit.true_to_size_percent }}%</div>
+                                                <div class="text-slate-500">True to size</div>
+                                            </div>
+                                            <div class="rounded-xl bg-slate-50 p-2 dark:bg-slate-800">
+                                                <div class="font-bold text-slate-900 dark:text-white">{{ fit_assistant.review_fit.runs_large_percent }}%</div>
+                                                <div class="text-slate-500">Runs large</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endif %}
+
+                                {# Advisory Disclaimer #}
+                                <div class="rounded-xl bg-slate-50 p-3 text-[11px] text-slate-500 dark:bg-slate-800/40 dark:text-slate-400">
+                                    <strong>Advisory Fit Disclaimer:</strong> Fit guidance and suggestions are calculated using published garment dimensions and your supplied preferences. Because body shapes and personal comfort vary, fit is not guaranteed. Enjoy our 30-day return and exchange guarantee.
+                                </div>
+                            </div>
+
+                            <div class="mt-6 flex justify-end">
+                                <button type="button" @click="showSizeGuide = false" class="rounded-full bg-slate-900 px-6 py-2 text-xs font-semibold text-white hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100">
                                     Close
                                 </button>
                             </div>

@@ -51,11 +51,12 @@ class ReviewAdmin(admin.ModelAdmin):
         "product",
         "author_email",
         "rating",
+        "fit_feedback",
         "status",
         "verified_purchase",
         "created_at",
     )
-    list_filter = ("status", "rating", "verified_purchase")
+    list_filter = ("status", "rating", "fit_feedback", "verified_purchase")
     search_fields = ("product__name", "product__slug", "author__email", "title", "body")
     list_select_related = ("product", "author")
     ordering = ("-created_at",)

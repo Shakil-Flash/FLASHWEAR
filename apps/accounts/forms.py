@@ -14,7 +14,7 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
-from apps.accounts.models import Address
+from apps.accounts.models import Address, CustomerMeasurement
 from apps.accounts.validators import validate_avatar
 
 User = get_user_model()
@@ -416,3 +416,82 @@ class EmailVerificationResendForm(forms.Form):
         required=True,
         widget=forms.CheckboxInput(attrs=checkbox_attrs()),
     )
+
+
+class CustomerMeasurementForm(forms.ModelForm):
+    """Customer-facing form to opt-in and manage private body measurements (Phase 41)."""
+
+    consent_given = forms.BooleanField(
+        label=_(
+            "I consent to saving these body measurements privately to receive "
+            "tailored size & fit recommendations."
+        ),
+        required=True,
+        widget=forms.CheckboxInput(attrs=checkbox_attrs()),
+        error_messages={"required": _("Your explicit consent is required to save measurements.")},
+    )
+    unit = forms.ChoiceField(
+        label=_("Measurement Unit"),
+        choices=CustomerMeasurement.Unit.choices,
+        widget=forms.Select(attrs=input_attrs()),
+        initial=CustomerMeasurement.Unit.CM,
+    )
+    height = forms.DecimalField(
+        label=_("Height"),
+        required=False,
+        min_value=50,
+        max_value=250,
+        widget=forms.NumberInput(
+            attrs=input_attrs(placeholder=_("e.g. 175 (cm) or 69 (in)"), step="0.5")
+        ),
+        help_text=_("Your height in the chosen unit."),
+    )
+    chest = forms.DecimalField(
+        label=_("Chest / Bust Circumference"),
+        required=False,
+        min_value=40,
+        max_value=200,
+        widget=forms.NumberInput(
+            attrs=input_attrs(placeholder=_("e.g. 96 (cm) or 38 (in)"), step="0.5")
+        ),
+        help_text=_("Measure around the fullest part of your chest or bust."),
+    )
+    waist = forms.DecimalField(
+        label=_("Natural Waist Circumference"),
+        required=False,
+        min_value=40,
+        max_value=200,
+        widget=forms.NumberInput(
+            attrs=input_attrs(placeholder=_("e.g. 80 (cm) or 31.5 (in)"), step="0.5")
+        ),
+        help_text=_("Measure around the narrowest part of your waistline."),
+    )
+    hips = forms.DecimalField(
+        label=_("Hips Circumference"),
+        required=False,
+        min_value=40,
+        max_value=200,
+        widget=forms.NumberInput(
+            attrs=input_attrs(placeholder=_("e.g. 100 (cm) or 39.5 (in)"), step="0.5")
+        ),
+        help_text=_("Measure around the widest part of your hips or seat."),
+    )
+    fit_preference = forms.ChoiceField(
+        label=_("Preferred Fit Drape"),
+        choices=CustomerMeasurement.PreferredFit.choices,
+        widget=forms.Select(attrs=input_attrs()),
+        initial=CustomerMeasurement.PreferredFit.REGULAR,
+        help_text=_("How you prefer clothing to drape on your frame."),
+    )
+
+    class Meta:
+        model = CustomerMeasurement
+        fields = (
+            "consent_given",
+            "unit",
+            "height",
+            "chest",
+            "waist",
+            "hips",
+            "fit_preference",
+        )

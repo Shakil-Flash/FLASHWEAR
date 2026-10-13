@@ -1,4 +1,4 @@
-{% load static flashwear %}
+{% load i18n static flashwear %}
 
 <header x-data="{
     open: false,
@@ -65,35 +65,35 @@
             </a>
 
             <div class="hidden items-center gap-6 lg:flex">
-                <a href="{% url 'core:home' %}" class="text-sm font-medium text-slate-700 transition hover:text-slate-950 {% active_url request 'core:home' %}">Home</a>
-                <a href="{% url 'catalog:product-list' %}" class="text-sm font-medium text-slate-700 transition hover:text-slate-950 {% active_url request 'catalog:product-list' %}">Shop</a>
-                <a href="{% url 'catalog:collection-list' %}" class="text-sm font-medium text-slate-700 transition hover:text-slate-950 {% active_url request 'catalog:collection-list' %}">Collections</a>
-                <a href="{% url 'inspiration:list' %}" class="text-sm font-medium text-slate-700 transition hover:text-slate-950">Inspiration</a>
-                <a href="{% url 'account:studio' %}" class="text-sm font-medium text-slate-700 transition hover:text-slate-950">Styling</a>
+                <a href="{% url 'core:home' %}" class="text-sm font-medium text-slate-700 transition hover:text-slate-950 {% active_url request 'core:home' %}">{% translate "Home" %}</a>
+                <a href="{% url 'catalog:product-list' %}" class="text-sm font-medium text-slate-700 transition hover:text-slate-950 {% active_url request 'catalog:product-list' %}">{% translate "Shop" %}</a>
+                <a href="{% url 'catalog:collection-list' %}" class="text-sm font-medium text-slate-700 transition hover:text-slate-950 {% active_url request 'catalog:collection-list' %}">{% translate "Collections" %}</a>
+                <a href="{% url 'inspiration:list' %}" class="text-sm font-medium text-slate-700 transition hover:text-slate-950">{% translate "Inspiration" %}</a>
+                <a href="{% url 'account:studio' %}" class="text-sm font-medium text-slate-700 transition hover:text-slate-950">{% translate "Styling" %}</a>
 
                 <!-- Discover Dropdown -->
                 <div class="relative" @click.away="discoverOpen = false">
                     <button type="button" @click="discoverOpen = !discoverOpen" class="inline-flex items-center gap-1 text-sm font-medium text-slate-700 transition hover:text-slate-950">
-                        <span>Discover</span>
+                        <span>{% translate "Discover" %}</span>
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-4 w-4 text-slate-400 transition" :class="discoverOpen ? 'rotate-180' : ''">
                             <path fill-rule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd" />
                         </svg>
                     </button>
                     <div x-show="discoverOpen" x-transition.opacity.duration.150ms x-cloak class="absolute left-0 mt-3 w-56 origin-top-left rounded-2xl border border-slate-200 bg-white p-2 shadow-elevated">
                         <a href="{% url 'catalog:discovery-hub' %}" class="block rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:text-slate-950">
-                            Mood &amp; Occasion
+                            {% translate "Mood & Occasion" %}
                         </a>
                         <a href="{% url 'catalog:category-list' %}" class="block rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:text-slate-950">
-                            Categories
+                            {% translate "Categories" %}
                         </a>
                         <a href="{% url 'creator:creator_list' %}" class="block rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:text-slate-950">
-                            Creators
+                            {% translate "Creators" %}
                         </a>
                         <a href="{% url 'loop:resale-list' %}" class="block rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:text-slate-950">
-                            Loop Resale
+                            {% translate "Loop Resale" %}
                         </a>
                         <a href="{% url 'catalog:visual-search' %}" class="block rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:text-slate-950">
-                            Search by Image
+                            {% translate "Search by Image" %}
                         </a>
                     </div>
                 </div>
@@ -109,7 +109,7 @@
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-4 w-4 text-slate-500 transition group-hover:text-slate-700">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
                 </svg>
-                <span class="hidden xl:inline text-xs font-semibold">Search</span>
+                <span class="hidden xl:inline text-xs font-semibold">{% translate "Search" %}</span>
                 <kbd class="hidden xl:inline-block rounded bg-slate-100 px-1 py-0.5 text-[10px] font-semibold text-slate-400">⌘K</kbd>
             </button>
 
@@ -148,29 +148,48 @@
             </a>
             {% endif %}
 
+            <!-- Language Switcher (Desktop) -->
+            <div class="hidden sm:flex items-center">
+                <form action="{% url 'set_language' %}" method="post" class="inline-flex items-center">
+                    {% csrf_token %}
+                    <input name="next" type="hidden" value="{{ request.path }}">
+                    <label for="header-lang-select" class="sr-only">{% translate "Language" %}</label>
+                    <select id="header-lang-select" name="language" @change="$el.form.submit()" class="cursor-pointer rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 shadow-soft transition hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-flash-500/20">
+                        {% get_current_language as CURRENT_LANG %}
+                        {% get_available_languages as AVAIL_LANGS %}
+                        {% get_language_info_list for AVAIL_LANGS as languages %}
+                        {% for lang in languages %}
+                            <option value="{{ lang.code }}"{% if lang.code == CURRENT_LANG %} selected{% endif %}>
+                                {{ lang.name_local }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </form>
+            </div>
+
             <!-- Account Controls -->
             <div class="hidden items-center gap-2 sm:flex">
                 {% if user.is_authenticated %}
                     <a href="{% url 'account:dashboard' %}" class="inline-flex items-center rounded-full px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 hover:text-slate-950">
-                        My account
+                        {% translate "My account" %}
                     </a>
                     {% if user.is_staff %}
                     <a href="{% url 'admin:index' %}" class="inline-flex items-center rounded-full px-2.5 py-1.5 text-xs font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-slate-950">
-                        Admin
+                        {% translate "Admin" %}
                     </a>
                     {% endif %}
                     <form method="post" action="{% url 'accounts:logout' %}">
                         {% csrf_token %}
                         <button type="submit" class="inline-flex items-center rounded-full px-2.5 py-1.5 text-xs font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-950">
-                            Sign out
+                            {% translate "Sign out" %}
                         </button>
                     </form>
                 {% else %}
                     <a href="{% url 'accounts:login' %}" class="inline-flex items-center rounded-full px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 hover:text-slate-950">
-                        Sign in
+                        {% translate "Sign in" %}
                     </a>
                     <a href="{% url 'account:register' %}" class="inline-flex items-center justify-center rounded-full bg-flash-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-soft transition hover:bg-flash-700">
-                        Get started
+                        {% translate "Get started" %}
                     </a>
                 {% endif %}
             </div>
@@ -191,32 +210,51 @@
     <!-- Mobile navigation -->
     <div x-show="open" x-transition.opacity x-cloak id="mobile-nav" class="border-t border-slate-200 bg-white/95 backdrop-blur md:hidden">
         <div class="space-y-1 px-4 py-4 sm:px-6">
-            <a href="{% url 'core:home' %}" class="block rounded-xl px-3 py-2 text-base font-medium text-slate-700 transition hover:bg-slate-50">Home</a>
-            <a href="{% url 'catalog:product-list' %}" class="block rounded-xl px-3 py-2 text-base font-medium text-slate-700 transition hover:bg-slate-50">Shop</a>
-            <a href="{% url 'catalog:discovery-hub' %}" class="block rounded-xl px-3 py-2 text-base font-medium text-slate-700 transition hover:bg-slate-50">Mood &amp; Occasion</a>
-            <a href="{% url 'catalog:category-list' %}" class="block rounded-xl px-3 py-2 text-base font-medium text-slate-700 transition hover:bg-slate-50">Categories</a>
-            <a href="{% url 'catalog:collection-list' %}" class="block rounded-xl px-3 py-2 text-base font-medium text-slate-700 transition hover:bg-slate-50">Collections</a>
-            <a href="{% url 'account:studio' %}" class="block rounded-xl px-3 py-2 text-base font-medium text-slate-700 transition hover:bg-slate-50">Styling Studio</a>
-            <a href="{% url 'account:outfits' %}" class="block rounded-xl px-3 py-2 text-base font-medium text-slate-700 transition hover:bg-slate-50">Outfits</a>
-            <a href="{% url 'loop:resale-list' %}" class="block rounded-xl px-3 py-2 text-base font-medium text-slate-700 transition hover:bg-slate-50">Loop Resale</a>
+            <a href="{% url 'core:home' %}" class="block rounded-xl px-3 py-2 text-base font-medium text-slate-700 transition hover:bg-slate-50">{% translate "Home" %}</a>
+            <a href="{% url 'catalog:product-list' %}" class="block rounded-xl px-3 py-2 text-base font-medium text-slate-700 transition hover:bg-slate-50">{% translate "Shop" %}</a>
+            <a href="{% url 'catalog:discovery-hub' %}" class="block rounded-xl px-3 py-2 text-base font-medium text-slate-700 transition hover:bg-slate-50">{% translate "Mood & Occasion" %}</a>
+            <a href="{% url 'catalog:category-list' %}" class="block rounded-xl px-3 py-2 text-base font-medium text-slate-700 transition hover:bg-slate-50">{% translate "Categories" %}</a>
+            <a href="{% url 'catalog:collection-list' %}" class="block rounded-xl px-3 py-2 text-base font-medium text-slate-700 transition hover:bg-slate-50">{% translate "Collections" %}</a>
+            <a href="{% url 'account:studio' %}" class="block rounded-xl px-3 py-2 text-base font-medium text-slate-700 transition hover:bg-slate-50">{% translate "Styling Studio" %}</a>
+            <a href="{% url 'account:outfits' %}" class="block rounded-xl px-3 py-2 text-base font-medium text-slate-700 transition hover:bg-slate-50">{% translate "My Outfits" %}</a>
+            <a href="{% url 'loop:resale-list' %}" class="block rounded-xl px-3 py-2 text-base font-medium text-slate-700 transition hover:bg-slate-50">{% translate "Loop Resale" %}</a>
             <span class="block rounded-xl px-3 py-2 text-base font-medium text-slate-400">Drops <span class="text-xs">(coming soon)</span></span>
-            <a href="{% url 'catalog:visual-search' %}" class="block rounded-xl px-3 py-2 text-base font-medium text-slate-700 transition hover:bg-slate-50">Search by Image</a>
-            <a href="{% url 'shop:cart' %}" class="block rounded-xl px-3 py-2 text-base font-medium text-slate-700 transition hover:bg-slate-50">Bag{% if cart_count %} <span class="text-xs text-slate-500">({{ cart_count }})</span>{% endif %}</a>
-            <a href="{% url 'shop:wishlist' %}" class="block rounded-xl px-3 py-2 text-base font-medium text-slate-700 transition hover:bg-slate-50">Wishlist{% if wishlist_count %} <span class="text-xs text-slate-500">({{ wishlist_count }})</span>{% endif %}</a>
+            <a href="{% url 'catalog:visual-search' %}" class="block rounded-xl px-3 py-2 text-base font-medium text-slate-700 transition hover:bg-slate-50">{% translate "Search by Image" %}</a>
+            <a href="{% url 'shop:cart' %}" class="block rounded-xl px-3 py-2 text-base font-medium text-slate-700 transition hover:bg-slate-50">{% translate "Bag" %}{% if cart_count %} <span class="text-xs text-slate-500">({{ cart_count }})</span>{% endif %}</a>
+            <a href="{% url 'shop:wishlist' %}" class="block rounded-xl px-3 py-2 text-base font-medium text-slate-700 transition hover:bg-slate-50">{% translate "Wishlist" %}{% if wishlist_count %} <span class="text-xs text-slate-500">({{ wishlist_count }})</span>{% endif %}</a>
             {% if user.is_authenticated %}
-            <a href="{% url 'notifications:center' %}" class="block rounded-xl px-3 py-2 text-base font-medium text-slate-700 transition hover:bg-slate-50">Notifications{% if notifications_unread %} <span class="text-xs text-slate-500">({{ notifications_unread }})</span>{% endif %}</a>
+            <a href="{% url 'notifications:center' %}" class="block rounded-xl px-3 py-2 text-base font-medium text-slate-700 transition hover:bg-slate-50">{% translate "Notifications" %}{% if notifications_unread %} <span class="text-xs text-slate-500">({{ notifications_unread }})</span>{% endif %}</a>
             {% endif %}
+
+            <div class="pt-2 border-t border-slate-100 flex items-center justify-between px-3">
+                <span class="text-xs font-medium text-slate-500">{% translate "Language" %}</span>
+                <form action="{% url 'set_language' %}" method="post" class="inline-flex items-center">
+                    {% csrf_token %}
+                    <input name="next" type="hidden" value="{{ request.path }}">
+                    <label for="mobile-language-select" class="sr-only">{% translate "Language" %}</label>
+                    <select id="mobile-language-select" name="language" @change="$el.form.submit()" class="cursor-pointer rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 shadow-soft focus:outline-none focus:ring-2 focus:ring-flash-500/20">
+                        {% get_current_language as CURRENT_LANG %}
+                        {% get_available_languages as AVAIL_LANGS %}
+                        {% get_language_info_list for AVAIL_LANGS as languages %}
+                        {% for lang in languages %}
+                            <option value="{{ lang.code }}"{% if lang.code == CURRENT_LANG %} selected{% endif %}>
+                                {{ lang.name_local }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </form>
+            </div>
 
             <div class="mt-4 grid gap-2 sm:hidden">
                 {% if user.is_authenticated %}
-                <a href="{% url 'account:dashboard' %}" class="inline-flex w-full items-center justify-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-soft transition hover:border-slate-300">My account</a>
+                <a href="{% url 'account:dashboard' %}" class="inline-flex w-full items-center justify-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-soft transition hover:border-slate-300">{% translate "My account" %}</a>
                 <form method="post" action="{% url 'accounts:logout' %}">
                     {% csrf_token %}
-                    <button type="submit" class="inline-flex w-full items-center justify-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-soft transition hover:border-slate-300">Sign out</button>
+                    <button type="submit" class="inline-flex w-full items-center justify-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-soft transition hover:border-slate-300">{% translate "Sign out" %}</button>
                 </form>
                 {% else %}
-                <a href="{% url 'accounts:login' %}" class="inline-flex w-full items-center justify-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-soft transition hover:border-slate-300">Sign in</a>
-                <a href="{% url 'account:register' %}" class="inline-flex w-full items-center justify-center rounded-full bg-flash-600 px-4 py-2 text-sm font-semibold text-white shadow-soft transition hover:bg-flash-700">Get started</a>
+                <a href="{% url 'accounts:login' %}" class="inline-flex w-full items-center justify-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-soft transition hover:border-slate-300">{% translate "Sign in" %}</a>
+                <a href="{% url 'account:register' %}" class="inline-flex w-full items-center justify-center rounded-full bg-flash-600 px-4 py-2 text-sm font-semibold text-white shadow-soft transition hover:bg-flash-700">{% translate "Get started" %}</a>
                 {% endif %}
             </div>
         </div>

@@ -62,6 +62,22 @@ class Review(TimestampedModel):
         validators=[MinValueValidator(1), MaxValueValidator(5)],
         help_text=_("1 (poor) to 5 (excellent)."),
     )
+
+    class FitFeedback(models.TextChoices):
+        RUNS_SMALL = "runs_small", _("Runs small")
+        TRUE_TO_SIZE = "true_to_size", _("True to size")
+        RUNS_LARGE = "runs_large", _("Runs large")
+
+    fit_feedback = models.CharField(
+        _("fit feedback"),
+        max_length=16,
+        choices=FitFeedback.choices,
+        blank=True,
+        default="",
+        help_text=_(
+            "Optional feedback on how the garment fits (runs small, true to size, runs large)."
+        ),
+    )
     title = models.CharField(_("title"), max_length=120)
     body = models.TextField(
         _("review"),

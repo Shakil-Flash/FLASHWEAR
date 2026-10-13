@@ -25,6 +25,8 @@ from apps.catalog.models import (
     Product,
     ProductImage,
     ProductVariant,
+    SizeGuide,
+    SizeGuideRow,
 )
 from apps.catalog.services import variant_conflict
 from apps.catalog.validators import validate_catalog_image
@@ -425,6 +427,11 @@ class ProductAdminForm(forms.ModelForm):
             "category",
             "brand",
             "fit",
+            "fabric_stretch",
+            "silhouette",
+            "model_height_cm",
+            "model_wearing_size",
+            "model_measurements",
             "materials",
             "tags",
             "collections",
@@ -437,11 +444,15 @@ class ProductAdminForm(forms.ModelForm):
         widgets = {
             "short_description": forms.TextInput(attrs={"maxlength": 300}),
             "description": forms.Textarea(attrs={"rows": 8}),
+            "silhouette": forms.TextInput(attrs={"placeholder": _("e.g. Boxy drop-shoulder")}),
+            "model_measurements": forms.TextInput(
+                attrs={"placeholder": _("e.g. Chest 96cm, Waist 78cm")}
+            ),
             "seo_title": forms.TextInput(attrs={"maxlength": 70}),
             "seo_description": forms.TextInput(attrs={"maxlength": 160}),
         }
         filter_horizontal = ("collections", "materials", "tags")
-        autocomplete_fields = ("brand", "category", "fit")
+        autocomplete_fields = ("brand", "category", "fit", "model_wearing_size")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -536,3 +547,87 @@ class BulkArchiveConfirmForm(forms.Form):
             "I understand this will retire and hide all selected products from the storefront."
         ),
     )
+
+
+class SizeGuideAdminForm(forms.ModelForm):
+    """Admin form for SizeGuide with validation for product/category association."""
+
+    class Meta:
+        model = SizeGuide
+        fields = (
+            "name",
+            "category",
+            "product",
+            "measurement_type",
+            "unit",
+            "description",
+            "is_active",
+        )
+        widgets = {
+            "name": forms.TextInput(attrs={"placeholder": _("e.g. Standard Men's Tees")}),
+            "description": forms.Textarea(
+                attrs={
+                    "rows": 4,
+                    "placeholder": _(
+                        "Editorial fit guidance, measuring tips, or model specifications."
+                    ),
+                }
+            ),
+        }
+
+    def clean(self):
+        cleaned_data = super().clean()
+        product = cleaned_data.get("product")
+        category = cleaned_data.get("category")
+        if not product and not category:
+            raise forms.ValidationError(
+                _("A size guide must be attached to either a product or a category.")
+            )
+        return cleaned_data
+
+
+class SizeGuideRowForm(forms.ModelForm):
+    """Admin form for a single measurement row in a size guide."""
+
+    class Meta:
+        model = SizeGuideRow
+        fields = (
+            "size",
+            "chest_min",
+            "chest_max",
+            "waist_min",
+            "waist_max",
+            "hips_min",
+            "hips_max",
+            "shoulder",
+            "length",
+            "inseam",
+            "display_order",
+        )
+        widgets = {
+            "chest_min": forms.NumberInput(attrs={"step": "0.1", "style": "width: 75px;"}),
+            "chest_max": forms.NumberInput(attrs={"step": "0.1", "style": "width: 75px;"}),
+            "waist_min": forms.NumberInput(attrs={"step": "0.1", "style": "width: 75px;"}),
+            "waist_max": forms.NumberInput(attrs={"step": "0.1", "style": "width: 75px;"}),
+            "hips_min": forms.NumberInput(attrs={"step": "0.1", "style": "width: 75px;"}),
+            "hips_max": forms.NumberInput(attrs={"step": "0.1", "style": "width: 75px;"}),
+            "shoulder": forms.NumberInput(attrs={"step": "0.1", "style": "width: 75px;"}),
+            "length": forms.NumberInput(attrs={"step": "0.1", "style": "width: 75px;"}),
+            "inseam": forms.NumberInput(attrs={"step": "0.1", "style": "width: 75px;"}),
+            "display_order": forms.NumberInput(attrs={"style": "width: 60px;"}),
+        }
+
+    def clean(self):
+        cleaned_data = super().clean()
+        for field in ("chest", "waist", "hips"):
+            min_val = cleaned_data.get(f"{field}_min")
+            max_val = cleaned_data.get(f"{field}_max")
+            if min_val is not None and max_val is not None and max_val < min_val:
+                self.add_error(
+                    f"{field}_max",
+                    forms.ValidationError(
+                        _("Maximum measurement cannot be less than minimum."),
+                        code="invalid_range",
+                    ),
+                )
+        return cleaned_data

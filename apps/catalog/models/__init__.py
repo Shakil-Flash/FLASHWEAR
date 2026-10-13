@@ -8,6 +8,7 @@ every concrete model inherits.
 from apps.catalog.models.attributes import Color, Fit, Material, ProductTag, Size
 from apps.catalog.models.base import SEOMixin, SluggedModel, TimestampedModel
 from apps.catalog.models.product import Product, ProductImage, ProductVariant
+from apps.catalog.models.size_guide import SizeGuide, SizeGuideRow
 from apps.catalog.models.taxonomy import Brand, Category, Collection
 
 __all__ = [
@@ -23,6 +24,8 @@ __all__ = [
     "ProductVariant",
     "SEOMixin",
     "Size",
+    "SizeGuide",
+    "SizeGuideRow",
     "SluggedModel",
     "TimestampedModel",
 ]

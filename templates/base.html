@@ -1,5 +1,7 @@
+{% load i18n static %}
+{% get_current_language as CURRENT_LANGUAGE %}
 <!DOCTYPE html>
-<html lang="en" class="h-full bg-slate-50 antialiased">
+<html lang="{{ CURRENT_LANGUAGE|default:'en' }}" class="h-full bg-slate-50 antialiased">
 
 <head>
     <meta charset="utf-8" />
@@ -19,7 +21,7 @@
     <meta property="og:description" content="{{ og_description|default:seo_description }}" />
     <meta property="og:url" content="{% block og_url %}{% if og_url %}{{ og_url }}{% else %}{{ request.scheme }}://{{ request.get_host }}{{ request.path }}{% endif %}{% endblock og_url %}" />
     {% if og_image %}<meta property="og:image" content="{{ og_image }}" />{% endif %}
-    <meta property="og:locale" content="en_US" />
+    <meta property="og:locale" content="{% if CURRENT_LANGUAGE == 'bn' %}bn_BD{% else %}en_US{% endif %}" />
 
     <!-- Twitter reads the Open Graph values but wants its own tags; the card degrades to
          "summary" when the page has no image, because a summary_large_image card that is
@@ -33,10 +35,15 @@
 
     {% block extra_meta %}{% endblock extra_meta %}
 
-    {% load static %}
     <!-- Compiled by `npm run build:css` from frontend/css/tailwind.css. Served from this
          origin so the production Content-Security-Policy can stay on script-src 'self'. -->
     <link rel="stylesheet" href="{% static 'css/app.css' %}" />
+    <style>
+        :lang(bn) {
+            font-family: 'Hind Siliguri', 'Kalpurush', 'SolaimanLipi', 'Noto Sans Bengali', 'Vrinda', 'Segoe UI', system-ui, -apple-system, sans-serif;
+            line-height: 1.6;
+        }
+    </style>
     {% block extra_css %}{% endblock extra_css %}
 
     <!-- Progressive enhancement only: no client-side framework is required for the

@@ -40,6 +40,7 @@ from apps.accounts import services
 from apps.accounts.forms import (
     AccountDeletionForm,
     AddressForm,
+    CustomerMeasurementForm,
     EmailVerificationResendForm,
     ProfileForm,
     RegistrationForm,
@@ -615,8 +616,24 @@ class ProfileUpdateView(FormView):
     def form_valid(self, form):
         # The form writes both rows; the view only reports the outcome.
         form.save()
+        lang = form.cleaned_data.get("preferred_language")
         messages.success(self.request, _("Your profile has been updated."))
-        return super().form_valid(form)
+        response = super().form_valid(form)
+        if lang:
+            from django.utils.translation import check_for_language
+
+            if check_for_language(lang):
+                response.set_cookie(
+                    settings.LANGUAGE_COOKIE_NAME,
+                    lang,
+                    max_age=settings.LANGUAGE_COOKIE_AGE,
+                    path=settings.LANGUAGE_COOKIE_PATH,
+                    domain=settings.LANGUAGE_COOKIE_DOMAIN,
+                    secure=settings.LANGUAGE_COOKIE_SECURE,
+                    httponly=settings.LANGUAGE_COOKIE_HTTPONLY,
+                    samesite=settings.LANGUAGE_COOKIE_SAMESITE,
+                )
+        return response
 
 
 class SecurityView(TemplateView):
@@ -796,6 +813,69 @@ class AccountDeletedView(TemplateView):
     """Post-closure confirmation. Reachable while signed out, hence no ``login_required``."""
 
     template_name = "account/deleted.html"
+
+
+class CustomerMeasurementView(View):
+    """Customer-facing view to view/save private body measurements (Phase 41).
+
+    Strict privacy guarantees:
+    - User must be logged in.
+    - Only accesses request.user.customer_measurement.
+    - Requires explicit opt-in consent to save.
+    - Never exposed publicly.
+    """
+
+    template_name = "account/measurements.html"
+
+    def get(self, request):
+        measurement = getattr(request.user, "customer_measurement", None)
+        form = CustomerMeasurementForm(instance=measurement)
+        return render(
+            request,
+            self.template_name,
+            {
+                "form": form,
+                "measurement": measurement,
+                "has_measurements": bool(measurement and measurement.consent_given),
+            },
+        )
+
+    def post(self, request):
+        measurement = getattr(request.user, "customer_measurement", None)
+        form = CustomerMeasurementForm(request.POST, instance=measurement)
+        if form.is_valid():
+            obj = form.save(commit=False)
+            obj.user = request.user
+            obj.save()
+            messages.success(
+                request,
+                _("Your measurement preferences have been saved securely to your account."),
+            )
+            return redirect("account:measurements")
+
+        return render(
+            request,
+            self.template_name,
+            {
+                "form": form,
+                "measurement": measurement,
+                "has_measurements": bool(measurement and measurement.consent_given),
+            },
+        )
+
+
+class CustomerMeasurementDeleteView(View):
+    """Permanently delete customer-saved body measurements (Phase 41)."""
+
+    def post(self, request):
+        measurement = getattr(request.user, "customer_measurement", None)
+        if measurement:
+            measurement.delete()
+            messages.success(
+                request,
+                _("Your body measurements have been completely deleted from your account."),
+            )
+        return redirect("account:measurements")
 
 
 def redirect_to_login(next_path: str):

@@ -92,6 +92,13 @@ urlpatterns += [
         views.AddressSetDefaultView.as_view(),
         "address-set-default",
     ),
+    # Phase 41: Private customer measurements & sizing preferences
+    protected("measurements/", views.CustomerMeasurementView.as_view(), "measurements"),
+    protected(
+        "measurements/delete/",
+        views.CustomerMeasurementDeleteView.as_view(),
+        "measurements-delete",
+    ),
     protected("delete/", views.AccountDeleteView.as_view(), "delete"),
     # Phase 6 & Phase 23: order history, returns and exchanges.
     protected("orders/", OrderListView.as_view(), "orders"),

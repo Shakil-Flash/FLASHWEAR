@@ -52,7 +52,9 @@ def test_the_product_detail_stays_within_its_phase19_budget(
     client, product, django_assert_max_num_queries
 ):
     # 13 measured: gallery + related strip prefetches, review aggregate, breadcrumbs.
-    with django_assert_max_num_queries(17):
+    # Phase 20 adds +2 (first-touch visitor attribution read + insert) and +1 (product_view event).
+    # Phase 28 adds +1 (creator community posts). Phase 41 adds size guide resolution.
+    with django_assert_max_num_queries(22):
         assert client.get(product.get_absolute_url()).status_code == 200
 
 

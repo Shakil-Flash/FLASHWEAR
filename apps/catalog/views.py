@@ -348,7 +348,14 @@ def product_detail(request, slug: str):
     merchandising.record_recently_viewed(request, product)
     signals = merchandising.get_product_signals(product, selected, user=request.user)
     related_products = selectors.related_products(product)
-    sizing_guide = merchandising.get_product_sizing_guide(product, user=request.user)
+    from apps.catalog.fit_assistant import get_fit_assessment
+
+    sizing_guide = get_fit_assessment(
+        product,
+        user=request.user,
+        selected_variant=selected,
+        review_fit=review_summary.get("fit_feedback"),
+    )
 
     selected_stock = getattr(selected, "stock", None) if selected else None
     selected_in_stock = True
@@ -454,6 +461,7 @@ def product_detail(request, slug: str):
         "selected_stock_msg": selected_stock_msg,
         "size_options": size_options,
         "sizing_guide": sizing_guide,
+        "fit_assistant": sizing_guide,
         "dna_match": dna_match,
         "smart_alternatives": smart_alternatives,
         "closet_matches": closet_matches,

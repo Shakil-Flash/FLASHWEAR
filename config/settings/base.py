@@ -12,6 +12,7 @@ from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit
 
 import environ
+from django.utils.translation import gettext_lazy as _
 
 # repo-root/config/settings/base.py -> repo-root
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -205,6 +206,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "django.template.context_processors.i18n",
                 "apps.core.context_processors.site",
                 "apps.shop.context_processors.cart_summary",
                 "apps.notifications.context_processors.unread_count",
@@ -722,14 +724,25 @@ CHECKOUT_SHIPPING_EXPRESS_RATE = Decimal(env("CHECKOUT_SHIPPING_EXPRESS_RATE", d
 # Internationalisation
 # --------------------------------------------------------------------------------------
 
-LANGUAGE_CODE = env("LANGUAGE_CODE", default="en-us")
+LANGUAGE_CODE = env("LANGUAGE_CODE", default="en")
 TIME_ZONE = env("TZ", default="UTC")
 USE_I18N = True
 USE_TZ = True
 
+LANGUAGES = [
+    ("en", _("English")),
+    ("bn", _("Bangla")),
+]
+
+LOCALE_PATHS = [
+    BASE_DIR / "locale",
+]
+
 # Languages a customer can pick in their profile. Django's own LANGUAGES list is deliberately
 # not used as the choice set: it includes admin-only and construction locales.
 ACCOUNT_LANGUAGES = [
+    ("en", "English"),
+    ("bn", "বাংলা (Bangla)"),
     ("en-us", "English (US)"),
     ("en-gb", "English (UK)"),
     ("de", "Deutsch"),

@@ -1,0 +1,103 @@
+{% extends "account/base_account.html" %}
+
+{% block account_title %}Size & Fit Measurements{% endblock account_title %}
+{% block account_heading %}Size & Fit Measurements{% endblock account_heading %}
+{% block account_intro %}Opt-in body measurements used strictly to suggest clothing sizes on product pages.{% endblock account_intro %}
+
+{% block account_content %}
+<div class="max-w-2xl space-y-8">
+    {# Privacy & Consent Notice #}
+    <div class="rounded-2xl border border-flash-200 bg-flash-50/70 p-5 text-sm leading-relaxed text-flash-950 dark:border-flash-900/50 dark:bg-flash-950/30 dark:text-flash-200">
+        <div class="flex items-start gap-3">
+            <svg class="mt-0.5 h-5 w-5 shrink-0 text-flash-600 dark:text-flash-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+            <div>
+                <h2 class="font-semibold text-slate-900 dark:text-white">Strict Privacy Guarantee</h2>
+                <p class="mt-1 text-xs text-slate-600 dark:text-slate-300">
+                    Your measurements are strictly private to your customer account. They are never shared, made public, or visible to other shoppers or reviewers. You can update or completely delete them at any time with one click.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <form method="post" action="{% url 'account:measurements' %}" novalidate class="space-y-6">
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+            <div class="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300" role="alert">
+                {% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
+            </div>
+        {% endif %}
+
+        <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft dark:border-slate-800 dark:bg-slate-900" aria-labelledby="meas-consent-heading">
+            <h2 id="meas-consent-heading" class="text-sm font-semibold text-slate-900 dark:text-white">Consent & Permission</h2>
+            <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                Under our privacy policy, body data is collected strictly with your explicit consent.
+            </p>
+            <div class="mt-4">
+                {% include "account/_field.html" with field=form.consent_given %}
+            </div>
+            {% if measurement.consent_at %}
+                <p class="mt-2 text-[11px] text-slate-400 dark:text-slate-500">
+                    Consent recorded on {{ measurement.consent_at|date:"M j, Y, H:i" }} UTC.
+                </p>
+            {% endif %}
+        </section>
+
+        <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft dark:border-slate-800 dark:bg-slate-900" aria-labelledby="meas-values-heading">
+            <h2 id="meas-values-heading" class="text-sm font-semibold text-slate-900 dark:text-white">Body Measurements</h2>
+            <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                Enter your approximate dimensions. Only the fields you provide will be compared against garment sizing charts.
+            </p>
+
+            <div class="mt-4 space-y-4">
+                <div class="max-w-xs">
+                    {% include "account/_field.html" with field=form.unit %}
+                </div>
+
+                <div class="grid gap-4 sm:grid-cols-2">
+                    {% include "account/_field.html" with field=form.height %}
+                    {% include "account/_field.html" with field=form.chest %}
+                </div>
+
+                <div class="grid gap-4 sm:grid-cols-2">
+                    {% include "account/_field.html" with field=form.waist %}
+                    {% include "account/_field.html" with field=form.hips %}
+                </div>
+
+                <div class="pt-2">
+                    {% include "account/_field.html" with field=form.fit_preference %}
+                </div>
+            </div>
+        </section>
+
+        <div class="flex items-center gap-4">
+            <button type="submit" class="rounded-xl bg-slate-900 px-6 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100">
+                Save Measurements
+            </button>
+            <a href="{% url 'account:dashboard' %}" class="text-sm font-medium text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white">
+                Cancel
+            </a>
+        </div>
+    </form>
+
+    {# Delete measurements section #}
+    {% if has_measurements %}
+        <section class="rounded-2xl border border-red-200 bg-red-50/40 p-6 shadow-soft dark:border-red-900/40 dark:bg-red-950/20" aria-labelledby="delete-meas-heading">
+            <h2 id="delete-meas-heading" class="text-sm font-semibold text-red-900 dark:text-red-200">Delete Stored Measurements</h2>
+            <p class="mt-1 text-xs text-red-700/80 dark:text-red-300/80">
+                Permanently purge your body dimensions from our database. You will no longer receive automated size recommendations on product pages.
+            </p>
+            <form method="post" action="{% url 'account:measurements-delete' %}" class="mt-4">
+                {% csrf_token %}
+                <button type="submit"
+                        class="rounded-xl border border-red-300 bg-white px-4 py-2 text-xs font-semibold text-red-700 shadow-soft transition hover:bg-red-50 hover:text-red-800 dark:border-red-800 dark:bg-slate-900 dark:text-red-300 dark:hover:bg-red-950/50"
+                        @click="if (!window.confirm('Are you sure you want to completely delete your saved body measurements?')) $event.preventDefault();">
+                    Delete My Measurements
+                </button>
+            </form>
+        </section>
+    {% endif %}
+</div>
+{% endblock account_content %}

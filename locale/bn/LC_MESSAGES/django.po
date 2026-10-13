@@ -1,0 +1,367 @@
+# Bangla (bn) translations for FLASHWEAR.
+# Copyright (C) 2026 FLASHWEAR
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: FLASHWEAR 1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-13 08:00+0000\n"
+"PO-Revision-Date: 2026-10-13 08:00+0000\n"
+"Last-Translator: FLASHWEAR Localization Team\n"
+"Language-Team: Bangla <bn@flashwear.local>\n"
+"Language: bn\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+# Navigation and Core Storefront
+msgid "Home"
+msgstr "হোম"
+
+msgid "Shop"
+msgstr "শপ"
+
+msgid "Collections"
+msgstr "কালেকশন"
+
+msgid "Inspiration"
+msgstr "অনুপ্রেরণা"
+
+msgid "Styling"
+msgstr "স্টাইলিং"
+
+msgid "Discover"
+msgstr "আবিষ্কার করুন"
+
+msgid "Mood & Occasion"
+msgstr "মুড ও উপলক্ষ"
+
+msgid "Categories"
+msgstr "ক্যাটাগরি"
+
+msgid "Creators"
+msgstr "ক্রিয়েটর"
+
+msgid "Loop Resale"
+msgstr "লুপ রিসেল"
+
+msgid "Search by Image"
+msgstr "ছবি দিয়ে অনুসন্ধান"
+
+msgid "Search"
+msgstr "অনুসন্ধান"
+
+msgid "Search catalogue"
+msgstr "ক্যাটালগ অনুসন্ধান"
+
+msgid "Wishlist"
+msgstr "ইচ্ছেতালিকা"
+
+msgid "Bag"
+msgstr "ব্যাগ"
+
+msgid "Cart"
+msgstr "কার্ট"
+
+msgid "Notifications"
+msgstr "বিজ্ঞপ্তি"
+
+msgid "My account"
+msgstr "আমার অ্যাকাউন্ট"
+
+msgid "My Account"
+msgstr "আমার অ্যাকাউন্ট"
+
+msgid "Admin"
+msgstr "অ্যাডমিন"
+
+msgid "Sign out"
+msgstr "সাইন আউট"
+
+msgid "Sign in"
+msgstr "সাইন ইন"
+
+msgid "Get started"
+msgstr "শুরু করুন"
+
+msgid "Language"
+msgstr "ভাষা"
+
+msgid "Select language"
+msgstr "ভাষা নির্বাচন করুন"
+
+msgid "English"
+msgstr "ইংরেজি"
+
+msgid "Bangla"
+msgstr "বাংলা"
+
+msgid "Currency"
+msgstr "মুদ্রা"
+
+msgid "All products"
+msgstr "সকল পণ্য"
+
+msgid "Style Studio"
+msgstr "স্টাইল স্টুডিও"
+
+msgid "My Outfits"
+msgstr "আমার পোশাক"
+
+msgid "FLASH Closet"
+msgstr "ফ্ল্যাশ ক্লোজেট"
+
+msgid "Orders"
+msgstr "অর্ডারসমূহ"
+
+msgid "Returns"
+msgstr "ফেরত"
+
+msgid "Support"
+msgstr "সহায়তা"
+
+msgid "FLASH Points"
+msgstr "ফ্ল্যাশ পয়েন্ট"
+
+msgid "Real garments crafted with authentic materials, designed around personal style."
+msgstr "ব্যক্তিগত স্টাইলের কথা মাথায় রেখে খাঁটি উপাদান দিয়ে তৈরি বাস্তব পোশাক।"
+
+msgid "Questions?"
+msgstr "প্রশ্ন আছে?"
+
+msgid "Platform under development"
+msgstr "প্ল্যাটফর্মটি নির্মাণাধীন রয়েছে"
+
+msgid "Skip to content"
+msgstr "মূল বিষয়বস্তুতে যান"
+
+# Cart, Checkout, and Orders
+msgid "Your bag"
+msgstr "আপনার ব্যাগ"
+
+msgid "Shopping Bag"
+msgstr "শপিং ব্যাগ"
+
+msgid "Your bag is empty."
+msgstr "আপনার ব্যাগ খালি।"
+
+msgid "Your cart is empty."
+msgstr "আপনার কার্ট খালি।"
+
+msgid "Delivery"
+msgstr "ডেলিভারি"
+
+msgid "Payment"
+msgstr "পেমেন্ট"
+
+msgid "Confirmation"
+msgstr "নিশ্চিতকরণ"
+
+msgid "Continue shopping"
+msgstr "কেনাকাটা চালিয়ে যান"
+
+msgid "Clear bag"
+msgstr "ব্যাগ খালি করুন"
+
+msgid "Subtotal"
+msgstr "উপমোট"
+
+msgid "Total"
+msgstr "মোট"
+
+msgid "Shipping"
+msgstr "শিপিং"
+
+msgid "Tax"
+msgstr "কর"
+
+msgid "Discount"
+msgstr "ছাড়"
+
+msgid "Checkout"
+msgstr "চেকআউট"
+
+msgid "Proceed to checkout"
+msgstr "চেকআউটে এগিয়ে যান"
+
+msgid "Order Summary"
+msgstr "অর্ডারের সারসংক্ষেপ"
+
+msgid "Order confirmation"
+msgstr "অর্ডার নিশ্চিতকরণ"
+
+msgid "Order status"
+msgstr "অর্ডারের অবস্থা"
+
+msgid "Pending payment"
+msgstr "পেমেন্ট অপেক্ষমাণ"
+
+msgid "Paid"
+msgstr "পরিশোধিত"
+
+msgid "Processing"
+msgstr "প্রক্রিয়াকরণ চলছে"
+
+msgid "Shipped"
+msgstr "পাঠানো হয়েছে"
+
+msgid "Delivered"
+msgstr "বিতরণ সম্পন্ন"
+
+msgid "Cancelled"
+msgstr "বাতিল করা হয়েছে"
+
+msgid "Refunded"
+msgstr "মূল্য ফেরত দেওয়া হয়েছে"
+
+msgid "Created"
+msgstr "তৈরি হয়েছে"
+
+msgid "Pending"
+msgstr "অপেক্ষমাণ"
+
+msgid "Succeeded"
+msgstr "সফল হয়েছে"
+
+msgid "Failed"
+msgstr "ব্যর্থ হয়েছে"
+
+msgid "Open"
+msgstr "উন্মুক্ত"
+
+msgid "Validated"
+msgstr "যাচাইকৃত"
+
+msgid "Converted to order"
+msgstr "অর্ডারে রূপান্তরিত"
+
+msgid "Abandoned"
+msgstr "পরিত্যক্ত"
+
+msgid "Active"
+msgstr "সক্রিয়"
+
+msgid "Converted"
+msgstr "রূপান্তরিত"
+
+# Account and Profile
+msgid "Your profile has been updated."
+msgstr "আপনার প্রোফাইল আপডেট করা হয়েছে।"
+
+msgid "Date of birth cannot be in the future."
+msgstr "জন্মতারিখ ভবিষ্যতের হতে পারে না।"
+
+msgid "Please check the year you entered."
+msgstr "অনুগ্রহ করে আপনার দেওয়া সালটি যাচাই করুন।"
+
+msgid "This field is required."
+msgstr "এই তথ্যটি প্রদান করা আবশ্যক।"
+
+msgid "Please enter a valid email address."
+msgstr "অনুগ্রহ করে একটি সঠিক ইমেইল ঠিকানা লিখুন।"
+
+msgid "Email"
+msgstr "ইমেইল"
+
+msgid "Password"
+msgstr "পাসওয়ার্ড"
+
+msgid "Confirm password"
+msgstr "পাসওয়ার্ড নিশ্চিত করুন"
+
+msgid "First name"
+msgstr "নামের প্রথম অংশ"
+
+msgid "Last name"
+msgstr "নামের শেষ অংশ"
+
+msgid "Phone"
+msgstr "ফোন নম্বর"
+
+msgid "phone"
+msgstr "ফোন নম্বর"
+
+msgid "Date of birth"
+msgstr "জন্মতারিখ"
+
+msgid "date of birth"
+msgstr "জন্মতারিখ"
+
+msgid "preferred language"
+msgstr "পছন্দের ভাষা"
+
+msgid "preferred currency"
+msgstr "পছন্দের মুদ্রা"
+
+msgid "marketing email opt-in"
+msgstr "মার্কেটিং ইমেইল সম্মতি"
+
+msgid "marketing SMS opt-in"
+msgstr "মার্কেটিং এসএমএস সম্মতি"
+
+msgid "created at"
+msgstr "তৈরির সময়"
+
+msgid "updated at"
+msgstr "আপডেটের সময়"
+
+msgid "Save changes"
+msgstr "পরিবর্তন সংরক্ষণ করুন"
+
+msgid "Profile"
+msgstr "প্রোফাইল"
+
+msgid "Addresses"
+msgstr "ঠিকানাসমূহ"
+
+msgid "Security"
+msgstr "নিরাপত্তা"
+
+msgid "Invalid email or password."
+msgstr "ভুল ইমেইল বা পাসওয়ার্ড।"
+
+msgid "Password reset"
+msgstr "পাসওয়ার্ড পুনরায় সেট করুন"
+
+msgid "Email me about new drops and offers"
+msgstr "নতুন ড্রপ ও অফার সম্পর্কে আমাকে ইমেইল পাঠান"
+
+msgid "Text me about delivery updates"
+msgstr "ডেলিভারি আপডেট সম্পর্কে আমাকে টেক্সট পাঠান"
+
+msgid "order number"
+msgstr "অর্ডার নম্বর"
+
+msgid "user"
+msgstr "ব্যবহারকারী"
+
+msgid "order"
+msgstr "অর্ডার"
+
+msgid "provider"
+msgstr "প্রোভাইডার"
+
+msgid "cart"
+msgstr "কার্ট"
+
+msgid "Square image. PNG, JPEG or WebP, within the configured size limit."
+msgstr "বর্গাকার ছবি। পিএনজি, জেপিইজি বা ওয়েবপি, নির্ধারিত মাপের মধ্যে।"
+
+msgid "Language used for storefront copy and emails."
+msgstr "স্টোরফ্রন্ট এবং ইমেইলে ব্যবহৃত ভাষা।"
+
+msgid "How prices are displayed. Payment is still charged in the order currency."
+msgstr "মূল্য প্রদর্শনের পদ্ধতি। পেমেন্ট নির্ধারিত অর্ডার মুদ্রায় সম্পন্ন হবে।"
+
+msgid "Public, non-sequential handle: FW-<date>-<random>."
+msgstr "পাবলিক অর্ডার নম্বর: FW-<date>-<random>।"
+
+msgid "Which integration took the money, e.g. 'development'."
+msgstr "কোন ইন্টিগ্রেশনের মাধ্যমে টাকা নেওয়া হয়েছে, যেমন 'development'।"
+
+msgid "Authenticated customer. Null for guest carts."
+msgstr "নিবন্ধিত ক্রেতা। অতিথি ক্রেতাদের জন্য খালি থাকে।"
+
+msgid "Optional. Used for age-appropriate sizing."
+msgstr "ঐচ্ছিক। বয়সোপযোগী সাইজিংয়ের জন্য ব্যবহৃত হয়।"

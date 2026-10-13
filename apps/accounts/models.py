@@ -10,8 +10,12 @@ The split is deliberate:
 * :class:`AccountEvent` is a generic append-only audit trail for later phases to reuse.
 """
 
+from decimal import Decimal
+
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser, BaseUserManager
+from django.core.exceptions import ValidationError
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
@@ -392,3 +396,132 @@ class AccountEvent(models.Model):
 
     def __str__(self) -> str:
         return f"{self.event_type} @ {self.created_at:%Y-%m-%d}"
+
+
+class CustomerMeasurement(models.Model):
+    """Customer-owned opt-in body measurements for private size & fit assistance (Phase 41).
+
+    Strict privacy & consent guarantees:
+    - Never exposed on public APIs, product reviews, or public storefront profiles.
+    - Explicit opt-in checkbox required with timestamped consent record.
+    - Minimal essential clothing dimensions: height, chest/bust, waist, hips.
+    - Full customer control: instant update or permanent deletion at any time.
+    """
+
+    class Unit(models.TextChoices):
+        CM = "cm", _("Centimeters (cm)")
+        INCH = "in", _("Inches (in)")
+
+    class PreferredFit(models.TextChoices):
+        SLIM = "slim", _("Fitted / Slim (Close to body)")
+        REGULAR = "regular", _("Regular (True to size, comfortable ease)")
+        RELAXED = "relaxed", _("Relaxed / Roomy (Extra volume)")
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="customer_measurement",
+        verbose_name=_("user"),
+    )
+    consent_given = models.BooleanField(
+        _("consent given"),
+        default=False,
+        help_text=_(
+            "Explicit customer opt-in to store body measurements strictly for fit suggestions."
+        ),
+    )
+    consent_at = models.DateTimeField(
+        _("consent timestamp"),
+        null=True,
+        blank=True,
+    )
+    unit = models.CharField(
+        _("preferred unit"),
+        max_length=4,
+        choices=Unit.choices,
+        default=Unit.CM,
+    )
+    height = models.DecimalField(
+        _("height"),
+        max_digits=5,
+        decimal_places=1,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("50.0")), MaxValueValidator(Decimal("250.0"))],
+        help_text=_("Height in selected unit (e.g. 175 cm or 69 in)."),
+    )
+    chest = models.DecimalField(
+        _("chest / bust"),
+        max_digits=5,
+        decimal_places=1,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("40.0")), MaxValueValidator(Decimal("200.0"))],
+        help_text=_("Chest or bust circumference."),
+    )
+    waist = models.DecimalField(
+        _("waist"),
+        max_digits=5,
+        decimal_places=1,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("40.0")), MaxValueValidator(Decimal("200.0"))],
+        help_text=_("Natural waist circumference."),
+    )
+    hips = models.DecimalField(
+        _("hips"),
+        max_digits=5,
+        decimal_places=1,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("40.0")), MaxValueValidator(Decimal("200.0"))],
+        help_text=_("Widest hip circumference."),
+    )
+    fit_preference = models.CharField(
+        _("fit preference"),
+        max_length=16,
+        choices=PreferredFit.choices,
+        default=PreferredFit.REGULAR,
+    )
+    created_at = models.DateTimeField(_("created at"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("updated at"), auto_now=True)
+
+    class Meta:
+        verbose_name = _("customer measurement")
+        verbose_name_plural = _("customer measurements")
+
+    def __str__(self) -> str:
+        return f"Measurements for {self.user.email} ({self.unit})"
+
+    def save(self, *args, **kwargs):
+        if self.consent_given and not self.consent_at:
+            self.consent_at = timezone.now()
+        super().save(*args, **kwargs)
+
+    def clean(self):
+        super().clean()
+        if not self.consent_given:
+            raise ValidationError(
+                {"consent_given": _("Explicit consent is required to save measurements.")}
+            )
+
+    def get_chest_cm(self) -> float | None:
+        if self.chest is None:
+            return None
+        if self.unit == self.Unit.CM:
+            return float(self.chest)
+        return round(float(self.chest) * 2.54, 1)
+
+    def get_waist_cm(self) -> float | None:
+        if self.waist is None:
+            return None
+        if self.unit == self.Unit.CM:
+            return float(self.waist)
+        return round(float(self.waist) * 2.54, 1)
+
+    def get_hips_cm(self) -> float | None:
+        if self.hips is None:
+            return None
+        if self.unit == self.Unit.CM:
+            return float(self.hips)
+        return round(float(self.hips) * 2.54, 1)

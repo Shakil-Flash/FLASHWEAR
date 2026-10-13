@@ -175,6 +175,48 @@ class Product(TimestampedModel, SEOMixin):
         blank=True,
         verbose_name=_("fit"),
     )
+
+    class FabricStretch(models.TextChoices):
+        NON_STRETCH = "non_stretch", _("Non-stretch (0%)")
+        SLIGHT = "slight", _("Slight stretch (1-3% elastane)")
+        MEDIUM = "medium", _("Comfort stretch (4-8% elastane)")
+        HIGH = "high", _("High stretch (9%+ elastane)")
+
+    fabric_stretch = models.CharField(
+        _("fabric stretch"),
+        max_length=24,
+        choices=FabricStretch.choices,
+        default=FabricStretch.NON_STRETCH,
+        blank=True,
+        help_text=_("Fabric stretch level to assist fit calculations."),
+    )
+    silhouette = models.CharField(
+        _("cut / silhouette"),
+        max_length=120,
+        blank=True,
+        help_text=_("e.g. Boxy drop-shoulder, tapered leg, cropped hem."),
+    )
+    model_height_cm = models.PositiveSmallIntegerField(
+        _("model height (cm)"),
+        null=True,
+        blank=True,
+        help_text=_("Height of model in product photography (e.g. 182)."),
+    )
+    model_wearing_size = models.ForeignKey(
+        Size,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name=_("model wearing size"),
+        help_text=_("Size worn by the model in photos."),
+    )
+    model_measurements = models.CharField(
+        _("model measurements"),
+        max_length=120,
+        blank=True,
+        help_text=_("e.g. Chest 96cm, Waist 78cm."),
+    )
     collections = models.ManyToManyField(
         Collection,
         related_name="products",

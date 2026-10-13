@@ -729,7 +729,9 @@ def _apply_sort(queryset, sort: str):
 
 def product_detail_queryset():
     """The base queryset for one product page."""
-    return Product.objects.select_related("brand", "category", "fit").prefetch_related(
+    return Product.objects.select_related(
+        "brand", "category", "fit", "model_wearing_size"
+    ).prefetch_related(
         "materials",
         "collections",
         # Prefetched so ``{% if product.tags.exists %}`` in the template is answered from the cache

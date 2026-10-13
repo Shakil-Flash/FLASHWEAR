@@ -78,23 +78,31 @@ def send_account_email(
     The text part is the source of truth; the HTML part is derived from it when the branded
     template is absent, which keeps a missing template from silently dropping the message.
     """
-    email_context = {**context, "base_url": resolve_base_url(request)}
-    subject = _render_template(subject_template, email_context).strip()
-    text_body = _render_template(text_template, email_context)
+    from django.utils import translation
 
-    try:
-        html_body = _render_template(html_template, email_context)
-    except TemplateDoesNotExist:
-        html_body = f"<p>{linebreaks(strip_tags(text_body))}</p>"
-        logger.warning("Falling back to a plain HTML body for %s", html_template)
+    user = context.get("user")
+    lang = getattr(getattr(user, "profile", None), "preferred_language", None)
+    if not lang and request:
+        lang = getattr(request, "LANGUAGE_CODE", None)
 
-    message = EmailMultiAlternatives(
-        subject=subject,
-        body=text_body,
-        from_email=settings.DEFAULT_FROM_EMAIL,
-        to=[recipient],
-    )
-    message.attach_alternative(html_body, "text/html")
-    sent = message.send(fail_silently=fail_silently)
-    logger.info("Account email %r queued to %s", subject_template, Path(text_template).stem)
-    return sent
+    with translation.override(lang or translation.get_language()):
+        email_context = {**context, "base_url": resolve_base_url(request)}
+        subject = _render_template(subject_template, email_context).strip()
+        text_body = _render_template(text_template, email_context)
+
+        try:
+            html_body = _render_template(html_template, email_context)
+        except TemplateDoesNotExist:
+            html_body = f"<p>{linebreaks(strip_tags(text_body))}</p>"
+            logger.warning("Falling back to a plain HTML body for %s", html_template)
+
+        message = EmailMultiAlternatives(
+            subject=subject,
+            body=text_body,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[recipient],
+        )
+        message.attach_alternative(html_body, "text/html")
+        sent = message.send(fail_silently=fail_silently)
+        logger.info("Account email %r queued to %s", subject_template, Path(text_template).stem)
+        return sent

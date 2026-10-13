@@ -403,3 +403,23 @@ def csrf_failure(request: HttpRequest, reason: str = "") -> HttpResponse:
     stays generic on purpose.
     """
     return render(request, "pages/errors/403.html", {"reason": reason}, status=403)
+
+
+def set_language_view(request: HttpRequest) -> HttpResponse:
+    """Wrap Django's set_language view.
+
+    Persists preferred language to the authenticated customer's profile while
+    preserving Django's native safe redirect validation, session, and cookies.
+    """
+    from django.utils.translation import check_for_language
+    from django.views.i18n import set_language
+
+    response = set_language(request)
+    if request.user.is_authenticated and hasattr(request.user, "profile"):
+        lang_code = request.POST.get("language")
+        if lang_code and check_for_language(lang_code):
+            profile = request.user.profile
+            if profile.preferred_language != lang_code:
+                profile.preferred_language = lang_code
+                profile.save(update_fields=["preferred_language"])
+    return response

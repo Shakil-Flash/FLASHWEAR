@@ -74,7 +74,15 @@ def eligibility(user, product) -> tuple[bool, str]:
     return True, ""
 
 
-def create_review(*, user, product, rating: int, title: str, body: str) -> Review:
+def create_review(
+    *,
+    user,
+    product,
+    rating: int,
+    title: str,
+    body: str,
+    fit_feedback: str | None = None,
+) -> Review:
     """Create a pending review from server-derived facts only.
 
     Re-runs eligibility defensively (the race between check and insert is closed by the
@@ -88,6 +96,8 @@ def create_review(*, user, product, rating: int, title: str, body: str) -> Revie
     if not allowed:
         raise ReviewError(ineligible_message(reason), code=reason)
 
+    valid_fit = fit_feedback if fit_feedback in dict(Review.FitFeedback.choices) else ""
+
     order = qualifying_order(user, product)
     try:
         with transaction.atomic():
@@ -96,6 +106,7 @@ def create_review(*, user, product, rating: int, title: str, body: str) -> Revie
                 author=user,
                 order=order,
                 rating=int(rating),
+                fit_feedback=valid_fit,
                 title=title,
                 body=body,
                 verified_purchase=True,
@@ -107,18 +118,30 @@ def create_review(*, user, product, rating: int, title: str, body: str) -> Revie
         ) from exc
 
 
-def update_review(review: Review, *, rating: int, title: str, body: str) -> Review:
+def update_review(
+    review: Review,
+    *,
+    rating: int,
+    title: str,
+    body: str,
+    fit_feedback: str | None = None,
+) -> Review:
     """Owner edit. A *content* change to a published review returns it to moderation.
 
     Re-moderation is the honest choice: the words a moderator approved are not the words the
     customer just wrote. No content change (identical resubmit) leaves the status alone.
     """
+    valid_fit = fit_feedback if fit_feedback in dict(Review.FitFeedback.choices) else ""
     content_changed = (
-        int(rating) != review.rating or title.strip() != review.title or body.strip() != review.body
+        int(rating) != review.rating
+        or title.strip() != review.title
+        or body.strip() != review.body
+        or valid_fit != (review.fit_feedback or "")
     )
     review.rating = int(rating)
     review.title = title.strip()
     review.body = body.strip()
+    review.fit_feedback = valid_fit
     if content_changed and review.status == Review.Status.PUBLISHED:
         review.status = Review.Status.PENDING
         review.moderated_at = timezone.now()
@@ -187,6 +210,69 @@ def aggregate_for(product) -> dict:
         "average": average,
         "distribution": distribution,
         "shares": shares,
+        "fit_feedback": fit_feedback_for(product),
+    }
+
+
+def fit_feedback_for(product, min_threshold: int = 3) -> dict:
+    """Aggregated genuine fit feedback for a product (Phase 41).
+
+    Calculates the distribution of 'runs_small', 'true_to_size', and 'runs_large'
+    from moderated published reviews.
+    Only shows aggregated feedback when there are at least ``min_threshold`` genuine
+    votes, ensuring statistically reliable signal and avoiding misleading claims.
+    """
+    stats = Review.objects.filter(
+        product=product,
+        status=Review.Status.PUBLISHED,
+        fit_feedback__in=[
+            Review.FitFeedback.RUNS_SMALL,
+            Review.FitFeedback.TRUE_TO_SIZE,
+            Review.FitFeedback.RUNS_LARGE,
+        ],
+    ).aggregate(
+        total=Count("id"),
+        verified=Count("id", filter=Q(verified_purchase=True)),
+        small=Count("id", filter=Q(fit_feedback=Review.FitFeedback.RUNS_SMALL)),
+        true=Count("id", filter=Q(fit_feedback=Review.FitFeedback.TRUE_TO_SIZE)),
+        large=Count("id", filter=Q(fit_feedback=Review.FitFeedback.RUNS_LARGE)),
+    )
+    total = stats["total"] or 0
+    if total < min_threshold:
+        return {
+            "has_enough_data": False,
+            "total_votes": total,
+            "verified_votes": stats["verified"] or 0,
+            "runs_small_percent": 0,
+            "true_to_size_percent": 0,
+            "runs_large_percent": 0,
+            "dominant_fit": "",
+            "summary_text": "Not enough customer fit reviews yet (minimum 3 required).",
+        }
+
+    small_pct = round(stats["small"] * 100 / total)
+    true_pct = round(stats["true"] * 100 / total)
+    large_pct = round(stats["large"] * 100 / total)
+
+    if true_pct >= max(small_pct, large_pct):
+        dominant = "true_to_size"
+        summary = f"True to size ({true_pct}% of customers reported standard fit)"
+    elif small_pct > large_pct:
+        dominant = "runs_small"
+        summary = f"Runs small ({small_pct}% of customers recommend sizing up)"
+    else:
+        dominant = "runs_large"
+        summary = f"Runs large ({large_pct}% of customers recommend sizing down)"
+
+    return {
+        "has_enough_data": True,
+        "total_votes": total,
+        "verified_votes": stats["verified"] or 0,
+        "runs_small_percent": small_pct,
+        "true_to_size_percent": true_pct,
+        "runs_large_percent": large_pct,
+        "dominant_fit": dominant,
+        "summary_text": summary,
     }
 
 
