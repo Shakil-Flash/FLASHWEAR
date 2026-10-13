@@ -665,7 +665,7 @@ def _resolve_variant_cost(variant: ProductVariant) -> Decimal:
         return Decimal(str(po_avg)).quantize(Decimal("0.01"))
 
     sup_cost = (
-        SupplierVariant.objects.filter(variant=variant, is_active=True)
+        SupplierVariant.objects.filter(variant=variant, supplier__is_active=True)
         .values_list("purchase_cost", flat=True)
         .first()
     )

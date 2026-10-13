@@ -28,13 +28,31 @@ from apps.orders.models import Order, OrderItem
 from apps.payments.models import Refund
 from apps.shop.models import CheckoutSession
 from apps.support.models import SupportTicket
+from apps.backoffice.selectors.bi import (
+    calculate_delta_percent,
+    get_customer_and_retention_intelligence,
+    get_executive_bi_metrics,
+    get_procurement_and_expense_intelligence,
+    get_product_and_inventory_intelligence,
+    get_sales_time_series,
+    previous_equivalent_range,
+    sanitize_csv_cell,
+)
 
 __all__ = [
     "analytics_dashboard_data",
+    "calculate_delta_percent",
     "customer_and_support_summary",
     "funnel_summary",
+    "get_customer_and_retention_intelligence",
+    "get_executive_bi_metrics",
+    "get_procurement_and_expense_intelligence",
+    "get_product_and_inventory_intelligence",
+    "get_sales_time_series",
     "merchandising_insights",
+    "previous_equivalent_range",
     "sales_trends",
+    "sanitize_csv_cell",
 ]
 
 #: Identity collapsed to one string per visitor: cookie, then session, then account.
@@ -449,6 +467,8 @@ def analytics_dashboard_data(*, date_range: DateRange) -> dict:
     merch = merchandising_insights(date_range=date_range)
     trends = sales_trends(date_range=date_range)
     cust_supp = customer_and_support_summary(date_range=date_range)
+    executive = get_executive_bi_metrics(date_range=date_range)
+    product_bi = get_product_and_inventory_intelligence(date_range=date_range)
 
     return {
         "range": date_range,
@@ -456,4 +476,6 @@ def analytics_dashboard_data(*, date_range: DateRange) -> dict:
         "merchandising": merch,
         "trends": trends,
         "customers_and_support": cust_supp,
+        "executive": executive,
+        "product_bi": product_bi,
     }

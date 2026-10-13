@@ -16,7 +16,17 @@ time rather than on a screen nobody has opened yet.
 
 from __future__ import annotations
 
-from apps.backoffice.selectors.analytics import funnel_summary
+from apps.backoffice.selectors.analytics import (
+    calculate_delta_percent,
+    funnel_summary,
+    get_customer_and_retention_intelligence,
+    get_executive_bi_metrics,
+    get_procurement_and_expense_intelligence,
+    get_product_and_inventory_intelligence,
+    get_sales_time_series,
+    previous_equivalent_range,
+    sanitize_csv_cell,
+)
 from apps.backoffice.selectors.audit import AUDIT_ACTIONS, audit_events
 from apps.backoffice.selectors.catalog import (
     PRODUCT_SORTS,
@@ -91,11 +101,17 @@ __all__ = [
     "TYPE_CHOICES",
     "DateRange",
     "audit_events",
+    "calculate_delta_percent",
     "catalog_health",
     "customer_search",
     "dashboard_summary",
     "drops",
     "funnel_summary",
+    "get_customer_and_retention_intelligence",
+    "get_executive_bi_metrics",
+    "get_procurement_and_expense_intelligence",
+    "get_product_and_inventory_intelligence",
+    "get_sales_time_series",
     "loop_items",
     "low_stock_rows",
     "notification_detail",
@@ -112,6 +128,7 @@ __all__ = [
     "payments",
     "pending_loop_count",
     "points_ledger",
+    "previous_equivalent_range",
     "products",
     "promotion_state",
     "promotions",
@@ -123,6 +140,7 @@ __all__ = [
     "return_detail",
     "returns",
     "review_queue",
+    "sanitize_csv_cell",
     "shipments",
     "sort_queryset",
     "stock_rows",
