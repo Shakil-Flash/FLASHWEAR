@@ -69,7 +69,14 @@ class OrderDetailView(DetailView):
         context["shipments"] = shipments
         context["shipment"] = shipments[0] if shipments else None
         context["return_eligibility"] = check_order_return_eligibility(order)
-        context["order_returns"] = list(order.returns.all())
+        context["order_returns"] = list(
+            order.returns.prefetch_related(
+                "items__order_item",
+                "items__replacement_variant__product",
+                "refunds",
+                "images",
+            ).order_by("-created_at")
+        )
 
         # Review integration (Requirement #9)
         from apps.engagement.models import Review
@@ -298,6 +305,7 @@ def order_return_request(request, number: str):
                 },
             )
 
+        images = request.FILES.getlist("images")
         try:
             return_obj = create_return_request(
                 order=order,
@@ -306,6 +314,7 @@ def order_return_request(request, number: str):
                 return_type=return_type,
                 reason=reason,
                 customer_note=customer_note,
+                images=images,
             )
             messages.success(
                 request,
@@ -359,6 +368,7 @@ class CustomerReturnDetailView(DetailView):
             "items__replacement_variant__product",
             "events",
             "refunds",
+            "images",
         )
 
 

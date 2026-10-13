@@ -112,6 +112,32 @@
                 </div>
             </div>
 
+            {# ---- supporting photos (Phase 42) ------------------------------------------------ #}
+            {% if return_request.images.exists %}
+                <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
+                    <h2 class="text-base font-semibold text-slate-900">
+                        Customer Supporting Photos
+                    </h2>
+                    <p class="mt-1 text-xs text-slate-500">
+                        Uploaded by customer to document defect, fit, or condition.
+                    </p>
+                    <div class="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3">
+                        {% for img in return_request.images.all %}
+                            <div class="group relative overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+                                <a href="{{ img.image.url }}" target="_blank" rel="noopener noreferrer" class="block">
+                                    <img src="{{ img.image.url }}" alt="Return evidence" class="h-40 w-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                                </a>
+                                {% if img.caption %}
+                                    <div class="p-2 text-xs text-slate-600 truncate">
+                                        {{ img.caption }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endif %}
+
             {# ---- inspection form (when status == 'received') --------------------------------- #}
             {% if return_request.status == 'received' and can_manage %}
                 <div class="rounded-2xl border-2 border-indigo-200 bg-white p-6 shadow-soft space-y-4">
@@ -251,6 +277,16 @@
                         <span class="font-semibold text-slate-700">Staff Note:</span> {{ return_request.staff_note }}
                     </div>
                 {% endif %}
+                {% if return_request.rejection_reason %}
+                    <div class="border-t border-slate-100 pt-2 text-xs text-rose-700">
+                        <span class="font-semibold">Rejection Reason:</span> {{ return_request.rejection_reason }}
+                    </div>
+                {% endif %}
+                {% if return_request.customer_explanation %}
+                    <div class="border-t border-slate-100 pt-2 text-xs text-indigo-700">
+                        <span class="font-semibold">Customer Explanation:</span> {{ return_request.customer_explanation }}
+                    </div>
+                {% endif %}
             </div>
 
             {# ---- actions --------------------------------------------------------------------- #}
@@ -264,7 +300,8 @@
                         <form method="post" action="{% url 'backoffice:return_action' return_request.number %}" class="space-y-2">
                             {% csrf_token %}
                             <input type="hidden" name="action" value="approve" />
-                            <input type="text" name="note" placeholder="Approval note (optional)" class="w-full rounded border border-slate-300 p-1.5 text-xs focus:outline-none" />
+                            <input type="text" name="note" placeholder="Internal approval note (optional)" class="w-full rounded border border-slate-300 p-1.5 text-xs focus:outline-none" />
+                            <input type="text" name="customer_explanation" placeholder="Instructions/note for customer (optional)" class="w-full rounded border border-slate-300 p-1.5 text-xs focus:outline-none" />
                             <button type="submit" class="w-full rounded-lg bg-sky-600 py-2 text-xs font-semibold text-white shadow-sm hover:bg-sky-500">
                                 Approve Return Request
                             </button>
@@ -274,6 +311,7 @@
                             {% csrf_token %}
                             <input type="hidden" name="action" value="reject" />
                             <input type="text" name="reason" placeholder="Rejection reason (required)" class="w-full rounded border border-slate-300 p-1.5 text-xs focus:outline-none" required />
+                            <input type="text" name="customer_explanation" placeholder="Detailed explanation for customer (optional)" class="w-full rounded border border-slate-300 p-1.5 text-xs focus:outline-none" />
                             <button type="submit" class="w-full rounded-lg bg-rose-600 py-2 text-xs font-semibold text-white shadow-sm hover:bg-rose-500">
                                 Reject Return Request
                             </button>

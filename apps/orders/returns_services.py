@@ -25,6 +25,7 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from apps.catalog.models import ProductVariant
+from apps.catalog.validators import validate_catalog_image
 from apps.inventory.models import InventoryMovement, Stock
 from apps.inventory.services import InsufficientStock, adjust_stock
 from apps.notifications.models import NotificationType
@@ -35,6 +36,7 @@ from apps.orders.models import (
     OrderEvent,
     OrderItem,
     ReturnEvent,
+    ReturnImage,
     ReturnItem,
     ReturnRequest,
 )
@@ -50,7 +52,9 @@ __all__ = [
     "create_return_request",
     "generate_return_number",
     "inspect_return",
+    "mark_return_exchange_pending",
     "mark_return_received",
+    "mark_return_refund_pending",
     "process_exchange_for_return",
     "process_refund_for_return",
     "reject_return_request",
@@ -205,6 +209,7 @@ def create_return_request(
     return_type: str = ReturnRequest.ReturnType.REFUND,
     reason: str = ReturnRequest.Reason.SIZE_FIT,
     customer_note: str = "",
+    images: list | None = None,
 ) -> ReturnRequest:
     """Submit a return or exchange request.
 
@@ -219,6 +224,7 @@ def create_return_request(
         },
         ...
     ]
+    *images* is an optional list of uploaded image files.
     """
     if order.user_id != user.id:
         raise ValidationError(_("You cannot request a return for another user's order."))
@@ -231,6 +237,9 @@ def create_return_request(
 
     if reason not in ReturnRequest.Reason.values:
         raise ValidationError(_("Invalid return reason: %(reason)s.") % {"reason": reason})
+
+    if images and len(images) > 5:
+        raise ValidationError(_("You can upload at most 5 supporting images."))
 
     order = Order.objects.select_for_update().get(pk=order.pk)
     eligibility = check_order_return_eligibility(order)
@@ -249,6 +258,17 @@ def create_return_request(
         reason=reason,
         customer_note=customer_note.strip(),
     )
+
+    if images:
+        for img in images:
+            if not img:
+                continue
+            validate_catalog_image(img)
+            ReturnImage.objects.create(
+                return_request=return_request,
+                image=img,
+                caption="",
+            )
 
     for item_data in items_data:
         order_item_id = item_data.get("order_item_id")
@@ -350,13 +370,19 @@ def approve_return_request(
     *,
     staff_user=None,
     note: str = "",
+    customer_explanation: str = "",
 ) -> ReturnRequest:
     """Approve a customer return request."""
     return_request = ReturnRequest.objects.select_for_update().get(pk=return_request.pk)
+    if customer_explanation:
+        return_request.customer_explanation = customer_explanation.strip()
+        return_request.save(update_fields=["customer_explanation", "updated_at"])
+
     return_request.transition_to(
         ReturnRequest.Status.APPROVED,
         actor=staff_user,
         note=note or _("Return approved by staff."),
+        metadata={"customer_explanation": customer_explanation} if customer_explanation else None,
     )
 
     _notify_return(
@@ -366,6 +392,7 @@ def approve_return_request(
         context={
             "order_number": return_request.order.number,
             "return_number": return_request.number,
+            "customer_explanation": customer_explanation,
         },
     )
     return return_request
@@ -377,14 +404,28 @@ def reject_return_request(
     *,
     staff_user=None,
     reason: str = "",
+    customer_explanation: str = "",
 ) -> ReturnRequest:
     """Reject a customer return request."""
     return_request = ReturnRequest.objects.select_for_update().get(pk=return_request.pk)
+    if reason:
+        return_request.rejection_reason = reason.strip()
+    explanation = customer_explanation.strip() or reason.strip()
+    if explanation:
+        return_request.customer_explanation = explanation
+
+    update_fields = ["updated_at"]
+    if reason:
+        update_fields.append("rejection_reason")
+    if explanation:
+        update_fields.append("customer_explanation")
+    return_request.save(update_fields=sorted(set(update_fields)))
+
     return_request.transition_to(
         ReturnRequest.Status.REJECTED,
         actor=staff_user,
         note=reason or _("Return rejected by staff."),
-        metadata={"reason": reason},
+        metadata={"reason": reason, "customer_explanation": explanation},
     )
 
     _notify_return(
@@ -395,6 +436,7 @@ def reject_return_request(
             "order_number": return_request.order.number,
             "return_number": return_request.number,
             "reason": reason,
+            "customer_explanation": explanation,
         },
     )
     return return_request
@@ -479,6 +521,7 @@ def inspect_return(
     staff_user,
     inspections: list[dict[str, Any]],
     staff_note: str = "",
+    customer_explanation: str = "",
 ) -> ReturnRequest:
     """Record physical inspection findings.
 
@@ -548,6 +591,12 @@ def inspect_return(
         total_rejected += rej_qty
 
     return_request.staff_note = staff_note.strip()
+    if customer_explanation:
+        return_request.customer_explanation = customer_explanation.strip()
+        return_request.save(update_fields=["staff_note", "customer_explanation", "updated_at"])
+    else:
+        return_request.save(update_fields=["staff_note", "updated_at"])
+
     return_request.transition_to(
         ReturnRequest.Status.INSPECTED,
         actor=staff_user,
@@ -571,6 +620,40 @@ def inspect_return(
     return return_request
 
 
+@transaction.atomic
+def mark_return_refund_pending(
+    return_request: ReturnRequest,
+    *,
+    staff_user=None,
+    note: str = "",
+) -> ReturnRequest:
+    """Move return from INSPECTED to REFUND_PENDING."""
+    return_request = ReturnRequest.objects.select_for_update().get(pk=return_request.pk)
+    return_request.transition_to(
+        ReturnRequest.Status.REFUND_PENDING,
+        actor=staff_user,
+        note=note or _("Inspection accepted; refund queued for processing."),
+    )
+    return return_request
+
+
+@transaction.atomic
+def mark_return_exchange_pending(
+    return_request: ReturnRequest,
+    *,
+    staff_user=None,
+    note: str = "",
+) -> ReturnRequest:
+    """Move return from INSPECTED to EXCHANGE_PENDING."""
+    return_request = ReturnRequest.objects.select_for_update().get(pk=return_request.pk)
+    return_request.transition_to(
+        ReturnRequest.Status.EXCHANGE_PENDING,
+        actor=staff_user,
+        note=note or _("Inspection accepted; exchange fulfillment queued."),
+    )
+    return return_request
+
+
 # =============================================================================
 # 7. Refund Execution & Restocking
 # =============================================================================
@@ -586,7 +669,10 @@ def process_refund_for_return(
 ) -> Refund:
     """Issue payment refund and restock accepted units to authoritative inventory."""
     return_request = ReturnRequest.objects.select_for_update().get(pk=return_request.pk)
-    if return_request.status != ReturnRequest.Status.INSPECTED:
+    if return_request.status not in (
+        ReturnRequest.Status.INSPECTED,
+        ReturnRequest.Status.REFUND_PENDING,
+    ):
         raise ValidationError(_("Return must be INSPECTED before issuing a refund."))
 
     if return_request.return_type != ReturnRequest.ReturnType.REFUND:
@@ -658,7 +744,10 @@ def process_exchange_for_return(
 ) -> ReturnRequest:
     """Process exchange: restock accepted returned items and allocate replacement inventory."""
     return_request = ReturnRequest.objects.select_for_update().get(pk=return_request.pk)
-    if return_request.status != ReturnRequest.Status.INSPECTED:
+    if return_request.status not in (
+        ReturnRequest.Status.INSPECTED,
+        ReturnRequest.Status.EXCHANGE_PENDING,
+    ):
         raise ValidationError(_("Return must be INSPECTED before processing an exchange."))
 
     if return_request.return_type != ReturnRequest.ReturnType.EXCHANGE:

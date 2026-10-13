@@ -3,97 +3,137 @@
 
 {% block account_title %}Request Return or Exchange — Order {{ order.number }}{% endblock account_title %}
 {% block account_heading %}Return or Exchange{% endblock account_heading %}
-{% block account_intro %}Select items from order {{ order.number }} to return for a refund or exchange for a replacement.{% endblock account_intro %}
+{% block account_intro %}Select items from order {{ order.number }} to return for a refund or swap for a replacement.{% endblock account_intro %}
 
 {% block account_content %}
-<div class="max-w-3xl space-y-6">
-    <div class="rounded-2xl border border-indigo-100 bg-indigo-50/50 p-5 text-sm text-indigo-900">
-        <p class="font-semibold text-indigo-950">Return Policy & Eligibility</p>
-        <p class="mt-1 text-xs text-indigo-800">
-            Items must be in original condition, unworn, and unwashed.
-            Your {{ eligibility.window_days }}-day return window closes on {{ eligibility.deadline|date:"N j, Y" }}
-            ({{ eligibility.days_remaining }} day{{ eligibility.days_remaining|pluralize }} remaining).
-        </p>
+<div class="max-w-3xl space-y-6" x-data="{ returnType: 'refund', selectedCount: 0 }">
+    <!-- Return Policy Banner -->
+    <div class="rounded-2xl border border-indigo-200 bg-indigo-50/70 p-5 text-sm text-indigo-950 dark:border-indigo-900/60 dark:bg-indigo-950/40 dark:text-indigo-200">
+        <div class="flex items-start gap-3">
+            <span class="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-xs font-bold text-white dark:bg-indigo-500">
+                i
+            </span>
+            <div>
+                <p class="font-semibold text-indigo-950 dark:text-indigo-100">FLASHWEAR Return & Exchange Policy</p>
+                <p class="mt-1 text-xs text-indigo-800 dark:text-indigo-300">
+                    Items must be unworn, undamaged, with original tags intact.
+                    Your {{ eligibility.window_days }}-day return window closes on <strong>{{ eligibility.deadline|date:"N j, Y" }}</strong>
+                    ({{ eligibility.days_remaining }} day{{ eligibility.days_remaining|pluralize }} remaining).
+                </p>
+            </div>
+        </div>
     </div>
 
-    <form method="post" action="{% url 'account:order-return-request' order.number %}" class="space-y-6">
+    <form method="post" action="{% url 'account:order-return-request' order.number %}" enctype="multipart/form-data" class="space-y-6">
         {% csrf_token %}
 
-        <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft space-y-4">
-            <h2 class="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500">Request Type & Reason</h2>
+        <!-- Section 1: Return Type & Reason -->
+        <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft dark:border-slate-800 dark:bg-slate-900 sm:p-8 space-y-6">
+            <div class="border-b border-slate-100 pb-4 dark:border-slate-800">
+                <h2 class="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">1. Request Type & Reason</h2>
+                <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Choose whether you want a full payment refund or an exchange for a different size/color.</p>
+            </div>
 
-            <div class="grid gap-4 sm:grid-cols-2">
+            <div class="grid gap-6 sm:grid-cols-2">
                 <div>
-                    <label for="return_type" class="block text-xs font-semibold uppercase tracking-wider text-slate-700">Type</label>
-                    <select id="return_type" name="return_type" class="mt-1 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                    <label for="return_type" class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">Request Type</label>
+                    <select id="return_type" name="return_type" x-model="returnType" class="mt-2 block w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white">
                         {% for code, label in return_types %}
                         <option value="{{ code }}">{{ label }}</option>
                         {% endfor %}
                     </select>
-                    <p class="mt-1 text-[11px] text-slate-500">Choose Exchange to swap for a different size/color, or Refund to receive your payment back.</p>
+                    <p class="mt-1.5 text-[11px] text-slate-500 dark:text-slate-400">
+                        <span x-show="returnType === 'refund'">Refund: Return items will be credited back to your original payment method.</span>
+                        <span x-show="returnType === 'exchange'">Exchange: Swap for a different size or color of equal or adjusted value.</span>
+                    </p>
                 </div>
 
                 <div>
-                    <label for="reason" class="block text-xs font-semibold uppercase tracking-wider text-slate-700">Primary Reason</label>
-                    <select id="reason" name="reason" class="mt-1 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                    <label for="reason" class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">Primary Reason</label>
+                    <select id="reason" name="reason" class="mt-2 block w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white">
                         {% for code, label in reasons %}
                         <option value="{{ code }}">{{ label }}</option>
                         {% endfor %}
                     </select>
+                    <p class="mt-1.5 text-[11px] text-slate-500 dark:text-slate-400">Select the overarching reason for this request.</p>
                 </div>
             </div>
 
             <div>
-                <label for="customer_note" class="block text-xs font-semibold uppercase tracking-wider text-slate-700">Notes / Comments (Optional)</label>
-                <textarea id="customer_note" name="customer_note" rows="3" placeholder="Tell us more about the fit or reason for returning..." class="mt-1 block w-full rounded-xl border border-slate-300 p-3 text-sm text-slate-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"></textarea>
+                <label for="customer_note" class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">Notes / Comments (Optional)</label>
+                <textarea id="customer_note" name="customer_note" rows="3" placeholder="Tell us more about the fit, issue, or condition..." class="mt-2 block w-full rounded-xl border border-slate-300 p-3.5 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:placeholder:text-slate-500"></textarea>
             </div>
         </section>
 
-        <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
-            <h2 class="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500">Select Items to Return</h2>
-            <p class="mt-1 text-xs text-slate-500">Check each item you wish to return and adjust the quantity if needed.</p>
+        <!-- Section 2: Items to Return -->
+        <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft dark:border-slate-800 dark:bg-slate-900 sm:p-8">
+            <div class="border-b border-slate-100 pb-4 dark:border-slate-800">
+                <h2 class="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">2. Select Items</h2>
+                <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Check each line item you are returning and specify the quantity.</p>
+            </div>
 
-            <div class="mt-4 divide-y divide-slate-100">
+            <div class="mt-4 divide-y divide-slate-100 dark:divide-slate-800">
                 {% for item in eligibility.items %}
-                <div class="py-4 first:pt-0 last:pb-0">
+                <div class="py-5 first:pt-0 last:pb-0">
                     {% if item.is_eligible %}
-                    <div class="flex items-start gap-3">
-                        <input type="checkbox" id="item_{{ item.order_item_id }}_selected" name="item_{{ item.order_item_id }}_selected" value="1" class="mt-1 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
+                    <div class="flex items-start gap-4">
+                        <input type="checkbox"
+                               id="item_{{ item.order_item_id }}_selected"
+                               name="item_{{ item.order_item_id }}_selected"
+                               value="1"
+                               class="mt-1.5 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 dark:border-slate-700 dark:bg-slate-800" />
                         <div class="flex-1 min-w-0">
-                            <label for="item_{{ item.order_item_id }}_selected" class="block text-sm font-medium text-slate-900 cursor-pointer">
+                            <label for="item_{{ item.order_item_id }}_selected" class="block text-sm font-semibold text-slate-900 cursor-pointer dark:text-white">
                                 {{ item.product_name }}
-                                {% if item.option_label %}· {{ item.option_label }}{% endif %}
+                                {% if item.option_label %}<span class="font-normal text-slate-600 dark:text-slate-400">· {{ item.option_label }}</span>{% endif %}
                             </label>
-                            <p class="text-xs text-slate-500">SKU: {{ item.sku }} · Unit Price: {{ item.unit_price|money }}</p>
-                            <p class="text-xs text-indigo-700 font-medium">Eligible return quantity: {{ item.remaining_quantity }} of {{ item.purchased_quantity }}</p>
+                            <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                                SKU: {{ item.sku }} · Unit price: {{ item.unit_price|money }}
+                            </p>
+                            <p class="mt-1 text-xs font-medium text-indigo-600 dark:text-indigo-400">
+                                Eligible quantity: {{ item.remaining_quantity }} of {{ item.purchased_quantity }}
+                            </p>
 
-                            <div class="mt-3 grid gap-3 sm:grid-cols-2">
+                            <div class="mt-4 grid gap-4 sm:grid-cols-2">
                                 <div>
-                                    <label for="item_{{ item.order_item_id }}_quantity" class="block text-[11px] font-semibold text-slate-600">Quantity to return</label>
-                                    <input type="number" id="item_{{ item.order_item_id }}_quantity" name="item_{{ item.order_item_id }}_quantity" min="1" max="{{ item.remaining_quantity }}" value="1" class="mt-1 block w-24 rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs text-slate-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                                    <label for="item_{{ item.order_item_id }}_quantity" class="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400">Quantity to return</label>
+                                    <input type="number"
+                                           id="item_{{ item.order_item_id }}_quantity"
+                                           name="item_{{ item.order_item_id }}_quantity"
+                                           min="1"
+                                           max="{{ item.remaining_quantity }}"
+                                           value="1"
+                                           class="mt-1.5 block w-28 rounded-xl border border-slate-300 px-3 py-2 text-xs font-medium text-slate-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
                                 </div>
 
-                                <div class="exchange-variant-container">
-                                    <label for="item_{{ item.order_item_id }}_replacement_variant" class="block text-[11px] font-semibold text-slate-600">Replacement Variant (For Exchange)</label>
-                                    <select id="item_{{ item.order_item_id }}_replacement_variant" name="item_{{ item.order_item_id }}_replacement_variant" class="mt-1 block w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs text-slate-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                                <div x-show="returnType === 'exchange'" class="space-y-1">
+                                    <label for="item_{{ item.order_item_id }}_replacement_variant" class="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                                        Replacement Variant
+                                    </label>
+                                    <select id="item_{{ item.order_item_id }}_replacement_variant"
+                                            name="item_{{ item.order_item_id }}_replacement_variant"
+                                            class="mt-1.5 block w-full rounded-xl border border-slate-300 px-3 py-2 text-xs text-slate-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white">
                                         <option value="">— Select replacement variant —</option>
                                         {% for sib in exchange_variants_by_item|get_item:item.order_item_id %}
                                         <option value="{{ sib.id }}">{{ sib.label }}</option>
                                         {% endfor %}
                                     </select>
+                                    <p class="text-[11px] text-slate-500 dark:text-slate-400">Choose the new size/color to swap into.</p>
                                 </div>
                             </div>
                         </div>
                     </div>
                     {% else %}
-                    <div class="opacity-60 flex items-start gap-3">
-                        <div class="h-4 w-4 mt-1 rounded bg-slate-200"></div>
+                    <div class="opacity-60 flex items-start gap-4">
+                        <div class="h-4 w-4 mt-1 rounded bg-slate-200 dark:bg-slate-800"></div>
                         <div class="flex-1 min-w-0">
-                            <p class="text-sm font-medium text-slate-700">
+                            <p class="text-sm font-medium text-slate-700 dark:text-slate-300">
                                 {{ item.product_name }}
                                 {% if item.option_label %}· {{ item.option_label }}{% endif %}
                             </p>
-                            <p class="text-xs text-slate-400">All purchased units ({{ item.purchased_quantity }}) have already been returned or requested.</p>
+                            <p class="text-xs text-slate-400 dark:text-slate-500">
+                                All purchased units ({{ item.purchased_quantity }}) have already been returned or requested.
+                            </p>
                         </div>
                     </div>
                     {% endif %}
@@ -102,12 +142,43 @@
             </div>
         </section>
 
+        <!-- Section 3: Supporting Photos (Optional) -->
+        <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft dark:border-slate-800 dark:bg-slate-900 sm:p-8 space-y-4">
+            <div class="border-b border-slate-100 pb-4 dark:border-slate-800">
+                <h2 class="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">3. Supporting Photos (Optional)</h2>
+                <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                    If an item is damaged, defective, or incorrect, attach up to 5 clear photos to expedite review.
+                </p>
+            </div>
+
+            <div>
+                <label for="images" class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">Upload Images</label>
+                <div class="mt-2 flex justify-center rounded-2xl border-2 border-dashed border-slate-300 px-6 py-6 dark:border-slate-700 hover:border-indigo-400 dark:hover:border-indigo-500 transition">
+                    <div class="text-center">
+                        <svg class="mx-auto h-10 w-10 text-slate-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
+                            <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                        <div class="mt-2 flex text-xs text-slate-600 dark:text-slate-400 justify-center">
+                            <label for="images" class="relative cursor-pointer rounded-md font-semibold text-indigo-600 hover:text-indigo-500 focus-within:outline-none dark:text-indigo-400">
+                                <span>Choose files to upload</span>
+                                <input id="images" name="images" type="file" multiple accept="image/jpeg,image/png,image/webp" class="sr-only" />
+                            </label>
+                        </div>
+                        <p class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+                            JPEG, PNG or WebP up to 5MB each (maximum 5 photos)
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Actions -->
         <div class="flex items-center justify-between pt-2">
-            <a href="{% url 'account:order-detail' order.number %}" class="text-sm font-medium text-slate-600 hover:text-slate-900">
+            <a href="{% url 'account:order-detail' order.number %}" class="text-sm font-semibold text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white">
                 ← Back to Order
             </a>
-            <button type="submit" class="inline-flex items-center justify-center rounded-xl bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
-                Submit Return Request
+            <button type="submit" class="inline-flex items-center justify-center rounded-xl bg-indigo-600 px-7 py-3 text-sm font-semibold text-white shadow-soft transition hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                Submit Request
             </button>
         </div>
     </form>

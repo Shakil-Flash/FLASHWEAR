@@ -375,6 +375,7 @@ def return_detail(number: str) -> QuerySet:
             "items__replacement_variant__product",
             "refunds",
             "events__actor",
+            "images",
         )
         .filter(number=number)
     )

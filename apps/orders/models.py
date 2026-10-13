@@ -26,6 +26,7 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from apps.catalog.models.base import TimestampedModel
+from apps.catalog.validators import validate_catalog_image
 
 __all__ = [
     "InvalidTransition",
@@ -34,6 +35,7 @@ __all__ = [
     "OrderEvent",
     "OrderItem",
     "ReturnEvent",
+    "ReturnImage",
     "ReturnItem",
     "ReturnRequest",
     "Shipment",
@@ -513,17 +515,29 @@ class ReturnRequest(TimestampedModel):
         APPROVED = "approved", _("Approved")
         RECEIVED = "received", _("Received")
         INSPECTED = "inspected", _("Inspected")
+        REFUND_PENDING = "refund_pending", _("Refund Pending")
+        EXCHANGE_PENDING = "exchange_pending", _("Exchange Pending")
         REFUNDED = "refunded", _("Refunded")
         COMPLETED = "completed", _("Completed")
         REJECTED = "rejected", _("Rejected")
         CANCELLED = "cancelled", _("Cancelled")
 
+    ITEM_RECEIVED = Status.RECEIVED
+
     ALLOWED_TRANSITIONS: dict[str, tuple[str, ...]] = {
         Status.REQUESTED: (Status.APPROVED, Status.REJECTED, Status.CANCELLED),
-        Status.APPROVED: (Status.RECEIVED, Status.CANCELLED),
+        Status.APPROVED: (Status.RECEIVED, Status.REJECTED, Status.CANCELLED),
         Status.RECEIVED: (Status.INSPECTED,),
-        Status.INSPECTED: (Status.REFUNDED, Status.COMPLETED, Status.REJECTED),
-        Status.REFUNDED: (),
+        Status.INSPECTED: (
+            Status.REFUND_PENDING,
+            Status.EXCHANGE_PENDING,
+            Status.REFUNDED,
+            Status.COMPLETED,
+            Status.REJECTED,
+        ),
+        Status.REFUND_PENDING: (Status.REFUNDED, Status.COMPLETED),
+        Status.EXCHANGE_PENDING: (Status.COMPLETED,),
+        Status.REFUNDED: (Status.COMPLETED,),
         Status.COMPLETED: (),
         Status.REJECTED: (),
         Status.CANCELLED: (),
@@ -581,12 +595,20 @@ class ReturnRequest(TimestampedModel):
     )
     customer_note = models.TextField(_("customer note"), blank=True)
     staff_note = models.TextField(_("staff note"), blank=True)
+    customer_explanation = models.TextField(
+        _("customer explanation"),
+        blank=True,
+        help_text=_("Staff explanation visible to customer upon decision."),
+    )
+    rejection_reason = models.CharField(_("rejection reason"), max_length=255, blank=True)
     tracking_number = models.CharField(_("return tracking number"), max_length=64, blank=True)
 
     # Lifecycle timestamps
     approved_at = models.DateTimeField(_("approved at"), null=True, blank=True)
     received_at = models.DateTimeField(_("received at"), null=True, blank=True)
     inspected_at = models.DateTimeField(_("inspected at"), null=True, blank=True)
+    refund_pending_at = models.DateTimeField(_("refund pending at"), null=True, blank=True)
+    exchange_pending_at = models.DateTimeField(_("exchange pending at"), null=True, blank=True)
     refunded_at = models.DateTimeField(_("refunded at"), null=True, blank=True)
     completed_at = models.DateTimeField(_("completed at"), null=True, blank=True)
     rejected_at = models.DateTimeField(_("rejected at"), null=True, blank=True)
@@ -607,8 +629,28 @@ class ReturnRequest(TimestampedModel):
 
     @property
     def is_cancellable_by_customer(self) -> bool:
-        """Customer may cancel their return while it is in REQUESTED state."""
-        return self.status == self.Status.REQUESTED
+        """Customer may cancel their return while in REQUESTED or APPROVED state."""
+        return self.status in (self.Status.REQUESTED, self.Status.APPROVED)
+
+    @property
+    def estimated_refund_amount(self) -> Decimal:
+        """Estimated refund based on requested items and effective line item prices."""
+        total = Decimal("0.00")
+        for item in self.items.all():
+            if item.order_item and item.order_item.quantity > 0:
+                effective_unit_price = item.order_item.line_total / Decimal(
+                    item.order_item.quantity
+                )
+                total += (effective_unit_price * Decimal(item.quantity)).quantize(Decimal("0.01"))
+        return total
+
+    @property
+    def confirmed_refund_amount(self) -> Decimal:
+        """Authoritative confirmed refund from completed refund records or accepted items."""
+        succeeded_refunds = self.refunds.filter(status="succeeded")
+        if succeeded_refunds.exists():
+            return sum((r.amount for r in succeeded_refunds), Decimal("0.00"))
+        return sum((item.refund_amount for item in self.items.all()), Decimal("0.00"))
 
     def can_transition_to(self, target: str) -> bool:
         return target in self.ALLOWED_TRANSITIONS.get(self.status, ())
@@ -726,6 +768,31 @@ class ReturnItem(models.Model):
 
     def __str__(self) -> str:
         return f"{self.order_item.product_name} x{self.quantity}"
+
+
+class ReturnImage(TimestampedModel):
+    """Supporting photo uploaded by customer for a return/exchange request."""
+
+    return_request = models.ForeignKey(
+        ReturnRequest,
+        on_delete=models.CASCADE,
+        related_name="images",
+        verbose_name=_("return request"),
+    )
+    image = models.ImageField(
+        _("image"),
+        upload_to="orders/returns/",
+        validators=[validate_catalog_image],
+    )
+    caption = models.CharField(_("caption"), max_length=200, blank=True)
+
+    class Meta:
+        verbose_name = _("return image")
+        verbose_name_plural = _("return images")
+        ordering = ("created_at", "pk")
+
+    def __str__(self) -> str:
+        return f"Image for {self.return_request.number} (#{self.pk})"
 
 
 class ReturnEvent(models.Model):

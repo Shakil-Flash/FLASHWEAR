@@ -308,7 +308,13 @@ def return_action(request, number: str):
     try:
         if action == "approve":
             note = request.POST.get("note", "").strip()
-            approve_return_request(return_request, staff_user=request.user, note=note)
+            customer_explanation = request.POST.get("customer_explanation", "").strip()
+            approve_return_request(
+                return_request,
+                staff_user=request.user,
+                note=note,
+                customer_explanation=customer_explanation,
+            )
             audit_service.record(
                 actor=request.user,
                 domain="orders",
@@ -316,16 +322,23 @@ def return_action(request, number: str):
                 object_type="return_request",
                 object_id=return_request.pk,
                 object_repr=return_request.number,
-                reason=note,
+                reason=note or customer_explanation,
             )
             messages.success(request, f"Return {return_request.number} approved.")
 
         elif action == "reject":
             reason = request.POST.get("reason", "").strip()
-            if not reason:
+            customer_explanation = request.POST.get("customer_explanation", "").strip()
+            if not reason and not customer_explanation:
                 messages.error(request, "Please provide a reason for rejecting the return.")
                 return redirect("backoffice:return_detail", number=number)
-            reject_return_request(return_request, staff_user=request.user, reason=reason)
+            rejection_text = reason or customer_explanation
+            reject_return_request(
+                return_request,
+                staff_user=request.user,
+                reason=rejection_text,
+                customer_explanation=customer_explanation or rejection_text,
+            )
             audit_service.record(
                 actor=request.user,
                 domain="orders",
@@ -333,7 +346,7 @@ def return_action(request, number: str):
                 object_type="return_request",
                 object_id=return_request.pk,
                 object_repr=return_request.number,
-                reason=reason,
+                reason=rejection_text,
             )
             messages.success(request, f"Return {return_request.number} rejected.")
 
@@ -374,11 +387,13 @@ def return_action(request, number: str):
                     }
                 )
             staff_note = request.POST.get("staff_note", "").strip()
+            customer_explanation = request.POST.get("customer_explanation", "").strip()
             inspect_return(
                 return_request,
                 staff_user=request.user,
                 inspections=inspections,
                 staff_note=staff_note,
+                customer_explanation=customer_explanation,
             )
             audit_service.record(
                 actor=request.user,

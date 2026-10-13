@@ -19,6 +19,7 @@ from apps.orders.models import (
     OrderEvent,
     OrderItem,
     ReturnEvent,
+    ReturnImage,
     ReturnItem,
     ReturnRequest,
     Shipment,
@@ -49,6 +50,15 @@ class ReturnItemInline(admin.TabularInline):
     ordering = ("pk",)
 
 
+class ReturnImageInline(admin.TabularInline):
+    model = ReturnImage
+    extra = 0
+    can_delete = False
+    fields = ("image", "caption", "created_at")
+    readonly_fields = fields
+    ordering = ("created_at",)
+
+
 class ReturnEventInline(admin.TabularInline):
     model = ReturnEvent
     extra = 0
@@ -76,7 +86,7 @@ class ReturnRequestAdmin(admin.ModelAdmin):
     search_fields = ("number", "order__number", "user__email")
     list_select_related = ("order", "user")
     date_hierarchy = "created_at"
-    inlines = (ReturnItemInline, ReturnEventInline)
+    inlines = (ReturnItemInline, ReturnImageInline, ReturnEventInline)
     readonly_fields = (
         "number",
         "order",
@@ -85,10 +95,17 @@ class ReturnRequestAdmin(admin.ModelAdmin):
         "return_type",
         "reason",
         "customer_note",
+        "staff_note",
+        "customer_explanation",
+        "rejection_reason",
         "tracking_number",
+        "estimated_refund_display",
+        "confirmed_refund_display",
         "approved_at",
         "received_at",
         "inspected_at",
+        "refund_pending_at",
+        "exchange_pending_at",
         "refunded_at",
         "completed_at",
         "rejected_at",
@@ -96,6 +113,14 @@ class ReturnRequestAdmin(admin.ModelAdmin):
         "created_at",
         "updated_at",
     )
+
+    @admin.display(description=_("Estimated Refund"))
+    def estimated_refund_display(self, obj: ReturnRequest) -> str:
+        return f"{obj.order.currency} {obj.estimated_refund_amount}"
+
+    @admin.display(description=_("Confirmed Refund"))
+    def confirmed_refund_display(self, obj: ReturnRequest) -> str:
+        return f"{obj.order.currency} {obj.confirmed_refund_amount}"
 
 
 class OrderItemInline(admin.TabularInline):
