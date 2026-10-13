@@ -19,6 +19,7 @@ Two related decisions worth stating up front:
 from __future__ import annotations
 
 from decimal import Decimal
+import re
 
 from django.conf import settings
 from django.db import models
@@ -40,6 +41,7 @@ __all__ = [
     "ReturnRequest",
     "Shipment",
     "ShipmentEvent",
+    "ShipmentItem",
 ]
 
 
@@ -374,68 +376,217 @@ class OrderEvent(models.Model):
 
 
 class Shipment(TimestampedModel):
-    """A parcel (or the promise of one) attached to a paid order.
+    """A parcel (or the promise of one) attached to an eligible order.
 
-    Phase 6 ships the whole order in one shipment; the model is a list rather
-    than a one-to-one so split shipments can arrive without a migration.
+    Supports partial fulfillment (multiple shipments per order), picking and packing
+    tracking, carrier integration, tracking scans, and delivery exception states.
     """
 
     class Status(models.TextChoices):
-        PENDING = "pending", _("Pending")
-        PROCESSING = "processing", _("Processing")
-        SHIPPED = "shipped", _("Shipped")
+        PENDING = "pending", _("Ready for Fulfillment")
+        PICKING = "picking", _("Picking")
+        PACKED = "packed", _("Packed")
+        SHIPPED = "shipped", _("Dispatched")
+        IN_TRANSIT = "in_transit", _("In Transit")
+        OUT_FOR_DELIVERY = "out_for_delivery", _("Out for Delivery")
         DELIVERED = "delivered", _("Delivered")
+        ATTEMPT_FAILED = "attempt_failed", _("Delivery Attempt Failed")
+        EXCEPTION = "exception", _("Delivery Exception")
+        RETURNED_TO_SENDER = "returned_to_sender", _("Returned to Sender")
         CANCELLED = "cancelled", _("Cancelled")
 
+        # Backward compatibility alias
+        PROCESSING = "processing", _("Processing")
+
     ALLOWED_TRANSITIONS: dict[str, tuple[str, ...]] = {
-        Status.PENDING: (Status.PROCESSING, Status.CANCELLED),
-        Status.PROCESSING: (Status.SHIPPED, Status.CANCELLED),
-        Status.SHIPPED: (Status.DELIVERED,),
+        Status.PENDING: (Status.PICKING, Status.PACKED, Status.PROCESSING, Status.SHIPPED, Status.CANCELLED),
+        Status.PICKING: (Status.PACKED, Status.SHIPPED, Status.CANCELLED, Status.PENDING),
+        Status.PROCESSING: (Status.PACKED, Status.SHIPPED, Status.CANCELLED),
+        Status.PACKED: (Status.SHIPPED, Status.PICKING, Status.CANCELLED),
+        Status.SHIPPED: (
+            Status.IN_TRANSIT,
+            Status.OUT_FOR_DELIVERY,
+            Status.DELIVERED,
+            Status.ATTEMPT_FAILED,
+            Status.EXCEPTION,
+            Status.RETURNED_TO_SENDER,
+        ),
+        Status.IN_TRANSIT: (
+            Status.OUT_FOR_DELIVERY,
+            Status.DELIVERED,
+            Status.ATTEMPT_FAILED,
+            Status.EXCEPTION,
+            Status.RETURNED_TO_SENDER,
+        ),
+        Status.OUT_FOR_DELIVERY: (
+            Status.DELIVERED,
+            Status.ATTEMPT_FAILED,
+            Status.EXCEPTION,
+            Status.RETURNED_TO_SENDER,
+            Status.IN_TRANSIT,
+        ),
+        Status.ATTEMPT_FAILED: (
+            Status.OUT_FOR_DELIVERY,
+            Status.IN_TRANSIT,
+            Status.DELIVERED,
+            Status.RETURNED_TO_SENDER,
+            Status.EXCEPTION,
+        ),
+        Status.EXCEPTION: (
+            Status.IN_TRANSIT,
+            Status.OUT_FOR_DELIVERY,
+            Status.DELIVERED,
+            Status.RETURNED_TO_SENDER,
+            Status.ATTEMPT_FAILED,
+        ),
         Status.DELIVERED: (),
+        Status.RETURNED_TO_SENDER: (),
         Status.CANCELLED: (),
     }
 
     # Shipment status -> the order status it implies (only while reachable).
     ORDER_STATUS_FOR = {
+        Status.PICKING: "processing",
         Status.PROCESSING: "processing",
+        Status.PACKED: "processing",
         Status.SHIPPED: "shipped",
+        Status.IN_TRANSIT: "shipped",
+        Status.OUT_FOR_DELIVERY: "shipped",
+        Status.ATTEMPT_FAILED: "shipped",
+        Status.EXCEPTION: "shipped",
         Status.DELIVERED: "delivered",
     }
 
     order = models.ForeignKey(
         Order, on_delete=models.CASCADE, related_name="shipments", verbose_name=_("order")
     )
+    reference = models.CharField(
+        _("reference"), max_length=32, unique=True, null=True, blank=True, db_index=True
+    )
     status = models.CharField(
-        _("status"), max_length=16, choices=Status.choices, default=Status.PENDING
+        _("status"), max_length=24, choices=Status.choices, default=Status.PENDING
     )
     method = models.CharField(
         _("method"), max_length=32, help_text=_("Shipping method code frozen from the order.")
     )
     carrier = models.CharField(_("carrier"), max_length=64, blank=True)
+    carrier_service = models.CharField(_("carrier service"), max_length=64, blank=True)
     tracking_number = models.CharField(_("tracking number"), max_length=64, blank=True)
+    tracking_url = models.URLField(_("tracking URL"), max_length=500, blank=True)
     estimated_delivery = models.DateField(_("estimated delivery"), null=True, blank=True)
     shipped_at = models.DateTimeField(_("shipped at"), null=True, blank=True)
     delivered_at = models.DateTimeField(_("delivered at"), null=True, blank=True)
+    picked_at = models.DateTimeField(_("picked at"), null=True, blank=True)
+    packed_at = models.DateTimeField(_("packed at"), null=True, blank=True)
+    picked_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name=_("picked by"),
+    )
+    packed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name=_("packed by"),
+    )
+    dispatched_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name=_("dispatched by"),
+    )
+    package_weight_kg = models.DecimalField(
+        _("package weight (kg)"), max_digits=6, decimal_places=2, null=True, blank=True
+    )
+    package_dimensions = models.CharField(_("package dimensions"), max_length=64, blank=True)
+    internal_notes = models.TextField(_("internal notes"), blank=True)
+    customer_notes = models.TextField(_("customer notes"), blank=True)
 
     class Meta:
         verbose_name = _("shipment")
         verbose_name_plural = _("shipments")
         ordering = ("-created_at",)
-        # The fulfilment queue filters on status and a date window, newest first, and
-        # this model previously carried no index at all.
         indexes = [
             models.Index(fields=["-created_at"], name="orders_shipment_created_idx"),
             models.Index(fields=["status", "-created_at"], name="orders_shipment_status_idx"),
+            models.Index(fields=["tracking_number"], name="orders_shipment_tracking_idx"),
+            models.Index(fields=["reference"], name="orders_shipment_ref_idx"),
         ]
 
     def __str__(self) -> str:
-        return f"{self.order.number} ({self.status})"
+        ref = self.reference or f"#{self.pk}"
+        return f"{self.order.number} [{ref}] ({self.status})"
+
+    @property
+    def safe_tracking_url(self) -> str | None:
+        """Construct a validated external tracking link only for verified courier templates."""
+        carrier_lower = (self.carrier or "").strip().lower()
+        num = (self.tracking_number or "").strip()
+        if not num:
+            return None
+        if not re.match(r"^[A-Za-z0-9_\-\.]+$", num):
+            return None
+
+        templates = {
+            "fedex": "https://www.fedex.com/fedextrack/?trknbr={}",
+            "ups": "https://www.ups.com/track?tracknum={}",
+            "usps": "https://tools.usps.com/go/TrackConfirmAction?tLabels={}",
+            "dhl": "https://www.dhl.com/en/express/tracking.html?AWB={}",
+            "royal mail": "https://www.royalmail.com/track-your-item#/tracking-details/{}",
+            "royal_mail": "https://www.royalmail.com/track-your-item#/tracking-details/{}",
+        }
+        for key, tmpl in templates.items():
+            if key in carrier_lower:
+                return tmpl.format(num)
+
+        if self.tracking_url and self.tracking_url.startswith("https://"):
+            return self.tracking_url
+        return None
+
+    @property
+    def is_in_terminal_state(self) -> bool:
+        return self.status in (self.Status.DELIVERED, self.Status.CANCELLED, self.Status.RETURNED_TO_SENDER)
+
+    @property
+    def is_exception_state(self) -> bool:
+        return self.status in (self.Status.ATTEMPT_FAILED, self.Status.EXCEPTION, self.Status.RETURNED_TO_SENDER)
+
+    @property
+    def is_dispatched(self) -> bool:
+        return self.status in (
+            self.Status.SHIPPED,
+            self.Status.IN_TRANSIT,
+            self.Status.OUT_FOR_DELIVERY,
+            self.Status.DELIVERED,
+            self.Status.ATTEMPT_FAILED,
+            self.Status.EXCEPTION,
+            self.Status.RETURNED_TO_SENDER,
+        )
+
+    @property
+    def dispatched_at(self):
+        return self.shipped_at
 
     def can_transition_to(self, target: str) -> bool:
         return target in self.ALLOWED_TRANSITIONS.get(self.status, set())
 
     def transition_to(
-        self, target: str, *, actor=None, note: str = "", metadata: dict | None = None
+        self,
+        target: str,
+        *,
+        actor=None,
+        note: str = "",
+        location: str = "",
+        occurred_at=None,
+        source: str = "staff",
+        metadata: dict | None = None,
     ) -> Shipment:
         """Move the shipment and keep the order in step. Raises :class:`InvalidTransition`."""
         if target == self.status:
@@ -445,16 +596,31 @@ class Shipment(TimestampedModel):
 
         previous = self.status
         self.status = target
-        if target == self.Status.SHIPPED and self.shipped_at is None:
-            self.shipped_at = timezone.now()
-        if target == self.Status.DELIVERED and self.delivered_at is None:
-            self.delivered_at = timezone.now()
+        now = timezone.now()
+        if target == self.Status.PICKING and self.picked_at is None:
+            self.picked_at = now
+            if actor and not self.picked_by:
+                self.picked_by = actor
+        elif target == self.Status.PACKED and self.packed_at is None:
+            self.packed_at = now
+            if actor and not self.packed_by:
+                self.packed_by = actor
+        elif target == self.Status.SHIPPED and self.shipped_at is None:
+            self.shipped_at = now
+            if actor and not self.dispatched_by:
+                self.dispatched_by = actor
+        elif target == self.Status.DELIVERED and self.delivered_at is None:
+            self.delivered_at = now
+
         self.save()
 
         ShipmentEvent.objects.create(
             shipment=self,
             event_type=target,
             actor=actor,
+            source=source,
+            location=location,
+            occurred_at=occurred_at or now,
             note=note
             or _("Shipment status changed from %(from)s to %(to)s.")
             % {"from": previous, "to": target},
@@ -474,13 +640,45 @@ class Shipment(TimestampedModel):
         return self
 
 
+class ShipmentItem(TimestampedModel):
+    """Items and quantities included in a specific shipment parcel."""
+
+    shipment = models.ForeignKey(
+        Shipment, on_delete=models.CASCADE, related_name="items", verbose_name=_("shipment")
+    )
+    order_item = models.ForeignKey(
+        OrderItem, on_delete=models.PROTECT, related_name="shipment_items", verbose_name=_("order item")
+    )
+    quantity = models.PositiveIntegerField(_("quantity"), default=1)
+
+    class Meta:
+        verbose_name = _("shipment item")
+        verbose_name_plural = _("shipment items")
+        ordering = ("pk",)
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(quantity__gt=0),
+                name="shipment_item_quantity_gt_zero",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        ref = self.shipment.reference or f"#{self.shipment_id}"
+        return f"{ref} - {self.order_item.sku} (x{self.quantity})"
+
+
 class ShipmentEvent(models.Model):
-    """Append-only shipment history (carrier scans would land here too)."""
+    """Append-only shipment history (carrier scans, warehouse progress)."""
+
+    class Source(models.TextChoices):
+        STAFF = "staff", _("Staff")
+        CARRIER_WEBHOOK = "carrier_webhook", _("Carrier Webhook")
+        SYSTEM = "system", _("System")
 
     shipment = models.ForeignKey(
         Shipment, on_delete=models.CASCADE, related_name="events", verbose_name=_("shipment")
     )
-    event_type = models.CharField(_("event type"), max_length=24, choices=Shipment.Status.choices)
+    event_type = models.CharField(_("event type"), max_length=32, choices=Shipment.Status.choices)
     actor = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -489,6 +687,11 @@ class ShipmentEvent(models.Model):
         related_name="+",
         verbose_name=_("actor"),
     )
+    source = models.CharField(
+        _("source"), max_length=32, choices=Source.choices, default=Source.STAFF
+    )
+    location = models.CharField(_("location"), max_length=128, blank=True)
+    occurred_at = models.DateTimeField(_("occurred at"), default=timezone.now)
     note = models.CharField(_("note"), max_length=300, blank=True)
     metadata = models.JSONField(_("metadata"), default=dict, blank=True)
     created_at = models.DateTimeField(_("created at"), auto_now_add=True)
@@ -496,7 +699,7 @@ class ShipmentEvent(models.Model):
     class Meta:
         verbose_name = _("shipment event")
         verbose_name_plural = _("shipment events")
-        ordering = ("-created_at", "-pk")
+        ordering = ("-occurred_at", "-created_at", "-pk")
 
     def __str__(self) -> str:
         return f"{self.shipment_id}: {self.event_type}"

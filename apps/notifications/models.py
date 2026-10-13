@@ -141,7 +141,9 @@ class NotificationType(models.TextChoices):
     # Delivery (carrier-level events; customer-facing order milestones use ORDER_*)
     SHIPMENT_CREATED = "shipment_created", _("Shipment created")
     SHIPMENT_SHIPPED = "shipment_shipped", _("Shipment shipped")
+    SHIPMENT_OUT_FOR_DELIVERY = "shipment_out_for_delivery", _("Out for delivery")
     SHIPMENT_DELAYED = "shipment_delayed", _("Shipment delayed")
+    SHIPMENT_EXCEPTION = "shipment_exception", _("Delivery exception")
     SHIPMENT_DELIVERED = "shipment_delivered", _("Shipment delivered")
     # Support
     SUPPORT_TICKET_CREATED = "support_ticket_created", _("Support ticket created")

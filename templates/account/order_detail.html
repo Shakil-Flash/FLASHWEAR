@@ -283,43 +283,122 @@
 
             <!-- Shipment Tracking Section -->
             <div class="mt-6 border-t border-slate-100 pt-4 dark:border-slate-800">
-                <h3 class="text-xs font-semibold text-slate-800 dark:text-slate-200">Shipment Status</h3>
-                {% if shipment %}
-                <div class="mt-2 space-y-2 text-xs text-slate-600 dark:text-slate-300">
-                    <p class="flex items-center gap-2">
-                        <span class="font-semibold text-slate-900 dark:text-white">{{ shipment.get_status_display }}</span>
-                        {% if shipment.carrier %}via <span class="font-medium text-slate-800 dark:text-slate-200">{{ shipment.carrier }}</span>{% endif %}
-                    </p>
-                    {% if shipment.tracking_number %}
-                    <p class="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
-                        <span>Tracking:</span>
-                        <code class="rounded bg-slate-100 px-2 py-0.5 font-mono text-[11px] dark:bg-slate-800">{{ shipment.tracking_number }}</code>
-                    </p>
-                    {% endif %}
-                    {% if shipment.estimated_delivery %}
-                    <p class="text-slate-500 dark:text-slate-400">
-                        Estimated delivery: {{ shipment.estimated_delivery|date:"F j, Y" }}
-                    </p>
-                    {% endif %}
-
-                    {% if shipment.events.exists %}
-                    <div class="mt-3 border-t border-slate-100 pt-2 dark:border-slate-800/80">
-                        <p class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Recent Carrier Scans</p>
-                        <ul class="mt-2 space-y-1.5 text-[11px]">
-                            {% for sev in shipment.events.all|slice:":3" %}
-                            <li class="flex items-baseline justify-between gap-2 text-slate-600 dark:text-slate-400">
-                                <span>{{ sev.note|default:sev.get_event_type_display }}</span>
-                                <span class="shrink-0 text-slate-400 dark:text-slate-500">{{ sev.created_at|date:"M j, H:i" }}</span>
-                            </li>
-                            {% endfor %}
-                        </ul>
-                    </div>
+                <div class="flex items-center justify-between mb-2">
+                    <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                        Shipment & Tracking
+                    </h3>
+                    {% if shipments|length > 1 %}
+                        <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                            {{ shipments|length }} packages
+                        </span>
                     {% endif %}
                 </div>
+
+                {% if shipments %}
+                    <div class="space-y-4">
+                        {% for shp in shipments %}
+                            <div class="rounded-2xl border border-slate-200/80 bg-slate-50/60 p-3.5 text-xs dark:border-slate-800 dark:bg-slate-800/40">
+                                <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+                                    <span class="font-semibold text-slate-900 dark:text-white">
+                                        {% if shp.reference %}{{ shp.reference }}{% else %}Package #{{ forloop.counter }}{% endif %}
+                                    </span>
+                                    <span class="rounded-full px-2 py-0.5 text-[11px] font-medium
+                                        {% if shp.status == 'delivered' %}bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300
+                                        {% elif shp.status == 'shipped' or shp.status == 'in_transit' or shp.status == 'out_for_delivery' %}bg-sky-100 text-sky-800 dark:bg-sky-950/40 dark:text-sky-300
+                                        {% elif shp.is_exception_state %}bg-rose-100 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300
+                                        {% else %}bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300{% endif %}">
+                                        {{ shp.get_status_display }}
+                                    </span>
+                                </div>
+
+                                {% if shp.is_exception_state %}
+                                    <div class="mb-2.5 rounded-lg border border-rose-200 bg-rose-50 p-2 text-[11px] text-rose-800 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-200">
+                                        <p class="font-semibold">Notice: {{ shp.get_status_display }}</p>
+                                        <p class="mt-0.5">There is a delivery update requiring attention. If needed, please contact support.</p>
+                                    </div>
+                                {% endif %}
+
+                                {% if shp.customer_notes %}
+                                    <p class="mb-2 rounded bg-amber-50 px-2 py-1 text-[11px] text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+                                        {{ shp.customer_notes }}
+                                    </p>
+                                {% endif %}
+
+                                <div class="space-y-1.5 text-slate-600 dark:text-slate-300">
+                                    {% if shp.carrier %}
+                                        <p class="flex items-center justify-between">
+                                            <span class="text-slate-500 dark:text-slate-400">Carrier:</span>
+                                            <span class="font-medium text-slate-900 dark:text-white">{{ shp.carrier }}{% if shp.carrier_service %} ({{ shp.carrier_service }}){% endif %}</span>
+                                        </p>
+                                    {% endif %}
+                                    {% if shp.tracking_number %}
+                                        <div class="flex items-center justify-between gap-2">
+                                            <span class="text-slate-500 dark:text-slate-400">Tracking #:</span>
+                                            <code class="rounded bg-slate-200/80 px-1.5 py-0.5 font-mono text-[11px] text-slate-800 dark:bg-slate-700 dark:text-slate-200">{{ shp.tracking_number }}</code>
+                                        </div>
+                                    {% endif %}
+                                    {% if shp.estimated_delivery %}
+                                        <p class="flex items-center justify-between">
+                                            <span class="text-slate-500 dark:text-slate-400">Estimated delivery:</span>
+                                            <span class="font-medium text-slate-900 dark:text-white">{{ shp.estimated_delivery|date:"M j, Y" }}</span>
+                                        </p>
+                                    {% endif %}
+                                    {% if not shp.tracking_number %}
+                                        <p class="mt-2 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+                                            Tracking information will appear when your shipment is dispatched.
+                                        </p>
+                                    {% endif %}
+                                </div>
+
+                                {% if shp.safe_tracking_url %}
+                                    <div class="mt-2.5 pt-2 border-t border-slate-200/60 dark:border-slate-700/60">
+                                        <a href="{{ shp.safe_tracking_url }}" target="_blank" rel="noopener noreferrer"
+                                           class="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-soft transition hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100">
+                                            <span>Track with {{ shp.carrier|default:"Carrier" }}</span>
+                                            <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                            </svg>
+                                        </a>
+                                    </div>
+                                {% endif %}
+
+                                {% if shp.items.all %}
+                                    <div class="mt-2.5 border-t border-slate-200/60 pt-2 text-[11px] dark:border-slate-700/60">
+                                        <p class="font-semibold text-slate-500 dark:text-slate-400 mb-1">Package Contents:</p>
+                                        <ul class="space-y-0.5">
+                                            {% for sitem in shp.items.all %}
+                                                <li class="flex items-center justify-between text-slate-700 dark:text-slate-300">
+                                                    <span class="truncate">{{ sitem.order_item.product_name }}</span>
+                                                    <span class="font-mono font-semibold ml-2">×{{ sitem.quantity }}</span>
+                                                </li>
+                                            {% endfor %}
+                                        </ul>
+                                    </div>
+                                {% endif %}
+
+                                {% if shp.events.all %}
+                                    <div class="mt-2.5 border-t border-slate-200/60 pt-2 text-[11px] dark:border-slate-700/60">
+                                        <p class="font-semibold uppercase tracking-wider text-slate-400 text-[10px] mb-1">Timeline Updates</p>
+                                        <ul class="space-y-1">
+                                            {% for sev in shp.events.all|slice:":4" %}
+                                                <li class="flex items-baseline justify-between gap-2 text-slate-600 dark:text-slate-400">
+                                                    <span class="truncate">
+                                                        {{ sev.note|default:sev.get_event_type_display }}
+                                                        {% if sev.location %}<span class="text-slate-400">({{ sev.location }})</span>{% endif %}
+                                                    </span>
+                                                    <span class="shrink-0 text-[10px] text-slate-400">{{ sev.occurred_at|default:sev.created_at|date:"M j, H:i" }}</span>
+                                                </li>
+                                            {% endfor %}
+                                        </ul>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    </div>
                 {% else %}
-                <p class="mt-2 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
-                    Tracking information will appear when your shipment is dispatched.
-                </p>
+                    <p class="mt-2 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+                        Tracking information will appear when your shipment is dispatched.
+                    </p>
                 {% endif %}
             </div>
         </section>

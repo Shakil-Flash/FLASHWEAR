@@ -57,7 +57,11 @@ class OrderDetailView(DetailView):
 
     def get_queryset(self):
         return self.request.user.orders.prefetch_related(
-            "items__variant__product", "events", "shipments__events", "returns"
+            "items__variant__product",
+            "events",
+            "shipments__events",
+            "shipments__items__order_item",
+            "returns",
         ).select_related("payment", "shipping_address")
 
     def get_context_data(self, **kwargs):

@@ -144,7 +144,8 @@ def order_detail(number: str) -> QuerySet:
         .select_related("user", "shipping_address", "payment", "checkout")
         .prefetch_related(
             "items__variant__product",
-            "shipments",
+            "shipments__items__order_item",
+            "shipments__events",
             "events__actor",
             "reservations__variant",
         )
@@ -248,11 +249,16 @@ def shipments(
     date_range: DateRange | None = None,
     sort: str = "",
 ) -> QuerySet:
-    """Fulfilment queue with the order (and therefore the customer) joined in."""
-    qs = Shipment.objects.select_related("order", "order__user")
+    """Fulfilment queue with the order, items and customer joined in."""
+    qs = Shipment.objects.select_related("order", "order__user").prefetch_related("items__order_item", "events")
     needle = (q or "").strip()
     if needle:
-        qs = qs.filter(Q(tracking_number__icontains=needle) | Q(order__number__icontains=needle))
+        qs = qs.filter(
+            Q(reference__icontains=needle)
+            | Q(tracking_number__icontains=needle)
+            | Q(order__number__icontains=needle)
+            | Q(order__user__email__icontains=needle)
+        )
     status = _clean_choice(status, Shipment.Status.values)
     if status:
         qs = qs.filter(status=status)

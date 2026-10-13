@@ -404,11 +404,27 @@ def registry() -> dict[str, TypeSpec]:
             _('Carrier {{ carrier|default:"" }} is transporting your parcel.'),
         ),
         _spec(
+            NotificationType.SHIPMENT_OUT_FOR_DELIVERY,
+            NotificationCategory.DELIVERY,
+            _EMAIL_AND_APP,
+            _('Shipment for order {{ order_number|default:"" }} is out for delivery'),
+            _("Your courier is on the way with your parcel today."),
+            priority=Priority.HIGH,
+        ),
+        _spec(
             NotificationType.SHIPMENT_DELAYED,
             NotificationCategory.DELIVERY,
             _EMAIL_AND_APP,
             _('Delivery of order {{ order_number|default:"" }} is delayed'),
             _("The carrier reported a delay. We are on it."),
+            priority=Priority.HIGH,
+        ),
+        _spec(
+            NotificationType.SHIPMENT_EXCEPTION,
+            NotificationCategory.DELIVERY,
+            _EMAIL_AND_APP,
+            _('Delivery exception on order {{ order_number|default:"" }}'),
+            _("A delivery issue occurred with your shipment. Our operations team is resolving it."),
             priority=Priority.HIGH,
         ),
         _spec(

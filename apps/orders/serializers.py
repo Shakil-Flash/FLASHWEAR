@@ -19,6 +19,8 @@ from apps.orders.models import (
     ReturnItem,
     ReturnRequest,
     Shipment,
+    ShipmentEvent,
+    ShipmentItem,
 )
 from apps.payments.models import Payment, Refund
 
@@ -33,6 +35,10 @@ __all__ = [
     "ReturnItemSerializer",
     "ReturnRequestCreateSerializer",
     "ReturnRequestSerializer",
+    "ShipmentDetailSerializer",
+    "ShipmentEventSerializer",
+    "ShipmentItemSerializer",
+    "ShipmentSummarySerializer",
 ]
 
 
@@ -72,9 +78,72 @@ class PaymentSummarySerializer(serializers.ModelSerializer):
 
 
 class ShipmentSummarySerializer(serializers.ModelSerializer):
+    tracking_url = serializers.ReadOnlyField(source="safe_tracking_url")
+
     class Meta:
         model = Shipment
-        fields = ("status", "method", "carrier", "tracking_number", "shipped_at", "delivered_at")
+        fields = (
+            "reference",
+            "status",
+            "method",
+            "carrier",
+            "carrier_service",
+            "tracking_number",
+            "tracking_url",
+            "estimated_delivery",
+            "shipped_at",
+            "delivered_at",
+        )
+        read_only_fields = fields
+
+
+class ShipmentItemSerializer(serializers.ModelSerializer):
+    sku = serializers.CharField(source="order_item.sku", read_only=True)
+    product_name = serializers.CharField(source="order_item.product_name", read_only=True)
+    option_label = serializers.CharField(source="order_item.option_label", read_only=True)
+
+    class Meta:
+        model = ShipmentItem
+        fields = ("id", "order_item_id", "sku", "product_name", "option_label", "quantity")
+        read_only_fields = fields
+
+
+class ShipmentEventSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ShipmentEvent
+        fields = ("event_type", "location", "occurred_at", "source", "note")
+        read_only_fields = fields
+
+
+class ShipmentDetailSerializer(serializers.ModelSerializer):
+    tracking_url = serializers.ReadOnlyField(source="safe_tracking_url")
+    safe_tracking_url = serializers.ReadOnlyField()
+    items = ShipmentItemSerializer(many=True, read_only=True)
+    events = ShipmentEventSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Shipment
+        fields = (
+            "id",
+            "reference",
+            "status",
+            "method",
+            "carrier",
+            "carrier_service",
+            "tracking_number",
+            "tracking_url",
+            "safe_tracking_url",
+            "estimated_delivery",
+            "shipped_at",
+            "delivered_at",
+            "picked_at",
+            "packed_at",
+            "package_weight_kg",
+            "package_dimensions",
+            "customer_notes",
+            "items",
+            "events",
+        )
         read_only_fields = fields
 
 

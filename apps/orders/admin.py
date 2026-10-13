@@ -24,6 +24,7 @@ from apps.orders.models import (
     ReturnRequest,
     Shipment,
     ShipmentEvent,
+    ShipmentItem,
 )
 
 __all__ = ["OrderAdmin", "ReturnRequestAdmin", "ShipmentAdmin"]
@@ -253,34 +254,68 @@ class OrderAdmin(admin.ModelAdmin):
         )
 
 
+class ShipmentItemInline(admin.TabularInline):
+    model = ShipmentItem
+    extra = 0
+    can_delete = False
+    fields = ("order_item", "quantity")
+    readonly_fields = fields
+
+
 class ShipmentEventInline(admin.TabularInline):
     model = ShipmentEvent
     extra = 0
     can_delete = False
-    fields = ("created_at", "event_type", "actor", "note")
+    fields = ("occurred_at", "event_type", "source", "location", "actor", "note")
     readonly_fields = fields
-    ordering = ("-created_at",)
+    ordering = ("-occurred_at", "-created_at")
 
 
 @admin.register(Shipment)
 class ShipmentAdmin(admin.ModelAdmin):
     """Fulfilment screen: carrier details editable, status moved by action."""
 
-    list_display = ("order", "status", "method", "carrier", "tracking_number", "estimated_delivery")
-    list_filter = ("status", "method")
-    search_fields = ("order__number", "tracking_number", "carrier")
-    list_select_related = ("order",)
-    inlines = (ShipmentEventInline,)
-    readonly_fields = (
+    list_display = (
+        "reference",
         "order",
         "status",
         "method",
+        "carrier",
+        "tracking_number",
+        "estimated_delivery",
+        "created_at",
+    )
+    list_filter = ("status", "method", "carrier")
+    search_fields = ("reference", "order__number", "tracking_number", "carrier")
+    list_select_related = ("order",)
+    inlines = (ShipmentItemInline, ShipmentEventInline)
+    readonly_fields = (
+        "reference",
+        "order",
+        "status",
+        "method",
+        "picked_at",
+        "picked_by",
+        "packed_at",
+        "packed_by",
         "shipped_at",
+        "dispatched_by",
         "delivered_at",
         "created_at",
         "updated_at",
     )
-    fields = (*readonly_fields, "carrier", "tracking_number", "estimated_delivery")
+    fields = (
+        *readonly_fields,
+        "carrier",
+        "carrier_service",
+        "tracking_number",
+        "tracking_url",
+        "estimated_delivery",
+        "package_weight_kg",
+        "package_dimensions",
+        "internal_notes",
+        "customer_notes",
+    )
     actions = ("mark_shipped", "mark_delivered", "cancel_shipment")
 
     def _run(self, request, queryset, target: str) -> None:

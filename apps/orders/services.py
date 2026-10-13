@@ -395,15 +395,28 @@ def mark_processing(order: Order, *, actor=None, carrier: str = "") -> Shipment:
         raise InvalidTransition("order", order.status, Order.Status.PROCESSING)
     order.transition_to(Order.Status.PROCESSING, actor=actor, note="Fulfilment started.")
 
+    from apps.orders.fulfillment_services import generate_shipment_reference
+    reference = generate_shipment_reference(order)
     shipment = Shipment.objects.create(
-        order=order, method=order.shipping_code, carrier=carrier, status=Shipment.Status.PENDING
+        order=order,
+        reference=reference,
+        method=order.shipping_code,
+        carrier=carrier,
+        status=Shipment.Status.PENDING,
     )
+    from apps.orders.models import ShipmentItem
+    for line_item in order.items.all():
+        ShipmentItem.objects.create(
+            shipment=shipment,
+            order_item=line_item,
+            quantity=line_item.quantity,
+        )
     OrderEvent.objects.create(
         order=order,
         event_type=OrderEvent.Type.SHIPMENT_CREATED,
         actor=actor,
         note="Shipment opened.",
-        metadata={"shipment": shipment.pk},
+        metadata={"shipment": shipment.pk, "reference": reference},
     )
     shipment.transition_to(Shipment.Status.PROCESSING, actor=actor, note="Picking started.")
     from apps.notifications.models import NotificationType

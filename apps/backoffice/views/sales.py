@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from django.contrib import messages
 from django.core.exceptions import ValidationError
-from django.db import transaction
+from django.db import models, transaction
 from django.shortcuts import get_object_or_404, redirect
 from django.views.decorators.http import require_POST
 
@@ -29,6 +29,17 @@ from apps.backoffice.permissions import (
 from apps.backoffice.services import audit as audit_service
 from apps.backoffice.services import operations
 from apps.backoffice.views.base import range_from_request, render_bo
+from apps.orders.fulfillment_services import (
+    cancel_fulfillment,
+    create_fulfillment,
+    dispatch_shipment,
+    get_order_fulfillment_summary,
+    get_unfulfilled_order_items,
+    mark_packed,
+    record_delivery_exception,
+    start_picking,
+    update_tracking_event,
+)
 from apps.orders.models import (
     InvalidTransition,
     Order,
@@ -36,6 +47,8 @@ from apps.orders.models import (
     ReturnItem,
     ReturnRequest,
     Shipment,
+    ShipmentEvent,
+    ShipmentItem,
 )
 from apps.orders.returns_services import (
     approve_return_request,
@@ -51,6 +64,7 @@ from apps.orders.returns_services import (
 from apps.payments.models import Payment
 
 __all__ = [
+    "create_order_fulfillment",
     "customers",
     "order_action",
     "order_detail",
@@ -61,6 +75,8 @@ __all__ = [
     "return_action",
     "return_detail",
     "returns",
+    "shipment_action",
+    "shipment_detail",
     "shipments",
 ]
 
@@ -110,6 +126,7 @@ def order_detail(request, number: str):
         note_form=OrderNoteForm(),
         can_manage=_can(request, ORDERS_MANAGE),
         events=selectors.order_events(order),
+        fulfillment_summary=get_order_fulfillment_summary(order),
     )
 
 
@@ -233,7 +250,234 @@ def shipments(request):
             "sort": request.GET.get("sort", ""),
         },
         status_choices=Shipment.Status.choices,
+        can_manage=_can(request, ORDERS_MANAGE),
     )
+
+
+@backoffice_access(ORDERS_VIEW)
+def shipment_detail(request, reference: str):
+    """``/operations/shipments/<reference>/`` -- package lines, tracking scans, and operational controls."""
+    shipment = get_object_or_404(
+        Shipment.objects.select_related("order", "order__user", "picked_by", "packed_by", "dispatched_by")
+        .prefetch_related("items__order_item", "events__actor"),
+        models.Q(reference=reference) | models.Q(pk=int(reference) if reference.isdigit() else 0),
+    )
+    unfulfilled_summary = get_order_fulfillment_summary(shipment.order)
+    return render_bo(
+        request,
+        "backoffice/shipments/detail.html",
+        active="shipments",
+        shipment=shipment,
+        order=shipment.order,
+        items=list(shipment.items.select_related("order_item").all()),
+        events=list(shipment.events.all()),
+        unfulfilled_summary=unfulfilled_summary,
+        status_choices=Shipment.Status.choices,
+        can_manage=_can(request, ORDERS_MANAGE),
+    )
+
+
+@require_POST
+@backoffice_access(ORDERS_MANAGE)
+def shipment_action(request, reference: str):
+    """Execute operational workflow step on a shipment package."""
+    shipment = get_object_or_404(
+        Shipment.objects.select_related("order"),
+        models.Q(reference=reference) | models.Q(pk=int(reference) if reference.isdigit() else 0),
+    )
+    action = request.POST.get("action", "").strip()
+    note = request.POST.get("note", "").strip()
+
+    try:
+        if action == "start_picking":
+            start_picking(shipment, staff_user=request.user, note=note)
+            audit_service.record(
+                actor=request.user,
+                domain="orders",
+                action="shipment.picking",
+                object_type="shipment",
+                object_id=shipment.pk,
+                object_repr=shipment.reference or f"#{shipment.pk}",
+            )
+            messages.success(request, f"Shipment {shipment.reference or shipment.pk} is now Picking.")
+
+        elif action == "mark_packed":
+            raw_weight = request.POST.get("package_weight_kg", "").strip()
+            dimensions = request.POST.get("package_dimensions", "").strip()
+            internal_notes = request.POST.get("internal_notes", "").strip()
+            customer_notes = request.POST.get("customer_notes", "").strip()
+            weight_kg = Decimal(raw_weight) if raw_weight else None
+            mark_packed(
+                shipment,
+                staff_user=request.user,
+                package_weight_kg=weight_kg,
+                package_dimensions=dimensions,
+                internal_notes=internal_notes,
+                customer_notes=customer_notes,
+                note=note,
+            )
+            audit_service.record(
+                actor=request.user,
+                domain="orders",
+                action="shipment.packed",
+                object_type="shipment",
+                object_id=shipment.pk,
+                object_repr=shipment.reference or f"#{shipment.pk}",
+            )
+            messages.success(request, f"Shipment {shipment.reference or shipment.pk} marked as Packed.")
+
+        elif action == "dispatch":
+            carrier = request.POST.get("carrier", "").strip()
+            service = request.POST.get("carrier_service", "").strip()
+            tracking_number = request.POST.get("tracking_number", "").strip()
+            tracking_url = request.POST.get("tracking_url", "").strip()
+            raw_est = request.POST.get("estimated_delivery", "").strip()
+            est_date = None
+            if raw_est:
+                from django.utils.dateparse import parse_date
+                est_date = parse_date(raw_est)
+
+            dispatch_shipment(
+                shipment,
+                staff_user=request.user,
+                carrier=carrier,
+                carrier_service=service,
+                tracking_number=tracking_number,
+                tracking_url=tracking_url,
+                estimated_delivery=est_date,
+                note=note,
+            )
+            audit_service.record(
+                actor=request.user,
+                domain="orders",
+                action="shipment.dispatched",
+                object_type="shipment",
+                object_id=shipment.pk,
+                object_repr=shipment.reference or f"#{shipment.pk}",
+                metadata={"carrier": carrier, "tracking_number": tracking_number},
+            )
+            messages.success(request, f"Shipment {shipment.reference or shipment.pk} Dispatched.")
+
+        elif action == "update_status":
+            target_status = request.POST.get("target_status", "").strip()
+            location = request.POST.get("location", "").strip()
+            update_tracking_event(
+                shipment,
+                event_type=target_status,
+                status=target_status,
+                location=location,
+                note=note,
+                actor=request.user,
+                source=ShipmentEvent.Source.STAFF,
+            )
+            audit_service.record(
+                actor=request.user,
+                domain="orders",
+                action="shipment.tracking_event",
+                object_type="shipment",
+                object_id=shipment.pk,
+                object_repr=shipment.reference or f"#{shipment.pk}",
+                metadata={"target_status": target_status, "location": location},
+            )
+            messages.success(request, f"Tracking checkpoint updated for shipment {shipment.reference or shipment.pk}.")
+
+        elif action == "exception":
+            exc_type = request.POST.get("exception_type", Shipment.Status.EXCEPTION).strip()
+            reason = request.POST.get("reason", "").strip()
+            location = request.POST.get("location", "").strip()
+            record_delivery_exception(
+                shipment,
+                staff_user=request.user,
+                exception_type=exc_type,
+                reason=reason,
+                location=location,
+                note=note,
+            )
+            audit_service.record(
+                actor=request.user,
+                domain="orders",
+                action="shipment.exception",
+                object_type="shipment",
+                object_id=shipment.pk,
+                object_repr=shipment.reference or f"#{shipment.pk}",
+                metadata={"exception_type": exc_type, "reason": reason},
+            )
+            messages.warning(request, f"Delivery exception recorded for shipment {shipment.reference or shipment.pk}.")
+
+        elif action == "cancel":
+            reason = request.POST.get("reason", "").strip()
+            cancel_fulfillment(shipment, staff_user=request.user, reason=reason)
+            audit_service.record(
+                actor=request.user,
+                domain="orders",
+                action="shipment.cancel",
+                object_type="shipment",
+                object_id=shipment.pk,
+                object_repr=shipment.reference or f"#{shipment.pk}",
+                reason=reason,
+            )
+            messages.success(request, f"Shipment {shipment.reference or shipment.pk} cancelled.")
+
+        elif action == "add_note":
+            internal = request.POST.get("internal_note", "").strip()
+            customer = request.POST.get("customer_note", "").strip()
+            if internal:
+                shipment.internal_notes = (shipment.internal_notes + "\n" + internal).strip()
+            if customer:
+                shipment.customer_notes = customer
+            shipment.save(update_fields=["internal_notes", "customer_notes", "updated_at"])
+            messages.success(request, "Notes updated.")
+
+        else:
+            messages.error(request, f"Unknown action: {action}")
+
+    except (ValidationError, InvalidTransition) as exc:
+        msg = exc.messages if hasattr(exc, "messages") else [str(exc)]
+        messages.error(request, " ".join(msg))
+
+    ref = shipment.reference or str(shipment.pk)
+    return redirect("backoffice:shipment_detail", reference=ref)
+
+
+@require_POST
+@backoffice_access(ORDERS_MANAGE)
+def create_order_fulfillment(request, number: str):
+    """Create a fulfillment package (or split package) for selected items on an order."""
+    order = get_object_or_404(Order.objects.filter(number=number))
+    carrier = request.POST.get("carrier", "").strip()
+    service = request.POST.get("carrier_service", "").strip()
+    tracking_number = request.POST.get("tracking_number", "").strip()
+
+    items_data = []
+    for item in order.items.all():
+        raw_qty = request.POST.get(f"qty_{item.pk}", "").strip()
+        if raw_qty and raw_qty.isdigit() and int(raw_qty) > 0:
+            items_data.append({"order_item_id": item.pk, "quantity": int(raw_qty)})
+
+    try:
+        shipment = create_fulfillment(
+            order=order,
+            items_data=items_data if items_data else None,
+            staff_user=request.user,
+            carrier=carrier,
+            carrier_service=service,
+            tracking_number=tracking_number,
+        )
+        audit_service.record(
+            actor=request.user,
+            domain="orders",
+            action="order.fulfillment_create",
+            object_type="orders.order",
+            object_id=order.number,
+            object_repr=str(order),
+            metadata={"shipment": shipment.reference or shipment.pk},
+        )
+        messages.success(request, f"Fulfillment package {shipment.reference or shipment.pk} created.")
+        return redirect("backoffice:shipment_detail", reference=shipment.reference or str(shipment.pk))
+    except (ValidationError, InvalidTransition) as exc:
+        msg = exc.messages if hasattr(exc, "messages") else [str(exc)]
+        messages.error(request, " ".join(msg))
+        return redirect("backoffice:order_detail", number=number)
 
 
 @backoffice_access(CUSTOMERS_VIEW)

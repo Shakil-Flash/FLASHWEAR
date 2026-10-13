@@ -116,6 +116,7 @@ from apps.backoffice.views.retention import (
     retention_segments_view,
 )
 from apps.backoffice.views.sales import (
+    create_order_fulfillment,
     customers,
     order_action,
     order_detail,
@@ -126,6 +127,8 @@ from apps.backoffice.views.sales import (
     return_action,
     return_detail,
     returns,
+    shipment_action,
+    shipment_detail,
     shipments,
 )
 
@@ -157,6 +160,7 @@ __all__ = [
     "content_homepage_edit",
     "content_homepage_toggle",
     "content_preview",
+    "create_order_fulfillment",
     "customers",
     "dashboard",
     "drops",
@@ -216,6 +220,8 @@ __all__ = [
     "reviews_bulk",
     "scenario_adjustment_add",
     "scenario_adjustment_delete",
+    "shipment_action",
+    "shipment_detail",
     "shipments",
     "staff",
     "staff_update",

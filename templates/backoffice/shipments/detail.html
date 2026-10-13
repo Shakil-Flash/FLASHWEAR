@@ -1,0 +1,327 @@
+{% extends "backoffice/base.html" %}
+{% load catalog_extras backoffice_extras %}
+
+{% block title %}
+    Shipment {{ shipment.reference|default:shipment.pk }}
+{% endblock title %}
+{% block breadcrumb %}
+    Operations · <a class="text-flash-700 hover:underline" href="{% url 'backoffice:shipments' %}">Shipments</a> · {{ shipment.reference|default:shipment.pk }}
+{% endblock breadcrumb %}
+
+{% block content %}
+    <header class="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold tracking-tight text-slate-900">
+                Shipment {{ shipment.reference|default:shipment.pk }}
+            </h1>
+            <p class="mt-1 text-sm text-slate-500">
+                Order <a class="font-medium text-flash-700 hover:underline" href="{% url 'backoffice:order_detail' shipment.order.number %}">{{ shipment.order.number }}</a>
+                · {{ shipment.order.user.email }} · created {{ shipment.created_at|date:"Y-m-d H:i" }}
+            </p>
+        </div>
+        <div class="flex items-center gap-2">
+            {% status_badge shipment.get_status_display %}
+        </div>
+    </header>
+
+    <div class="grid gap-6 lg:grid-cols-3">
+        <section class="lg:col-span-2 space-y-6">
+            {# ---- Package Items ------------------------------------------------------------- #}
+            <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft">
+                <h2 class="border-b border-slate-100 px-5 py-4 text-base font-semibold text-slate-900">
+                    Package Contents
+                </h2>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full text-sm">
+                        <thead class="border-b border-slate-200 bg-slate-50 text-left text-xs uppercase tracking-wider text-slate-500">
+                            <tr>
+                                <th scope="col" class="px-5 py-3">Item</th>
+                                <th scope="col" class="px-5 py-3">SKU</th>
+                                <th scope="col" class="px-5 py-3 text-right">Qty in Package</th>
+                                <th scope="col" class="px-5 py-3 text-right">Unit Price</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            {% for item in items %}
+                                <tr>
+                                    <td class="px-5 py-3.5">
+                                        <p class="font-medium text-slate-900">{{ item.order_item.product_name }}</p>
+                                        <p class="text-xs text-slate-500">{{ item.order_item.option_label }}</p>
+                                    </td>
+                                    <td class="px-5 py-3.5 font-mono text-xs text-slate-600">
+                                        {{ item.order_item.sku }}
+                                    </td>
+                                    <td class="px-5 py-3.5 text-right font-semibold tabular-nums text-slate-900">
+                                        {{ item.quantity }}
+                                    </td>
+                                    <td class="px-5 py-3.5 text-right tabular-nums text-slate-700">
+                                        {{ shipment.order.currency }} {{ item.order_item.unit_price }}
+                                    </td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="4" class="px-5 py-6 text-center text-slate-500">
+                                        No items recorded in this shipment package.
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {# ---- Carrier & Tracking Details ------------------------------------------------ #}
+            <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
+                <h2 class="text-base font-semibold text-slate-900">
+                    Carrier & Tracking Information
+                </h2>
+                <div class="mt-4 grid gap-4 sm:grid-cols-2">
+                    <div class="rounded-xl border border-slate-100 bg-slate-50/70 p-4">
+                        <dt class="text-xs font-semibold uppercase tracking-wider text-slate-500">Carrier</dt>
+                        <dd class="mt-1 text-sm font-medium text-slate-900">
+                            {{ shipment.carrier|default:"Pending assignment" }}
+                            {% if shipment.carrier_service %}
+                                <span class="text-xs text-slate-500 font-normal">({{ shipment.carrier_service }})</span>
+                            {% endif %}
+                        </dd>
+                    </div>
+                    <div class="rounded-xl border border-slate-100 bg-slate-50/70 p-4">
+                        <dt class="text-xs font-semibold uppercase tracking-wider text-slate-500">Tracking Number</dt>
+                        <dd class="mt-1 font-mono text-sm font-semibold text-slate-900">
+                            {{ shipment.tracking_number|default:"Pending dispatch" }}
+                        </dd>
+                    </div>
+                    <div class="rounded-xl border border-slate-100 bg-slate-50/70 p-4">
+                        <dt class="text-xs font-semibold uppercase tracking-wider text-slate-500">Estimated Delivery</dt>
+                        <dd class="mt-1 text-sm font-medium text-slate-900">
+                            {{ shipment.estimated_delivery|date:"F j, Y"|default:"Not estimated" }}
+                        </dd>
+                    </div>
+                    <div class="rounded-xl border border-slate-100 bg-slate-50/70 p-4">
+                        <dt class="text-xs font-semibold uppercase tracking-wider text-slate-500">Package Specs</dt>
+                        <dd class="mt-1 text-sm text-slate-700">
+                            {% if shipment.package_weight_kg %}{{ shipment.package_weight_kg }} kg{% else %}—{% endif %}
+                            {% if shipment.package_dimensions %} · {{ shipment.package_dimensions }}{% endif %}
+                        </dd>
+                    </div>
+                </div>
+
+                {% if shipment.safe_tracking_url %}
+                    <div class="mt-4">
+                        <a href="{{ shipment.safe_tracking_url }}" target="_blank" rel="noopener noreferrer"
+                           class="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-800">
+                            Verify with Carrier External Portal
+                            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                            </svg>
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+
+            {# ---- Tracking Timeline & Checkpoints ------------------------------------------- #}
+            <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
+                <h2 class="text-base font-semibold text-slate-900">
+                    Tracking Timeline & Scans
+                </h2>
+                <div class="mt-4">
+                    <ol class="relative border-l border-slate-200 pl-4 space-y-4">
+                        {% for ev in events %}
+                            <li class="relative">
+                                <span class="absolute -left-[21px] top-1.5 h-2.5 w-2.5 rounded-full bg-slate-900 ring-4 ring-white"></span>
+                                <div class="flex flex-wrap items-center justify-between gap-2">
+                                    <span class="text-xs font-semibold uppercase tracking-wider text-slate-700">
+                                        {{ ev.get_event_type_display }}
+                                    </span>
+                                    <span class="text-xs text-slate-400">
+                                        {{ ev.occurred_at|date:"Y-m-d H:i" }}
+                                    </span>
+                                </div>
+                                {% if ev.location %}
+                                    <p class="text-xs font-medium text-slate-600">Location: {{ ev.location }}</p>
+                                {% endif %}
+                                <p class="text-xs text-slate-500 mt-0.5">{{ ev.note }}</p>
+                                <p class="text-[11px] text-slate-400 font-mono mt-0.5">Source: {{ ev.get_source_display }}</p>
+                            </li>
+                        {% empty %}
+                            <li class="text-xs text-slate-500">No events recorded for this shipment.</li>
+                        {% endfor %}
+                    </ol>
+                </div>
+            </div>
+
+            {# ---- Warehouse & Customer Notes ------------------------------------------------ #}
+            <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
+                <h2 class="text-base font-semibold text-slate-900">
+                    Operational Notes
+                </h2>
+                <div class="mt-3 grid gap-4 sm:grid-cols-2 text-sm">
+                    <div class="rounded-xl border border-amber-200/80 bg-amber-50/50 p-4">
+                        <h3 class="text-xs font-semibold uppercase tracking-wider text-amber-800">
+                            Internal Staff Notes (Private)
+                        </h3>
+                        <p class="mt-2 text-slate-700 whitespace-pre-wrap font-mono text-xs">
+                            {{ shipment.internal_notes|default:"No internal operational notes." }}
+                        </p>
+                    </div>
+                    <div class="rounded-xl border border-slate-200 bg-slate-50/50 p-4">
+                        <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-700">
+                            Customer Notes (Visible)
+                        </h3>
+                        <p class="mt-2 text-slate-700 whitespace-pre-wrap text-xs">
+                            {{ shipment.customer_notes|default:"No customer-facing delivery notes." }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        {# ---- Right Sidebar: Staff Action Controls --------------------------------------- #}
+        <aside class="space-y-6">
+            {% if can_manage %}
+                <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft space-y-4">
+                    <h2 class="text-base font-semibold text-slate-900">
+                        Operational Controls
+                    </h2>
+
+                    {% if shipment.status == "pending" %}
+                        {# 1. Start Picking #}
+                        <form method="post" action="{% url 'backoffice:shipment_action' shipment.reference|default:shipment.pk %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="start_picking" />
+                            <p class="text-xs text-slate-500 mb-2">Ready to pull items from warehouse inventory.</p>
+                            <button type="submit" class="w-full rounded-xl bg-slate-900 px-4 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-slate-800">
+                                Start Picking
+                            </button>
+                        </form>
+                    {% endif %}
+
+                    {% if shipment.status == "picking" %}
+                        {# 2. Mark Packed #}
+                        <form method="post" action="{% url 'backoffice:shipment_action' shipment.reference|default:shipment.pk %}" class="space-y-3">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="mark_packed" />
+                            <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Record Packing Details</p>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-700" for="pkg-weight">Weight (kg)</label>
+                                <input type="number" step="0.01" name="package_weight_kg" id="pkg-weight" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-1.5 text-xs text-slate-900" placeholder="e.g. 1.25" />
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-700" for="pkg-dim">Dimensions</label>
+                                <input type="text" name="package_dimensions" id="pkg-dim" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-1.5 text-xs text-slate-900" placeholder="e.g. 30x20x10 cm" />
+                            </div>
+                            <button type="submit" class="w-full rounded-xl bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-blue-500">
+                                Mark as Packed
+                            </button>
+                        </form>
+                    {% endif %}
+
+                    {% if shipment.status == "packed" or shipment.status == "picking" %}
+                        {# 3. Dispatch Shipment #}
+                        <form method="post" action="{% url 'backoffice:shipment_action' shipment.reference|default:shipment.pk %}" class="space-y-3 border-t border-slate-100 pt-3">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="dispatch" />
+                            <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Dispatch to Carrier</p>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-700" for="dsp-carrier">Carrier</label>
+                                <input type="text" name="carrier" id="dsp-carrier" required value="{{ shipment.carrier }}" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-1.5 text-xs text-slate-900" placeholder="e.g. DHL Express, FedEx, UPS" />
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-700" for="dsp-trk">Tracking Number</label>
+                                <input type="text" name="tracking_number" id="dsp-trk" required value="{{ shipment.tracking_number }}" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-1.5 text-xs text-slate-900" placeholder="e.g. DHL-987654321" />
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-700" for="dsp-est">Estimated Delivery Date</label>
+                                <input type="date" name="estimated_delivery" id="dsp-est" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-1.5 text-xs text-slate-900" />
+                            </div>
+                            <button type="submit" class="w-full rounded-xl bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-emerald-500">
+                                Dispatch Parcel
+                            </button>
+                        </form>
+                    {% endif %}
+
+                    {% if shipment.is_dispatched and not shipment.is_in_terminal_state %}
+                        {# 4. Update Tracking Checkpoint / Advance to Delivered #}
+                        <form method="post" action="{% url 'backoffice:shipment_action' shipment.reference|default:shipment.pk %}" class="space-y-3 border-t border-slate-100 pt-3">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="update_status" />
+                            <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Record Carrier Checkpoint</p>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-700" for="upd-status">Checkpoint Status</label>
+                                <select name="target_status" id="upd-status" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-1.5 text-xs text-slate-900">
+                                    <option value="in_transit">In Transit</option>
+                                    <option value="out_for_delivery">Out for Delivery</option>
+                                    <option value="delivered">Delivered</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-700" for="upd-loc">Checkpoint Location</label>
+                                <input type="text" name="location" id="upd-loc" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-1.5 text-xs text-slate-900" placeholder="e.g. Regional Depot, London" />
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-700" for="upd-note">Scan Description</label>
+                                <input type="text" name="note" id="upd-note" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-1.5 text-xs text-slate-900" placeholder="e.g. Sorted and loaded into delivery van" />
+                            </div>
+                            <button type="submit" class="w-full rounded-xl bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-slate-800">
+                                Update Tracking Scan
+                            </button>
+                        </form>
+
+                        {# 5. Record Delivery Exception #}
+                        <form method="post" action="{% url 'backoffice:shipment_action' shipment.reference|default:shipment.pk %}" class="space-y-3 border-t border-slate-100 pt-3">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="exception" />
+                            <p class="text-xs font-semibold uppercase tracking-wider text-amber-800">Log Delivery Exception</p>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-700" for="exc-type">Exception Type</label>
+                                <select name="exception_type" id="exc-type" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-1.5 text-xs text-slate-900">
+                                    <option value="exception">Delivery Exception (General / Delay)</option>
+                                    <option value="attempt_failed">Delivery Attempt Failed</option>
+                                    <option value="returned_to_sender">Returned to Sender</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-700" for="exc-reason">Reason</label>
+                                <input type="text" name="reason" id="exc-reason" required class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-1.5 text-xs text-slate-900" placeholder="e.g. Customer unavailable, incomplete address" />
+                            </div>
+                            <button type="submit" class="w-full rounded-xl bg-amber-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-amber-500">
+                                Record Exception
+                            </button>
+                        </form>
+                    {% endif %}
+
+                    {% if not shipment.is_dispatched and shipment.status != "cancelled" %}
+                        {# 6. Cancel Fulfillment #}
+                        <form method="post" action="{% url 'backoffice:shipment_action' shipment.reference|default:shipment.pk %}" class="border-t border-slate-100 pt-3">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="cancel" />
+                            <button type="submit" class="w-full rounded-xl border border-red-200 bg-red-50/50 px-4 py-2 text-xs font-semibold text-red-700 hover:bg-red-100"
+                                    onclick="return confirm('Are you sure you want to cancel this package fulfillment?');">
+                                Cancel Package
+                            </button>
+                        </form>
+                    {% endif %}
+                </div>
+            {% endif %}
+
+            {# ---- Order Shipping Address Snapshot ----------------------------------------- #}
+            <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
+                <h2 class="text-base font-semibold text-slate-900">
+                    Destination Address
+                </h2>
+                {% if order.shipping_address %}
+                    <div class="mt-3 text-xs text-slate-600 space-y-1">
+                        <p class="font-semibold text-slate-900">{{ order.shipping_address.full_name }}</p>
+                        <p>{{ order.shipping_address.line1 }}</p>
+                        {% if order.shipping_address.line2 %}<p>{{ order.shipping_address.line2 }}</p>{% endif %}
+                        <p>{{ order.shipping_address.city }}, {{ order.shipping_address.postal_code }}</p>
+                        <p>{{ order.shipping_address.country }}</p>
+                        {% if order.shipping_address.phone %}<p class="pt-1 text-slate-500">Phone: {{ order.shipping_address.phone }}</p>{% endif %}
+                    </div>
+                {% else %}
+                    <p class="mt-2 text-xs text-slate-500">No destination address attached.</p>
+                {% endif %}
+            </div>
+        </aside>
+    </div>
+{% endblock content %}

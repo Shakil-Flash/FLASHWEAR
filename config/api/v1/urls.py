@@ -76,10 +76,13 @@ from apps.orders.api import (
     OrderListView,
     OrderReturnCreateView,
     OrderReturnEligibilityView,
+    OrderShipmentDetailView,
+    OrderShipmentListView,
     ReturnCancelView,
     ReturnDetailView,
     ReturnListView,
 )
+from apps.orders.webhook_views import CarrierTrackingWebhookView
 from apps.quests.api import (
     QuestDetailAPIView,
     QuestListAPIView,
@@ -206,6 +209,22 @@ urlpatterns = [
         "returns/<str:number>/cancel/",
         ReturnCancelView.as_view(),
         name="return-cancel",
+    ),
+    # Shipping & Fulfillment (Phase 54)
+    path(
+        "orders/<str:number>/shipments/",
+        OrderShipmentListView.as_view(),
+        name="order-shipment-list",
+    ),
+    path(
+        "orders/<str:number>/shipments/<str:reference>/",
+        OrderShipmentDetailView.as_view(),
+        name="order-shipment-detail",
+    ),
+    path(
+        "shipping/webhooks/<str:provider>/",
+        CarrierTrackingWebhookView.as_view(),
+        name="shipping-webhook",
     ),
     # Phase 17: the notification center (session-authenticated, customer-scoped; writes
     # are throttled by DRF scope and the sliding-window NotificationThrottle).

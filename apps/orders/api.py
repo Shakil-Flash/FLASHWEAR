@@ -29,6 +29,7 @@ from apps.orders.serializers import (
     OrderListSerializer,
     ReturnRequestCreateSerializer,
     ReturnRequestSerializer,
+    ShipmentDetailSerializer,
 )
 
 __all__ = [
@@ -36,6 +37,8 @@ __all__ = [
     "OrderListView",
     "OrderReturnCreateView",
     "OrderReturnEligibilityView",
+    "OrderShipmentDetailView",
+    "OrderShipmentListView",
     "ReturnCancelView",
     "ReturnDetailView",
     "ReturnListView",
@@ -188,3 +191,38 @@ class ReturnCancelView(APIView):
             return Response({"detail": " ".join(msg)}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(ReturnRequestSerializer(cancelled_ret).data)
+
+
+class OrderShipmentListView(ListAPIView):
+    """``GET /api/v1/orders/<number>/shipments/`` -- shipments for an owned order."""
+
+    permission_classes = [IsAuthenticated]
+    serializer_class = ShipmentDetailSerializer
+
+    def get_queryset(self):
+        order = get_object_or_404(_own_orders(self.request.user), number=self.kwargs["number"])
+        return order.shipments.prefetch_related("items__order_item", "events").order_by("-created_at")
+
+    @method_decorator(never_cache)
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+
+
+class OrderShipmentDetailView(RetrieveAPIView):
+    """``GET /api/v1/orders/<number>/shipments/<reference>/`` -- one shipment parcel with tracking history."""
+
+    permission_classes = [IsAuthenticated]
+    serializer_class = ShipmentDetailSerializer
+
+    def get_object(self):
+        order = get_object_or_404(_own_orders(self.request.user), number=self.kwargs["number"])
+        ref = self.kwargs["reference"]
+        from django.db.models import Q
+        return get_object_or_404(
+            order.shipments.prefetch_related("items__order_item", "events"),
+            Q(reference=ref) | Q(pk=int(ref) if ref.isdigit() else 0),
+        )
+
+    @method_decorator(never_cache)
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
