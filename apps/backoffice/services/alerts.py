@@ -115,11 +115,10 @@ def _evaluate() -> list[Alert]:
         capability=INVENTORY_VIEW,
     )
 
-    from apps.inventory.intelligence import audit_inventory_reconciliation
+    from apps.inventory.intelligence import count_critical_reconciliation_discrepancies
 
-    recon_report = audit_inventory_reconciliation()
     add(
-        recon_report.critical_count,
+        count_critical_reconciliation_discrepancies(),
         key="reconciliation_discrepancy",
         severity=CRITICAL,
         title="Critical stock reconciliation discrepancies",

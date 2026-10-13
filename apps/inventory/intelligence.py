@@ -20,7 +20,8 @@ from django.conf import settings
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.db.models import Count, F, Q, Sum
+from django.db.models import Count, F, OuterRef, Q, Subquery, Sum, Value
+from django.db.models.functions import Coalesce
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
@@ -169,6 +170,30 @@ class InventoryReconciliationReport:
 # =============================================================================
 
 
+def count_critical_reconciliation_discrepancies() -> int:
+    """Fast, single-query check for critical reconciliation discrepancies for alert desks.
+
+    Runs exactly one query: checks for any Stock row where the reserved counter
+    does not match the sum of active checkout reservations.
+    """
+    active_holds_subquery = (
+        Reservation.objects.filter(
+            variant_id=OuterRef("variant_id"),
+            status=Reservation.Status.ACTIVE,
+        )
+        .values("variant_id")
+        .annotate(total=Sum("quantity"))
+        .values("total")
+    )
+    return (
+        Stock.objects.annotate(
+            actual_held=Coalesce(Subquery(active_holds_subquery), Value(0))
+        )
+        .exclude(reserved=F("actual_held"))
+        .count()
+    )
+
+
 def audit_inventory_reconciliation(
     *,
     category_slug: str = "",
@@ -193,7 +218,6 @@ def audit_inventory_reconciliation(
     # Base variants queryset
     variants_qs = (
         ProductVariant.objects.select_related("product", "product__category", "stock")
-        .prefetch_related("reservations")
         .all()
     )
 
