@@ -13,38 +13,38 @@ marked noindex like the rest of the area.
 
 {% block account_content %}
 <div class="max-w-3xl space-y-6">
-    <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
+    <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft dark:border-slate-800 dark:bg-slate-900">
         <div class="flex flex-wrap items-start justify-between gap-4">
             <div>
-                <h2 class="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500">Start a ticket</h2>
-                <p class="mt-2 text-sm text-slate-600">
+                <h2 class="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">Start a ticket</h2>
+                <p class="mt-2 text-sm text-slate-600 dark:text-slate-300">
                     Order not arrived, payment charged twice, something that does not fit the description --
                     whatever it is, a numbered ticket keeps the whole conversation in one place.
                 </p>
             </div>
-            <a href="{% url 'support:ticket-create' %}" class="inline-flex items-center justify-center rounded-full bg-flash-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-flash-700 focus:outline-none focus:ring-2 focus:ring-flash-500/30 focus:ring-offset-2 focus:ring-offset-white">Open a ticket</a>
+            <a href="{% url 'support:ticket-create' %}" class="inline-flex items-center justify-center rounded-full bg-flash-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-flash-700 focus:outline-none focus:ring-2 focus:ring-flash-500/30 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-slate-900">Open a ticket</a>
         </div>
     </section>
 
-    <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
+    <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft dark:border-slate-800 dark:bg-slate-900">
         <div class="flex items-baseline justify-between gap-4">
-            <h2 class="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500">Your open tickets</h2>
-            <a href="{% url 'support:ticket-list' %}" class="text-sm font-medium text-slate-700 underline-offset-4 hover:underline">See all</a>
+            <h2 class="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">Your open tickets</h2>
+            <a href="{% url 'support:ticket-list' %}" class="text-sm font-medium text-slate-700 underline-offset-4 hover:underline dark:text-slate-300">See all</a>
         </div>
 
         {% if not open_tickets %}
-        <div class="mt-4 rounded-xl border border-dashed border-slate-300 p-6 text-center">
-            <p class="text-sm font-medium text-slate-900">Nothing open</p>
-            <p class="mt-1 text-sm text-slate-600">When you need us, that is where your conversations will be.</p>
+        <div class="mt-4 rounded-xl border border-dashed border-slate-300 p-6 text-center dark:border-slate-700">
+            <p class="text-sm font-medium text-slate-900 dark:text-white">Nothing open</p>
+            <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">When you need us, that is where your conversations will be.</p>
         </div>
         {% else %}
-        <ul class="mt-4 divide-y divide-slate-100">
+        <ul class="mt-4 divide-y divide-slate-100 dark:divide-slate-800">
             {% for ticket in open_tickets %}
             <li class="flex flex-wrap items-center justify-between gap-3 py-3">
                 <div class="min-w-0">
-                    <a href="{% url 'support:ticket-detail' ticket.number %}" class="text-sm font-semibold text-slate-900 underline-offset-4 hover:underline">{{ ticket.number }}</a>
-                    <p class="mt-0.5 truncate text-sm text-slate-600">{{ ticket.subject }}</p>
-                    <p class="mt-0.5 text-xs text-slate-500">Opened {{ ticket.created_at|date:"N j, Y" }}</p>
+                    <a href="{% url 'support:ticket-detail' ticket.number %}" class="text-sm font-semibold text-slate-900 underline-offset-4 hover:underline dark:text-white">{{ ticket.number }}</a>
+                    <p class="mt-0.5 truncate text-sm text-slate-600 dark:text-slate-300">{{ ticket.subject }}</p>
+                    <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Opened {{ ticket.created_at|date:"N j, Y" }}</p>
                 </div>
                 {% include "support/_status_pill.html" with status=ticket.status label=ticket.get_status_display %}
             </li>
@@ -53,9 +53,9 @@ marked noindex like the rest of the area.
         {% endif %}
     </section>
 
-    <p class="text-sm text-slate-600">
-        Ordering about an order? Open it from the
-        <a href="{% url 'account:orders' %}" class="font-medium text-slate-900 underline-offset-4 hover:underline">order itself</a>
+    <p class="text-sm text-slate-600 dark:text-slate-400">
+        Enquiring about an order? Open it from the
+        <a href="{% url 'account:orders' %}" class="font-medium text-slate-900 underline-offset-4 hover:underline dark:text-white">order itself</a>
         and we will attach it for you.
     </p>
 </div>

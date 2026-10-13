@@ -48,8 +48,24 @@ thing, so a double-submit cannot both escalate and reassign.
             </div>
         </dl>
 
+        {% if ticket.order %}
+        <div class="mt-4 rounded-xl border border-indigo-200 bg-indigo-50/50 p-4 text-sm text-slate-800 dark:border-indigo-900/50 dark:bg-indigo-950/20 dark:text-slate-200">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <span class="text-xs font-semibold uppercase tracking-wider text-indigo-700 dark:text-indigo-400">Associated Order</span>
+                    <p class="mt-0.5 font-semibold text-slate-900 dark:text-white">Order {{ ticket.order.number }} · {{ ticket.order.get_status_display }}</p>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Placed {{ ticket.order.created_at|date:"N j, Y" }} · Total: {{ ticket.order.currency }} {{ ticket.order.total_amount }}</p>
+                </div>
+                <div class="flex flex-wrap gap-2 text-xs">
+                    <a href="{% url 'backoffice:order_detail' ticket.order.number %}" class="inline-flex items-center rounded-lg bg-indigo-600 px-3 py-1.5 font-semibold text-white shadow-sm transition hover:bg-indigo-700">Inspect in Backoffice</a>
+                    <a href="{% url 'backoffice:returns' %}?q={{ ticket.order.number }}" class="inline-flex items-center rounded-lg border border-slate-300 bg-white px-3 py-1.5 font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">Check Returns</a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
         {% if ticket.reference_labels %}
-        <p class="mt-4 text-sm text-slate-600">Linked records: {{ ticket.reference_labels|join:", " }}</p>
+        <p class="mt-4 text-sm text-slate-600 dark:text-slate-400">Linked records: {{ ticket.reference_labels|join:", " }}</p>
         {% endif %}
 
         {% if ticket.status == 'escalated' %}

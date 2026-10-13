@@ -311,17 +311,19 @@ def _notify_status_change(ticket, to_status: str, *, actor=None, request=None) -
         SupportTicket.Status.ESCALATED: _("Ticket %(number)s was escalated"),
     }
     template = headline_by_status.get(to_status)
+    is_self_action = bool(actor and ticket.customer_id and getattr(actor, "pk", None) == ticket.customer_id)
     if template is not None:
-        notifications.notify_customer(
-            ticket,
-            headline=template % {"number": ticket.number},
-            request=request,
-            actor=actor,
-        )
-        if to_status == SupportTicket.Status.RESOLVED:
-            notify_ticket(ticket, NotificationType.SUPPORT_TICKET_RESOLVED, f"status:{to_status}")
-        else:
-            notify_ticket(ticket, NotificationType.SUPPORT_TICKET_UPDATED, f"status:{to_status}")
+        if not (is_self_action and to_status == SupportTicket.Status.CLOSED):
+            notifications.notify_customer(
+                ticket,
+                headline=template % {"number": ticket.number},
+                request=request,
+                actor=actor,
+            )
+            if to_status == SupportTicket.Status.RESOLVED:
+                notify_ticket(ticket, NotificationType.SUPPORT_TICKET_RESOLVED, f"status:{to_status}")
+            else:
+                notify_ticket(ticket, NotificationType.SUPPORT_TICKET_UPDATED, f"status:{to_status}")
     if to_status == SupportTicket.Status.ESCALATED:
         notifications.notify_managers(
             ticket,

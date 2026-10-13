@@ -7,73 +7,85 @@
 
 {% block account_content %}
 <div class="max-w-3xl space-y-6">
-    <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
+    <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft dark:border-slate-800 dark:bg-slate-900">
         <div class="flex flex-wrap items-start justify-between gap-4">
             <div>
-                <p class="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">{{ ticket.get_category_display }} · opened {{ ticket.created_at|date:"N j, Y" }}</p>
-                <h2 class="mt-1 text-lg font-semibold text-slate-900">{{ ticket.subject }}</h2>
+                <p class="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">{{ ticket.get_category_display }} · opened {{ ticket.created_at|date:"N j, Y" }}</p>
+                <h2 class="mt-1 text-lg font-semibold text-slate-900 dark:text-white">{{ ticket.subject }}</h2>
             </div>
             {% include "support/_status_pill.html" with status=ticket.status label=ticket.get_status_display %}
         </div>
 
-        {% if ticket.reference_labels %}
-        <p class="mt-4 text-sm text-slate-600">About: {{ ticket.reference_labels|join:", " }}</p>
+        {% if ticket.order %}
+        <div class="mt-4 rounded-xl border border-slate-200 bg-slate-50/80 p-4 text-sm text-slate-800 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-200">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <span class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Related Order</span>
+                    <p class="mt-0.5 font-semibold text-slate-900 dark:text-white">Order {{ ticket.order.number }} · {{ ticket.order.get_status_display }}</p>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Placed {{ ticket.order.created_at|date:"N j, Y" }} · {{ ticket.order.currency }} {{ ticket.order.total_amount }}</p>
+                </div>
+                <a href="{% url 'account:order-detail' ticket.order.number %}" class="inline-flex items-center rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200">View Order Details</a>
+            </div>
+        </div>
+        {% elif ticket.reference_labels %}
+        <p class="mt-4 text-sm text-slate-600 dark:text-slate-400">About: {{ ticket.reference_labels|join:", " }}</p>
         {% endif %}
 
-        <ul class="mt-4 space-y-1 text-xs text-slate-500">
+        <ul class="mt-4 space-y-1 text-xs text-slate-500 dark:text-slate-400">
             {% for milestone in milestones %}
             <li>{{ milestone.label }} · {{ milestone.at|date:"N j, Y, P" }}</li>
             {% endfor %}
         </ul>
     </section>
 
-    <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
-        <h2 class="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500">Conversation</h2>
+    <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft dark:border-slate-800 dark:bg-slate-900">
+        <h2 class="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">Conversation</h2>
         <ol class="mt-4 space-y-5">
             {% for message in transcript %}
-            <li class="{% if message.author_type == 'customer' %}border-l-4 border-flash-500 pl-4{% else %}border-l-4 border-slate-300 pl-4{% endif %}">
+            <li class="{% if message.author_type == 'customer' %}border-l-4 border-flash-500 pl-4{% else %}border-l-4 border-slate-300 pl-4 dark:border-slate-600{% endif %}">
                 <div class="flex flex-wrap items-baseline justify-between gap-2">
-                    <p class="text-sm font-semibold text-slate-900">
+                    <p class="text-sm font-semibold text-slate-900 dark:text-white">
                         {% if message.author_type == 'customer' %}You{% else %}The FLASH team{% endif %}
                     </p>
-                    <p class="text-xs text-slate-500">{{ message.created_at|date:"N j, Y, P" }}</p>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">{{ message.created_at|date:"N j, Y, P" }}</p>
                 </div>
-                <p class="mt-1.5 whitespace-pre-line text-sm text-slate-700">{{ message.body }}</p>
+                <p class="mt-1.5 whitespace-pre-line text-sm text-slate-700 dark:text-slate-300">{{ message.body }}</p>
                 {% if message.attachments.all %}
                 <ul class="mt-2 space-y-1">
                     {% for attachment in message.attachments.all %}
                     <li class="text-sm">
-                        <a href="{% url 'support:attachment' attachment.pk %}" class="font-medium text-slate-900 underline-offset-4 hover:underline">{{ attachment.original_filename }}</a>
-                        <span class="text-xs text-slate-500">({{ attachment.size|filesizeformat }})</span>
+                        <a href="{% url 'support:attachment' attachment.pk %}" class="font-medium text-slate-900 underline-offset-4 hover:underline dark:text-slate-100">{{ attachment.original_filename }}</a>
+                        <span class="text-xs text-slate-500 dark:text-slate-400">({{ attachment.size|filesizeformat }})</span>
                     </li>
                     {% endfor %}
                 </ul>
                 {% endif %}
             </li>
             {% empty %}
-            <li class="rounded-xl border border-dashed border-slate-300 p-4 text-sm text-slate-600">No messages yet.</li>
+            <li class="rounded-xl border border-dashed border-slate-300 p-4 text-sm text-slate-600 dark:border-slate-700 dark:text-slate-400">No messages yet.</li>
             {% endfor %}
         </ol>
     </section>
 
     {% if can_respond %}
-    <form method="post" action="{% url 'support:ticket-reply' ticket.number %}" enctype="multipart/form-data" novalidate class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
+    <form method="post" action="{% url 'support:ticket-reply' ticket.number %}" enctype="multipart/form-data" novalidate class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft dark:border-slate-800 dark:bg-slate-900">
         {% csrf_token %}
-        <h2 class="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500">Reply</h2>
+        <h2 class="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">Reply</h2>
         <div class="mt-4 space-y-4">
             {% include "account/_field.html" with field=reply_form.body %}
             <div>
-                <label for="id_files" class="block text-sm font-medium text-slate-700">Attachments</label>
-                <input type="file" name="files" id="id_files" multiple class="mt-2 block w-full text-sm text-slate-600" accept=".jpg,.jpeg,.png,.webp,.pdf,.txt,image/*,application/pdf,text/plain" />
+                <label for="id_files" class="block text-sm font-medium text-slate-700 dark:text-slate-300">Attachments</label>
+                <input type="file" name="files" id="id_files" multiple class="mt-2 block w-full text-sm text-slate-600 dark:text-slate-400" accept=".jpg,.jpeg,.png,.webp,.pdf,.txt,image/*,application/pdf,text/plain" />
+                <p class="mt-1.5 text-xs text-slate-500 dark:text-slate-400">JPEG, PNG, WebP, PDF or plain text, up to 5&nbsp;MB each.</p>
             </div>
         </div>
         <div class="mt-6 flex flex-wrap items-center gap-4">
-            <button type="submit" class="inline-flex items-center justify-center rounded-full bg-flash-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-flash-700 focus:outline-none focus:ring-2 focus:ring-flash-500/30 focus:ring-offset-2 focus:ring-offset-white">Send reply</button>
+            <button type="submit" class="inline-flex items-center justify-center rounded-full bg-flash-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-flash-700 focus:outline-none focus:ring-2 focus:ring-flash-500/30 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-slate-900">Send reply</button>
         </div>
     </form>
     {% else %}
-    <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
-        <p class="text-sm text-slate-600">This ticket is closed. Reopen it to carry on the conversation.</p>
+    <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft dark:border-slate-800 dark:bg-slate-900">
+        <p class="text-sm text-slate-600 dark:text-slate-400">This ticket is closed. Reopen it to carry on the conversation.</p>
     </div>
     {% endif %}
 
@@ -81,16 +93,16 @@
         {% if can_close %}
         <form method="post" action="{% url 'support:ticket-close' ticket.number %}">
             {% csrf_token %}
-            <button type="submit" class="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">Close this ticket</button>
+            <button type="submit" class="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-750">Close this ticket</button>
         </form>
         {% endif %}
         {% if ticket.status == 'closed' %}
         <form method="post" action="{% url 'support:ticket-reopen' ticket.number %}">
             {% csrf_token %}
-            <button type="submit" class="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">Reopen this ticket</button>
+            <button type="submit" class="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-750">Reopen this ticket</button>
         </form>
         {% endif %}
-        <a href="{% url 'support:ticket-list' %}" class="inline-flex items-center text-sm font-medium text-slate-700 underline-offset-4 hover:underline">Back to all tickets</a>
+        <a href="{% url 'support:ticket-list' %}" class="inline-flex items-center text-sm font-medium text-slate-700 underline-offset-4 hover:underline dark:text-slate-300">Back to all tickets</a>
     </div>
 </div>
 {% endblock account_content %}

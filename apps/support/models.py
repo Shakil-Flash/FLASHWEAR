@@ -65,13 +65,18 @@ class SupportTicket(TimestampedModel):
         CLOSED = "closed", _("Closed")
 
     class Category(models.TextChoices):
-        ORDER = "order", _("Order")
-        PAYMENT = "payment", _("Payment")
+        ORDER = "order", _("Order issue")
+        ORDER_STATUS = "order_status", _("Order status")
         DELIVERY = "delivery", _("Delivery")
+        DAMAGED_ITEM = "damaged_item", _("Damaged item")
+        INCORRECT_ITEM = "incorrect_item", _("Incorrect item")
+        MISSING_ITEM = "missing_item", _("Missing item")
         RETURN = "return", _("Return")
         REFUND = "refund", _("Refund")
-        PRODUCT = "product", _("Product")
-        ACCOUNT = "account", _("Account")
+        RETURN_REFUND = "return_refund", _("Return / Refund inquiry")
+        PAYMENT = "payment", _("Payment issue")
+        ACCOUNT = "account", _("Account issue")
+        PRODUCT = "product", _("Product question")
         LOYALTY = "loyalty", _("FLASH Points")
         PROMOTION = "promotion", _("Promotion")
         FLASH_DNA = "flash_dna", _("FLASH DNA")
@@ -369,6 +374,19 @@ class SupportTicket(TimestampedModel):
         if self.creator_post_id:
             labels.append(f"Creator post #{self.creator_post_id}")
         return labels
+
+    @property
+    def last_activity_at(self):
+        """Latest timestamp among updates, customer messages, agent messages, or creation."""
+        timestamps = [
+            self.last_customer_message_at,
+            self.last_agent_message_at,
+            self.updated_at,
+            self.created_at,
+        ]
+        valid = [t for t in timestamps if t is not None]
+        return max(valid) if valid else self.created_at
+
 
 
 class SupportMessage(TimestampedModel):

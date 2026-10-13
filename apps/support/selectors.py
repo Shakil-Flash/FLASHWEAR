@@ -105,6 +105,8 @@ def staff_tickets(
     *,
     status: str = "",
     category: str = "",
+    priority: str = "",
+    order: str = "",
     q: str = "",
     assigned_to=None,
 ) -> QuerySet:
@@ -118,11 +120,25 @@ def staff_tickets(
         qs = qs.filter(status=status)
     if category:
         qs = qs.filter(category=category)
+    if priority:
+        qs = qs.filter(priority=priority)
+    if order:
+        order_str = order.strip()
+        if order_str.isdigit():
+            qs = qs.filter(Q(order_id=int(order_str)) | Q(order__number__icontains=order_str))
+        else:
+            qs = qs.filter(order__number__icontains=order_str)
     if assigned_to is not None:
         qs = qs.filter(assigned_to=assigned_to)
     needle = (q or "").strip()
     if needle:
-        qs = qs.filter(Q(number__icontains=needle) | Q(subject__icontains=needle))
+        qs = qs.filter(
+            Q(number__icontains=needle)
+            | Q(subject__icontains=needle)
+            | Q(description__icontains=needle)
+            | Q(customer__email__icontains=needle)
+            | Q(order__number__icontains=needle)
+        )
     return qs
 
 

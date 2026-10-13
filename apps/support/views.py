@@ -132,19 +132,33 @@ def _prefill(request) -> dict:
         for key in REFERENCE_KEYS
         if request.GET.get(key, "").strip()
     }
-    if not values:
-        return {}
     for key in ("review", "loop_item"):
         if key in values and not values[key].isdigit():
             values.pop(key)
-    if not values:
-        return {}
-    try:
-        references.resolve_for_customer(request.user, **values)
-    except SupportError:
-        # Nothing we can verify is shown: the customer gets a blank form instead of a
-        # handle they are not entitled to.
-        return {}
+    if values:
+        try:
+            references.resolve_for_customer(request.user, **values)
+        except SupportError:
+            # Nothing we can verify is shown: the customer gets a blank form instead of a
+            # handle they are not entitled to.
+            values = {}
+
+    category = (request.GET.get("category", "") or "").strip()
+    if category in SupportTicket.Category.values:
+        values["category"] = category
+
+    subject = (request.GET.get("subject", "") or "").strip()
+    if subject:
+        values["subject"] = subject[:200]
+    elif values.get("order") and category in (
+        SupportTicket.Category.DAMAGED_ITEM,
+        SupportTicket.Category.INCORRECT_ITEM,
+        SupportTicket.Category.MISSING_ITEM,
+        SupportTicket.Category.ORDER_STATUS,
+    ):
+        display = dict(SupportTicket.Category.choices).get(category, "Order issue")
+        values["subject"] = f"{display} — Order {values['order']}"
+
     return values
 
 
@@ -335,6 +349,8 @@ def staff_dashboard(request):
     filters = {
         "status": request.GET.get("status", ""),
         "category": request.GET.get("category", ""),
+        "priority": request.GET.get("priority", ""),
+        "order": (request.GET.get("order", "") or "").strip()[:40],
         "q": (request.GET.get("q", "") or "").strip()[:80],
         "mine": request.GET.get("mine") == "1",
     }
@@ -342,10 +358,14 @@ def staff_dashboard(request):
         filters["status"] = ""
     if filters["category"] not in SupportTicket.Category.values:
         filters["category"] = ""
+    if filters["priority"] not in SupportTicket.Priority.values:
+        filters["priority"] = ""
 
     queryset = selectors.staff_tickets(
         status=filters["status"],
         category=filters["category"],
+        priority=filters["priority"],
+        order=filters["order"],
         q=filters["q"],
         assigned_to=request.user if filters["mine"] else None,
     )
@@ -356,6 +376,7 @@ def staff_dashboard(request):
         "counts": selectors.desk_counts(request.user),
         "status_choices": [("", "All"), *list(SupportTicket.Status.choices)],
         "category_choices": [("", "All"), *list(SupportTicket.Category.choices)],
+        "priority_choices": [("", "All"), *list(SupportTicket.Priority.choices)],
     }
     return render(request, "support/staff_dashboard.html", context)
 

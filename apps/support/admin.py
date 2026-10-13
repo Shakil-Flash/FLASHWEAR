@@ -49,10 +49,11 @@ class SupportTicketAdmin(ReadOnlyAdmin):
         "status",
         "customer_email",
         "assigned_to",
+        "last_activity_display",
         "created_at",
     )
-    list_filter = ("status", "category", "priority", "source")
-    search_fields = ("number", "subject", "description", "customer__email")
+    list_filter = ("status", "category", "priority", "source", "assigned_to")
+    search_fields = ("number", "subject", "description", "customer__email", "order__number")
     date_hierarchy = "created_at"
     ordering = ("-created_at",)
     fields = (
@@ -92,6 +93,11 @@ class SupportTicketAdmin(ReadOnlyAdmin):
     @admin.display(description="Customer")
     def customer_email(self, obj: SupportTicket) -> str:
         return obj.customer.email if obj.customer_id else "—"
+
+    @admin.display(description="Last Activity")
+    def last_activity_display(self, obj: SupportTicket) -> str:
+        activity = obj.last_activity_at
+        return activity.strftime("%Y-%m-%d %H:%M") if activity else "—"
 
 
 @admin.register(SupportMessage)
