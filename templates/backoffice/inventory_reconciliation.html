@@ -1,0 +1,310 @@
+{% extends "backoffice/base.html" %}
+{% load catalog_extras %}
+
+{% block title %}
+    Stock Reconciliation &amp; Audit · FLASHWEAR Back Office
+{% endblock title %}
+
+{% block breadcrumb %}
+    <a href="{% url 'backoffice:inventory' %}" class="hover:text-slate-900 dark:hover:text-white">Inventory</a>
+    <span class="mx-2 text-slate-400">/</span>
+    <span>Reconciliation &amp; Auditing</span>
+{% endblock breadcrumb %}
+
+{% block content %}
+    {# ---- Page Header -------------------------------------------------------------------------- #}
+    <header class="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-3xl">
+                Stock Reconciliation &amp; Auditing
+            </h1>
+            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                Detects discrepancies between physical stock, active checkout holds, order commitments, and drop allocations.
+            </p>
+        </div>
+        <div class="flex items-center gap-2.5">
+            <a href="{% url 'backoffice:inventory_health_export' %}" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-xs transition hover:bg-slate-50 hover:border-slate-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                Export Stock CSV
+            </a>
+            <a href="{% url 'backoffice:inventory_health' %}" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-xs transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                Health Dashboard &rarr;
+            </a>
+        </div>
+    </header>
+
+    {# ---- Sub-Navigation Tabs ------------------------------------------------------------------ #}
+    <nav class="mb-6 flex space-x-2 border-b border-slate-200 dark:border-slate-800">
+        <a href="{% url 'backoffice:inventory' %}" class="border-b-2 border-transparent px-4 py-2.5 text-sm font-medium text-slate-500 hover:border-slate-300 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300">
+            SKU Directory
+        </a>
+        <a href="{% url 'backoffice:inventory_health' %}" class="border-b-2 border-transparent px-4 py-2.5 text-sm font-medium text-slate-500 hover:border-slate-300 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300">
+            Stock Health &amp; Distribution
+        </a>
+        <a href="{% url 'backoffice:inventory_restock' %}" class="border-b-2 border-transparent px-4 py-2.5 text-sm font-medium text-slate-500 hover:border-slate-300 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300">
+            Restock Prioritization
+        </a>
+        <a href="{% url 'backoffice:inventory_reconciliation' %}" class="border-b-2 border-indigo-600 px-4 py-2.5 text-sm font-semibold text-indigo-600 dark:border-indigo-400 dark:text-indigo-400">
+            Reconciliation &amp; Auditing
+        </a>
+    </nav>
+
+    {# ---- Health & Discrepancies KPI Cards ----------------------------------------------------- #}
+    <section aria-labelledby="recon-kpis" class="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <h2 id="recon-kpis" class="sr-only">Reconciliation Key Metrics</h2>
+
+        {# Health Score #}
+        <div class="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Accuracy Index</span>
+            <div class="mt-2 flex items-baseline gap-2">
+                <span class="text-3xl font-extrabold tracking-tight tabular-nums {% if report.health_score >= 90 %}text-emerald-600 dark:text-emerald-400{% elif report.health_score >= 70 %}text-amber-600 dark:text-amber-400{% else %}text-rose-600 dark:text-rose-400{% endif %}">
+                    {{ report.health_score }}%
+                </span>
+                <span class="text-xs text-slate-400">/ 100</span>
+            </div>
+            <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                {{ report.total_variants_audited }} active SKUs verified
+            </p>
+        </div>
+
+        {# Critical Discrepancies #}
+        <div class="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+            <span class="text-xs font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">Critical Issues</span>
+            <div class="mt-2 flex items-baseline gap-2">
+                <span class="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white tabular-nums">{{ report.critical_count }}</span>
+                <span class="text-xs text-rose-600 dark:text-rose-400">blocking errors</span>
+            </div>
+            <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                Reserved mismatches or oversold stock
+            </p>
+        </div>
+
+        {# Warnings #}
+        <div class="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+            <span class="text-xs font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">Warnings</span>
+            <div class="mt-2 flex items-baseline gap-2">
+                <span class="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white tabular-nums">{{ report.warning_count }}</span>
+                <span class="text-xs text-amber-600 dark:text-amber-400">attention flags</span>
+            </div>
+            <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                Expired unswept holds &amp; inactive stock
+            </p>
+        </div>
+
+        {# Total Discrepancies #}
+        <div class="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Total Audit Items</span>
+            <div class="mt-2 flex items-baseline gap-2">
+                <span class="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white tabular-nums">{{ report.discrepancies|length }}</span>
+                <span class="text-xs text-slate-500 dark:text-slate-400">flagged records</span>
+            </div>
+            <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                {% if report.is_healthy %}All inventory counters in sync{% else %}Requires explicit reconciliation{% endif %}
+            </p>
+        </div>
+    </section>
+
+    {# ---- Safe Reconciliation Action Suite ----------------------------------------------------- #}
+    {% if can_manage %}
+        <section aria-labelledby="actions-heading" class="mb-8 rounded-2xl border border-slate-200/80 bg-slate-50/50 p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900/40">
+            <div class="mb-4">
+                <h2 id="actions-heading" class="text-base font-bold text-slate-900 dark:text-white">
+                    Explicit, Transactional Reconciliation Actions
+                </h2>
+                <p class="text-xs text-slate-500 dark:text-slate-400">
+                    Idempotent corrections that restore counter invariants without altering customer order history or ledger evidence.
+                </p>
+            </div>
+
+            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {# Action 1: Sweep Expired Holds #}
+                <form method="post" action="{% url 'backoffice:inventory_reconcile_action' %}" class="flex flex-col justify-between rounded-xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-800/80" data-confirm="Sweep all expired checkout reservations without orders back to available warehouse inventory?">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="sweep_expired" />
+                    <div>
+                        <h3 class="font-bold text-xs text-slate-900 dark:text-white">Sweep Expired Holds</h3>
+                        <p class="mt-1 text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
+                            Releases checkout reservations past their expiry time that were not claimed by an order.
+                        </p>
+                    </div>
+                    <button type="submit" class="mt-4 w-full rounded-lg bg-slate-900 py-1.5 text-xs font-semibold text-white shadow-xs transition hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100">
+                        Sweep Expired Holds
+                    </button>
+                </form>
+
+                {# Action 2: Release Holds on Cancelled Orders #}
+                <form method="post" action="{% url 'backoffice:inventory_reconcile_action' %}" class="flex flex-col justify-between rounded-xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-800/80" data-confirm="Release active holds still pointing to cancelled orders?">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="release_cancelled_orders" />
+                    <div>
+                        <h3 class="font-bold text-xs text-slate-900 dark:text-white">Release Cancelled Order Holds</h3>
+                        <p class="mt-1 text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
+                            Returns stock held by cancelled orders back to the sellable inventory pool.
+                        </p>
+                    </div>
+                    <button type="submit" class="mt-4 w-full rounded-lg bg-slate-900 py-1.5 text-xs font-semibold text-white shadow-xs transition hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100">
+                        Release Cancelled Holds
+                    </button>
+                </form>
+
+                {# Action 3: Reconcile Reserved Counters #}
+                <form method="post" action="{% url 'backoffice:inventory_reconcile_action' %}" class="flex flex-col justify-between rounded-xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-800/80" data-confirm="Reconcile reservation counters for all variants with discrepancies to match actual active holds?">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="reconcile_reserved" />
+                    <div>
+                        <h3 class="font-bold text-xs text-slate-900 dark:text-white">Auto-Align Reserved Counters</h3>
+                        <p class="mt-1 text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
+                            Recalculates actual active hold sums and resets Stock.reserved to match reality, logging ledger adjustments.
+                        </p>
+                    </div>
+                    <button type="submit" class="mt-4 w-full rounded-lg bg-slate-900 py-1.5 text-xs font-semibold text-white shadow-xs transition hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100">
+                        Align Reserved Counters
+                    </button>
+                </form>
+            </div>
+        </section>
+    {% endif %}
+
+    {# ---- Search & Filters Bar ----------------------------------------------------------------- #}
+    <form method="get" class="mb-5 flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+        <div class="min-w-[14rem] flex-1">
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400" for="recon-q">
+                Search SKU / Garment
+            </label>
+            <input id="recon-q" name="q" value="{{ filters.q }}" placeholder="SKU or product title..." class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-slate-900 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
+        </div>
+        <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400" for="recon-severity">
+                Severity
+            </label>
+            <select id="recon-severity" name="severity" class="mt-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-slate-900 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white">
+                <option value="">All Severities</option>
+                <option value="critical" {% if filters.severity == 'critical' %}selected{% endif %}>Critical</option>
+                <option value="warning" {% if filters.severity == 'warning' %}selected{% endif %}>Warning</option>
+                <option value="info" {% if filters.severity == 'info' %}selected{% endif %}>Info</option>
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400" for="recon-category">
+                Department
+            </label>
+            <select id="recon-category" name="category" class="mt-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-slate-900 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white">
+                <option value="">All Departments</option>
+                {% for cat in categories %}
+                    <option value="{{ cat.slug }}" {% if filters.category == cat.slug %}selected{% endif %}>{{ cat.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="flex items-center gap-2">
+            <button type="submit" class="inline-flex items-center justify-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-xs transition hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100">
+                Filter
+            </button>
+            {% if filters.q or filters.severity or filters.category %}
+                <a href="{% url 'backoffice:inventory_reconciliation' %}" class="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-xs transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                    Reset
+                </a>
+            {% endif %}
+        </div>
+    </form>
+
+    {# ---- Reconciliation Audit Discrepancies Table --------------------------------------------- #}
+    <div class="overflow-x-auto rounded-2xl border border-slate-200/80 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900">
+        <table class="min-w-full text-sm divide-y divide-slate-200/80 dark:divide-slate-800">
+            <thead class="bg-slate-50 text-left text-xs font-bold uppercase tracking-wider text-slate-500 dark:bg-slate-800/50 dark:text-slate-400">
+                <tr>
+                    <th class="px-5 py-3.5">Severity</th>
+                    <th class="px-4 py-3.5">Issue Type</th>
+                    <th class="px-4 py-3.5">SKU &amp; Product</th>
+                    <th class="px-4 py-3.5">Department</th>
+                    <th class="px-4 py-3.5 text-right">On Hand</th>
+                    <th class="px-4 py-3.5 text-right">Reserved (Curr / Exp)</th>
+                    <th class="px-4 py-3.5 text-right">Delta</th>
+                    <th class="px-5 py-3.5">Description</th>
+                    <th class="px-4 py-3.5 text-right">Action</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 dark:divide-slate-800/60">
+                {% for disc in report.discrepancies %}
+                    <tr class="transition hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
+                        <td class="px-5 py-3.5 whitespace-nowrap">
+                            {% if disc.is_critical %}
+                                <span class="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-xs font-bold text-rose-700 dark:bg-rose-950/50 dark:text-rose-300">
+                                    <span class="h-1.5 w-1.5 rounded-full bg-rose-600"></span>
+                                    Critical
+                                </span>
+                            {% elif disc.is_warning %}
+                                <span class="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-bold text-amber-700 dark:bg-amber-950/50 dark:text-amber-300">
+                                    <span class="h-1.5 w-1.5 rounded-full bg-amber-600"></span>
+                                    Warning
+                                </span>
+                            {% else %}
+                                <span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-400">
+                                    Info
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3.5 whitespace-nowrap">
+                            <span class="font-mono text-xs font-semibold text-slate-700 dark:text-slate-300">
+                                {{ disc.discrepancy_type }}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3.5">
+                            <span class="font-mono font-bold text-slate-900 dark:text-white">{{ disc.variant_sku }}</span>
+                            <div class="text-xs text-slate-500 dark:text-slate-400">
+                                {{ disc.product_name }}
+                            </div>
+                        </td>
+                        <td class="px-4 py-3.5 text-slate-600 dark:text-slate-400">
+                            {{ disc.category_name }}
+                        </td>
+                        <td class="px-4 py-3.5 text-right tabular-nums text-slate-700 dark:text-slate-300 font-medium">
+                            {{ disc.current_on_hand }}
+                        </td>
+                        <td class="px-4 py-3.5 text-right tabular-nums">
+                            <span class="font-bold text-slate-900 dark:text-white">{{ disc.current_reserved }}</span>
+                            <span class="text-slate-400">/</span>
+                            <span class="font-semibold text-indigo-600 dark:text-indigo-400">{{ disc.expected_reserved }}</span>
+                        </td>
+                        <td class="px-4 py-3.5 text-right tabular-nums font-bold {% if disc.discrepancy_delta > 0 %}text-amber-600{% elif disc.discrepancy_delta < 0 %}text-rose-600{% else %}text-slate-400{% endif %}">
+                            {% if disc.discrepancy_delta > 0 %}+{% endif %}{{ disc.discrepancy_delta }}
+                        </td>
+                        <td class="px-5 py-3.5 text-xs text-slate-600 dark:text-slate-300 leading-snug">
+                            {{ disc.description }}
+                        </td>
+                        <td class="px-4 py-3.5 text-right whitespace-nowrap">
+                            {% if can_manage and disc.variant_id %}
+                                {% if disc.discrepancy_type == 'reserved_mismatch' %}
+                                    <form method="post" action="{% url 'backoffice:inventory_reconcile_action' %}" class="inline-block" data-confirm="Correct reserved counter for {{ disc.variant_sku }} to {{ disc.expected_reserved }}?">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="action" value="reconcile_reserved" />
+                                        <input type="hidden" name="variant_id" value="{{ disc.variant_id }}" />
+                                        <button type="submit" class="text-xs font-bold text-indigo-600 hover:text-indigo-800 dark:text-indigo-400">
+                                            Reconcile &rarr;
+                                        </button>
+                                    </form>
+                                {% endif %}
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="9" class="px-5 py-12 text-center text-sm text-slate-500 dark:text-slate-400">
+                            <div class="flex flex-col items-center justify-center">
+                                <span class="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="h-6 w-6">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                                    </svg>
+                                </span>
+                                <p class="mt-3 font-semibold text-slate-900 dark:text-white">
+                                    Zero Discrepancies Detected!
+                                </p>
+                                <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                    Every variant's physical on-hand and reserved counter matches active orders and holds.
+                                </p>
+                            </div>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endblock content %}

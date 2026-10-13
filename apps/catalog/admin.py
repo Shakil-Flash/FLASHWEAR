@@ -371,7 +371,7 @@ class ProductAdmin(admin.ModelAdmin):
         (
             _("Collections & Merchandising"),
             {
-                "fields": ("collections", "tags", "is_featured", "is_new"),
+                "fields": ("collections", "tags", "is_featured", "is_new", "low_stock_threshold"),
                 "description": _(
                     "Seasonal collections, thematic tags, and front-page merchandising highlights."
                 ),

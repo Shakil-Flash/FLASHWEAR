@@ -53,11 +53,21 @@ class StockAdjustForm(forms.Form):
 class StockAdmin(admin.ModelAdmin):
     """Available-at-a-glance list plus the ledger-backed adjustment workflow."""
 
-    list_display = ("variant", "sku", "on_hand", "reserved", "available_display", "updated_at")
+    list_display = (
+        "variant",
+        "sku",
+        "on_hand",
+        "reserved",
+        "available_display",
+        "low_stock_threshold",
+        "effective_threshold_display",
+        "updated_at",
+    )
     list_select_related = ("variant", "variant__product")
     search_fields = ("variant__sku", "variant__product__name")
     list_filter = ("variant__product__status", "variant__product__category")
     readonly_fields = ("variant", "reserved", "created_at", "updated_at")
+    fields = ("variant", "on_hand", "reserved", "low_stock_threshold", "created_at", "updated_at")
     actions = ("adjust_stock",)
 
     @admin.display(description=_("SKU"), ordering="variant__sku")
@@ -67,6 +77,10 @@ class StockAdmin(admin.ModelAdmin):
     @admin.display(description=_("Available"))
     def available_display(self, obj: Stock) -> int:
         return obj.available
+
+    @admin.display(description=_("Effective Threshold"))
+    def effective_threshold_display(self, obj: Stock) -> int:
+        return obj.effective_threshold
 
     @admin.action(description=_("Adjust stock for the selected rows"))
     def adjust_stock(self, request, queryset):

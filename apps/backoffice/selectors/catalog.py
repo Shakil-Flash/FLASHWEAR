@@ -49,18 +49,19 @@ STOCK_SORTS = {
 }
 
 
-def stock_state(stock: Stock, threshold: int, available: int | None = None) -> str:
+def stock_state(stock: Stock, threshold: int | None = None, available: int | None = None) -> str:
     """A word for the row, so the template never computes business state itself.
 
-    ``available`` comes from the ``qty_available`` annotation when the row was listed
-    (annotating ``available`` itself would collide with the model's read-only property,
-    which Django materialises with ``setattr``). Un-annotated rows fall back to it.
+    Respects variant and product custom low-stock thresholds with global fallback.
     """
     if available is None:
         available = stock.available
+    effective_thresh = (
+        stock.effective_threshold if hasattr(stock, "effective_threshold") else (threshold or 5)
+    )
     if available <= 0:
         return "out"
-    if available <= threshold:
+    if available <= effective_thresh:
         return "low"
     if stock.reserved > 0:
         return "reserved"
@@ -76,9 +77,18 @@ def stock_rows(
     property cannot appear in a ``WHERE`` clause, and computing it in Python would mean
     loading the table first.
     """
+    from django.db.models import Value
+    from django.db.models.functions import Coalesce
+
+    threshold = _low_stock_threshold()
     qs = Stock.objects.select_related(
         "variant__product", "variant__color", "variant__size"
-    ).annotate(qty_available=F("on_hand") - F("reserved"))
+    ).annotate(
+        qty_available=F("on_hand") - F("reserved"),
+        effective_thresh=Coalesce(
+            "low_stock_threshold", "variant__product__low_stock_threshold", Value(threshold)
+        ),
+    )
 
     needle = (q or "").strip()
     if needle:
@@ -90,11 +100,10 @@ def stock_rows(
     if category:
         qs = qs.filter(variant__product__category__slug=category.strip())
 
-    threshold = _low_stock_threshold()
     if state == "out":
         qs = qs.filter(qty_available__lte=0)
     elif state == "low":
-        qs = qs.filter(qty_available__gt=0, qty_available__lte=threshold)
+        qs = qs.filter(qty_available__gt=0, qty_available__lte=F("effective_thresh"))
     elif state == "reserved":
         qs = qs.filter(reserved__gt=0)
 
@@ -102,10 +111,19 @@ def stock_rows(
 
 
 def low_stock_rows() -> QuerySet:
-    """Variants at or below the low-stock threshold (used by tiles and alerts)."""
+    """Variants at or below their configurable low-stock threshold."""
+    from django.db.models import Value
+    from django.db.models.functions import Coalesce
+
     threshold = _low_stock_threshold()
-    return Stock.objects.annotate(qty_available=F("on_hand") - F("reserved")).filter(
-        qty_available__lte=threshold
+    return (
+        Stock.objects.annotate(
+            qty_available=F("on_hand") - F("reserved"),
+            effective_thresh=Coalesce(
+                "low_stock_threshold", "variant__product__low_stock_threshold", Value(threshold)
+            ),
+        )
+        .filter(qty_available__gt=0, qty_available__lte=F("effective_thresh"))
     )
 
 

@@ -257,6 +257,14 @@ class Product(TimestampedModel, SEOMixin):
         blank=True,
         help_text=_("Stamped the first time the product goes live. Never cleared."),
     )
+    low_stock_threshold = models.PositiveIntegerField(
+        _("low stock threshold"),
+        null=True,
+        blank=True,
+        help_text=_(
+            "Default low-stock threshold for all variants of this product unless overridden."
+        ),
+    )
 
     objects = ProductManager()
 
@@ -639,6 +647,24 @@ class ProductVariant(TimestampedModel):
         if self.cost_price is None or self.cost_price <= ZERO:
             return None
         return round((self.price - self.cost_price) / self.price * 100)
+
+    @property
+    def available_stock(self) -> int:
+        """Units currently available to sell, reading from the authoritative Stock row."""
+        stock = getattr(self, "stock", None)
+        return stock.available if stock else 0
+
+    @property
+    def effective_threshold(self) -> int:
+        """Effective low-stock threshold with variant -> product -> global fallback."""
+        stock = getattr(self, "stock", None)
+        if stock and stock.low_stock_threshold is not None:
+            return stock.low_stock_threshold
+        if self.product and self.product.low_stock_threshold is not None:
+            return self.product.low_stock_threshold
+        from django.conf import settings
+
+        return getattr(settings, "BACKOFFICE_LOW_STOCK_THRESHOLD", 5)
 
     def save(self, *args, **kwargs):
         # SKUs are printed on labels, scanned by staff and typed into support tickets: one

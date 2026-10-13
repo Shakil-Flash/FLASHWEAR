@@ -21,6 +21,8 @@ __all__ = ["ACTIONS", "record"]
 #: one-line change in this tuple and nowhere else.
 ACTIONS = (
     "inventory.adjust",
+    "inventory.restock",
+    "inventory.reconcile",
     "order.status",
     "order.note",
     "return.approve",

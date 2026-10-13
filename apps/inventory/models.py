@@ -50,6 +50,15 @@ class Stock(TimestampedModel):
         help_text=_("Units held by active checkout reservations."),
     )
 
+    low_stock_threshold = models.PositiveIntegerField(
+        _("low stock threshold"),
+        null=True,
+        blank=True,
+        help_text=_(
+            "Variant-specific low-stock threshold. If null, product or global default applies."
+        ),
+    )
+
     class Meta:
         verbose_name = _("stock level")
         verbose_name_plural = _("stock levels")
@@ -73,6 +82,21 @@ class Stock(TimestampedModel):
     def available(self) -> int:
         """Units that may still be sold or held."""
         return self.on_hand - self.reserved
+
+    @property
+    def effective_threshold(self) -> int:
+        """Configurable low-stock threshold with variant -> product -> global fallback."""
+        if self.low_stock_threshold is not None:
+            return self.low_stock_threshold
+        if (
+            self.variant_id
+            and hasattr(self, "variant")
+            and self.variant
+            and getattr(self.variant, "product_id", None)
+            and getattr(self.variant.product, "low_stock_threshold", None) is not None
+        ):
+            return self.variant.product.low_stock_threshold
+        return getattr(settings, "BACKOFFICE_LOW_STOCK_THRESHOLD", 5)
 
     @classmethod
     def get_for_variant(cls, variant) -> Stock:

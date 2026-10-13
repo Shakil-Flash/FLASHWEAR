@@ -1,0 +1,307 @@
+{% extends "backoffice/base.html" %}
+{% load catalog_extras %}
+
+{% block title %}
+    Inventory Health & Operations · FLASHWEAR Back Office
+{% endblock title %}
+
+{% block breadcrumb %}
+    <a href="{% url 'backoffice:inventory' %}" class="hover:text-slate-900 dark:hover:text-white">Inventory</a>
+    <span class="mx-2 text-slate-400">/</span>
+    <span>Health & Operations</span>
+{% endblock breadcrumb %}
+
+{% block content %}
+    {# ---- Page Header -------------------------------------------------------------------------- #}
+    <header class="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-3xl">
+                Inventory Health & Operations
+            </h1>
+            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                Authoritative real-time warehouse counters, drop allocations, and department distribution.
+            </p>
+        </div>
+        <div class="flex items-center gap-2.5">
+            <a href="{% url 'backoffice:inventory_health_export' %}" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-xs transition hover:bg-slate-50 hover:border-slate-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-4 w-4 text-slate-500">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.5V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                </svg>
+                Export CSV
+            </a>
+            <a href="{% url 'backoffice:inventory_restock' %}" class="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3.5 py-2 text-xs font-semibold text-white shadow-xs transition hover:bg-indigo-500">
+                Restock Prioritization &rarr;
+            </a>
+            <a href="{% url 'backoffice:inventory_reconciliation' %}" class="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-2 text-xs font-semibold text-white shadow-xs transition hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100">
+                Reconciliation Audit &rarr;
+            </a>
+        </div>
+    </header>
+
+    {# ---- Inventory Sub-Navigation Tabs -------------------------------------------------------- #}
+    <nav class="mb-6 flex space-x-2 border-b border-slate-200 dark:border-slate-800">
+        <a href="{% url 'backoffice:inventory' %}" class="border-b-2 border-transparent px-4 py-2.5 text-sm font-medium text-slate-500 hover:border-slate-300 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300">
+            SKU Directory
+        </a>
+        <a href="{% url 'backoffice:inventory_health' %}" class="border-b-2 border-indigo-600 px-4 py-2.5 text-sm font-semibold text-indigo-600 dark:border-indigo-400 dark:text-indigo-400">
+            Stock Health &amp; Distribution
+        </a>
+        <a href="{% url 'backoffice:inventory_restock' %}" class="border-b-2 border-transparent px-4 py-2.5 text-sm font-medium text-slate-500 hover:border-slate-300 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300">
+            Restock Prioritization
+        </a>
+        <a href="{% url 'backoffice:inventory_reconciliation' %}" class="border-b-2 border-transparent px-4 py-2.5 text-sm font-medium text-slate-500 hover:border-slate-300 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300">
+            Reconciliation &amp; Auditing
+        </a>
+    </nav>
+
+    {# ---- KPI Stat Grid ------------------------------------------------------------------------ #}
+    <section aria-labelledby="kpi-heading" class="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <h2 id="kpi-heading" class="sr-only">Inventory Key Performance Indicators</h2>
+
+        {# 1. In Stock #}
+        <div class="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">In Stock</span>
+                <span class="inline-flex h-7 w-7 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="h-4 w-4">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                    </svg>
+                </span>
+            </div>
+            <div class="mt-2 flex items-baseline gap-2">
+                <span class="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white tabular-nums">{{ summary.in_stock_count }}</span>
+                <span class="text-xs text-slate-500 dark:text-slate-400">SKUs (&gt; {{ summary.threshold }})</span>
+            </div>
+            <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                Optimal warehouse availability
+            </p>
+        </div>
+
+        {# 2. Low Stock #}
+        <div class="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">Low Stock</span>
+                <span class="inline-flex h-7 w-7 items-center justify-center rounded-full bg-amber-50 text-amber-600 dark:bg-amber-950/50 dark:text-amber-400">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="h-4 w-4">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+                    </svg>
+                </span>
+            </div>
+            <div class="mt-2 flex items-baseline gap-2">
+                <span class="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white tabular-nums">{{ summary.low_stock_count }}</span>
+                <span class="text-xs text-slate-500 dark:text-slate-400">SKUs (&le; threshold)</span>
+            </div>
+            <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                Needs purchase order or receipt
+            </p>
+        </div>
+
+        {# 3. Out of Stock #}
+        <div class="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">Out of Stock</span>
+                <span class="inline-flex h-7 w-7 items-center justify-center rounded-full bg-rose-50 text-rose-600 dark:bg-rose-950/50 dark:text-rose-400">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="h-4 w-4">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+                    </svg>
+                </span>
+            </div>
+            <div class="mt-2 flex items-baseline gap-2">
+                <span class="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white tabular-nums">{{ summary.out_of_stock_count }}</span>
+                <span class="text-xs text-slate-500 dark:text-slate-400">SKUs (0 available)</span>
+            </div>
+            <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                Unavailable for online checkout
+            </p>
+        </div>
+
+        {# 4. Total Counters #}
+        <div class="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Warehouse Totals</span>
+                <span class="inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="h-4 w-4">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
+                    </svg>
+                </span>
+            </div>
+            <div class="mt-2 flex items-baseline gap-2">
+                <span class="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white tabular-nums">{{ summary.total_available }}</span>
+                <span class="text-xs text-slate-500 dark:text-slate-400">units available</span>
+            </div>
+            <p class="mt-1 text-xs text-slate-500 dark:text-slate-400 tabular-nums">
+                {{ summary.total_on_hand }} on hand &middot; {{ summary.total_reserved }} held
+            </p>
+        </div>
+    </section>
+
+    {# ---- Stale Holds Alert Banner ------------------------------------------------------------- #}
+    {% if summary.stale_holds_count > 0 %}
+        <div class="mb-8 flex items-center justify-between rounded-2xl border border-amber-300 bg-amber-50 p-4 dark:border-amber-900/60 dark:bg-amber-950/30">
+            <div class="flex items-center gap-3">
+                <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-200/70 text-amber-800 dark:bg-amber-900/60 dark:text-amber-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="h-5 w-5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="text-sm font-bold text-amber-900 dark:text-amber-200">
+                        {{ summary.stale_holds_count }} Expired Reservation{{ summary.stale_holds_count|pluralize }} Detected
+                    </h3>
+                    <p class="text-xs text-amber-700 dark:text-amber-300">
+                        These checkout holds have passed their reservation window without placing an order.
+                    </p>
+                </div>
+            </div>
+            {% if can_manage %}
+                <form method="post" action="{% url 'backoffice:inventory_reconcile_action' %}" data-confirm="Sweep all expired checkout holds back into available warehouse inventory?">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="sweep_expired" />
+                    <button type="submit" class="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white shadow-xs transition hover:bg-amber-700">
+                        Sweep Expired Holds
+                    </button>
+                </form>
+            {% endif %}
+        </div>
+    {% endif %}
+
+    <div class="grid gap-8 lg:grid-cols-3">
+        {# ---- Category / Department Distribution Table ---------------------------------------- #}
+        <div class="lg:col-span-2 rounded-2xl border border-slate-200/80 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900">
+            <header class="border-b border-slate-100 p-5 dark:border-slate-800">
+                <h2 class="text-base font-bold text-slate-900 dark:text-white">
+                    Stock Distribution by Department / Category
+                </h2>
+                <p class="text-xs text-slate-500 dark:text-slate-400">
+                    Actual available units and shortage counts aggregated per fashion taxonomy.
+                </p>
+            </header>
+            <div class="overflow-x-auto">
+                <table class="min-w-full text-sm divide-y divide-slate-200/80 dark:divide-slate-800">
+                    <thead class="bg-slate-50 text-left text-xs font-bold uppercase tracking-wider text-slate-500 dark:bg-slate-800/50 dark:text-slate-400">
+                        <tr>
+                            <th class="px-5 py-3">Category</th>
+                            <th class="px-4 py-3 text-right">SKUs</th>
+                            <th class="px-4 py-3 text-right">On Hand</th>
+                            <th class="px-4 py-3 text-right">Reserved</th>
+                            <th class="px-4 py-3 text-right">Available</th>
+                            <th class="px-4 py-3 text-right">Shortage</th>
+                            <th class="px-4 py-3 text-right">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 dark:divide-slate-800/60">
+                        {% for cat in summary.category_summary %}
+                            <tr class="transition hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
+                                <td class="px-5 py-3.5 font-semibold text-slate-900 dark:text-white">
+                                    {{ cat.variant__product__category__name }}
+                                </td>
+                                <td class="px-4 py-3.5 text-right tabular-nums text-slate-600 dark:text-slate-400">
+                                    {{ cat.sku_count }}
+                                </td>
+                                <td class="px-4 py-3.5 text-right tabular-nums font-medium text-slate-700 dark:text-slate-300">
+                                    {{ cat.category_on_hand }}
+                                </td>
+                                <td class="px-4 py-3.5 text-right tabular-nums text-slate-500 dark:text-slate-400">
+                                    {{ cat.category_reserved }}
+                                </td>
+                                <td class="px-4 py-3.5 text-right tabular-nums font-bold {% if cat.category_available <= 0 %}text-rose-600 dark:text-rose-400{% else %}text-emerald-600 dark:text-emerald-400{% endif %}">
+                                    {{ cat.category_available }}
+                                </td>
+                                <td class="px-4 py-3.5 text-right tabular-nums">
+                                    {% if cat.category_out_of_stock > 0 %}
+                                        <span class="inline-flex items-center rounded-full bg-rose-50 px-2 py-0.5 text-xs font-semibold text-rose-700 dark:bg-rose-950/50 dark:text-rose-300">
+                                            {{ cat.category_out_of_stock }} out
+                                        </span>
+                                    {% elif cat.category_low_stock > 0 %}
+                                        <span class="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700 dark:bg-amber-950/50 dark:text-amber-300">
+                                            {{ cat.category_low_stock }} low
+                                        </span>
+                                    {% else %}
+                                        <span class="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">
+                                            Healthy
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td class="px-4 py-3.5 text-right">
+                                    <a href="{% url 'backoffice:inventory' %}?category={{ cat.variant__product__category__slug }}" class="text-xs font-semibold text-indigo-600 hover:text-indigo-800 dark:text-indigo-400">
+                                        View &rarr;
+                                    </a>
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="7" class="px-5 py-8 text-center text-sm text-slate-500">
+                                    No categorized inventory records found.
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        {# ---- Drops Stock Commitments Sidebar --------------------------------------------------- #}
+        <div class="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-4 dark:border-slate-800">
+                <div>
+                    <h2 class="text-base font-bold text-slate-900 dark:text-white">
+                        FLASH Drop Commitments
+                    </h2>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">
+                        Inventory claimed or reserved for limited releases.
+                    </p>
+                </div>
+                <span class="rounded-full bg-purple-50 px-2.5 py-1 text-xs font-bold text-purple-700 dark:bg-purple-950/50 dark:text-purple-300">
+                    {{ summary.drop_allocations|length }} Active
+                </span>
+            </div>
+
+            <div class="mt-4 space-y-4">
+                {% for alloc in summary.drop_allocations %}
+                    <div class="rounded-xl border border-slate-100 bg-slate-50/50 p-3.5 dark:border-slate-800 dark:bg-slate-800/40">
+                        <div class="flex items-center justify-between">
+                            <h3 class="font-bold text-sm text-slate-900 dark:text-white">
+                                {{ alloc.drop.name }}
+                            </h3>
+                            {% if alloc.drop.is_live %}
+                                <span class="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800 uppercase dark:bg-emerald-950 dark:text-emerald-300">Live</span>
+                            {% else %}
+                                <span class="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-bold text-indigo-800 uppercase dark:bg-indigo-950 dark:text-indigo-300">Scheduled</span>
+                            {% endif %}
+                        </div>
+                        <div class="mt-2 grid grid-cols-3 gap-2 text-center text-xs">
+                            <div class="rounded-lg bg-white p-2 shadow-2xs dark:bg-slate-900">
+                                <span class="text-[10px] text-slate-400 uppercase">Allocated</span>
+                                <p class="font-bold text-slate-800 dark:text-slate-200 tabular-nums">
+                                    {{ alloc.total_allocated|default:"All" }}
+                                </p>
+                            </div>
+                            <div class="rounded-lg bg-white p-2 shadow-2xs dark:bg-slate-900">
+                                <span class="text-[10px] text-slate-400 uppercase">Claimed</span>
+                                <p class="font-bold text-indigo-600 dark:text-indigo-400 tabular-nums">
+                                    {{ alloc.claimed }}
+                                </p>
+                            </div>
+                            <div class="rounded-lg bg-white p-2 shadow-2xs dark:bg-slate-900">
+                                <span class="text-[10px] text-slate-400 uppercase">Remaining</span>
+                                <p class="font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
+                                    {{ alloc.remaining }}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                {% empty %}
+                    <div class="py-8 text-center text-xs text-slate-400">
+                        No active or scheduled drops with allocations.
+                    </div>
+                {% endfor %}
+            </div>
+
+            <div class="mt-6 border-t border-slate-100 pt-4 dark:border-slate-800">
+                <a href="{% url 'backoffice:drops' %}" class="block w-full text-center rounded-lg border border-slate-300 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
+                    Manage All Drops &rarr;
+                </a>
+            </div>
+        </div>
+    </div>
+{% endblock content %}

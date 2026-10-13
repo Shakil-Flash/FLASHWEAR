@@ -438,6 +438,7 @@ class ProductAdminForm(forms.ModelForm):
             "status",
             "is_featured",
             "is_new",
+            "low_stock_threshold",
             "seo_title",
             "seo_description",
         )

@@ -1,0 +1,276 @@
+{% extends "backoffice/base.html" %}
+{% load catalog_extras %}
+
+{% block title %}
+    Restock Prioritization & Receipts · FLASHWEAR Back Office
+{% endblock title %}
+
+{% block breadcrumb %}
+    <a href="{% url 'backoffice:inventory' %}" class="hover:text-slate-900 dark:hover:text-white">Inventory</a>
+    <span class="mx-2 text-slate-400">/</span>
+    <span>Restock Prioritization</span>
+{% endblock breadcrumb %}
+
+{% block content %}
+    {# ---- Page Header -------------------------------------------------------------------------- #}
+    <header class="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-3xl">
+                Restock Prioritization &amp; Receipts
+            </h1>
+            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                Objective, velocity-grounded replenishment prioritization and authoritative ledger receipt recording.
+            </p>
+        </div>
+        <div class="flex items-center gap-2.5">
+            <a href="{% url 'backoffice:inventory_health_export' %}" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-xs transition hover:bg-slate-50 hover:border-slate-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                Export Stock CSV
+            </a>
+            {% if can_manage %}
+                <a href="#restock-receipt-panel" class="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3.5 py-2 text-xs font-semibold text-white shadow-xs transition hover:bg-indigo-500">
+                    + Record Restock Receipt
+                </a>
+            {% endif %}
+        </div>
+    </header>
+
+    {# ---- Sub-Navigation Tabs ------------------------------------------------------------------ #}
+    <nav class="mb-6 flex space-x-2 border-b border-slate-200 dark:border-slate-800">
+        <a href="{% url 'backoffice:inventory' %}" class="border-b-2 border-transparent px-4 py-2.5 text-sm font-medium text-slate-500 hover:border-slate-300 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300">
+            SKU Directory
+        </a>
+        <a href="{% url 'backoffice:inventory_health' %}" class="border-b-2 border-transparent px-4 py-2.5 text-sm font-medium text-slate-500 hover:border-slate-300 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300">
+            Stock Health &amp; Distribution
+        </a>
+        <a href="{% url 'backoffice:inventory_restock' %}" class="border-b-2 border-indigo-600 px-4 py-2.5 text-sm font-semibold text-indigo-600 dark:border-indigo-400 dark:text-indigo-400">
+            Restock Prioritization
+        </a>
+        <a href="{% url 'backoffice:inventory_reconciliation' %}" class="border-b-2 border-transparent px-4 py-2.5 text-sm font-medium text-slate-500 hover:border-slate-300 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300">
+            Reconciliation &amp; Auditing
+        </a>
+    </nav>
+
+    {# ---- Priority Counters Bar --------------------------------------------------------------- #}
+    <div class="mb-6 grid gap-3 sm:grid-cols-3">
+        <div class="rounded-xl border border-rose-200 bg-rose-50/50 p-4 dark:border-rose-900/60 dark:bg-rose-950/20">
+            <span class="text-xs font-bold uppercase tracking-wider text-rose-700 dark:text-rose-300">Critical Priority (Out of Stock)</span>
+            <div class="mt-1 flex items-baseline gap-2">
+                <span class="text-2xl font-black text-rose-900 dark:text-rose-200 tabular-nums">{{ critical_count }}</span>
+                <span class="text-xs text-rose-700 dark:text-rose-300">SKUs with 0 available units</span>
+            </div>
+        </div>
+        <div class="rounded-xl border border-amber-200 bg-amber-50/50 p-4 dark:border-amber-900/60 dark:bg-amber-950/20">
+            <span class="text-xs font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300">Urgent Priority (&le; 7 Days Runout)</span>
+            <div class="mt-1 flex items-baseline gap-2">
+                <span class="text-2xl font-black text-amber-900 dark:text-amber-200 tabular-nums">{{ urgent_count }}</span>
+                <span class="text-xs text-amber-700 dark:text-amber-300">SKUs with imminent stockout risk</span>
+            </div>
+        </div>
+        <div class="rounded-xl border border-blue-200 bg-blue-50/50 p-4 dark:border-blue-900/60 dark:bg-blue-950/20">
+            <span class="text-xs font-bold uppercase tracking-wider text-blue-700 dark:text-blue-300">Warning Priority (&le; Configured Threshold)</span>
+            <div class="mt-1 flex items-baseline gap-2">
+                <span class="text-2xl font-black text-blue-900 dark:text-blue-200 tabular-nums">{{ warning_count }}</span>
+                <span class="text-xs text-blue-700 dark:text-blue-300">SKUs approaching replenishment level</span>
+            </div>
+        </div>
+    </div>
+
+    {# ---- Restock Receipt Recording Panel ------------------------------------------------------ #}
+    {% if can_manage %}
+        <section id="restock-receipt-panel" aria-labelledby="receipt-heading" class="mb-6 rounded-2xl border border-indigo-200 bg-indigo-50/30 p-5 shadow-xs dark:border-indigo-900/60 dark:bg-indigo-950/20">
+            <div class="mb-3">
+                <h2 id="receipt-heading" class="text-base font-bold text-slate-900 dark:text-white">
+                    Record Restock Receipt
+                </h2>
+                <p class="text-xs text-slate-500 dark:text-slate-400">
+                    Appends an authoritative <code class="font-mono text-indigo-700 dark:text-indigo-300">RECEIVED</code> entry to the stock ledger and increments on-hand warehouse inventory with audit attribution.
+                </p>
+            </div>
+            <form method="post" action="{% url 'backoffice:inventory_restock' %}" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-6 items-end" data-confirm="Record this physical stock receipt and increment available warehouse inventory?">
+                {% csrf_token %}
+                <div class="lg:col-span-2">
+                    <label for="id_restock_variant" class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                        Variant SKU *
+                    </label>
+                    <select id="id_restock_variant" name="variant_id" required class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-indigo-600 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white">
+                        <option value="">Select a variant to receive...</option>
+                        {% for item in items %}
+                            <option value="{{ item.variant_id }}">
+                                {{ item.sku }} — {{ item.product_name }} ({{ item.color_size }}) [Avail: {{ item.available }}]
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label for="id_restock_qty" class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                        Received Qty *
+                    </label>
+                    <input id="id_restock_qty" type="number" name="quantity" min="1" required placeholder="Units received" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-indigo-600 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
+                </div>
+                <div>
+                    <label for="id_restock_ref" class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                        PO / Slip Ref *
+                    </label>
+                    <input id="id_restock_ref" type="text" name="reference" required placeholder="PO-10492" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-indigo-600 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
+                </div>
+                <div>
+                    <label for="id_restock_reason" class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                        Reason *
+                    </label>
+                    <input id="id_restock_reason" type="text" name="reason" required placeholder="Production batch delivery" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-indigo-600 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
+                </div>
+                <div>
+                    <button type="submit" class="w-full rounded-lg bg-indigo-600 py-2 text-sm font-semibold text-white shadow-xs transition hover:bg-indigo-500">
+                        Post Receipt
+                    </button>
+                </div>
+            </form>
+        </section>
+    {% endif %}
+
+    {# ---- Search & Filters Bar ----------------------------------------------------------------- #}
+    <form method="get" class="mb-5 flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+        <div class="min-w-[14rem] flex-1">
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400" for="restock-q">
+                Search SKU / Garment
+            </label>
+            <input id="restock-q" name="q" value="{{ filters.q }}" placeholder="SKU or product title..." class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
+        </div>
+        <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400" for="restock-priority">
+                Priority
+            </label>
+            <select id="restock-priority" name="priority" class="mt-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-slate-900 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white">
+                <option value="">All Priorities</option>
+                <option value="critical" {% if filters.priority == 'critical' %}selected{% endif %}>Critical (Out of Stock)</option>
+                <option value="urgent" {% if filters.priority == 'urgent' %}selected{% endif %}>Urgent (&le; 7 Days Runout)</option>
+                <option value="warning" {% if filters.priority == 'warning' %}selected{% endif %}>Warning (&le; Threshold)</option>
+                <option value="healthy" {% if filters.priority == 'healthy' %}selected{% endif %}>Healthy (&gt; Threshold)</option>
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400" for="restock-category">
+                Department
+            </label>
+            <select id="restock-category" name="category" class="mt-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-slate-900 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white">
+                <option value="">All Departments</option>
+                {% for cat in categories %}
+                    <option value="{{ cat.slug }}" {% if filters.category == cat.slug %}selected{% endif %}>{{ cat.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="flex items-center gap-2">
+            <button type="submit" class="inline-flex items-center justify-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-xs transition hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100">
+                Filter
+            </button>
+            {% if filters.q or filters.priority or filters.category %}
+                <a href="{% url 'backoffice:inventory_restock' %}" class="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-xs transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                    Reset
+                </a>
+            {% endif %}
+        </div>
+    </form>
+
+    {# ---- Prioritized Restock Table ------------------------------------------------------------- #}
+    <div class="overflow-x-auto rounded-2xl border border-slate-200/80 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900">
+        <table class="min-w-full text-sm divide-y divide-slate-200/80 dark:divide-slate-800">
+            <thead class="bg-slate-50 text-left text-xs font-bold uppercase tracking-wider text-slate-500 dark:bg-slate-800/50 dark:text-slate-400">
+                <tr>
+                    <th class="px-5 py-3.5">Priority</th>
+                    <th class="px-4 py-3.5">SKU &amp; Garment</th>
+                    <th class="px-4 py-3.5">Department</th>
+                    <th class="px-4 py-3.5 text-right">Available</th>
+                    <th class="px-4 py-3.5 text-right">On Hand</th>
+                    <th class="px-4 py-3.5 text-right">Reserved</th>
+                    <th class="px-4 py-3.5 text-right">Threshold</th>
+                    <th class="px-4 py-3.5 text-right">30d Velocity</th>
+                    <th class="px-4 py-3.5 text-right">Est. Runout</th>
+                    <th class="px-4 py-3.5 text-right">Drops</th>
+                    <th class="px-4 py-3.5 text-right">Action</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 dark:divide-slate-800/60">
+                {% for item in items %}
+                    <tr class="transition hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
+                        <td class="px-5 py-3.5 whitespace-nowrap">
+                            {% if item.is_critical %}
+                                <span class="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-xs font-bold text-rose-700 dark:bg-rose-950/50 dark:text-rose-300">
+                                    <span class="h-1.5 w-1.5 rounded-full bg-rose-600"></span>
+                                    Critical
+                                </span>
+                            {% elif item.is_urgent %}
+                                <span class="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-bold text-amber-700 dark:bg-amber-950/50 dark:text-amber-300">
+                                    <span class="h-1.5 w-1.5 rounded-full bg-amber-600"></span>
+                                    Urgent
+                                </span>
+                            {% elif item.is_warning %}
+                                <span class="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700 dark:bg-blue-950/50 dark:text-blue-300">
+                                    Warning
+                                </span>
+                            {% else %}
+                                <span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-400">
+                                    Healthy
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3.5">
+                            <span class="font-mono font-bold text-slate-900 dark:text-white">{{ item.sku }}</span>
+                            <div class="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                                {{ item.product_name }} &middot; <span class="text-slate-400">{{ item.color_size }}</span>
+                            </div>
+                        </td>
+                        <td class="px-4 py-3.5 text-slate-600 dark:text-slate-400">
+                            {{ item.category_name }}
+                        </td>
+                        <td class="px-4 py-3.5 text-right font-black tabular-nums text-base {% if item.available <= 0 %}text-rose-600 dark:text-rose-400{% elif item.available <= item.threshold %}text-amber-600 dark:text-amber-400{% else %}text-emerald-600 dark:text-emerald-400{% endif %}">
+                            {{ item.available }}
+                        </td>
+                        <td class="px-4 py-3.5 text-right tabular-nums text-slate-600 dark:text-slate-400">
+                            {{ item.on_hand }}
+                        </td>
+                        <td class="px-4 py-3.5 text-right tabular-nums text-slate-500 dark:text-slate-400">
+                            {{ item.reserved }}
+                        </td>
+                        <td class="px-4 py-3.5 text-right tabular-nums text-slate-500 dark:text-slate-400">
+                            {{ item.threshold }}
+                        </td>
+                        <td class="px-4 py-3.5 text-right tabular-nums font-semibold text-slate-800 dark:text-slate-200">
+                            {{ item.sales_30d }} units
+                        </td>
+                        <td class="px-4 py-3.5 text-right tabular-nums text-xs">
+                            {% if item.days_remaining is not None %}
+                                <span class="font-semibold {% if item.days_remaining <= 7 %}text-rose-600 dark:text-rose-400{% elif item.days_remaining <= 14 %}text-amber-600 dark:text-amber-400{% else %}text-slate-600 dark:text-slate-400{% endif %}">
+                                    ~{{ item.days_remaining }} days
+                                </span>
+                            {% else %}
+                                <span class="text-slate-400">&mdash;</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3.5 text-right tabular-nums text-xs">
+                            {% if item.drop_commitments > 0 %}
+                                <span class="rounded bg-purple-50 px-1.5 py-0.5 font-semibold text-purple-700 dark:bg-purple-950 dark:text-purple-300">
+                                    {{ item.drop_commitments }} Drop{{ item.drop_commitments|pluralize }}
+                                </span>
+                            {% else %}
+                                <span class="text-slate-400">&mdash;</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3.5 text-right whitespace-nowrap">
+                            {% if can_manage %}
+                                <a href="#restock-receipt-panel" class="text-xs font-bold text-indigo-600 hover:text-indigo-800 dark:text-indigo-400">
+                                    Receive &rarr;
+                                </a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="11" class="px-5 py-12 text-center text-sm text-slate-500 dark:text-slate-400">
+                            No SKUs match the selected restock criteria.
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endblock content %}

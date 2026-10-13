@@ -111,7 +111,20 @@ def _evaluate() -> list[Alert]:
         severity=WARNING,
         title="Stock holds past their expiry",
         detail="expired but still counted as reserved.",
-        url_name="backoffice:inventory",
+        url_name="backoffice:inventory_health",
+        capability=INVENTORY_VIEW,
+    )
+
+    from apps.inventory.intelligence import audit_inventory_reconciliation
+
+    recon_report = audit_inventory_reconciliation()
+    add(
+        recon_report.critical_count,
+        key="reconciliation_discrepancy",
+        severity=CRITICAL,
+        title="Critical stock reconciliation discrepancies",
+        detail="reserved mismatch or oversold stock detected.",
+        url_name="backoffice:inventory_reconciliation",
         capability=INVENTORY_VIEW,
     )
 

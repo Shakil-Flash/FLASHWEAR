@@ -9,9 +9,13 @@ re-deciding it.
 
 from __future__ import annotations
 
+import csv
+
 from django.contrib import messages
+from django.http import HttpResponse
 from django.shortcuts import redirect
 from django.urls import reverse
+from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from apps.backoffice import selectors
@@ -28,7 +32,8 @@ from apps.backoffice.permissions import (
 )
 from apps.backoffice.services import operations
 from apps.backoffice.views.base import render_bo
-from apps.catalog.models import Product
+from apps.catalog.models import Category, Product
+from apps.inventory import intelligence as inventory_intel
 
 __all__ = [
     "adjust_stock",
@@ -36,7 +41,12 @@ __all__ = [
     "catalog_remediate",
     "drops",
     "export_catalog_health_csv",
+    "export_inventory_health_csv",
     "inventory",
+    "inventory_health",
+    "inventory_reconcile_action",
+    "inventory_reconciliation",
+    "inventory_restock",
     "merch_featured_collections",
     "merch_featured_products",
     "merch_product_add",
@@ -364,6 +374,214 @@ def adjust_stock(request):
             f"{data['variant'].sku}: {data['delta']:+d} applied ({data['kind']}).",
         )
     return redirect("backoffice:inventory")
+
+
+# ======================================================================================
+# Inventory Intelligence, Health & Restock Views (Phase 44)
+# ======================================================================================
+
+
+@backoffice_access(INVENTORY_VIEW)
+def inventory_health(request):
+    """``/operations/inventory/health/`` -- real-time inventory health & distribution dashboard."""
+    summary = inventory_intel.get_inventory_health_summary()
+    categories = Category.objects.filter(is_active=True).order_by("name")
+    return render_bo(
+        request,
+        "backoffice/inventory_health.html",
+        active="inventory",
+        summary=summary,
+        categories=categories,
+        can_manage=has(request.user, INVENTORY_MANAGE),
+    )
+
+
+@backoffice_access(INVENTORY_VIEW)
+def export_inventory_health_csv(request):
+    """``/operations/inventory/health/export/`` -- safe CSV export of inventory stock levels."""
+    from apps.inventory.models import Stock
+
+    response = HttpResponse(content_type="text/csv; charset=utf-8")
+    now_str = timezone.now().strftime("%Y%m%d_%H%M%S")
+    response["Content-Disposition"] = f'attachment; filename="flashwear_inventory_health_{now_str}.csv"'
+
+    writer = csv.writer(response)
+    writer.writerow([
+        "Variant ID",
+        "SKU",
+        "Product Name",
+        "Category",
+        "Color / Size",
+        "On Hand",
+        "Reserved",
+        "Available",
+        "Configured Threshold",
+        "Stock State",
+        "Updated At",
+    ])
+
+    stocks = (
+        Stock.objects.select_related(
+            "variant",
+            "variant__product",
+            "variant__product__category",
+            "variant__color",
+            "variant__size",
+        )
+        .order_by("variant__sku")
+    )
+
+    for stock in stocks:
+        v = stock.variant
+        cat_name = v.product.category.name if v.product.category else "Uncategorized"
+        color_size = v.option_label or "Default"
+        thresh = stock.effective_threshold
+        state = selectors.stock_state(stock, thresh, stock.available)
+        writer.writerow([
+            v.pk,
+            v.sku,
+            v.product.name,
+            cat_name,
+            color_size,
+            stock.on_hand,
+            stock.reserved,
+            stock.available,
+            thresh,
+            state.upper(),
+            stock.updated_at.strftime("%Y-%m-%d %H:%M:%S") if stock.updated_at else "",
+        ])
+
+    return response
+
+
+@backoffice_access(INVENTORY_VIEW)
+def inventory_restock(request):
+    """``/operations/inventory/restock/`` -- data-grounded restock prioritization & receipt recording."""
+    if request.method == "POST":
+        if not has(request.user, INVENTORY_MANAGE):
+            messages.error(request, _("You do not have permission to record restock receipts."))
+            return redirect("backoffice:inventory_restock")
+
+        try:
+            variant_id = int(request.POST.get("variant_id") or request.POST.get("variant") or 0)
+            quantity = int(request.POST.get("quantity", 0))
+            reference = request.POST.get("reference", "").strip()
+            reason = request.POST.get("reason", "").strip()
+            note = request.POST.get("note", "").strip()
+
+            movement = inventory_intel.record_restock_receipt(
+                variant_id=variant_id,
+                quantity=quantity,
+                reference=reference,
+                reason=reason,
+                note=note,
+                actor=request.user,
+            )
+            messages.success(
+                request,
+                f"Successfully recorded restock receipt: +{quantity} units for {movement.variant.sku} (Ref: {reference}).",
+            )
+        except Exception as exc:
+            messages.error(request, f"Restock failed: {exc}")
+
+        return redirect("backoffice:inventory_restock")
+
+    category = request.GET.get("category", "")
+    priority = request.GET.get("priority", "")
+    q = request.GET.get("q", "")
+
+    restock_items = inventory_intel.get_prioritized_restock_list(
+        category_slug=category,
+        priority_filter=priority,
+        q=q,
+    )
+    categories = Category.objects.filter(is_active=True).order_by("name")
+
+    critical_count = sum(1 for item in restock_items if item.is_critical)
+    urgent_count = sum(1 for item in restock_items if item.is_urgent)
+    warning_count = sum(1 for item in restock_items if item.is_warning)
+
+    return render_bo(
+        request,
+        "backoffice/inventory_restock.html",
+        active="inventory",
+        items=restock_items,
+        categories=categories,
+        filters={"category": category, "priority": priority, "q": q},
+        critical_count=critical_count,
+        urgent_count=urgent_count,
+        warning_count=warning_count,
+        can_manage=has(request.user, INVENTORY_MANAGE),
+    )
+
+
+@backoffice_access(INVENTORY_VIEW)
+def inventory_reconciliation(request):
+    """``/operations/inventory/reconciliation/`` -- read-only reconciliation report & safe correction tools."""
+    category = request.GET.get("category", "")
+    severity = request.GET.get("severity", "")
+    q = request.GET.get("q", "")
+
+    report = inventory_intel.audit_inventory_reconciliation(
+        category_slug=category,
+        severity_filter=severity,
+        q=q,
+    )
+    categories = Category.objects.filter(is_active=True).order_by("name")
+
+    return render_bo(
+        request,
+        "backoffice/inventory_reconciliation.html",
+        active="inventory",
+        report=report,
+        categories=categories,
+        filters={"category": category, "severity": severity, "q": q},
+        can_manage=has(request.user, INVENTORY_MANAGE),
+    )
+
+
+@require_POST
+@backoffice_access(INVENTORY_MANAGE)
+def inventory_reconcile_action(request):
+    """Handle explicit, permission-controlled, auditable reconciliation actions."""
+    action = request.POST.get("action", "").strip()
+    reason = request.POST.get("reason", "").strip() or "Backoffice reconciliation"
+
+    if action in ("reconcile_reserved", "reconcile_variant"):
+        variant_id = request.POST.get("variant_id")
+        if variant_id:
+            try:
+                res = inventory_intel.reconcile_variant_reserved(
+                    variant_id=int(variant_id),
+                    actor=request.user,
+                    reason=reason,
+                )
+                messages.success(
+                    request,
+                    f"Reconciled reserved count for {res['sku']}: set to {res['new_reserved']} (delta {res['delta']:+d}).",
+                )
+            except Exception as exc:
+                messages.error(request, f"Reconciliation failed: {exc}")
+        else:
+            messages.error(request, "No variant specified for reservation reconciliation.")
+
+    elif action == "sweep_expired":
+        count = inventory_intel.reconcile_expired_holds(actor=request.user, reason=reason)
+        messages.success(request, f"Swept {count} expired checkout hold(s) back to available pool.")
+
+    elif action == "release_cancelled_orders":
+        count = inventory_intel.reconcile_cancelled_order_holds(actor=request.user, reason=reason)
+        messages.success(request, f"Released {count} active reservation(s) on cancelled orders.")
+
+    else:
+        messages.error(request, f"Unknown reconciliation action: '{action}'")
+
+    next_url = (
+        request.POST.get("next")
+        or request.META.get("HTTP_REFERER")
+        or reverse("backoffice:inventory_reconciliation")
+    )
+    return redirect(next_url)
 
 
 @backoffice_access(MARKETING_VIEW)
