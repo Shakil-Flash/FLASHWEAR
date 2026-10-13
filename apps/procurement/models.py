@@ -15,7 +15,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from django.conf import settings
-from django.core.validators import MinValueValidator
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.db.models import F, Q, Sum
 from django.utils import timezone
@@ -27,8 +27,12 @@ if TYPE_CHECKING:
 __all__ = [
     "CreditNoteApplication",
     "CreditNoteStatus",
+    "ExpenseBudget",
+    "ExpenseCategory",
+    "ExpenseStatus",
     "InvoiceMatchingStatus",
     "InvoiceMatchRecord",
+    "OperatingExpense",
     "PaymentMethod",
     "PurchaseOrder",
     "PurchaseOrderItem",
@@ -1246,4 +1250,279 @@ class CreditNoteApplication(models.Model):
 
     def __str__(self) -> str:
         return f"{self.credit_note.credit_note_number} -> {self.invoice.invoice_number}: {self.amount}"
+
+
+# =============================================================================
+# Phase 47: Operating Expense Management & Budgets
+# =============================================================================
+
+
+class ExpenseStatus(models.TextChoices):
+    DRAFT = "draft", _("Draft")
+    SUBMITTED = "submitted", _("Submitted for Approval")
+    APPROVED = "approved", _("Approved")
+    REJECTED = "rejected", _("Rejected")
+    PAID = "paid", _("Paid")
+    VOIDED = "voided", _("Voided")
+
+
+class ExpenseCategory(models.Model):
+    """Operating expense category for cost accounting and departmental budgeting."""
+
+    name = models.CharField(_("category name"), max_length=100, unique=True)
+    code = models.CharField(_("category code"), max_length=32, unique=True, db_index=True)
+    description = models.TextField(_("description"), blank=True)
+    is_active = models.BooleanField(_("active"), default=True)
+    created_at = models.DateTimeField(_("created at"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("updated at"), auto_now=True)
+
+    class Meta:
+        verbose_name = _("expense category")
+        verbose_name_plural = _("expense categories")
+        ordering = ("name",)
+
+    def __str__(self) -> str:
+        return f"{self.name} ({self.code})"
+
+
+class ExpenseBudget(models.Model):
+    """Monthly planned spending limit for an expense category."""
+
+    category = models.ForeignKey(
+        ExpenseCategory,
+        on_delete=models.CASCADE,
+        related_name="budgets",
+        verbose_name=_("category"),
+    )
+    year = models.PositiveIntegerField(_("year"))
+    month = models.PositiveSmallIntegerField(
+        _("month"),
+        validators=[MinValueValidator(1), MaxValueValidator(12)],
+    )
+    budget_amount = models.DecimalField(
+        _("budget amount"),
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal("0.00"))],
+    )
+    currency = models.CharField(_("currency"), max_length=3, default="USD")
+    warning_threshold_percent = models.PositiveSmallIntegerField(
+        _("warning threshold %"),
+        default=80,
+        validators=[MinValueValidator(1), MaxValueValidator(100)],
+        help_text=_("Trigger a budget warning when actual spending reaches this % of budget."),
+    )
+    notes = models.TextField(_("notes"), blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_budgets",
+        verbose_name=_("created by"),
+    )
+    created_at = models.DateTimeField(_("created at"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("updated at"), auto_now=True)
+
+    class Meta:
+        verbose_name = _("expense budget")
+        verbose_name_plural = _("expense budgets")
+        ordering = ("-year", "-month", "category__name")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["category", "year", "month"],
+                name="procurement_budget_unique_category_year_month",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(budget_amount__gte=0),
+                name="procurement_budget_amount_gte_0",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.category.name} ({self.period}): {self.currency} {self.budget_amount}"
+
+    @property
+    def period(self) -> str:
+        return f"{self.year:04d}-{self.month:02d}"
+
+
+class OperatingExpense(models.Model):
+    """General operational overhead expenditure (OpEx)."""
+
+    expense_number = models.CharField(
+        _("expense number"),
+        max_length=32,
+        unique=True,
+        db_index=True,
+        help_text=_("Internal handle: EXP-YYYYMM-XXXX."),
+    )
+    title = models.CharField(_("title"), max_length=200)
+    description = models.TextField(_("description"), blank=True)
+    category = models.ForeignKey(
+        ExpenseCategory,
+        on_delete=models.PROTECT,
+        related_name="expenses",
+        verbose_name=_("category"),
+    )
+    supplier = models.ForeignKey(
+        Supplier,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="operating_expenses",
+        verbose_name=_("supplier / vendor"),
+    )
+    payee_name = models.CharField(
+        _("payee name"),
+        max_length=200,
+        blank=True,
+        help_text=_("Vendor, contractor, landlord, or payee if not an existing supplier."),
+    )
+    supplier_invoice = models.ForeignKey(
+        SupplierInvoice,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="linked_operating_expenses",
+        verbose_name=_("originating supplier invoice"),
+        help_text=_("Link to supplier invoice if expense originates from a vendor bill to prevent duplicate records."),
+    )
+    expense_date = models.DateField(
+        _("expense date"),
+        default=timezone.localdate,
+        db_index=True,
+    )
+    accounting_period = models.CharField(
+        _("accounting period"),
+        max_length=7,
+        db_index=True,
+        help_text=_("Reporting month: YYYY-MM."),
+    )
+    amount = models.DecimalField(
+        _("pre-tax amount"),
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal("0.01"))],
+    )
+    tax_amount = models.DecimalField(
+        _("tax amount"),
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        validators=[MinValueValidator(Decimal("0.00"))],
+    )
+    total_amount = models.DecimalField(
+        _("total amount"),
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal("0.01"))],
+    )
+    currency = models.CharField(_("currency"), max_length=3, default="USD")
+    status = models.CharField(
+        _("status"),
+        max_length=20,
+        choices=ExpenseStatus.choices,
+        default=ExpenseStatus.DRAFT,
+        db_index=True,
+    )
+    payment_date = models.DateField(_("payment date"), null=True, blank=True)
+    payment_method = models.CharField(
+        _("payment method"),
+        max_length=32,
+        choices=PaymentMethod.choices,
+        blank=True,
+    )
+    payment_reference = models.CharField(
+        _("payment reference"),
+        max_length=100,
+        blank=True,
+        help_text=_("Bank transfer ID, card transaction reference, or check number."),
+    )
+    is_recurring = models.BooleanField(_("is recurring"), default=False)
+    recurrence_frequency = models.CharField(
+        _("recurrence frequency"),
+        max_length=20,
+        blank=True,
+        choices=[
+            ("weekly", _("Weekly")),
+            ("monthly", _("Monthly")),
+            ("quarterly", _("Quarterly")),
+            ("annually", _("Annually")),
+        ],
+    )
+    receipt = models.FileField(
+        _("receipt / supporting document"),
+        upload_to="expenses/receipts/%Y/%m/",
+        null=True,
+        blank=True,
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_expenses",
+        verbose_name=_("created by"),
+    )
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="approved_expenses",
+        verbose_name=_("approved by"),
+    )
+    approved_at = models.DateTimeField(_("approved at"), null=True, blank=True)
+    rejection_reason = models.TextField(_("rejection reason"), blank=True)
+    notes = models.TextField(_("notes"), blank=True)
+    correction_reason = models.TextField(
+        _("correction reason"),
+        blank=True,
+        help_text=_("Documented rationale for audited modifications after creation."),
+    )
+    created_at = models.DateTimeField(_("created at"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("updated at"), auto_now=True)
+
+    class Meta:
+        verbose_name = _("operating expense")
+        verbose_name_plural = _("operating expenses")
+        ordering = ("-expense_date", "-pk")
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(amount__gte=0),
+                name="procurement_expense_amount_gte_0",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(tax_amount__gte=0),
+                name="procurement_expense_tax_gte_0",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(total_amount__gte=0),
+                name="procurement_expense_total_gte_0",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.expense_number} - {self.title} ({self.currency} {self.total_amount})"
+
+    @property
+    def can_edit(self) -> bool:
+        return self.status in (ExpenseStatus.DRAFT, ExpenseStatus.REJECTED)
+
+    @property
+    def can_submit(self) -> bool:
+        return self.status == ExpenseStatus.DRAFT
+
+    @property
+    def can_approve(self) -> bool:
+        return self.status == ExpenseStatus.SUBMITTED
+
+    @property
+    def can_pay(self) -> bool:
+        return self.status == ExpenseStatus.APPROVED
+
+    @property
+    def can_void(self) -> bool:
+        return self.status in (ExpenseStatus.DRAFT, ExpenseStatus.SUBMITTED, ExpenseStatus.APPROVED)
 

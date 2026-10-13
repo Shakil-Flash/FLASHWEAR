@@ -7,7 +7,10 @@ from django.utils.translation import gettext_lazy as _
 
 from apps.procurement.models import (
     CreditNoteApplication,
+    ExpenseBudget,
+    ExpenseCategory,
     InvoiceMatchRecord,
+    OperatingExpense,
     PurchaseOrder,
     PurchaseOrderItem,
     PurchaseOrderReceipt,
@@ -236,4 +239,46 @@ class SupplierCreditNoteAdmin(admin.ModelAdmin):
     autocomplete_fields = ("supplier", "invoice")
     readonly_fields = ("created_at", "updated_at")
     inlines = (CreditNoteApplicationInline,)
+
+
+@admin.register(ExpenseCategory)
+class ExpenseCategoryAdmin(admin.ModelAdmin):
+    list_display = ("name", "code", "is_active", "created_at")
+    list_filter = ("is_active",)
+    search_fields = ("name", "code", "description")
+
+
+@admin.register(ExpenseBudget)
+class ExpenseBudgetAdmin(admin.ModelAdmin):
+    list_display = (
+        "category",
+        "year",
+        "month",
+        "budget_amount",
+        "currency",
+        "warning_threshold_percent",
+    )
+    list_filter = ("year", "month", "category")
+    search_fields = ("category__name", "category__code", "notes")
+    autocomplete_fields = ("category",)
+
+
+@admin.register(OperatingExpense)
+class OperatingExpenseAdmin(admin.ModelAdmin):
+    list_display = (
+        "expense_number",
+        "title",
+        "category",
+        "supplier",
+        "payee_name",
+        "total_amount",
+        "currency",
+        "status",
+        "expense_date",
+        "payment_date",
+    )
+    list_filter = ("status", "category", "currency", "expense_date", "is_recurring")
+    search_fields = ("expense_number", "title", "payee_name", "supplier__name", "payment_reference")
+    autocomplete_fields = ("category", "supplier", "supplier_invoice")
+    readonly_fields = ("created_at", "updated_at", "approved_at")
 

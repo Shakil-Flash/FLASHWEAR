@@ -28,8 +28,12 @@ from apps.inventory.services import adjust_stock
 from apps.procurement.models import (
     CreditNoteApplication,
     CreditNoteStatus,
+    ExpenseBudget,
+    ExpenseCategory,
+    ExpenseStatus,
     InvoiceMatchingStatus,
     InvoiceMatchRecord,
+    OperatingExpense,
     PaymentMethod,
     PurchaseOrder,
     PurchaseOrderItem,
@@ -53,6 +57,7 @@ __all__ = [
     "DuplicateInvoiceError",
     "DuplicateReceiptError",
     "InsufficientInvoiceBalanceError",
+    "InvalidExpenseOperationError",
     "InvalidInvoiceOperationError",
     "InvalidStatusTransition",
     "OrderImmutableError",
@@ -61,33 +66,46 @@ __all__ = [
     "ProcurementError",
     "SeparationOfDutiesError",
     "apply_credit_note_to_invoice",
+    "approve_operating_expense",
     "approve_purchase_order",
     "approve_supplier_invoice",
     "cancel_purchase_order",
+    "create_operating_expense",
+    "create_or_update_budget",
     "create_purchase_order",
     "create_supplier",
     "create_supplier_credit_note",
     "create_supplier_invoice",
     "dispute_supplier_invoice",
+    "generate_expense_number",
     "generate_payment_reference",
     "generate_po_reference",
     "normalize_invoice_number",
+    "pay_operating_expense",
     "perform_three_way_match",
     "receive_purchase_order_delivery",
     "record_supplier_payment",
+    "reject_operating_expense",
     "reverse_supplier_payment",
     "send_purchase_order",
     "submit_for_approval",
+    "submit_operating_expense",
     "submit_supplier_invoice",
+    "update_operating_expense",
     "update_purchase_order",
     "update_supplier",
     "update_supplier_invoice",
+    "void_operating_expense",
     "void_supplier_invoice",
 ]
 
 
 class ProcurementError(Exception):
     """Base exception for procurement domain failures."""
+
+
+class InvalidExpenseOperationError(ProcurementError):
+    """Illegal operation attempted on operating expense in current status."""
 
 
 class InvalidStatusTransition(ProcurementError):
@@ -1697,4 +1715,388 @@ def apply_credit_note_to_invoice(
         },
     )
     return app
+
+
+# =============================================================================
+# Phase 47: Operating Expense & Budget Management Services
+# =============================================================================
+
+
+def generate_expense_number() -> str:
+    """Generate a unique human-friendly expense number: EXP-YYYYMM-XXXX."""
+    date_str = timezone.localdate().strftime("%Y%m")
+    prefix = f"EXP-{date_str}-"
+    latest = (
+        OperatingExpense.objects.filter(expense_number__startswith=prefix)
+        .order_by("-expense_number")
+        .values_list("expense_number", flat=True)
+        .first()
+    )
+    if latest:
+        try:
+            seq = int(latest.split("-")[-1]) + 1
+        except (ValueError, IndexError):
+            import secrets
+            seq = secrets.randbelow(8999) + 1000
+    else:
+        seq = 1
+    return f"{prefix}{seq:04d}"
+
+
+def create_operating_expense(
+    *,
+    title: str,
+    category: ExpenseCategory,
+    amount: Decimal,
+    expense_date: Any = None,
+    tax_amount: Decimal = Decimal("0.00"),
+    description: str = "",
+    supplier: Supplier | None = None,
+    payee_name: str = "",
+    supplier_invoice: SupplierInvoice | None = None,
+    currency: str = "USD",
+    is_recurring: bool = False,
+    recurrence_frequency: str = "",
+    receipt: Any = None,
+    notes: str = "",
+    user: Any = None,
+) -> OperatingExpense:
+    """Record a new operating expense in DRAFT status."""
+    title = title.strip()
+    if not title:
+        raise ValidationError(_("Expense title is required."))
+
+    amt = Decimal(str(amount))
+    tax_amt = Decimal(str(tax_amount or "0.00"))
+    if amt <= Decimal("0.00"):
+        raise ValidationError(_("Expense amount must be greater than zero."))
+    if tax_amt < Decimal("0.00"):
+        raise ValidationError(_("Tax amount cannot be negative."))
+
+    total_amt = amt + tax_amt
+    exp_date = expense_date or timezone.localdate()
+    period = exp_date.strftime("%Y-%m")
+
+    if supplier and not payee_name:
+        payee_name = supplier.name
+
+    expense_num = generate_expense_number()
+
+    expense = OperatingExpense.objects.create(
+        expense_number=expense_num,
+        title=title,
+        description=description.strip(),
+        category=category,
+        supplier=supplier,
+        payee_name=payee_name.strip(),
+        supplier_invoice=supplier_invoice,
+        expense_date=exp_date,
+        accounting_period=period,
+        amount=amt,
+        tax_amount=tax_amt,
+        total_amount=total_amt,
+        currency=currency,
+        status=ExpenseStatus.DRAFT,
+        is_recurring=is_recurring,
+        recurrence_frequency=recurrence_frequency,
+        receipt=receipt,
+        notes=notes.strip(),
+        created_by=user,
+    )
+
+    audit_service.record(
+        actor=user,
+        domain=AuditEvent.Domain.PAYMENTS,
+        action="expense.create",
+        object_type="procurement.operating_expense",
+        object_id=str(expense.pk),
+        object_repr=str(expense),
+        reason=f"Created operating expense {expense.expense_number} ({expense.title})",
+        metadata={
+            "expense_number": expense.expense_number,
+            "category": category.name,
+            "total_amount": str(expense.total_amount),
+            "currency": expense.currency,
+        },
+    )
+    return expense
+
+
+def update_operating_expense(
+    expense: OperatingExpense,
+    *,
+    title: str | None = None,
+    category: ExpenseCategory | None = None,
+    amount: Decimal | None = None,
+    tax_amount: Decimal | None = None,
+    expense_date: Any = None,
+    description: str | None = None,
+    supplier: Supplier | None = None,
+    payee_name: str | None = None,
+    supplier_invoice: SupplierInvoice | None = None,
+    currency: str | None = None,
+    is_recurring: bool | None = None,
+    recurrence_frequency: str | None = None,
+    receipt: Any = None,
+    notes: str | None = None,
+    correction_reason: str = "",
+    user: Any = None,
+) -> OperatingExpense:
+    """Update operating expense details with validation and state protection."""
+    if expense.status in (ExpenseStatus.PAID, ExpenseStatus.VOIDED):
+        raise InvalidExpenseOperationError(
+            f"Cannot edit expense {expense.expense_number} in '{expense.status}' status."
+        )
+
+    if expense.status == ExpenseStatus.APPROVED and not correction_reason.strip():
+        raise ValidationError(_("A documented correction reason is required to edit an approved expense."))
+
+    if title is not None:
+        title = title.strip()
+        if not title:
+            raise ValidationError(_("Expense title cannot be empty."))
+        expense.title = title
+
+    if category is not None:
+        expense.category = category
+
+    if description is not None:
+        expense.description = description.strip()
+
+    if supplier is not None:
+        expense.supplier = supplier
+    if payee_name is not None:
+        expense.payee_name = payee_name.strip()
+    if supplier_invoice is not None:
+        expense.supplier_invoice = supplier_invoice
+
+    if expense_date is not None:
+        expense.expense_date = expense_date
+        expense.accounting_period = expense_date.strftime("%Y-%m")
+
+    if amount is not None:
+        amt = Decimal(str(amount))
+        if amt <= Decimal("0.00"):
+            raise ValidationError(_("Expense amount must be greater than zero."))
+        expense.amount = amt
+
+    if tax_amount is not None:
+        tax_amt = Decimal(str(tax_amount))
+        if tax_amt < Decimal("0.00"):
+            raise ValidationError(_("Tax amount cannot be negative."))
+        expense.tax_amount = tax_amt
+
+    expense.total_amount = expense.amount + expense.tax_amount
+
+    if currency is not None:
+        expense.currency = currency
+    if is_recurring is not None:
+        expense.is_recurring = is_recurring
+    if recurrence_frequency is not None:
+        expense.recurrence_frequency = recurrence_frequency
+    if receipt is not None:
+        expense.receipt = receipt
+    if notes is not None:
+        expense.notes = notes.strip()
+    if correction_reason:
+        expense.correction_reason = correction_reason.strip()
+
+    expense.save()
+
+    audit_service.record(
+        actor=user,
+        domain=AuditEvent.Domain.PAYMENTS,
+        action="expense.update",
+        object_type="procurement.operating_expense",
+        object_id=str(expense.pk),
+        object_repr=str(expense),
+        reason=f"Updated operating expense {expense.expense_number}" + (f": {correction_reason}" if correction_reason else ""),
+        metadata={"total_amount": str(expense.total_amount)},
+    )
+    return expense
+
+
+def submit_operating_expense(expense: OperatingExpense, user: Any = None) -> OperatingExpense:
+    """Submit a draft or rejected expense for management review."""
+    if expense.status not in (ExpenseStatus.DRAFT, ExpenseStatus.REJECTED):
+        raise InvalidStatusTransition(
+            f"Cannot submit expense in '{expense.status}' status. Only draft or rejected expenses can be submitted."
+        )
+    expense.status = ExpenseStatus.SUBMITTED
+    expense.save(update_fields=["status", "updated_at"])
+
+    audit_service.record(
+        actor=user,
+        domain=AuditEvent.Domain.PAYMENTS,
+        action="expense.submit",
+        object_type="procurement.operating_expense",
+        object_id=str(expense.pk),
+        object_repr=str(expense),
+        reason=f"Submitted expense {expense.expense_number} for approval",
+    )
+    return expense
+
+
+def approve_operating_expense(expense: OperatingExpense, user: Any) -> OperatingExpense:
+    """Approve a submitted expense with separation of duties enforcement."""
+    if expense.status != ExpenseStatus.SUBMITTED:
+        raise InvalidStatusTransition(
+            f"Cannot approve expense in '{expense.status}' status. Only submitted expenses can be approved."
+        )
+
+    # Enforce separation of duties: preparer cannot approve their own expense unless superuser
+    user_pk = getattr(user, "pk", None)
+    is_super = getattr(user, "is_superuser", False)
+    if expense.created_by_id and expense.created_by_id == user_pk and not is_super:
+        raise SeparationOfDutiesError(
+            _("Separation of duties: you cannot approve your own operating expense.")
+        )
+
+    expense.status = ExpenseStatus.APPROVED
+    expense.approved_by = user
+    expense.approved_at = timezone.now()
+    expense.save(update_fields=["status", "approved_by", "approved_at", "updated_at"])
+
+    audit_service.record(
+        actor=user,
+        domain=AuditEvent.Domain.PAYMENTS,
+        action="expense.approve",
+        object_type="procurement.operating_expense",
+        object_id=str(expense.pk),
+        object_repr=str(expense),
+        reason=f"Approved expense {expense.expense_number} ({expense.currency} {expense.total_amount})",
+        metadata={"total_amount": str(expense.total_amount)},
+    )
+    return expense
+
+
+def reject_operating_expense(expense: OperatingExpense, user: Any, rejection_reason: str) -> OperatingExpense:
+    """Reject a submitted operating expense with a mandatory rejection reason."""
+    if expense.status != ExpenseStatus.SUBMITTED:
+        raise InvalidStatusTransition(
+            f"Cannot reject expense in '{expense.status}' status. Only submitted expenses can be rejected."
+        )
+
+    reason = rejection_reason.strip()
+    if not reason:
+        raise ValidationError(_("A documented rejection reason is required."))
+
+    expense.status = ExpenseStatus.REJECTED
+    expense.rejection_reason = reason
+    expense.save(update_fields=["status", "rejection_reason", "updated_at"])
+
+    audit_service.record(
+        actor=user,
+        domain=AuditEvent.Domain.PAYMENTS,
+        action="expense.reject",
+        object_type="procurement.operating_expense",
+        object_id=str(expense.pk),
+        object_repr=str(expense),
+        reason=f"Rejected expense {expense.expense_number}: {reason}",
+    )
+    return expense
+
+
+def pay_operating_expense(
+    expense: OperatingExpense,
+    user: Any,
+    payment_date: Any = None,
+    payment_method: str = "",
+    payment_reference: str = "",
+) -> OperatingExpense:
+    """Record payment settlement for an approved operating expense."""
+    if expense.status != ExpenseStatus.APPROVED:
+        raise InvalidExpenseOperationError(
+            f"Cannot record payment for expense in '{expense.status}' status. Only approved expenses can be settled."
+        )
+
+    expense.status = ExpenseStatus.PAID
+    expense.payment_date = payment_date or timezone.localdate()
+    expense.payment_method = payment_method or PaymentMethod.BANK_TRANSFER
+    expense.payment_reference = payment_reference.strip()
+    expense.save(update_fields=["status", "payment_date", "payment_method", "payment_reference", "updated_at"])
+
+    audit_service.record(
+        actor=user,
+        domain=AuditEvent.Domain.PAYMENTS,
+        action="expense.pay",
+        object_type="procurement.operating_expense",
+        object_id=str(expense.pk),
+        object_repr=str(expense),
+        reason=f"Marked expense {expense.expense_number} as paid ({expense.currency} {expense.total_amount})",
+        metadata={"total_amount": str(expense.total_amount), "payment_date": str(expense.payment_date)},
+    )
+    return expense
+
+
+def void_operating_expense(expense: OperatingExpense, user: Any, reason: str = "") -> OperatingExpense:
+    """Void an unpaid operating expense."""
+    if expense.status == ExpenseStatus.PAID:
+        raise InvalidExpenseOperationError(
+            f"Cannot void paid expense {expense.expense_number}. Settle payment adjustments separately."
+        )
+    if expense.status == ExpenseStatus.VOIDED:
+        raise InvalidStatusTransition(f"Expense {expense.expense_number} is already voided.")
+
+    expense.status = ExpenseStatus.VOIDED
+    if reason.strip():
+        expense.correction_reason = reason.strip()
+    expense.save(update_fields=["status", "correction_reason", "updated_at"])
+
+    audit_service.record(
+        actor=user,
+        domain=AuditEvent.Domain.PAYMENTS,
+        action="expense.void",
+        object_type="procurement.operating_expense",
+        object_id=str(expense.pk),
+        object_repr=str(expense),
+        reason=f"Voided operating expense {expense.expense_number}" + (f": {reason}" if reason else ""),
+    )
+    return expense
+
+
+def create_or_update_budget(
+    *,
+    category: ExpenseCategory,
+    year: int,
+    month: int,
+    budget_amount: Decimal,
+    currency: str = "USD",
+    warning_threshold_percent: int = 80,
+    notes: str = "",
+    user: Any = None,
+) -> ExpenseBudget:
+    """Create or update a monthly category budget."""
+    if not (1 <= month <= 12):
+        raise ValidationError(_("Budget month must be between 1 and 12."))
+    if not (1 <= warning_threshold_percent <= 100):
+        raise ValidationError(_("Warning threshold must be between 1% and 100%."))
+
+    amt = Decimal(str(budget_amount))
+    if amt < Decimal("0.00"):
+        raise ValidationError(_("Budget amount cannot be negative."))
+
+    budget, created = ExpenseBudget.objects.update_or_create(
+        category=category,
+        year=year,
+        month=month,
+        defaults={
+            "budget_amount": amt,
+            "currency": currency,
+            "warning_threshold_percent": warning_threshold_percent,
+            "notes": notes.strip(),
+            "created_by": user,
+        },
+    )
+
+    audit_service.record(
+        actor=user,
+        domain=AuditEvent.Domain.PAYMENTS,
+        action="budget.set",
+        object_type="procurement.expense_budget",
+        object_id=str(budget.pk),
+        object_repr=str(budget),
+        reason=f"{'Created' if created else 'Updated'} budget for {category.name} ({year}-{month:02d}): {currency} {amt}",
+    )
+    return budget
 
