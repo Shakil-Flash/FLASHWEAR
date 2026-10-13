@@ -1,0 +1,408 @@
+{% extends "backoffice/base.html" %}
+
+{% block title %}
+    Invoice {{ invoice.invoice_number }} &mdash; {{ invoice.supplier.name }}
+{% endblock title %}
+{% block breadcrumb %}
+    <a href="{% url 'backoffice:supplier_invoices' %}" class="hover:underline">Invoices</a> / {{ invoice.invoice_number }}
+{% endblock breadcrumb %}
+
+{% block content %}
+    {# ---- Page Header -------------------------------------------------------------------------- #}
+    <div class="mb-6 flex flex-wrap items-start justify-between gap-4 border-b border-slate-200 pb-6 dark:border-slate-800">
+        <div>
+            <div class="flex items-center gap-3">
+                <h1 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-3xl font-mono">
+                    {{ invoice.invoice_number }}
+                </h1>
+                {# Status Badge #}
+                {% if invoice.status == 'draft' %}
+                    <span class="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                        Draft
+                    </span>
+                {% elif invoice.status == 'submitted' %}
+                    <span class="inline-flex items-center rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                        Submitted for Approval
+                    </span>
+                {% elif invoice.status == 'approved' %}
+                    <span class="inline-flex items-center rounded-full bg-indigo-100 px-3 py-1 text-xs font-bold text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300">
+                        Approved (Liability Recognized)
+                    </span>
+                {% elif invoice.status == 'partially_paid' %}
+                    <span class="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-800 dark:bg-blue-950 dark:text-blue-300">
+                        Partially Paid
+                    </span>
+                {% elif invoice.status == 'paid' %}
+                    <span class="inline-flex items-center rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                        Paid in Full
+                    </span>
+                {% elif invoice.status == 'disputed' %}
+                    <span class="inline-flex items-center rounded-full bg-rose-100 px-3 py-1 text-xs font-bold text-rose-800 dark:bg-rose-950 dark:text-rose-300">
+                        Disputed
+                    </span>
+                {% elif invoice.status == 'voided' %}
+                    <span class="inline-flex items-center rounded-full bg-slate-200 px-3 py-1 text-xs font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-400">
+                        Voided
+                    </span>
+                {% endif %}
+
+                {% if invoice.is_overdue %}
+                    <span class="inline-flex items-center rounded-full bg-rose-100 px-2.5 py-0.5 text-xs font-bold text-rose-700 dark:bg-rose-950 dark:text-rose-400">
+                        ⚠ Overdue ({{ invoice.days_overdue }} days)
+                    </span>
+                {% endif %}
+            </div>
+            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                Supplier: <a href="{% url 'backoffice:supplier_detail' invoice.supplier.pk %}" class="font-semibold text-slate-900 hover:underline dark:text-white">{{ invoice.supplier.name }}</a>
+                ({{ invoice.supplier.code }}) · Prepared {{ invoice.created_at|date:"Y-m-d H:i" }}
+            </p>
+        </div>
+
+        {# ---- Action Buttons ------------------------------------------------------------------- #}
+        <div class="flex flex-wrap items-center gap-2">
+            {% if can_manage and invoice.can_edit %}
+                <a href="{% url 'backoffice:supplier_invoice_edit' invoice.pk %}" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-xs transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                    Edit Bill
+                </a>
+            {% endif %}
+
+            {% if can_manage and invoice.status == 'draft' %}
+                <form method="post" action="{% url 'backoffice:supplier_invoice_action' invoice.pk %}" class="inline">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="submit" />
+                    <button type="submit" class="rounded-lg bg-indigo-600 px-3.5 py-2 text-xs font-semibold text-white shadow-xs transition hover:bg-indigo-500">
+                        Submit for Review
+                    </button>
+                </form>
+            {% endif %}
+
+            {% if can_approve_this_invoice and invoice.can_approve %}
+                {% if match_record and not match_record.is_within_tolerance and not match_record.override_approved %}
+                    {# Discrepancy override approval form #}
+                    <form method="post" action="{% url 'backoffice:supplier_invoice_action' invoice.pk %}" class="inline-flex items-center gap-2">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="approve" />
+                        <input type="hidden" name="override_discrepancies" value="on" />
+                        <input
+                            type="text"
+                            name="override_reason"
+                            required
+                            placeholder="Reason for discrepancy override..."
+                            class="rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs dark:border-amber-700 dark:bg-slate-800 dark:text-white"
+                        />
+                        <button type="submit" class="rounded-lg bg-amber-600 px-3.5 py-2 text-xs font-semibold text-white shadow-xs transition hover:bg-amber-500">
+                            Approve with Override
+                        </button>
+                    </form>
+                {% else %}
+                    <form method="post" action="{% url 'backoffice:supplier_invoice_action' invoice.pk %}" class="inline">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="approve" />
+                        <button type="submit" class="rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white shadow-xs transition hover:bg-emerald-500">
+                            Approve Liability
+                        </button>
+                    </form>
+                {% endif %}
+            {% endif %}
+
+            {% if can_manage and invoice.status == 'submitted' or can_manage and invoice.status == 'approved' %}
+                <form method="post" action="{% url 'backoffice:supplier_invoice_action' invoice.pk %}" class="inline">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="dispute" />
+                    <input type="hidden" name="dispute_reason" value="Staff flagged discrepancy / billing dispute" />
+                    <button type="submit" class="rounded-lg border border-rose-300 bg-white px-3.5 py-2 text-xs font-semibold text-rose-600 shadow-xs transition hover:bg-rose-50 dark:border-rose-800 dark:bg-slate-800 dark:text-rose-400">
+                        Dispute Bill
+                    </button>
+                </form>
+            {% endif %}
+
+            {% if can_approve and invoice.can_void %}
+                <form method="post" action="{% url 'backoffice:supplier_invoice_action' invoice.pk %}" class="inline">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="void" />
+                    <input type="hidden" name="void_reason" value="Administrative void" />
+                    <button
+                        type="submit"
+                        data-confirm="Are you sure you want to void this invoice? Accounting liabilities will be reversed."
+                        class="rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-600 shadow-xs transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400"
+                    >
+                        Void
+                    </button>
+                </form>
+            {% endif %}
+
+            {% if can_pay and invoice.can_pay %}
+                <a href="{% url 'backoffice:supplier_payment_create' %}?supplier={{ invoice.supplier.pk }}" class="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white shadow-xs transition hover:bg-emerald-500">
+                    Disburse Payment &rarr;
+                </a>
+            {% endif %}
+        </div>
+    </div>
+
+    {# ---- Separation of Duties Alert ----------------------------------------------------------- #}
+    {% if is_preparer and invoice.status == 'submitted' and not user.is_superuser %}
+        <div class="mb-6 rounded-xl border border-blue-200 bg-blue-50/70 p-4 text-xs text-blue-800 dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-300">
+            <strong>Separation of Duties Policy:</strong> You prepared this bill. Under FLASHWEAR governance controls, approval must be performed by a different authorized finance team member.
+        </div>
+    {% endif %}
+
+    {# ---- 3-Way Matching Scorecard ------------------------------------------------------------- #}
+    {% if invoice.purchase_order %}
+        <div class="mb-6 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+            <div class="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3 dark:border-slate-800">
+                <div>
+                    <h2 class="text-base font-bold text-slate-900 dark:text-white">Three-Way Matching Scorecard</h2>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">
+                        Comparing Invoice vs Purchase Order <a href="{% url 'backoffice:purchase_order_detail' invoice.purchase_order.pk %}" class="font-mono text-indigo-600 hover:underline dark:text-indigo-400">{{ invoice.purchase_order.reference }}</a> vs Warehouse Goods Receipts.
+                    </p>
+                </div>
+                <div class="flex items-center gap-2">
+                    {% if match_record %}
+                        {% if match_record.status == 'matched' %}
+                            <span class="inline-flex items-center rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                                ✓ Fully Matched
+                            </span>
+                        {% elif match_record.status == 'missing_receipt' %}
+                            <span class="inline-flex items-center rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                                ⚠ Missing Warehouse Receipts
+                            </span>
+                        {% elif match_record.status == 'overbilled' %}
+                            <span class="inline-flex items-center rounded-full bg-rose-100 px-3 py-1 text-xs font-bold text-rose-800 dark:bg-rose-950 dark:text-rose-300">
+                                ✕ Overbilled Quantities
+                            </span>
+                        {% elif match_record.status == 'variance_price' %}
+                            <span class="inline-flex items-center rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                                Δ Price Variance
+                            </span>
+                        {% else %}
+                            <span class="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                                {{ match_record.get_status_display }}
+                            </span>
+                        {% endif %}
+                    {% endif %}
+
+                    <form method="post" action="{% url 'backoffice:supplier_invoice_action' invoice.pk %}" class="inline">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="match" />
+                        <button type="submit" class="rounded-md border border-slate-200 px-2 py-1 text-2xs text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-400">
+                            Re-Evaluate Match
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            {% if match_record %}
+                <p class="text-xs text-slate-600 dark:text-slate-300 mb-4">{{ match_record.summary }}</p>
+
+                {% if match_record.discrepancy_details %}
+                    <div class="overflow-x-auto rounded-lg border border-rose-200 bg-rose-50/30 p-3 dark:border-rose-900/40 dark:bg-rose-950/20">
+                        <h3 class="mb-2 text-xs font-bold uppercase tracking-wider text-rose-700 dark:text-rose-300">Discrepancy Findings</h3>
+                        <table class="w-full text-left text-xs">
+                            <thead>
+                                <tr class="text-slate-500 border-b border-rose-200 pb-1 dark:border-rose-900/50">
+                                    <th class="pb-1 font-semibold">Type</th>
+                                    <th class="pb-1 font-semibold">Line Item</th>
+                                    <th class="pb-1 font-semibold">Finding / Variance</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-rose-100 dark:divide-rose-900/30">
+                                {% for d in match_record.discrepancy_details %}
+                                    <tr>
+                                        <td class="py-1.5 font-semibold capitalize text-rose-800 dark:text-rose-300">{{ d.type }}</td>
+                                        <td class="py-1.5 text-slate-700 dark:text-slate-300">{{ d.description }}</td>
+                                        <td class="py-1.5 text-slate-600 dark:text-slate-400">
+                                            {% if d.type == 'price_variance' %}
+                                                Invoiced ${{ d.invoiced_unit_cost }} vs PO Agreed ${{ d.agreed_po_unit_cost }} (diff: ${{ d.variance_per_unit }}/unit)
+                                            {% elif d.type == 'unreceived_goods' %}
+                                                Cumulative billed {{ d.cumulative_billed_qty }} vs accepted deliveries {{ d.received_qty }} (unreceived: {{ d.unreceived_quantity }})
+                                            {% elif d.type == 'overbilled_ordered' %}
+                                                Cumulative billed {{ d.cumulative_billed_qty }} vs ordered {{ d.ordered_qty }} (excess: {{ d.over_quantity }})
+                                            {% else %}
+                                                {{ d.notes|default:"Line item variance" }}
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% endif %}
+
+                {% if match_record.override_approved %}
+                    <div class="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300">
+                        <strong>Discrepancy Override Approved:</strong> {{ match_record.override_reason }} (by {{ match_record.reviewed_by.email }} at {{ match_record.reviewed_at|date:"Y-m-d H:i" }})
+                    </div>
+                {% endif %}
+            {% endif %}
+        </div>
+    {% endif %}
+
+    {# ---- Financial Facts Card ----------------------------------------------------------------- #}
+    <div class="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-6">
+        <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+            <span class="text-xs text-slate-500">Invoice Date</span>
+            <div class="mt-1 text-sm font-semibold text-slate-900 dark:text-white">{{ invoice.invoice_date|date:"Y-m-d" }}</div>
+        </div>
+        <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+            <span class="text-xs text-slate-500">Due Date</span>
+            <div class="mt-1 text-sm font-semibold {% if invoice.is_overdue %}text-rose-600 dark:text-rose-400 font-bold{% else %}text-slate-900 dark:text-white{% endif %}">
+                {{ invoice.due_date|date:"Y-m-d" }}
+            </div>
+        </div>
+        <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+            <span class="text-xs text-slate-500">Subtotal</span>
+            <div class="mt-1 text-sm font-semibold text-slate-900 dark:text-white">${{ invoice.subtotal|floatformat:2 }}</div>
+        </div>
+        <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+            <span class="text-xs text-slate-500">Taxes / Shipping</span>
+            <div class="mt-1 text-sm font-semibold text-slate-900 dark:text-white">
+                ${{ invoice.tax_amount|add:invoice.shipping_amount|floatformat:2 }}
+            </div>
+        </div>
+        <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+            <span class="text-xs text-slate-500">Total Billed</span>
+            <div class="mt-1 text-sm font-bold text-slate-900 dark:text-white">${{ invoice.total_amount|floatformat:2 }}</div>
+        </div>
+        <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+            <span class="text-xs font-semibold uppercase text-indigo-600 dark:text-indigo-400">Outstanding Balance</span>
+            <div class="mt-1 text-lg font-black text-slate-900 dark:text-white">${{ invoice.outstanding_balance|floatformat:2 }}</div>
+        </div>
+    </div>
+
+    {# ---- Line Items Table --------------------------------------------------------------------- #}
+    <div class="mb-8 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900">
+        <div class="border-b border-slate-200 bg-slate-50 px-6 py-4 dark:border-slate-800 dark:bg-slate-800/50">
+            <h2 class="text-base font-bold text-slate-900 dark:text-white">Invoiced Line Items</h2>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+                <thead>
+                    <tr class="border-b border-slate-200 text-slate-500 dark:border-slate-800">
+                        <th class="px-6 py-3 font-semibold">Description</th>
+                        <th class="px-6 py-3 font-semibold">PO Item Link</th>
+                        <th class="px-6 py-3 text-right font-semibold">Quantity</th>
+                        <th class="px-6 py-3 text-right font-semibold">Unit Cost</th>
+                        <th class="px-6 py-3 text-right font-semibold">Line Total</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                    {% for line in lines %}
+                        <tr>
+                            <td class="px-6 py-3 font-medium text-slate-900 dark:text-white">
+                                {{ line.description }}
+                                {% if line.notes %}<span class="block text-2xs text-slate-400">{{ line.notes }}</span>{% endif %}
+                            </td>
+                            <td class="px-6 py-3 font-mono text-slate-600 dark:text-slate-400">
+                                {% if line.po_item %}
+                                    {{ line.po_item.variant.sku }} (PO unit: ${{ line.po_item.unit_cost }})
+                                {% else %}
+                                    <span class="text-slate-400 italic">None</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-3 text-right font-bold text-slate-900 dark:text-white">
+                                {{ line.quantity }}
+                            </td>
+                            <td class="px-6 py-3 text-right font-mono text-slate-700 dark:text-slate-300">
+                                ${{ line.unit_cost|floatformat:2 }}
+                            </td>
+                            <td class="px-6 py-3 text-right font-mono font-bold text-slate-900 dark:text-white">
+                                ${{ line.line_total|floatformat:2 }}
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="5" class="px-6 py-4 text-center text-slate-400">No line items.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {# ---- Settlement & Allocations History ----------------------------------------------------- #}
+    <div class="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
+        {# Payments Allocated #}
+        <div class="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+            <h2 class="mb-4 text-base font-bold text-slate-900 dark:text-white">Payments Applied (${{ invoice.amount_paid|floatformat:2 }})</h2>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                    <thead>
+                        <tr class="border-b border-slate-100 text-slate-400 dark:border-slate-800">
+                            <th class="pb-2 font-semibold">Payment Ref</th>
+                            <th class="pb-2 font-semibold">Date</th>
+                            <th class="pb-2 text-right font-semibold">Allocated</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                        {% for alloc in allocations %}
+                            <tr>
+                                <td class="py-2.5 font-mono font-semibold text-slate-900 dark:text-white">
+                                    {{ alloc.payment.payment_reference }}
+                                </td>
+                                <td class="py-2.5 text-slate-500">{{ alloc.created_at|date:"Y-m-d" }}</td>
+                                <td class="py-2.5 text-right font-bold text-emerald-600 dark:text-emerald-400">
+                                    ${{ alloc.amount|floatformat:2 }}
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="3" class="py-3 text-center text-slate-400">No disbursements applied yet.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        {# Credit Notes Applied #}
+        <div class="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+            <h2 class="mb-4 text-base font-bold text-slate-900 dark:text-white">Credit Notes Applied (${{ invoice.amount_credited|floatformat:2 }})</h2>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                    <thead>
+                        <tr class="border-b border-slate-100 text-slate-400 dark:border-slate-800">
+                            <th class="pb-2 font-semibold">Credit Note #</th>
+                            <th class="pb-2 font-semibold">Date</th>
+                            <th class="pb-2 text-right font-semibold">Amount Applied</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                        {% for ca in credits %}
+                            <tr>
+                                <td class="py-2.5 font-mono font-semibold text-slate-900 dark:text-white">
+                                    {{ ca.credit_note.credit_note_number }}
+                                </td>
+                                <td class="py-2.5 text-slate-500">{{ ca.applied_at|date:"Y-m-d" }}</td>
+                                <td class="py-2.5 text-right font-bold text-indigo-600 dark:text-indigo-400">
+                                    ${{ ca.amount|floatformat:2 }}
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="3" class="py-3 text-center text-slate-400">No credit memos applied.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    {# ---- Notes and Supporting Document -------------------------------------------------------- #}
+    {% if invoice.internal_notes or invoice.attachment %}
+        <div class="mb-8 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+            <h2 class="mb-3 text-base font-bold text-slate-900 dark:text-white">Internal Notes &amp; Documents</h2>
+            {% if invoice.internal_notes %}
+                <p class="text-xs text-slate-700 dark:text-slate-300 mb-3 whitespace-pre-line">{{ invoice.internal_notes }}</p>
+            {% endif %}
+            {% if invoice.attachment %}
+                <div class="flex items-center gap-2 text-xs font-semibold text-indigo-600 dark:text-indigo-400">
+                    <span>Attached Document:</span>
+                    <a href="{{ invoice.attachment.url }}" target="_blank" class="hover:underline flex items-center gap-1 font-mono">
+                        {{ invoice.attachment.name }} &nearr;
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    {% endif %}
+{% endblock content %}

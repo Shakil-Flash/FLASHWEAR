@@ -16,6 +16,10 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from apps.backoffice.permissions import (
+    INVOICES_APPROVE,
+    INVOICES_MANAGE,
+    INVOICES_VIEW,
+    PAYMENTS_AP_RECORD,
     PURCHASING_APPROVE,
     PURCHASING_MANAGE,
     PURCHASING_VIEW,
@@ -24,34 +28,68 @@ from apps.backoffice.permissions import (
 )
 from apps.catalog.models import ProductVariant
 from apps.procurement.models import (
+    CreditNoteStatus,
+    InvoiceMatchingStatus,
+    InvoiceMatchRecord,
+    PaymentMethod,
     PurchaseOrder,
     PurchaseOrderItem,
     PurchaseOrderReceipt,
     PurchaseOrderStatus,
     Supplier,
+    SupplierCreditNote,
+    SupplierInvoice,
+    SupplierInvoiceLine,
+    SupplierInvoiceStatus,
+    SupplierPayment,
+    SupplierPaymentAllocation,
+    SupplierPaymentStatus,
     SupplierVariant,
 )
 from apps.procurement.selectors import (
+    get_accounts_payable_dashboard_metrics,
     get_procurement_dashboard_metrics,
     get_purchase_orders_queryset,
+    get_supplier_ap_summary,
+    get_supplier_credit_notes_queryset,
+    get_supplier_invoices_queryset,
+    get_supplier_payments_queryset,
     get_supplier_performance,
     get_suppliers_queryset,
 )
 from apps.procurement.services import (
+    CreditNoteApplicationError,
+    DiscrepancyApprovalRequired,
+    DuplicateInvoiceError,
     DuplicateReceiptError,
+    InsufficientInvoiceBalanceError,
+    InvalidInvoiceOperationError,
     InvalidStatusTransition,
     OrderImmutableError,
     OverReceiptError,
+    PaymentReversalError,
     ProcurementError,
+    SeparationOfDutiesError,
+    apply_credit_note_to_invoice,
     approve_purchase_order,
+    approve_supplier_invoice,
     cancel_purchase_order,
     create_purchase_order,
     create_supplier,
+    create_supplier_credit_note,
+    create_supplier_invoice,
+    dispute_supplier_invoice,
+    perform_three_way_match,
     receive_purchase_order_delivery,
+    record_supplier_payment,
+    reverse_supplier_payment,
     send_purchase_order,
     submit_for_approval,
+    submit_supplier_invoice,
     update_purchase_order,
     update_supplier,
+    update_supplier_invoice,
+    void_supplier_invoice,
 )
 
 
@@ -621,3 +659,582 @@ def purchase_order_print(request: HttpRequest, pk: int) -> HttpResponse:
         "today": timezone.localdate(),
     }
     return render(request, "backoffice/procurement/order_print.html", context)
+
+
+# =============================================================================
+# Phase 46: Accounts Payable & Supplier Invoice Back Office Views
+# =============================================================================
+
+
+@backoffice_access(INVOICES_VIEW)
+def accounts_payable_dashboard(request: HttpRequest) -> HttpResponse:
+    """Accounts Payable Intelligence Dashboard displaying liabilities, aging, and KPIs."""
+    supplier_id_raw = request.GET.get("supplier")
+    supplier_id = int(supplier_id_raw) if supplier_id_raw and supplier_id_raw.isdigit() else None
+
+    metrics = get_accounts_payable_dashboard_metrics(supplier_id=supplier_id)
+    suppliers = Supplier.objects.filter(is_active=True).order_by("name")
+
+    context = {
+        "title": _("Accounts Payable & Invoice Intelligence"),
+        "active_tab": "accounts_payable",
+        "metrics": metrics,
+        "suppliers": suppliers,
+        "selected_supplier_id": supplier_id,
+    }
+    return render(request, "backoffice/procurement/ap_dashboard.html", context)
+
+
+@backoffice_access(INVOICES_VIEW)
+def supplier_invoices_list(request: HttpRequest) -> HttpResponse:
+    """Searchable, filterable directory of supplier invoices."""
+    q = request.GET.get("q", "").strip()
+    status = request.GET.get("status", "").strip() or None
+    supplier_id_raw = request.GET.get("supplier", "").strip()
+    supplier_id = int(supplier_id_raw) if supplier_id_raw.isdigit() else None
+    overdue_only = request.GET.get("overdue") == "1"
+
+    invoices_qs = get_supplier_invoices_queryset(
+        q=q,
+        supplier_id=supplier_id,
+        status=status,
+        overdue_only=overdue_only,
+    )
+
+    paginator = Paginator(invoices_qs, 20)
+    page_number = request.GET.get("page")
+    page_obj = paginator.get_page(page_number)
+
+    suppliers = Supplier.objects.filter(is_active=True).order_by("name")
+
+    context = {
+        "title": _("Supplier Invoices & Bills"),
+        "active_tab": "accounts_payable",
+        "invoices_page": page_obj,
+        "q": q,
+        "selected_status": status,
+        "selected_supplier_id": supplier_id,
+        "overdue_only": overdue_only,
+        "suppliers": suppliers,
+        "status_choices": SupplierInvoiceStatus.choices,
+    }
+    return render(request, "backoffice/procurement/invoice_list.html", context)
+
+
+@backoffice_access(INVOICES_MANAGE)
+def supplier_invoice_create(request: HttpRequest) -> HttpResponse:
+    """Record a new supplier bill with line items and duplicate safeguards."""
+    suppliers = Supplier.objects.filter(is_active=True).order_by("name")
+    selected_supplier_id = request.GET.get("supplier") or request.POST.get("supplier")
+    selected_supplier = None
+    if selected_supplier_id and str(selected_supplier_id).isdigit():
+        selected_supplier = Supplier.objects.filter(pk=int(selected_supplier_id)).first()
+
+    po_options = []
+    if selected_supplier:
+        po_options = selected_supplier.purchase_orders.exclude(
+            status__in=[PurchaseOrderStatus.DRAFT, PurchaseOrderStatus.CANCELLED]
+        ).order_by("-created_at")
+
+    selected_po_id = request.GET.get("purchase_order") or request.POST.get("purchase_order")
+    selected_po = None
+    if selected_po_id and str(selected_po_id).isdigit():
+        selected_po = PurchaseOrder.objects.filter(pk=int(selected_po_id)).prefetch_related("items__variant__product").first()
+
+    if request.method == "POST":
+        supplier_id = request.POST.get("supplier")
+        supplier = get_object_or_404(Supplier, pk=supplier_id)
+        invoice_number = request.POST.get("invoice_number", "").strip()
+        invoice_date_raw = request.POST.get("invoice_date")
+        due_date_raw = request.POST.get("due_date")
+        currency = request.POST.get("currency", supplier.currency)
+        supplier_ref = request.POST.get("supplier_reference", "").strip()
+        internal_notes = request.POST.get("internal_notes", "").strip()
+        tax_amount = Decimal(request.POST.get("tax_amount", "0.00") or "0.00")
+        shipping_amount = Decimal(request.POST.get("shipping_amount", "0.00") or "0.00")
+        discount_amount = Decimal(request.POST.get("discount_amount", "0.00") or "0.00")
+        is_dup_override = request.POST.get("is_duplicate_override") == "on"
+        dup_override_reason = request.POST.get("duplicate_override_reason", "").strip()
+        attachment = request.FILES.get("attachment")
+
+        po_id = request.POST.get("purchase_order")
+        po = PurchaseOrder.objects.filter(pk=po_id).first() if po_id and str(po_id).isdigit() else None
+
+        # Parse dynamic line items
+        items_data = []
+        item_indices = request.POST.getlist("item_index")
+        for idx in item_indices:
+            desc = request.POST.get(f"line_desc_{idx}", "").strip()
+            qty = int(request.POST.get(f"line_qty_{idx}", 1) or 1)
+            cost = Decimal(request.POST.get(f"line_cost_{idx}", "0.00") or "0.00")
+            po_item_id = request.POST.get(f"line_po_item_{idx}")
+            po_item = PurchaseOrderItem.objects.filter(pk=po_item_id).first() if po_item_id and str(po_item_id).isdigit() else None
+            variant_id = request.POST.get(f"line_variant_{idx}")
+            variant = ProductVariant.objects.filter(pk=variant_id).first() if variant_id and str(variant_id).isdigit() else None
+
+            if desc or po_item:
+                items_data.append({
+                    "description": desc,
+                    "quantity": qty,
+                    "unit_cost": cost,
+                    "po_item": po_item,
+                    "variant": variant or (po_item.variant if po_item else None),
+                    "notes": request.POST.get(f"line_notes_{idx}", "").strip(),
+                })
+
+        try:
+            invoice = create_supplier_invoice(
+                supplier=supplier,
+                invoice_number=invoice_number,
+                invoice_date=invoice_date_raw or timezone.localdate(),
+                due_date=due_date_raw or (timezone.localdate() + timezone.timedelta(days=30)),
+                currency=currency,
+                purchase_order=po,
+                supplier_reference=supplier_ref,
+                tax_amount=tax_amount,
+                shipping_amount=shipping_amount,
+                discount_amount=discount_amount,
+                items_data=items_data,
+                attachment=attachment,
+                internal_notes=internal_notes,
+                is_duplicate_override=is_dup_override,
+                duplicate_override_reason=dup_override_reason,
+                user=request.user,
+            )
+            messages.success(request, _("Supplier invoice %(num)s recorded successfully as draft.") % {"num": invoice.invoice_number})
+            return redirect("backoffice:supplier_invoice_detail", pk=invoice.pk)
+        except DuplicateInvoiceError as ex:
+            messages.error(request, str(ex))
+        except (ProcurementError, ValidationError) as ex:
+            msg = ex.message if hasattr(ex, "message") else str(ex)
+            messages.error(request, msg)
+
+    context = {
+        "title": _("Record Supplier Invoice"),
+        "active_tab": "accounts_payable",
+        "suppliers": suppliers,
+        "selected_supplier": selected_supplier,
+        "po_options": po_options,
+        "selected_po": selected_po,
+        "today": timezone.localdate(),
+        "default_due_date": timezone.localdate() + timezone.timedelta(days=30),
+    }
+    return render(request, "backoffice/procurement/invoice_form.html", context)
+
+
+@backoffice_access(INVOICES_VIEW)
+def supplier_invoice_detail(request: HttpRequest, pk: int) -> HttpResponse:
+    """Detailed invoice dossier with line items, 3-way matching scorecard, and audit history."""
+    invoice = get_object_or_404(
+        SupplierInvoice.objects.select_related("supplier", "purchase_order", "match_record", "created_by", "approved_by", "voided_by")
+        .prefetch_related("lines", "lines__po_item", "lines__variant", "payment_allocations__payment", "credit_applications__credit_note"),
+        pk=pk,
+    )
+
+    can_manage = has(request.user, INVOICES_MANAGE)
+    can_approve = has(request.user, INVOICES_APPROVE)
+    can_pay = has(request.user, PAYMENTS_AP_RECORD)
+
+    # Check separation of duties: preparer cannot approve
+    is_preparer = bool(invoice.created_by_id and invoice.created_by_id == request.user.pk)
+    can_approve_this_invoice = can_approve and (not is_preparer or request.user.is_superuser)
+
+    match_record = getattr(invoice, "match_record", None)
+
+    context = {
+        "title": f"Invoice {invoice.invoice_number} ({invoice.supplier.name})",
+        "active_tab": "accounts_payable",
+        "invoice": invoice,
+        "lines": invoice.lines.all(),
+        "match_record": match_record,
+        "allocations": invoice.payment_allocations.all(),
+        "credits": invoice.credit_applications.all(),
+        "can_manage": can_manage,
+        "can_approve": can_approve,
+        "can_approve_this_invoice": can_approve_this_invoice,
+        "can_pay": can_pay,
+        "is_preparer": is_preparer,
+    }
+    return render(request, "backoffice/procurement/invoice_detail.html", context)
+
+
+@backoffice_access(INVOICES_MANAGE)
+def supplier_invoice_edit(request: HttpRequest, pk: int) -> HttpResponse:
+    """Edit an existing draft supplier invoice."""
+    invoice = get_object_or_404(
+        SupplierInvoice.objects.select_related("supplier", "purchase_order").prefetch_related("lines"),
+        pk=pk,
+    )
+
+    if not invoice.can_edit:
+        messages.error(request, _("Only draft invoices can be edited."))
+        return redirect("backoffice:supplier_invoice_detail", pk=invoice.pk)
+
+    suppliers = Supplier.objects.filter(is_active=True).order_by("name")
+    po_options = invoice.supplier.purchase_orders.exclude(
+        status__in=[PurchaseOrderStatus.DRAFT, PurchaseOrderStatus.CANCELLED]
+    ).order_by("-created_at")
+
+    if request.method == "POST":
+        invoice_number = request.POST.get("invoice_number", "").strip()
+        invoice_date_raw = request.POST.get("invoice_date")
+        due_date_raw = request.POST.get("due_date")
+        currency = request.POST.get("currency", invoice.currency)
+        supplier_ref = request.POST.get("supplier_reference", "").strip()
+        internal_notes = request.POST.get("internal_notes", "").strip()
+        tax_amount = Decimal(request.POST.get("tax_amount", "0.00") or "0.00")
+        shipping_amount = Decimal(request.POST.get("shipping_amount", "0.00") or "0.00")
+        discount_amount = Decimal(request.POST.get("discount_amount", "0.00") or "0.00")
+        attachment = request.FILES.get("attachment")
+
+        po_id = request.POST.get("purchase_order")
+        po = PurchaseOrder.objects.filter(pk=po_id).first() if po_id and str(po_id).isdigit() else None
+
+        items_data = []
+        item_indices = request.POST.getlist("item_index")
+        for idx in item_indices:
+            desc = request.POST.get(f"line_desc_{idx}", "").strip()
+            qty = int(request.POST.get(f"line_qty_{idx}", 1) or 1)
+            cost = Decimal(request.POST.get(f"line_cost_{idx}", "0.00") or "0.00")
+            po_item_id = request.POST.get(f"line_po_item_{idx}")
+            po_item = PurchaseOrderItem.objects.filter(pk=po_item_id).first() if po_item_id and str(po_item_id).isdigit() else None
+            variant_id = request.POST.get(f"line_variant_{idx}")
+            variant = ProductVariant.objects.filter(pk=variant_id).first() if variant_id and str(variant_id).isdigit() else None
+
+            if desc or po_item:
+                items_data.append({
+                    "description": desc,
+                    "quantity": qty,
+                    "unit_cost": cost,
+                    "po_item": po_item,
+                    "variant": variant or (po_item.variant if po_item else None),
+                    "notes": request.POST.get(f"line_notes_{idx}", "").strip(),
+                })
+
+        try:
+            update_supplier_invoice(
+                invoice=invoice,
+                invoice_number=invoice_number,
+                invoice_date=invoice_date_raw,
+                due_date=due_date_raw,
+                currency=currency,
+                purchase_order=po,
+                supplier_reference=supplier_ref,
+                tax_amount=tax_amount,
+                shipping_amount=shipping_amount,
+                discount_amount=discount_amount,
+                items_data=items_data,
+                attachment=attachment,
+                internal_notes=internal_notes,
+                user=request.user,
+            )
+            messages.success(request, _("Invoice %(num)s updated successfully.") % {"num": invoice.invoice_number})
+            return redirect("backoffice:supplier_invoice_detail", pk=invoice.pk)
+        except (ProcurementError, ValidationError) as ex:
+            msg = ex.message if hasattr(ex, "message") else str(ex)
+            messages.error(request, msg)
+
+    context = {
+        "title": f"Edit Invoice {invoice.invoice_number}",
+        "active_tab": "accounts_payable",
+        "invoice": invoice,
+        "lines": invoice.lines.all(),
+        "suppliers": suppliers,
+        "selected_supplier": invoice.supplier,
+        "po_options": po_options,
+        "selected_po": invoice.purchase_order,
+    }
+    return render(request, "backoffice/procurement/invoice_form.html", context)
+
+
+@backoffice_access(INVOICES_VIEW)
+def supplier_invoice_action(request: HttpRequest, pk: int) -> HttpResponse:
+    """Handle lifecycle state machine operations (submit, approve, dispute, void, match)."""
+    if request.method != "POST":
+        return HttpResponseRedirect(reverse("backoffice:supplier_invoice_detail", kwargs={"pk": pk}))
+
+    invoice = get_object_or_404(SupplierInvoice, pk=pk)
+    action = request.POST.get("action", "").strip()
+
+    try:
+        if action == "submit":
+            if not has(request.user, INVOICES_MANAGE):
+                raise Http404()
+            submit_supplier_invoice(invoice, user=request.user)
+            messages.success(request, _("Invoice %(num)s submitted for approval.") % {"num": invoice.invoice_number})
+
+        elif action == "approve":
+            if not has(request.user, INVOICES_APPROVE):
+                raise Http404()
+            override_discrepancies = request.POST.get("override_discrepancies") == "on"
+            override_reason = request.POST.get("override_reason", "").strip()
+            approve_supplier_invoice(
+                invoice,
+                user=request.user,
+                override_discrepancies=override_discrepancies,
+                override_reason=override_reason,
+            )
+            messages.success(request, _("Invoice %(num)s approved successfully. Accounts payable liability recognized.") % {"num": invoice.invoice_number})
+
+        elif action == "dispute":
+            if not (has(request.user, INVOICES_MANAGE) or has(request.user, INVOICES_APPROVE)):
+                raise Http404()
+            reason = request.POST.get("dispute_reason", "").strip()
+            dispute_supplier_invoice(invoice, user=request.user, reason=reason)
+            messages.warning(request, _("Invoice %(num)s marked as disputed.") % {"num": invoice.invoice_number})
+
+        elif action == "void":
+            if not has(request.user, INVOICES_APPROVE):
+                raise Http404()
+            reason = request.POST.get("void_reason", "").strip()
+            void_supplier_invoice(invoice, user=request.user, reason=reason)
+            messages.info(request, _("Invoice %(num)s voided successfully.") % {"num": invoice.invoice_number})
+
+        elif action == "match":
+            if not (has(request.user, INVOICES_VIEW)):
+                raise Http404()
+            match_rec = perform_three_way_match(invoice)
+            messages.info(request, _("Three-way match evaluated: %(stat)s.") % {"stat": match_rec.get_status_display()})
+
+        else:
+            messages.error(request, _("Unknown invoice action."))
+
+    except SeparationOfDutiesError as ex:
+        messages.error(request, str(ex))
+    except DiscrepancyApprovalRequired as ex:
+        messages.error(request, str(ex))
+    except (ProcurementError, ValidationError) as ex:
+        msg = ex.message if hasattr(ex, "message") else str(ex)
+        messages.error(request, msg)
+
+    return redirect("backoffice:supplier_invoice_detail", pk=invoice.pk)
+
+
+@backoffice_access(INVOICES_VIEW)
+def supplier_payments_list(request: HttpRequest) -> HttpResponse:
+    """Directory of accounts payable supplier disbursements and settlements."""
+    q = request.GET.get("q", "").strip()
+    status = request.GET.get("status", "").strip() or None
+    supplier_id_raw = request.GET.get("supplier", "").strip()
+    supplier_id = int(supplier_id_raw) if supplier_id_raw.isdigit() else None
+
+    payments_qs = get_supplier_payments_queryset(
+        q=q,
+        supplier_id=supplier_id,
+        status=status,
+    )
+
+    paginator = Paginator(payments_qs, 20)
+    page_number = request.GET.get("page")
+    page_obj = paginator.get_page(page_number)
+    suppliers = Supplier.objects.filter(is_active=True).order_by("name")
+
+    context = {
+        "title": _("Supplier Disbursements (Accounts Payable)"),
+        "active_tab": "accounts_payable",
+        "payments_page": page_obj,
+        "q": q,
+        "selected_status": status,
+        "selected_supplier_id": supplier_id,
+        "suppliers": suppliers,
+        "can_record_payment": has(request.user, PAYMENTS_AP_RECORD),
+    }
+    return render(request, "backoffice/procurement/payment_list.html", context)
+
+
+@backoffice_access(PAYMENTS_AP_RECORD)
+def supplier_payment_create(request: HttpRequest) -> HttpResponse:
+    """Record an internal supplier disbursement and allocate it across approved invoices."""
+    suppliers = Supplier.objects.filter(is_active=True).order_by("name")
+    selected_supplier_id = request.GET.get("supplier") or request.POST.get("supplier")
+    selected_supplier = None
+    open_invoices = []
+
+    if selected_supplier_id and str(selected_supplier_id).isdigit():
+        selected_supplier = Supplier.objects.filter(pk=int(selected_supplier_id)).first()
+        if selected_supplier:
+            open_invoices = [
+                inv for inv in selected_supplier.invoices.filter(
+                    status__in=[SupplierInvoiceStatus.APPROVED, SupplierInvoiceStatus.PARTIALLY_PAID]
+                ).order_by("due_date")
+                if inv.outstanding_balance > Decimal("0.00")
+            ]
+
+    if request.method == "POST":
+        supplier_id = request.POST.get("supplier")
+        supplier = get_object_or_404(Supplier, pk=supplier_id)
+        amount_raw = request.POST.get("amount", "0.00")
+        amount = Decimal(str(amount_raw or "0.00"))
+        payment_method = request.POST.get("payment_method", PaymentMethod.BANK_TRANSFER)
+        payment_date_raw = request.POST.get("payment_date")
+        bank_ref = request.POST.get("bank_transaction_reference", "").strip()
+        notes = request.POST.get("notes", "").strip()
+
+        allocations_data = []
+        for inv in open_invoices:
+            alloc_val = request.POST.get(f"alloc_invoice_{inv.pk}", "").strip()
+            if alloc_val:
+                try:
+                    alloc_amt = Decimal(alloc_val)
+                    if alloc_amt > Decimal("0.00"):
+                        allocations_data.append({"invoice_id": inv.pk, "amount": alloc_amt})
+                except (ValueError, TypeError):
+                    pass
+
+        try:
+            payment = record_supplier_payment(
+                supplier=supplier,
+                amount=amount,
+                payment_method=payment_method,
+                payment_date=payment_date_raw or timezone.localdate(),
+                bank_transaction_reference=bank_ref,
+                allocations_data=allocations_data,
+                notes=notes,
+                user=request.user,
+            )
+            messages.success(request, _("Disbursement %(ref)s recorded successfully.") % {"ref": payment.payment_reference})
+            return redirect("backoffice:supplier_payments")
+        except (ProcurementError, ValidationError) as ex:
+            msg = ex.message if hasattr(ex, "message") else str(ex)
+            messages.error(request, msg)
+
+    context = {
+        "title": _("Record Supplier Payment"),
+        "active_tab": "accounts_payable",
+        "suppliers": suppliers,
+        "selected_supplier": selected_supplier,
+        "open_invoices": open_invoices,
+        "payment_methods": PaymentMethod.choices,
+        "today": timezone.localdate(),
+    }
+    return render(request, "backoffice/procurement/payment_form.html", context)
+
+
+@backoffice_access(PAYMENTS_AP_RECORD)
+def supplier_payment_reverse(request: HttpRequest, pk: int) -> HttpResponse:
+    """Reverse a completed supplier payment with auditable restoration of invoice balances."""
+    if request.method != "POST":
+        return HttpResponseRedirect(reverse("backoffice:supplier_payments"))
+
+    payment = get_object_or_404(SupplierPayment, pk=pk)
+    reason = request.POST.get("reversal_reason", "").strip()
+
+    try:
+        reverse_supplier_payment(payment, user=request.user, reason=reason)
+        messages.warning(request, _("Payment %(ref)s reversed successfully.") % {"ref": payment.payment_reference})
+    except (ProcurementError, ValidationError) as ex:
+        msg = ex.message if hasattr(ex, "message") else str(ex)
+        messages.error(request, msg)
+
+    return redirect("backoffice:supplier_payments")
+
+
+@backoffice_access(INVOICES_VIEW)
+def supplier_credit_notes_list(request: HttpRequest) -> HttpResponse:
+    """List of supplier credit notes."""
+    q = request.GET.get("q", "").strip()
+    status = request.GET.get("status", "").strip() or None
+    supplier_id_raw = request.GET.get("supplier", "").strip()
+    supplier_id = int(supplier_id_raw) if supplier_id_raw.isdigit() else None
+
+    credit_notes_qs = get_supplier_credit_notes_queryset(
+        q=q,
+        supplier_id=supplier_id,
+        status=status,
+    )
+
+    paginator = Paginator(credit_notes_qs, 20)
+    page_number = request.GET.get("page")
+    page_obj = paginator.get_page(page_number)
+    suppliers = Supplier.objects.filter(is_active=True).order_by("name")
+
+    context = {
+        "title": _("Supplier Credit Notes"),
+        "active_tab": "accounts_payable",
+        "credit_notes_page": page_obj,
+        "q": q,
+        "selected_status": status,
+        "selected_supplier_id": supplier_id,
+        "suppliers": suppliers,
+        "can_manage": has(request.user, INVOICES_MANAGE),
+    }
+    return render(request, "backoffice/procurement/credit_note_list.html", context)
+
+
+@backoffice_access(INVOICES_MANAGE)
+def supplier_credit_note_create(request: HttpRequest) -> HttpResponse:
+    """Record an approved credit note from a supplier."""
+    suppliers = Supplier.objects.filter(is_active=True).order_by("name")
+    selected_supplier_id = request.GET.get("supplier") or request.POST.get("supplier")
+    selected_supplier = None
+    if selected_supplier_id and str(selected_supplier_id).isdigit():
+        selected_supplier = Supplier.objects.filter(pk=int(selected_supplier_id)).first()
+
+    if request.method == "POST":
+        supplier_id = request.POST.get("supplier")
+        supplier = get_object_or_404(Supplier, pk=supplier_id)
+        cn_number = request.POST.get("credit_note_number", "").strip()
+        amount = Decimal(request.POST.get("amount", "0.00") or "0.00")
+        reason = request.POST.get("reason", "").strip()
+        credit_date_raw = request.POST.get("credit_date")
+        notes = request.POST.get("notes", "").strip()
+        invoice_id = request.POST.get("invoice")
+        invoice = SupplierInvoice.objects.filter(pk=invoice_id).first() if invoice_id and str(invoice_id).isdigit() else None
+
+        try:
+            cn = create_supplier_credit_note(
+                supplier=supplier,
+                credit_note_number=cn_number,
+                amount=amount,
+                reason=reason,
+                invoice=invoice,
+                credit_date=credit_date_raw or timezone.localdate(),
+                currency=supplier.currency,
+                notes=notes,
+                user=request.user,
+            )
+            messages.success(request, _("Credit note %(num)s recorded successfully.") % {"num": cn.credit_note_number})
+            return redirect("backoffice:supplier_credit_notes")
+        except (ProcurementError, ValidationError) as ex:
+            msg = ex.message if hasattr(ex, "message") else str(ex)
+            messages.error(request, msg)
+
+    context = {
+        "title": _("Record Supplier Credit Note"),
+        "active_tab": "accounts_payable",
+        "suppliers": suppliers,
+        "selected_supplier": selected_supplier,
+        "today": timezone.localdate(),
+    }
+    return render(request, "backoffice/procurement/credit_note_form.html", context)
+
+
+@backoffice_access(INVOICES_MANAGE)
+def supplier_credit_note_apply(request: HttpRequest, pk: int) -> HttpResponse:
+    """Apply an unapplied credit note amount against an approved invoice."""
+    if request.method != "POST":
+        return HttpResponseRedirect(reverse("backoffice:supplier_credit_notes"))
+
+    credit_note = get_object_or_404(SupplierCreditNote, pk=pk)
+    invoice_id = request.POST.get("invoice_id")
+    invoice = get_object_or_404(SupplierInvoice, pk=invoice_id)
+    amount_raw = request.POST.get("amount", "0.00")
+
+    try:
+        amount = Decimal(amount_raw)
+        apply_credit_note_to_invoice(
+            credit_note=credit_note,
+            invoice=invoice,
+            amount=amount,
+            user=request.user,
+        )
+        messages.success(request, _("Credit %(num)s applied to invoice %(inv)s successfully.") % {
+            "num": credit_note.credit_note_number,
+            "inv": invoice.invoice_number,
+        })
+    except (ProcurementError, ValidationError) as ex:
+        msg = ex.message if hasattr(ex, "message") else str(ex)
+        messages.error(request, msg)
+
+    return redirect("backoffice:supplier_credit_notes")
+

@@ -1,0 +1,450 @@
+{% extends "backoffice/base.html" %}
+
+{% block title %}
+    {{ title }}
+{% endblock title %}
+{% block breadcrumb %}
+    <a href="{% url 'backoffice:supplier_invoices' %}" class="hover:underline">Invoices</a> / {% if invoice %}Edit {{ invoice.invoice_number }}{% else %}New Invoice{% endif %}
+{% endblock breadcrumb %}
+
+{% block content %}
+    <div class="mx-auto max-w-4xl">
+        <header class="mb-6">
+            <h1 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+                {{ title }}
+            </h1>
+            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                Record supplier bill details, link approved purchase orders, and enter billed items.
+            </p>
+        </header>
+
+        <form method="post" enctype="multipart/form-data" class="space-y-6">
+            {% csrf_token %}
+
+            {# ---- Header & Supplier Selection -------------------------------------------------- #}
+            <div class="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+                <h2 class="mb-4 text-base font-bold text-slate-900 dark:text-white">1. Invoice Details</h2>
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                            Supplier <span class="text-rose-500">*</span>
+                        </label>
+                        {% if invoice %}
+                            <input
+                                type="text"
+                                readonly
+                                disabled
+                                value="{{ invoice.supplier.name }} ({{ invoice.supplier.code }})"
+                                class="mt-1 w-full rounded-lg border border-slate-200 bg-slate-100 px-3.5 py-2 text-xs text-slate-700 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300"
+                            />
+                            <input type="hidden" name="supplier" value="{{ invoice.supplier.pk }}" />
+                        {% else %}
+                            <select
+                                name="supplier"
+                                required
+                                class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 focus:border-indigo-500 focus:outline-hidden dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                            >
+                                <option value="">-- Select Supplier --</option>
+                                {% for sup in suppliers %}
+                                    <option value="{{ sup.pk }}" {% if selected_supplier and selected_supplier.pk == sup.pk %}selected{% endif %}>
+                                        {{ sup.name }} ({{ sup.code }}) [{{ sup.currency }}]
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        {% endif %}
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                            Linked Purchase Order (Optional)
+                        </label>
+                        <select
+                            name="purchase_order"
+                            class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 focus:border-indigo-500 focus:outline-hidden dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                        >
+                            <option value="">-- Standalone / No PO --</option>
+                            {% for po in po_options %}
+                                <option value="{{ po.pk }}" {% if selected_po and selected_po.pk == po.pk or invoice and invoice.purchase_order_id == po.pk %}selected{% endif %}>
+                                    {{ po.reference }} ({{ po.get_status_display }}) &mdash; ${{ po.total_cost|floatformat:2 }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                            Invoice Number <span class="text-rose-500">*</span>
+                        </label>
+                        <input
+                            type="text"
+                            name="invoice_number"
+                            required
+                            value="{{ invoice.invoice_number|default:'' }}"
+                            placeholder="e.g. INV-98241"
+                            class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-xs text-slate-900 focus:border-indigo-500 focus:outline-hidden dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                        />
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                            Supplier Reference
+                        </label>
+                        <input
+                            type="text"
+                            name="supplier_reference"
+                            value="{{ invoice.supplier_reference|default:'' }}"
+                            placeholder="e.g. Vendor Account / Order #"
+                            class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-xs text-slate-900 focus:border-indigo-500 focus:outline-hidden dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                        />
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                            Invoice Date <span class="text-rose-500">*</span>
+                        </label>
+                        <input
+                            type="date"
+                            name="invoice_date"
+                            required
+                            value="{{ invoice.invoice_date|date:'Y-m-d'|default:today|date:'Y-m-d' }}"
+                            class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-xs text-slate-900 focus:border-indigo-500 focus:outline-hidden dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                        />
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                            Due Date <span class="text-rose-500">*</span>
+                        </label>
+                        <input
+                            type="date"
+                            name="due_date"
+                            required
+                            value="{{ invoice.due_date|date:'Y-m-d'|default:default_due_date|date:'Y-m-d' }}"
+                            class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-xs text-slate-900 focus:border-indigo-500 focus:outline-hidden dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                        />
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                            Currency
+                        </label>
+                        <input
+                            type="text"
+                            name="currency"
+                            maxlength="3"
+                            value="{{ invoice.currency|default:selected_supplier.currency|default:'USD' }}"
+                            class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-xs font-mono uppercase text-slate-900 focus:border-indigo-500 focus:outline-hidden dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                        />
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                            Supporting Document (PDF/Scan)
+                        </label>
+                        <input
+                            type="file"
+                            name="attachment"
+                            class="mt-1 w-full text-xs text-slate-600 dark:text-slate-400"
+                        />
+                        {% if invoice.attachment %}
+                            <p class="mt-1 text-2xs text-slate-500">Current: {{ invoice.attachment.name }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                {# Duplicate Override Section #}
+                <div class="mt-4 rounded-xl border border-amber-200 bg-amber-50/50 p-4 dark:border-amber-900/50 dark:bg-amber-950/20">
+                    <label class="flex items-center gap-2 text-xs font-semibold text-amber-900 dark:text-amber-200">
+                        <input
+                            type="checkbox"
+                            name="is_duplicate_override"
+                            {% if invoice.is_duplicate_override %}checked{% endif %}
+                            class="rounded border-amber-300 text-amber-600 dark:border-amber-800"
+                        />
+                        Authorized Duplicate Override
+                    </label>
+                    <p class="mt-1 text-2xs text-amber-700 dark:text-amber-300">
+                        Check only if this bill intentionally shares a normalized identifier with an existing invoice (e.g. corrected re-issue).
+                    </p>
+                    <div class="mt-2">
+                        <input
+                            type="text"
+                            name="duplicate_override_reason"
+                            value="{{ invoice.duplicate_override_reason|default:'' }}"
+                            placeholder="State authorized reason for duplicate identifier exception..."
+                            class="w-full rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs text-slate-900 focus:border-indigo-500 focus:outline-hidden dark:border-amber-800 dark:bg-slate-800 dark:text-white"
+                        />
+                    </div>
+                </div>
+            </div>
+
+            {# ---- Billed Line Items ------------------------------------------------------------- #}
+            <div class="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+                <div class="mb-4 flex items-center justify-between">
+                    <div>
+                        <h2 class="text-base font-bold text-slate-900 dark:text-white">2. Invoiced Line Items</h2>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">
+                            Quantities and unit acquisition costs stated on the supplier invoice document.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs">
+                        <thead>
+                            <tr class="border-b border-slate-200 pb-2 text-slate-500 dark:border-slate-800">
+                                <th class="pb-2 font-semibold">Description</th>
+                                <th class="pb-2 font-semibold">Linked PO Item</th>
+                                <th class="pb-2 font-semibold">Qty</th>
+                                <th class="pb-2 font-semibold">Unit Cost</th>
+                                <th class="pb-2 font-semibold">Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                            {% if invoice and lines %}
+                                {% for line in lines %}
+                                    <tr>
+                                        <td class="py-2.5 pr-2">
+                                            <input type="hidden" name="item_index" value="{{ forloop.counter0 }}" />
+                                            <input
+                                                type="text"
+                                                name="line_desc_{{ forloop.counter0 }}"
+                                                value="{{ line.description }}"
+                                                required
+                                                class="w-full rounded border border-slate-300 bg-white px-2 py-1 text-xs dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                                            />
+                                        </td>
+                                        <td class="py-2.5 pr-2">
+                                            <select
+                                                name="line_po_item_{{ forloop.counter0 }}"
+                                                class="w-full rounded border border-slate-300 bg-white px-2 py-1 text-xs dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                                            >
+                                                <option value="">-- None --</option>
+                                                {% if invoice.purchase_order %}
+                                                    {% for pi in invoice.purchase_order.items.all %}
+                                                        <option value="{{ pi.pk }}" {% if line.po_item_id == pi.pk %}selected{% endif %}>
+                                                            {{ pi.variant.sku }} (x{{ pi.ordered_quantity }} @ ${{ pi.unit_cost }})
+                                                        </option>
+                                                    {% endfor %}
+                                                {% endif %}
+                                            </select>
+                                        </td>
+                                        <td class="py-2.5 pr-2 w-20">
+                                            <input
+                                                type="number"
+                                                min="1"
+                                                name="line_qty_{{ forloop.counter0 }}"
+                                                value="{{ line.quantity }}"
+                                                required
+                                                class="w-full rounded border border-slate-300 bg-white px-2 py-1 text-xs dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                                            />
+                                        </td>
+                                        <td class="py-2.5 pr-2 w-24">
+                                            <input
+                                                type="number"
+                                                step="0.01"
+                                                min="0.00"
+                                                name="line_cost_{{ forloop.counter0 }}"
+                                                value="{{ line.unit_cost }}"
+                                                required
+                                                class="w-full rounded border border-slate-300 bg-white px-2 py-1 text-xs dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                                            />
+                                        </td>
+                                        <td class="py-2.5">
+                                            <input
+                                                type="text"
+                                                name="line_notes_{{ forloop.counter0 }}"
+                                                value="{{ line.notes }}"
+                                                placeholder="Optional"
+                                                class="w-full rounded border border-slate-300 bg-white px-2 py-1 text-xs dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                                            />
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            {% elif selected_po %}
+                                {# Auto-populate rows from selected PO #}
+                                {% for pi in selected_po.items.all %}
+                                    <tr>
+                                        <td class="py-2.5 pr-2">
+                                            <input type="hidden" name="item_index" value="{{ forloop.counter0 }}" />
+                                            <input
+                                                type="text"
+                                                name="line_desc_{{ forloop.counter0 }}"
+                                                value="{{ pi.variant.product.name }} ({{ pi.variant.sku }})"
+                                                required
+                                                class="w-full rounded border border-slate-300 bg-white px-2 py-1 text-xs dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                                            />
+                                        </td>
+                                        <td class="py-2.5 pr-2">
+                                            <select
+                                                name="line_po_item_{{ forloop.counter0 }}"
+                                                class="w-full rounded border border-slate-300 bg-white px-2 py-1 text-xs dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                                            >
+                                                <option value="{{ pi.pk }}" selected>
+                                                    {{ pi.variant.sku }} (x{{ pi.ordered_quantity }} @ ${{ pi.unit_cost }})
+                                                </option>
+                                            </select>
+                                        </td>
+                                        <td class="py-2.5 pr-2 w-20">
+                                            <input
+                                                type="number"
+                                                min="1"
+                                                name="line_qty_{{ forloop.counter0 }}"
+                                                value="{{ pi.ordered_quantity }}"
+                                                required
+                                                class="w-full rounded border border-slate-300 bg-white px-2 py-1 text-xs dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                                            />
+                                        </td>
+                                        <td class="py-2.5 pr-2 w-24">
+                                            <input
+                                                type="number"
+                                                step="0.01"
+                                                min="0.00"
+                                                name="line_cost_{{ forloop.counter0 }}"
+                                                value="{{ pi.unit_cost }}"
+                                                required
+                                                class="w-full rounded border border-slate-300 bg-white px-2 py-1 text-xs dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                                            />
+                                        </td>
+                                        <td class="py-2.5">
+                                            <input
+                                                type="text"
+                                                name="line_notes_{{ forloop.counter0 }}"
+                                                placeholder="Optional"
+                                                class="w-full rounded border border-slate-300 bg-white px-2 py-1 text-xs dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                                            />
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            {% else %}
+                                {# Default blank rows #}
+                                {% for i in "0123" %}
+                                    <tr>
+                                        <td class="py-2.5 pr-2">
+                                            <input type="hidden" name="item_index" value="{{ forloop.counter0 }}" />
+                                            <input
+                                                type="text"
+                                                name="line_desc_{{ forloop.counter0 }}"
+                                                placeholder="Item description or SKU"
+                                                class="w-full rounded border border-slate-300 bg-white px-2 py-1 text-xs dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                                            />
+                                        </td>
+                                        <td class="py-2.5 pr-2">
+                                            <select
+                                                name="line_po_item_{{ forloop.counter0 }}"
+                                                class="w-full rounded border border-slate-300 bg-white px-2 py-1 text-xs dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                                            >
+                                                <option value="">-- None --</option>
+                                            </select>
+                                        </td>
+                                        <td class="py-2.5 pr-2 w-20">
+                                            <input
+                                                type="number"
+                                                min="1"
+                                                name="line_qty_{{ forloop.counter0 }}"
+                                                value="1"
+                                                class="w-full rounded border border-slate-300 bg-white px-2 py-1 text-xs dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                                            />
+                                        </td>
+                                        <td class="py-2.5 pr-2 w-24">
+                                            <input
+                                                type="number"
+                                                step="0.01"
+                                                min="0.00"
+                                                name="line_cost_{{ forloop.counter0 }}"
+                                                value="0.00"
+                                                class="w-full rounded border border-slate-300 bg-white px-2 py-1 text-xs dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                                            />
+                                        </td>
+                                        <td class="py-2.5">
+                                            <input
+                                                type="text"
+                                                name="line_notes_{{ forloop.counter0 }}"
+                                                placeholder="Optional"
+                                                class="w-full rounded border border-slate-300 bg-white px-2 py-1 text-xs dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                                            />
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {# ---- Taxes, Shipping, Discounts & Notes -------------------------------------------- #}
+            <div class="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+                <h2 class="mb-4 text-base font-bold text-slate-900 dark:text-white">3. Additional Charges &amp; Notes</h2>
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                            Tax Amount
+                        </label>
+                        <input
+                            type="number"
+                            step="0.01"
+                            min="0.00"
+                            name="tax_amount"
+                            value="{{ invoice.tax_amount|default:'0.00' }}"
+                            class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-xs text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                        />
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                            Freight / Shipping
+                        </label>
+                        <input
+                            type="number"
+                            step="0.01"
+                            min="0.00"
+                            name="shipping_amount"
+                            value="{{ invoice.shipping_amount|default:'0.00' }}"
+                            class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-xs text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                        />
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                            Discount (Deduction)
+                        </label>
+                        <input
+                            type="number"
+                            step="0.01"
+                            min="0.00"
+                            name="discount_amount"
+                            value="{{ invoice.discount_amount|default:'0.00' }}"
+                            class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-xs text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                        />
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        Internal Notes
+                    </label>
+                    <textarea
+                        name="internal_notes"
+                        rows="3"
+                        placeholder="Internal notes, payment terms, or discrepancy memos..."
+                        class="mt-1 w-full rounded-lg border border-slate-300 bg-white p-3 text-xs text-slate-900 focus:border-indigo-500 focus:outline-hidden dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                    >{{ invoice.internal_notes|default:'' }}</textarea>
+                </div>
+            </div>
+
+            {# ---- Submit Buttons ---------------------------------------------------------------- #}
+            <div class="flex items-center justify-end gap-3">
+                <a
+                    href="{% url 'backoffice:supplier_invoices' %}"
+                    class="rounded-lg border border-slate-300 px-4 py-2 text-xs font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                >
+                    Cancel
+                </a>
+                <button
+                    type="submit"
+                    class="rounded-lg bg-indigo-600 px-5 py-2 text-xs font-semibold text-white shadow-xs transition hover:bg-indigo-500"
+                >
+                    Save Supplier Invoice
+                </button>
+            </div>
+        </form>
+    </div>
+{% endblock content %}

@@ -25,12 +25,24 @@ if TYPE_CHECKING:
     from apps.catalog.models import ProductVariant
 
 __all__ = [
+    "CreditNoteApplication",
+    "CreditNoteStatus",
+    "InvoiceMatchingStatus",
+    "InvoiceMatchRecord",
+    "PaymentMethod",
     "PurchaseOrder",
     "PurchaseOrderItem",
     "PurchaseOrderReceipt",
     "PurchaseOrderReceiptItem",
     "PurchaseOrderStatus",
     "Supplier",
+    "SupplierCreditNote",
+    "SupplierInvoice",
+    "SupplierInvoiceLine",
+    "SupplierInvoiceStatus",
+    "SupplierPayment",
+    "SupplierPaymentAllocation",
+    "SupplierPaymentStatus",
     "SupplierVariant",
 ]
 
@@ -443,3 +455,795 @@ class PurchaseOrderReceiptItem(models.Model):
             f"{self.line_item.variant.sku}: accepted {self.quantity_received}, "
             f"damaged {self.quantity_damaged}"
         )
+
+
+# =============================================================================
+# Phase 46: Supplier Invoices & Accounts Payable Intelligence Models
+# =============================================================================
+
+
+class SupplierInvoiceStatus(models.TextChoices):
+    DRAFT = "draft", _("Draft")
+    SUBMITTED = "submitted", _("Submitted for review")
+    APPROVED = "approved", _("Approved (Liability recognized)")
+    PARTIALLY_PAID = "partially_paid", _("Partially paid")
+    PAID = "paid", _("Paid in full")
+    DISPUTED = "disputed", _("Disputed")
+    VOIDED = "voided", _("Voided")
+
+
+class InvoiceMatchingStatus(models.TextChoices):
+    MATCHED = "matched", _("Fully matched (3-way)")
+    VARIANCE_QUANTITY = "variance_quantity", _("Quantity variance")
+    VARIANCE_PRICE = "variance_price", _("Price variance")
+    MISSING_RECEIPT = "missing_receipt", _("Missing goods receipt")
+    OVERBILLED = "overbilled", _("Overbilled against PO")
+    UNMATCHED = "unmatched", _("Unmatched / manual bill")
+
+
+class PaymentMethod(models.TextChoices):
+    BANK_TRANSFER = "bank_transfer", _("Bank Transfer / BACS")
+    WIRE = "wire", _("Wire Transfer / SWIFT")
+    CORPORATE_CARD = "corporate_card", _("Corporate Card")
+    CHECK = "check", _("Check / Cheque")
+    ACH = "ach", _("ACH / Direct Debit")
+    OTHER = "other", _("Other")
+
+
+class SupplierPaymentStatus(models.TextChoices):
+    PENDING = "pending", _("Pending")
+    COMPLETED = "completed", _("Completed")
+    FAILED = "failed", _("Failed")
+    REVERSED = "reversed", _("Reversed / Voided")
+
+
+class CreditNoteStatus(models.TextChoices):
+    DRAFT = "draft", _("Draft")
+    APPROVED = "approved", _("Approved")
+    APPLIED = "applied", _("Applied in full")
+    VOIDED = "voided", _("Voided")
+
+
+class SupplierInvoice(models.Model):
+    """Supplier invoice / vendor bill tracking liabilities, 3-way matching, and settlement."""
+
+    supplier = models.ForeignKey(
+        Supplier,
+        on_delete=models.PROTECT,
+        related_name="invoices",
+        verbose_name=_("supplier"),
+    )
+    purchase_order = models.ForeignKey(
+        PurchaseOrder,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="invoices",
+        verbose_name=_("linked purchase order"),
+    )
+    invoice_number = models.CharField(
+        _("invoice number"),
+        max_length=100,
+        help_text=_("Supplier invoice or bill number as stated on document."),
+    )
+    normalized_invoice_number = models.CharField(
+        _("normalized invoice number"),
+        max_length=100,
+        db_index=True,
+        help_text=_("Standardized uppercase alphanumeric token for duplicate prevention."),
+    )
+    supplier_reference = models.CharField(
+        _("supplier reference"),
+        max_length=100,
+        blank=True,
+        help_text=_("Vendor internal reference or account code."),
+    )
+    status = models.CharField(
+        _("status"),
+        max_length=32,
+        choices=SupplierInvoiceStatus.choices,
+        default=SupplierInvoiceStatus.DRAFT,
+        db_index=True,
+    )
+    invoice_date = models.DateField(
+        _("invoice date"),
+        default=timezone.localdate,
+        db_index=True,
+    )
+    received_date = models.DateField(
+        _("received date"),
+        default=timezone.localdate,
+    )
+    due_date = models.DateField(
+        _("due date"),
+        db_index=True,
+    )
+    currency = models.CharField(
+        _("currency"),
+        max_length=3,
+        default="USD",
+    )
+    subtotal = models.DecimalField(
+        _("subtotal"),
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        validators=[MinValueValidator(Decimal("0.00"))],
+    )
+    tax_amount = models.DecimalField(
+        _("tax amount"),
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        validators=[MinValueValidator(Decimal("0.00"))],
+    )
+    shipping_amount = models.DecimalField(
+        _("shipping amount"),
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        validators=[MinValueValidator(Decimal("0.00"))],
+    )
+    discount_amount = models.DecimalField(
+        _("discount amount"),
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        validators=[MinValueValidator(Decimal("0.00"))],
+    )
+    total_amount = models.DecimalField(
+        _("total amount"),
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        validators=[MinValueValidator(Decimal("0.00"))],
+    )
+    amount_paid = models.DecimalField(
+        _("amount paid"),
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        validators=[MinValueValidator(Decimal("0.00"))],
+    )
+    amount_credited = models.DecimalField(
+        _("amount credited"),
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        validators=[MinValueValidator(Decimal("0.00"))],
+    )
+    is_duplicate_override = models.BooleanField(
+        _("is duplicate override"),
+        default=False,
+        help_text=_("Authorized exception allowing an identical invoice identifier."),
+    )
+    duplicate_override_reason = models.CharField(
+        _("duplicate override reason"),
+        max_length=255,
+        blank=True,
+    )
+    attachment = models.FileField(
+        _("supporting document"),
+        upload_to="procurement/invoices/%Y/%m",
+        blank=True,
+        null=True,
+        help_text=_("Scanned bill, PDF or supporting delivery documentation."),
+    )
+    internal_notes = models.TextField(
+        _("internal notes"),
+        blank=True,
+    )
+    dispute_reason = models.CharField(
+        _("dispute reason"),
+        max_length=255,
+        blank=True,
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_supplier_invoices",
+        verbose_name=_("prepared by"),
+    )
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="approved_supplier_invoices",
+        verbose_name=_("approved by"),
+    )
+    approved_at = models.DateTimeField(
+        _("approved at"),
+        null=True,
+        blank=True,
+    )
+    voided_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="voided_supplier_invoices",
+        verbose_name=_("voided by"),
+    )
+    voided_at = models.DateTimeField(
+        _("voided at"),
+        null=True,
+        blank=True,
+    )
+    void_reason = models.CharField(
+        _("void reason"),
+        max_length=255,
+        blank=True,
+    )
+    created_at = models.DateTimeField(
+        _("created at"),
+        auto_now_add=True,
+        db_index=True,
+    )
+    updated_at = models.DateTimeField(
+        _("updated at"),
+        auto_now=True,
+    )
+
+    class Meta:
+        verbose_name = _("supplier invoice")
+        verbose_name_plural = _("supplier invoices")
+        ordering = ("-invoice_date", "-pk")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["supplier", "normalized_invoice_number"],
+                condition=~models.Q(status="voided") & models.Q(is_duplicate_override=False),
+                name="procurement_supplier_invoice_unique",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(total_amount__gte=models.F("amount_paid") + models.F("amount_credited")),
+                name="procurement_invoice_total_gte_settled",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(amount_paid__gte=0),
+                name="procurement_invoice_paid_gte_0",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(amount_credited__gte=0),
+                name="procurement_invoice_credited_gte_0",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(subtotal__gte=0),
+                name="procurement_invoice_subtotal_gte_0",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.invoice_number} ({self.supplier.name}) - {self.get_status_display()}"
+
+    @property
+    def subtotal_amount(self) -> Decimal:
+        """Alias for subtotal."""
+        return self.subtotal
+
+    @property
+    def outstanding_balance(self) -> Decimal:
+        """Remaining unpaid balance after deducting payments and credit applications."""
+        return max(Decimal("0.00"), self.total_amount - self.amount_paid - self.amount_credited)
+
+    @property
+    def is_overdue(self) -> bool:
+        """Invoice is past its due date with an outstanding recognized balance."""
+        today = timezone.localdate()
+        return (
+            self.due_date < today
+            and self.status in (SupplierInvoiceStatus.APPROVED, SupplierInvoiceStatus.PARTIALLY_PAID)
+            and self.outstanding_balance > Decimal("0.00")
+        )
+
+    @property
+    def days_overdue(self) -> int:
+        today = timezone.localdate()
+        if self.due_date < today and self.outstanding_balance > Decimal("0.00"):
+            return (today - self.due_date).days
+        return 0
+
+    @property
+    def can_edit(self) -> bool:
+        return self.status == SupplierInvoiceStatus.DRAFT
+
+    @property
+    def can_approve(self) -> bool:
+        return self.status in (SupplierInvoiceStatus.SUBMITTED, SupplierInvoiceStatus.DISPUTED)
+
+    @property
+    def can_pay(self) -> bool:
+        return (
+            self.status in (SupplierInvoiceStatus.APPROVED, SupplierInvoiceStatus.PARTIALLY_PAID)
+            and self.outstanding_balance > Decimal("0.00")
+        )
+
+    @property
+    def can_void(self) -> bool:
+        return (
+            self.status in (SupplierInvoiceStatus.DRAFT, SupplierInvoiceStatus.SUBMITTED, SupplierInvoiceStatus.DISPUTED, SupplierInvoiceStatus.APPROVED)
+            and self.amount_paid == Decimal("0.00")
+            and self.amount_credited == Decimal("0.00")
+        )
+
+
+class SupplierInvoiceLine(models.Model):
+    """Line item on a supplier invoice linked optionally to a PO line and variant."""
+
+    invoice = models.ForeignKey(
+        SupplierInvoice,
+        on_delete=models.CASCADE,
+        related_name="lines",
+        verbose_name=_("invoice"),
+    )
+    po_item = models.ForeignKey(
+        PurchaseOrderItem,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="invoice_lines",
+        verbose_name=_("linked purchase order item"),
+    )
+    variant = models.ForeignKey(
+        "catalog.ProductVariant",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="invoice_lines",
+        verbose_name=_("variant"),
+    )
+    description = models.CharField(
+        _("description"),
+        max_length=255,
+    )
+    quantity = models.PositiveIntegerField(
+        _("quantity"),
+        validators=[MinValueValidator(1)],
+    )
+    unit_cost = models.DecimalField(
+        _("unit cost"),
+        max_digits=10,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal("0.00"))],
+    )
+    line_total = models.DecimalField(
+        _("line total"),
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal("0.00"))],
+    )
+    notes = models.CharField(
+        _("notes"),
+        max_length=255,
+        blank=True,
+    )
+    created_at = models.DateTimeField(
+        _("created at"),
+        auto_now_add=True,
+    )
+    updated_at = models.DateTimeField(
+        _("updated at"),
+        auto_now=True,
+    )
+
+    class Meta:
+        verbose_name = _("invoice line item")
+        verbose_name_plural = _("invoice line items")
+        ordering = ("pk",)
+
+    def __str__(self) -> str:
+        return f"{self.description} x{self.quantity} @ {self.unit_cost} = {self.line_total}"
+
+
+class InvoiceMatchRecord(models.Model):
+    """Three-way match analysis comparing purchase order, warehouse receipts, and bill."""
+
+    invoice = models.OneToOneField(
+        SupplierInvoice,
+        on_delete=models.CASCADE,
+        related_name="match_record",
+        verbose_name=_("invoice"),
+    )
+    purchase_order = models.ForeignKey(
+        PurchaseOrder,
+        on_delete=models.CASCADE,
+        related_name="match_records",
+        verbose_name=_("purchase order"),
+    )
+    status = models.CharField(
+        _("matching status"),
+        max_length=32,
+        choices=InvoiceMatchingStatus.choices,
+        default=InvoiceMatchingStatus.UNMATCHED,
+        db_index=True,
+    )
+    price_variance_total = models.DecimalField(
+        _("price variance total"),
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        help_text=_("Total net monetary variance between invoice unit costs and agreed PO costs."),
+    )
+    quantity_variance_total = models.IntegerField(
+        _("quantity variance total"),
+        default=0,
+        help_text=_("Total unit variance between invoiced quantity and accepted received quantity."),
+    )
+    is_within_tolerance = models.BooleanField(
+        _("is within tolerance"),
+        default=False,
+    )
+    summary = models.TextField(
+        _("match summary"),
+        blank=True,
+    )
+    discrepancy_details = models.JSONField(
+        _("discrepancy details"),
+        default=list,
+        blank=True,
+    )
+    performed_at = models.DateTimeField(
+        _("performed at"),
+        default=timezone.now,
+    )
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reviewed_invoice_matches",
+        verbose_name=_("reviewed by"),
+    )
+    reviewed_at = models.DateTimeField(
+        _("reviewed at"),
+        null=True,
+        blank=True,
+    )
+    override_approved = models.BooleanField(
+        _("override approved"),
+        default=False,
+        help_text=_("Explicit staff override of match discrepancies."),
+    )
+    override_reason = models.CharField(
+        _("override reason"),
+        max_length=255,
+        blank=True,
+    )
+
+    class Meta:
+        verbose_name = _("invoice match record")
+        verbose_name_plural = _("invoice match records")
+        ordering = ("-performed_at",)
+
+    def __str__(self) -> str:
+        return f"Match Record for {self.invoice.invoice_number} ({self.get_status_display()})"
+
+    @property
+    def discrepancy_override_by(self) -> Any:
+        return self.reviewed_by
+
+    @property
+    def discrepancies(self) -> list[dict[str, Any]]:
+        return self.discrepancy_details or []
+
+
+class SupplierPayment(models.Model):
+    """Internal disbursement record settling one or more approved supplier invoices."""
+
+    supplier = models.ForeignKey(
+        Supplier,
+        on_delete=models.PROTECT,
+        related_name="payments",
+        verbose_name=_("supplier"),
+    )
+    payment_reference = models.CharField(
+        _("payment reference"),
+        max_length=64,
+        unique=True,
+        db_index=True,
+        help_text=_("Unique internal disbursement reference, e.g. PAY-AP-20261013-0001."),
+    )
+    bank_transaction_reference = models.CharField(
+        _("bank / external transaction ref"),
+        max_length=100,
+        blank=True,
+        db_index=True,
+        help_text=_("Bank statement, wire transfer or payment reference number."),
+    )
+    payment_method = models.CharField(
+        _("payment method"),
+        max_length=32,
+        choices=PaymentMethod.choices,
+        default=PaymentMethod.BANK_TRANSFER,
+    )
+    payment_date = models.DateField(
+        _("payment date"),
+        default=timezone.localdate,
+        db_index=True,
+    )
+    amount = models.DecimalField(
+        _("payment amount"),
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal("0.01"))],
+    )
+    currency = models.CharField(
+        _("currency"),
+        max_length=3,
+        default="USD",
+    )
+    status = models.CharField(
+        _("status"),
+        max_length=32,
+        choices=SupplierPaymentStatus.choices,
+        default=SupplierPaymentStatus.COMPLETED,
+        db_index=True,
+    )
+    recorded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="recorded_supplier_payments",
+        verbose_name=_("recorded by"),
+    )
+    notes = models.TextField(
+        _("internal notes"),
+        blank=True,
+    )
+    reversed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reversed_supplier_payments",
+        verbose_name=_("reversed by"),
+    )
+    reversed_at = models.DateTimeField(
+        _("reversed at"),
+        null=True,
+        blank=True,
+    )
+    reversal_reason = models.CharField(
+        _("reversal reason"),
+        max_length=255,
+        blank=True,
+    )
+    created_at = models.DateTimeField(
+        _("created at"),
+        auto_now_add=True,
+        db_index=True,
+    )
+    updated_at = models.DateTimeField(
+        _("updated at"),
+        auto_now=True,
+    )
+
+    class Meta:
+        verbose_name = _("supplier payment")
+        verbose_name_plural = _("supplier payments")
+        ordering = ("-payment_date", "-pk")
+
+    def __str__(self) -> str:
+        return f"{self.payment_reference} ({self.supplier.name}) - {self.currency} {self.amount}"
+
+    @property
+    def allocated_amount(self) -> Decimal:
+        return sum((alloc.amount for alloc in self.allocations.all()), Decimal("0.00"))
+
+    @property
+    def unallocated_amount(self) -> Decimal:
+        return max(Decimal("0.00"), self.amount - self.allocated_amount)
+
+    @property
+    def can_reverse(self) -> bool:
+        return self.status == SupplierPaymentStatus.COMPLETED
+
+
+class SupplierPaymentAllocation(models.Model):
+    """Portion of a supplier payment applied toward a specific approved invoice."""
+
+    payment = models.ForeignKey(
+        SupplierPayment,
+        on_delete=models.CASCADE,
+        related_name="allocations",
+        verbose_name=_("payment"),
+    )
+    invoice = models.ForeignKey(
+        SupplierInvoice,
+        on_delete=models.PROTECT,
+        related_name="payment_allocations",
+        verbose_name=_("invoice"),
+    )
+    amount = models.DecimalField(
+        _("allocated amount"),
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal("0.01"))],
+    )
+    created_at = models.DateTimeField(
+        _("allocated at"),
+        auto_now_add=True,
+    )
+
+    class Meta:
+        verbose_name = _("payment allocation")
+        verbose_name_plural = _("payment allocations")
+        ordering = ("pk",)
+        constraints = [
+            models.UniqueConstraint(
+                fields=["payment", "invoice"],
+                name="procurement_payment_invoice_unique",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(amount__gt=0),
+                name="procurement_allocation_amount_gt_0",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.payment.payment_reference} -> {self.invoice.invoice_number}: {self.amount}"
+
+
+class SupplierCreditNote(models.Model):
+    """Credit memo issued by a supplier reducing accounts payable liability."""
+
+    supplier = models.ForeignKey(
+        Supplier,
+        on_delete=models.PROTECT,
+        related_name="credit_notes",
+        verbose_name=_("supplier"),
+    )
+    invoice = models.ForeignKey(
+        SupplierInvoice,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="credit_notes",
+        verbose_name=_("original invoice"),
+    )
+    credit_note_number = models.CharField(
+        _("credit note number"),
+        max_length=100,
+        db_index=True,
+    )
+    credit_date = models.DateField(
+        _("credit date"),
+        default=timezone.localdate,
+    )
+    amount = models.DecimalField(
+        _("credit amount"),
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal("0.01"))],
+    )
+    amount_applied = models.DecimalField(
+        _("amount applied"),
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        validators=[MinValueValidator(Decimal("0.00"))],
+    )
+    currency = models.CharField(
+        _("currency"),
+        max_length=3,
+        default="USD",
+    )
+    status = models.CharField(
+        _("status"),
+        max_length=32,
+        choices=CreditNoteStatus.choices,
+        default=CreditNoteStatus.APPROVED,
+        db_index=True,
+    )
+    reason = models.CharField(
+        _("reason"),
+        max_length=255,
+        help_text=_("e.g. Return of damaged goods, agreed price concession, discount"),
+    )
+    notes = models.TextField(
+        _("internal notes"),
+        blank=True,
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_supplier_credit_notes",
+        verbose_name=_("created by"),
+    )
+    created_at = models.DateTimeField(
+        _("created at"),
+        auto_now_add=True,
+        db_index=True,
+    )
+    updated_at = models.DateTimeField(
+        _("updated at"),
+        auto_now=True,
+    )
+
+    class Meta:
+        verbose_name = _("supplier credit note")
+        verbose_name_plural = _("supplier credit notes")
+        ordering = ("-credit_date", "-pk")
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(amount__gte=models.F("amount_applied")),
+                name="procurement_credit_note_amount_gte_applied",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(amount_applied__gte=0),
+                name="procurement_credit_note_applied_gte_0",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.credit_note_number} ({self.supplier.name}) - {self.currency} {self.amount}"
+
+    @property
+    def unapplied_amount(self) -> Decimal:
+        return max(Decimal("0.00"), self.amount - self.amount_applied)
+
+    @property
+    def remaining_amount(self) -> Decimal:
+        return self.unapplied_amount
+
+    @property
+    def can_apply(self) -> bool:
+        return (
+            self.status == CreditNoteStatus.APPROVED
+            and self.unapplied_amount > Decimal("0.00")
+        )
+
+
+class CreditNoteApplication(models.Model):
+    """Application of a credit note balance toward settling an approved supplier invoice."""
+
+    credit_note = models.ForeignKey(
+        SupplierCreditNote,
+        on_delete=models.CASCADE,
+        related_name="applications",
+        verbose_name=_("credit note"),
+    )
+    invoice = models.ForeignKey(
+        SupplierInvoice,
+        on_delete=models.PROTECT,
+        related_name="credit_applications",
+        verbose_name=_("invoice"),
+    )
+    amount = models.DecimalField(
+        _("applied amount"),
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal("0.01"))],
+    )
+    applied_at = models.DateTimeField(
+        _("applied at"),
+        auto_now_add=True,
+    )
+    applied_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="applied_credit_notes",
+        verbose_name=_("applied by"),
+    )
+
+    class Meta:
+        verbose_name = _("credit note application")
+        verbose_name_plural = _("credit note applications")
+        ordering = ("pk",)
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(amount__gt=0),
+                name="procurement_credit_application_amount_gt_0",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.credit_note.credit_note_number} -> {self.invoice.invoice_number}: {self.amount}"
+

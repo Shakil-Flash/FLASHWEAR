@@ -25,7 +25,7 @@
     </header>
 
     {# ---- Sub-Navigation Tabs ------------------------------------------------------------------ #}
-    <nav class="mb-6 flex space-x-2 border-b border-slate-200 dark:border-slate-800">
+    <nav class="mb-6 flex flex-wrap gap-1 border-b border-slate-200 dark:border-slate-800">
         <a href="{% url 'backoffice:procurement_dashboard' %}" class="border-b-2 border-transparent px-4 py-2.5 text-sm font-medium text-slate-500 hover:border-slate-300 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300">
             Purchasing Overview
         </a>
@@ -34,6 +34,18 @@
         </a>
         <a href="{% url 'backoffice:suppliers' %}" class="border-b-2 border-indigo-600 px-4 py-2.5 text-sm font-semibold text-indigo-600 dark:border-indigo-400 dark:text-indigo-400">
             Suppliers Directory
+        </a>
+        <a href="{% url 'backoffice:accounts_payable_dashboard' %}" class="border-b-2 border-transparent px-4 py-2.5 text-sm font-medium text-slate-500 hover:border-slate-300 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300">
+            AP Dashboard
+        </a>
+        <a href="{% url 'backoffice:supplier_invoices' %}" class="border-b-2 border-transparent px-4 py-2.5 text-sm font-medium text-slate-500 hover:border-slate-300 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300">
+            Supplier Invoices
+        </a>
+        <a href="{% url 'backoffice:supplier_payments' %}" class="border-b-2 border-transparent px-4 py-2.5 text-sm font-medium text-slate-500 hover:border-slate-300 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300">
+            Disbursements
+        </a>
+        <a href="{% url 'backoffice:supplier_credit_notes' %}" class="border-b-2 border-transparent px-4 py-2.5 text-sm font-medium text-slate-500 hover:border-slate-300 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300">
+            Credit Notes
         </a>
     </nav>
 

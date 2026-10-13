@@ -1,0 +1,184 @@
+{% extends "backoffice/base.html" %}
+
+{% block title %}
+    Record Supplier Payment
+{% endblock title %}
+{% block breadcrumb %}
+    <a href="{% url 'backoffice:supplier_payments' %}" class="hover:underline">Disbursements</a> / New Payment
+{% endblock breadcrumb %}
+
+{% block content %}
+    <div class="mx-auto max-w-3xl">
+        <header class="mb-6">
+            <h1 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+                Record Supplier Disbursement
+            </h1>
+            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                Log internal payment verification and allocate funds across approved vendor invoices.
+            </p>
+        </header>
+
+        <form method="post" class="space-y-6">
+            {% csrf_token %}
+
+            {# ---- Payment Header --------------------------------------------------------------- #}
+            <div class="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+                <h2 class="mb-4 text-base font-bold text-slate-900 dark:text-white">1. Payment Details</h2>
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div class="sm:col-span-2">
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                            Supplier <span class="text-rose-500">*</span>
+                        </label>
+                        <select
+                            name="supplier"
+                            required
+                            class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 focus:border-indigo-500 focus:outline-hidden dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                        >
+                            <option value="">-- Select Vendor --</option>
+                            {% for sup in suppliers %}
+                                <option value="{{ sup.pk }}" {% if selected_supplier and selected_supplier.pk == sup.pk %}selected{% endif %}>
+                                    {{ sup.name }} ({{ sup.code }}) [{{ sup.currency }}]
+                                </option>
+                            {% endfor %}
+                        </select>
+                        <p class="mt-1 text-2xs text-slate-400">Select the supplier being paid to populate their approved open invoices below.</p>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                            Disbursement Amount <span class="text-rose-500">*</span>
+                        </label>
+                        <input
+                            type="number"
+                            step="0.01"
+                            min="0.01"
+                            name="amount"
+                            required
+                            placeholder="0.00"
+                            class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-900 focus:border-indigo-500 focus:outline-hidden dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                        />
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                            Payment Date <span class="text-rose-500">*</span>
+                        </label>
+                        <input
+                            type="date"
+                            name="payment_date"
+                            required
+                            value="{{ today|date:'Y-m-d' }}"
+                            class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-xs text-slate-900 focus:border-indigo-500 focus:outline-hidden dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                        />
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                            Payment Method
+                        </label>
+                        <select
+                            name="payment_method"
+                            class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 focus:border-indigo-500 focus:outline-hidden dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                        >
+                            {% for val, label in payment_methods %}
+                                <option value="{{ val }}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                            Bank Statement / Wire Reference
+                        </label>
+                        <input
+                            type="text"
+                            name="bank_transaction_reference"
+                            placeholder="e.g. TRF-8392198 / BACS Ref"
+                            class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-xs text-slate-900 focus:border-indigo-500 focus:outline-hidden dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                        />
+                    </div>
+
+                    <div class="sm:col-span-2">
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                            Internal Notes
+                        </label>
+                        <input
+                            type="text"
+                            name="notes"
+                            placeholder="Disbursement details, banking channel, remittance memo..."
+                            class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-xs text-slate-900 focus:border-indigo-500 focus:outline-hidden dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                        />
+                    </div>
+                </div>
+            </div>
+
+            {# ---- Open Invoices Allocations ---------------------------------------------------- #}
+            {% if selected_supplier and open_invoices %}
+                <div class="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+                    <h2 class="mb-2 text-base font-bold text-slate-900 dark:text-white">2. Allocate to Approved Invoices</h2>
+                    <p class="mb-4 text-xs text-slate-500 dark:text-slate-400">
+                        Specify how much of this disbursement applies toward each open liability.
+                    </p>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs">
+                            <thead>
+                                <tr class="border-b border-slate-200 pb-2 text-slate-500 dark:border-slate-800">
+                                    <th class="pb-2 font-semibold">Invoice #</th>
+                                    <th class="pb-2 font-semibold">Due Date</th>
+                                    <th class="pb-2 text-right font-semibold">Total</th>
+                                    <th class="pb-2 text-right font-semibold">Outstanding</th>
+                                    <th class="pb-2 text-right font-semibold w-36">Apply Amount ($)</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                                {% for inv in open_invoices %}
+                                    <tr>
+                                        <td class="py-2.5 font-semibold text-slate-900 dark:text-white">
+                                            {{ inv.invoice_number }}
+                                        </td>
+                                        <td class="py-2.5 text-slate-500">
+                                            {{ inv.due_date|date:"Y-m-d" }}
+                                        </td>
+                                        <td class="py-2.5 text-right font-mono text-slate-600 dark:text-slate-400">
+                                            ${{ inv.total_amount|floatformat:2 }}
+                                        </td>
+                                        <td class="py-2.5 text-right font-mono font-bold text-slate-900 dark:text-white">
+                                            ${{ inv.outstanding_balance|floatformat:2 }}
+                                        </td>
+                                        <td class="py-2.5 text-right">
+                                            <input
+                                                type="number"
+                                                step="0.01"
+                                                min="0.00"
+                                                max="{{ inv.outstanding_balance }}"
+                                                name="alloc_invoice_{{ inv.pk }}"
+                                                placeholder="0.00"
+                                                class="w-full rounded border border-slate-300 bg-white px-2 py-1 text-right text-xs font-mono font-semibold text-slate-900 focus:border-indigo-500 focus:outline-hidden dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                                            />
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            {% endif %}
+
+            {# ---- Submit Buttons ---------------------------------------------------------------- #}
+            <div class="flex items-center justify-end gap-3">
+                <a
+                    href="{% url 'backoffice:supplier_payments' %}"
+                    class="rounded-lg border border-slate-300 px-4 py-2 text-xs font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                >
+                    Cancel
+                </a>
+                <button
+                    type="submit"
+                    class="rounded-lg bg-emerald-600 px-5 py-2 text-xs font-semibold text-white shadow-xs transition hover:bg-emerald-500"
+                >
+                    Record Disbursement
+                </button>
+            </div>
+        </form>
+    </div>
+{% endblock content %}

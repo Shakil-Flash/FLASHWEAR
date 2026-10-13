@@ -68,6 +68,7 @@ from apps.backoffice.views.notifications import (
     notifications,
 )
 from apps.backoffice.views.procurement import (
+    accounts_payable_dashboard,
     procurement_dashboard,
     purchase_order_action,
     purchase_order_create,
@@ -76,9 +77,20 @@ from apps.backoffice.views.procurement import (
     purchase_order_print,
     purchase_order_receive,
     purchase_orders_list,
+    supplier_credit_note_apply,
+    supplier_credit_note_create,
+    supplier_credit_notes_list,
     supplier_create,
     supplier_detail,
     supplier_edit,
+    supplier_invoice_action,
+    supplier_invoice_create,
+    supplier_invoice_detail,
+    supplier_invoice_edit,
+    supplier_invoices_list,
+    supplier_payment_create,
+    supplier_payment_reverse,
+    supplier_payments_list,
     suppliers_list,
 )
 from apps.backoffice.views.sales import (
@@ -96,6 +108,7 @@ from apps.backoffice.views.sales import (
 )
 
 __all__ = [
+    "accounts_payable_dashboard",
     "adjust_stock",
     "alerts",
     "analytics",
@@ -164,9 +177,20 @@ __all__ = [
     "shipments",
     "staff",
     "staff_update",
+    "supplier_credit_note_apply",
+    "supplier_credit_note_create",
+    "supplier_credit_notes_list",
     "supplier_create",
     "supplier_detail",
     "supplier_edit",
+    "supplier_invoice_action",
+    "supplier_invoice_create",
+    "supplier_invoice_detail",
+    "supplier_invoice_edit",
+    "supplier_invoices_list",
+    "supplier_payment_create",
+    "supplier_payment_reverse",
+    "supplier_payments_list",
     "suppliers_list",
     "support",
     "support_assign",

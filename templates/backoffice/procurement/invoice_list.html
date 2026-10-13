@@ -1,0 +1,275 @@
+{% extends "backoffice/base.html" %}
+
+{% block title %}
+    Supplier Invoices &amp; Bills
+{% endblock title %}
+{% block breadcrumb %}
+    Invoices
+{% endblock breadcrumb %}
+
+{% block content %}
+    {# ---- Page Header -------------------------------------------------------------------------- #}
+    <header class="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-3xl">
+                Supplier Invoices
+            </h1>
+            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                Track supplier bills, verify three-way matching accuracy, and authorize liabilities for payment.
+            </p>
+        </div>
+        <div class="flex items-center gap-2.5">
+            <a href="{% url 'backoffice:supplier_invoice_create' %}" class="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3.5 py-2 text-xs font-semibold text-white shadow-xs transition hover:bg-indigo-500">
+                + Record Invoice
+            </a>
+        </div>
+    </header>
+
+    {# ---- Sub-Navigation Tabs ------------------------------------------------------------------ #}
+    <nav class="mb-6 flex space-x-2 border-b border-slate-200 dark:border-slate-800">
+        <a href="{% url 'backoffice:procurement_dashboard' %}" class="border-b-2 border-transparent px-4 py-2.5 text-sm font-medium text-slate-500 hover:border-slate-300 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300">
+            Purchasing Overview
+        </a>
+        <a href="{% url 'backoffice:purchase_orders' %}" class="border-b-2 border-transparent px-4 py-2.5 text-sm font-medium text-slate-500 hover:border-slate-300 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300">
+            Purchase Orders
+        </a>
+        <a href="{% url 'backoffice:suppliers' %}" class="border-b-2 border-transparent px-4 py-2.5 text-sm font-medium text-slate-500 hover:border-slate-300 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300">
+            Suppliers Directory
+        </a>
+        <a href="{% url 'backoffice:accounts_payable_dashboard' %}" class="border-b-2 border-transparent px-4 py-2.5 text-sm font-medium text-slate-500 hover:border-slate-300 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300">
+            AP Dashboard
+        </a>
+        <a href="{% url 'backoffice:supplier_invoices' %}" class="border-b-2 border-indigo-600 px-4 py-2.5 text-sm font-semibold text-indigo-600 dark:border-indigo-400 dark:text-indigo-400">
+            Supplier Invoices
+        </a>
+        <a href="{% url 'backoffice:supplier_payments' %}" class="border-b-2 border-transparent px-4 py-2.5 text-sm font-medium text-slate-500 hover:border-slate-300 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300">
+            Disbursements
+        </a>
+        <a href="{% url 'backoffice:supplier_credit_notes' %}" class="border-b-2 border-transparent px-4 py-2.5 text-sm font-medium text-slate-500 hover:border-slate-300 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300">
+            Credit Notes
+        </a>
+    </nav>
+
+    {# ---- Search and Filter Form --------------------------------------------------------------- #}
+    <div class="mb-6 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+        <form method="get" class="flex flex-wrap items-center gap-3">
+            <div class="min-w-[220px] flex-1">
+                <input
+                    type="search"
+                    name="q"
+                    value="{{ q }}"
+                    placeholder="Search by invoice #, PO reference, or supplier..."
+                    class="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-hidden dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                />
+            </div>
+            <div>
+                <select
+                    name="supplier"
+                    class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                >
+                    <option value="">All Suppliers</option>
+                    {% for sup in suppliers %}
+                        <option value="{{ sup.pk }}" {% if selected_supplier_id == sup.pk %}selected{% endif %}>
+                            {{ sup.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <select
+                    name="status"
+                    class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                >
+                    <option value="">All Statuses</option>
+                    {% for val, label in status_choices %}
+                        <option value="{{ val }}" {% if selected_status == val %}selected{% endif %}>
+                            {{ label }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="flex items-center gap-2">
+                <label class="flex items-center gap-1.5 text-xs font-medium text-slate-700 dark:text-slate-300">
+                    <input
+                        type="checkbox"
+                        name="overdue"
+                        value="1"
+                        {% if overdue_only %}checked{% endif %}
+                        class="rounded border-slate-300 text-indigo-600 dark:border-slate-700"
+                    />
+                    Overdue Only
+                </label>
+            </div>
+            <div class="flex items-center gap-2">
+                <button
+                    type="submit"
+                    class="rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-slate-800 dark:bg-indigo-600 dark:hover:bg-indigo-500"
+                >
+                    Filter
+                </button>
+                {% if q or selected_status or selected_supplier_id or overdue_only %}
+                    <a
+                        href="{% url 'backoffice:supplier_invoices' %}"
+                        class="rounded-lg border border-slate-300 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-400"
+                    >
+                        Clear
+                    </a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+
+    {# ---- Invoices Table ----------------------------------------------------------------------- #}
+    <div class="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+                <thead class="border-b border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-800 dark:bg-slate-800/50 dark:text-slate-400">
+                    <tr>
+                        <th class="px-4 py-3 font-semibold">Invoice #</th>
+                        <th class="px-4 py-3 font-semibold">Supplier</th>
+                        <th class="px-4 py-3 font-semibold">PO Reference</th>
+                        <th class="px-4 py-3 font-semibold">Invoice Date</th>
+                        <th class="px-4 py-3 font-semibold">Due Date</th>
+                        <th class="px-4 py-3 text-right font-semibold">Total Amount</th>
+                        <th class="px-4 py-3 text-right font-semibold">Balance</th>
+                        <th class="px-4 py-3 text-center font-semibold">3-Way Match</th>
+                        <th class="px-4 py-3 text-center font-semibold">Status</th>
+                        <th class="px-4 py-3 text-right font-semibold">Action</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                    {% for inv in invoices_page %}
+                        <tr class="transition hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
+                            <td class="px-4 py-3 font-semibold text-slate-900 dark:text-white">
+                                <a href="{% url 'backoffice:supplier_invoice_detail' inv.pk %}" class="text-indigo-600 hover:underline dark:text-indigo-400">
+                                    {{ inv.invoice_number }}
+                                </a>
+                            </td>
+                            <td class="px-4 py-3 font-medium text-slate-700 dark:text-slate-300">
+                                {{ inv.supplier.name }}
+                            </td>
+                            <td class="px-4 py-3 font-mono text-slate-600 dark:text-slate-400">
+                                {% if inv.purchase_order %}
+                                    <a href="{% url 'backoffice:purchase_order_detail' inv.purchase_order.pk %}" class="hover:underline">
+                                        {{ inv.purchase_order.reference }}
+                                    </a>
+                                {% else %}
+                                    <span class="text-slate-400 italic">None</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-4 py-3 text-slate-600 dark:text-slate-400">
+                                {{ inv.invoice_date|date:"Y-m-d" }}
+                            </td>
+                            <td class="px-4 py-3 font-medium {% if inv.is_overdue %}text-rose-600 dark:text-rose-400 font-bold{% else %}text-slate-600 dark:text-slate-400{% endif %}">
+                                {{ inv.due_date|date:"Y-m-d" }}
+                                {% if inv.is_overdue %}
+                                    <span class="ml-1 rounded bg-rose-100 px-1 py-0.2 text-2xs text-rose-700 dark:bg-rose-950 dark:text-rose-300">Overdue</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-4 py-3 text-right font-mono text-slate-900 dark:text-white">
+                                {{ inv.currency }} {{ inv.total_amount|floatformat:2 }}
+                            </td>
+                            <td class="px-4 py-3 text-right font-mono font-bold text-slate-900 dark:text-white">
+                                {{ inv.currency }} {{ inv.outstanding_balance|floatformat:2 }}
+                            </td>
+                            <td class="px-4 py-3 text-center">
+                                {% if inv.match_record %}
+                                    {% if inv.match_record.status == 'matched' %}
+                                        <span class="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-2xs font-bold text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                                            ✓ Matched
+                                        </span>
+                                    {% elif inv.match_record.status == 'missing_receipt' %}
+                                        <span class="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-2xs font-bold text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                                            ⚠ Missing Receipt
+                                        </span>
+                                    {% elif inv.match_record.status == 'overbilled' %}
+                                        <span class="inline-flex items-center rounded-full bg-rose-100 px-2 py-0.5 text-2xs font-bold text-rose-800 dark:bg-rose-950 dark:text-rose-300">
+                                            ✕ Overbilled
+                                        </span>
+                                    {% elif inv.match_record.status == 'variance_price' %}
+                                        <span class="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-2xs font-bold text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                                            Δ Price Variance
+                                        </span>
+                                    {% else %}
+                                        <span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-2xs font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                                            {{ inv.match_record.get_status_display }}
+                                        </span>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-slate-400 text-2xs">&mdash;</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-4 py-3 text-center">
+                                {% if inv.status == 'draft' %}
+                                    <span class="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-2xs font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                                        Draft
+                                    </span>
+                                {% elif inv.status == 'submitted' %}
+                                    <span class="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-2xs font-semibold text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                                        Submitted
+                                    </span>
+                                {% elif inv.status == 'approved' %}
+                                    <span class="inline-flex items-center rounded-full bg-indigo-100 px-2.5 py-0.5 text-2xs font-semibold text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300">
+                                        Approved
+                                    </span>
+                                {% elif inv.status == 'partially_paid' %}
+                                    <span class="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-2xs font-semibold text-blue-800 dark:bg-blue-950 dark:text-blue-300">
+                                        Partially Paid
+                                    </span>
+                                {% elif inv.status == 'paid' %}
+                                    <span class="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-2xs font-semibold text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                                        Paid in Full
+                                    </span>
+                                {% elif inv.status == 'disputed' %}
+                                    <span class="inline-flex items-center rounded-full bg-rose-100 px-2.5 py-0.5 text-2xs font-semibold text-rose-800 dark:bg-rose-950 dark:text-rose-300">
+                                        Disputed
+                                    </span>
+                                {% elif inv.status == 'voided' %}
+                                    <span class="inline-flex items-center rounded-full bg-slate-200 px-2.5 py-0.5 text-2xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-400">
+                                        Voided
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td class="px-4 py-3 text-right">
+                                <a
+                                    href="{% url 'backoffice:supplier_invoice_detail' inv.pk %}"
+                                    class="rounded-md border border-slate-200 px-2 py-1 text-2xs font-medium text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                                >
+                                    View
+                                </a>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="10" class="px-4 py-10 text-center text-slate-400 dark:text-slate-500">
+                                <p class="text-sm font-semibold">No supplier invoices found.</p>
+                                <p class="mt-1 text-xs">Record incoming bills from vendors to manage accounts payable liabilities.</p>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {# ---- Pagination ----------------------------------------------------------------------- #}
+        {% if invoices_page.has_other_pages %}
+            <div class="flex items-center justify-between border-t border-slate-200 bg-slate-50/50 px-4 py-3 text-xs dark:border-slate-800 dark:bg-slate-900/50">
+                <span class="text-slate-500 dark:text-slate-400">
+                    Page {{ invoices_page.number }} of {{ invoices_page.paginator.num_pages }}
+                </span>
+                <div class="flex items-center gap-2">
+                    {% if invoices_page.has_previous %}
+                        <a href="?page={{ invoices_page.previous_page_number }}{% if q %}&q={{ q }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_supplier_id %}&supplier={{ selected_supplier_id }}{% endif %}{% if overdue_only %}&overdue=1{% endif %}" class="rounded-md border border-slate-200 px-2.5 py-1 font-medium hover:bg-slate-100 dark:border-slate-700">
+                            &larr; Prev
+                        </a>
+                    {% endif %}
+                    {% if invoices_page.has_next %}
+                        <a href="?page={{ invoices_page.next_page_number }}{% if q %}&q={{ q }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_supplier_id %}&supplier={{ selected_supplier_id }}{% endif %}{% if overdue_only %}&overdue=1{% endif %}" class="rounded-md border border-slate-200 px-2.5 py-1 font-medium hover:bg-slate-100 dark:border-slate-700">
+                            Next &rarr;
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        {% endif %}
+    </div>
+{% endblock content %}

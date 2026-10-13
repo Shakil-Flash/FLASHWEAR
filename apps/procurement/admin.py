@@ -6,11 +6,18 @@ from django.contrib import admin
 from django.utils.translation import gettext_lazy as _
 
 from apps.procurement.models import (
+    CreditNoteApplication,
+    InvoiceMatchRecord,
     PurchaseOrder,
     PurchaseOrderItem,
     PurchaseOrderReceipt,
     PurchaseOrderReceiptItem,
     Supplier,
+    SupplierCreditNote,
+    SupplierInvoice,
+    SupplierInvoiceLine,
+    SupplierPayment,
+    SupplierPaymentAllocation,
     SupplierVariant,
 )
 
@@ -148,3 +155,85 @@ class PurchaseOrderReceiptAdmin(admin.ModelAdmin):
     search_fields = ("delivery_reference", "purchase_order__reference")
     readonly_fields = ("created_at",)
     inlines = (PurchaseOrderReceiptItemInline,)
+
+
+class SupplierInvoiceLineInline(admin.TabularInline):
+    model = SupplierInvoiceLine
+    extra = 0
+    raw_id_fields = ("po_item",)
+    autocomplete_fields = ("variant",)
+
+
+class InvoiceMatchRecordInline(admin.StackedInline):
+    model = InvoiceMatchRecord
+    extra = 0
+    readonly_fields = ("status", "price_variance_total", "quantity_variance_total", "is_within_tolerance", "summary", "performed_at")
+
+
+@admin.register(SupplierInvoice)
+class SupplierInvoiceAdmin(admin.ModelAdmin):
+    list_display = (
+        "invoice_number",
+        "supplier",
+        "status",
+        "invoice_date",
+        "due_date",
+        "total_amount",
+        "amount_paid",
+        "amount_credited",
+        "currency",
+    )
+    list_filter = ("status", "currency", "invoice_date", "due_date")
+    search_fields = ("invoice_number", "normalized_invoice_number", "supplier__name", "supplier_reference")
+    autocomplete_fields = ("supplier", "purchase_order")
+    readonly_fields = ("created_at", "updated_at", "approved_at", "voided_at")
+    inlines = (SupplierInvoiceLineInline, InvoiceMatchRecordInline)
+
+
+class SupplierPaymentAllocationInline(admin.TabularInline):
+    model = SupplierPaymentAllocation
+    extra = 0
+    autocomplete_fields = ("invoice",)
+
+
+@admin.register(SupplierPayment)
+class SupplierPaymentAdmin(admin.ModelAdmin):
+    list_display = (
+        "payment_reference",
+        "supplier",
+        "amount",
+        "currency",
+        "payment_method",
+        "status",
+        "payment_date",
+    )
+    list_filter = ("status", "payment_method", "currency", "payment_date")
+    search_fields = ("payment_reference", "bank_transaction_reference", "supplier__name")
+    autocomplete_fields = ("supplier",)
+    readonly_fields = ("created_at", "updated_at", "reversed_at")
+    inlines = (SupplierPaymentAllocationInline,)
+
+
+class CreditNoteApplicationInline(admin.TabularInline):
+    model = CreditNoteApplication
+    extra = 0
+    autocomplete_fields = ("invoice",)
+
+
+@admin.register(SupplierCreditNote)
+class SupplierCreditNoteAdmin(admin.ModelAdmin):
+    list_display = (
+        "credit_note_number",
+        "supplier",
+        "amount",
+        "amount_applied",
+        "currency",
+        "status",
+        "credit_date",
+    )
+    list_filter = ("status", "currency", "credit_date")
+    search_fields = ("credit_note_number", "supplier__name", "reason")
+    autocomplete_fields = ("supplier", "invoice")
+    readonly_fields = ("created_at", "updated_at")
+    inlines = (CreditNoteApplicationInline,)
+
