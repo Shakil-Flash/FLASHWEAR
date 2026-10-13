@@ -41,7 +41,10 @@ from apps.backoffice.views.dashboard import alerts, dashboard, health
 from apps.backoffice.views.governance import audit, staff, staff_update
 from apps.backoffice.views.merchandising import (
     adjust_stock,
+    catalog_health_report,
+    catalog_remediate,
     drops,
+    export_catalog_health_csv,
     inventory,
     merch_featured_collections,
     merch_featured_products,
@@ -78,6 +81,8 @@ __all__ = [
     "alerts",
     "analytics",
     "audit",
+    "catalog_health_report",
+    "catalog_remediate",
     "content_campaign_delete",
     "content_campaign_edit",
     "content_campaigns",
@@ -93,6 +98,7 @@ __all__ = [
     "dashboard",
     "drops",
     "export_analytics_csv",
+    "export_catalog_health_csv",
     "health",
     "inventory",
     "loop",

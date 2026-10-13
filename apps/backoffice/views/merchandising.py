@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from django.contrib import messages
 from django.shortcuts import redirect
+from django.urls import reverse
 from django.views.decorators.http import require_POST
 
 from apps.backoffice import selectors
@@ -31,7 +32,10 @@ from apps.catalog.models import Product
 
 __all__ = [
     "adjust_stock",
+    "catalog_health_report",
+    "catalog_remediate",
     "drops",
+    "export_catalog_health_csv",
     "inventory",
     "merch_featured_collections",
     "merch_featured_products",
@@ -82,6 +86,189 @@ def products(request):
             "sort": request.GET.get("sort", ""),
         },
     )
+
+
+@backoffice_access(CATALOG_VIEW)
+def catalog_health_report(request):
+    """``/operations/products/health/`` -- full catalog quality & intelligence report."""
+    from django.core.paginator import Paginator
+    from django.db.models import Q
+    from apps.catalog.models import Category
+    from apps.catalog.quality import audit_catalog
+
+    severity = request.GET.get("severity", "").strip() or None
+    issue_code = request.GET.get("issue", "").strip() or None
+    category_slug = request.GET.get("category", "").strip() or None
+    status = request.GET.get("status", "").strip() or None
+    q = request.GET.get("q", "").strip()
+
+    prod_qs = None
+    if q:
+        prod_qs = Product.objects.filter(Q(name__icontains=q) | Q(slug__icontains=q))
+
+    report = audit_catalog(
+        queryset=prod_qs,
+        severity=severity,
+        issue_code=issue_code,
+        category_slug=category_slug,
+        status=status,
+    )
+
+    categories = Category.objects.filter(is_active=True).order_by("name")
+    paginator = Paginator(report.all_issues, 30)
+    page_number = request.GET.get("page", 1)
+    page = paginator.get_page(page_number)
+
+    return render_bo(
+        request,
+        "backoffice/catalog_health.html",
+        active="products",
+        report=report,
+        page=page,
+        categories=categories,
+        can_manage=has(request.user, CATALOG_MANAGE),
+        filters={
+            "severity": severity or "",
+            "issue": issue_code or "",
+            "category": category_slug or "",
+            "status": status or "",
+            "q": q,
+        },
+    )
+
+
+@backoffice_access(CATALOG_VIEW)
+def export_catalog_health_csv(request):
+    """Export catalog quality audit issues as a CSV download."""
+    import csv
+    from django.http import HttpResponse
+    from django.db.models import Q
+    from django.utils import timezone
+    from apps.catalog.quality import audit_catalog
+
+    severity = request.GET.get("severity", "").strip() or None
+    issue_code = request.GET.get("issue", "").strip() or None
+    category_slug = request.GET.get("category", "").strip() or None
+    status = request.GET.get("status", "").strip() or None
+    q = request.GET.get("q", "").strip()
+
+    prod_qs = None
+    if q:
+        prod_qs = Product.objects.filter(Q(name__icontains=q) | Q(slug__icontains=q))
+
+    report = audit_catalog(
+        queryset=prod_qs,
+        severity=severity,
+        issue_code=issue_code,
+        category_slug=category_slug,
+        status=status,
+    )
+
+    response = HttpResponse(content_type="text/csv; charset=utf-8")
+    now_str = timezone.now().strftime("%Y%m%d-%H%M")
+    response["Content-Disposition"] = f'attachment; filename="flashwear-catalog-audit-{now_str}.csv"'
+
+    writer = csv.writer(response)
+    writer.writerow([
+        "Product ID",
+        "Product Name",
+        "Severity",
+        "Category Area",
+        "Issue Code",
+        "Description",
+        "Variant SKU",
+        "Admin URL",
+    ])
+    for issue in report.all_issues:
+        writer.writerow([
+            issue.product_id,
+            issue.product_name,
+            issue.severity,
+            issue.category,
+            issue.code,
+            issue.message,
+            issue.variant_sku or "",
+            request.build_absolute_uri(issue.admin_url),
+        ])
+    return response
+
+
+@require_POST
+@backoffice_access(CATALOG_MANAGE)
+def catalog_remediate(request):
+    """Run safe targeted remediation action from Back Office."""
+    from apps.backoffice.services.audit import record as record_audit
+    from apps.catalog.quality import (
+        audit_catalog,
+        ensure_variant_stock,
+        normalize_primary_images,
+        populate_fallback_alt_text,
+    )
+
+    action = request.POST.get("action", "").strip()
+    reason = request.POST.get("reason", "").strip() or "Backoffice catalog remediation"
+
+    if action == "ensure_stock":
+        count = ensure_variant_stock()
+        messages.success(request, f"Created {count} missing stock records with zero quantity.")
+        record_audit(
+            actor=request.user,
+            domain="catalog",
+            action="catalog.remediate.ensure_stock",
+            object_type="catalog.stock",
+            object_id="all",
+            object_repr=f"{count} stock rows created",
+            reason=reason,
+        )
+    elif action == "fix_primary_images":
+        count = normalize_primary_images()
+        messages.success(request, f"Normalized primary images across {count} products.")
+        record_audit(
+            actor=request.user,
+            domain="catalog",
+            action="catalog.remediate.normalize_primary_images",
+            object_type="catalog.product_image",
+            object_id="all",
+            object_repr=f"{count} products normalized",
+            reason=reason,
+        )
+    elif action == "populate_alt_text":
+        count = populate_fallback_alt_text()
+        messages.success(request, f"Populated fallback alt text for {count} product images.")
+        record_audit(
+            actor=request.user,
+            domain="catalog",
+            action="catalog.remediate.populate_alt_text",
+            object_type="catalog.product_image",
+            object_id="all",
+            object_repr=f"{count} alt texts populated",
+            reason=reason,
+        )
+    elif action == "unpublish_blocking":
+        report = audit_catalog(status=Product.Status.ACTIVE)
+        blocking_pks = [
+            pk for pk, audit in report.product_audits.items()
+            if audit.blocking_count > 0 and audit.product.status == Product.Status.ACTIVE
+        ]
+        if blocking_pks:
+            res = operations.catalog_action(
+                products=Product.objects.filter(pk__in=blocking_pks),
+                action="unpublish",
+                actor=request.user,
+                reason=reason or "Unpublish products with blocking catalog quality issues",
+            )
+            messages.warning(
+                request,
+                f"Unpublished {len(res.succeeded)} active product(s) with blocking quality errors.",
+            )
+        else:
+            messages.info(request, "No active products with blocking quality errors found.")
+    else:
+        messages.error(request, f"Unknown remediation action: {action}")
+
+    next_url = request.POST.get("next") or request.META.get("HTTP_REFERER") or reverse("backoffice:catalog_health")
+    return redirect(next_url)
+
 
 
 @require_POST

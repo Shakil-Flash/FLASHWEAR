@@ -961,6 +961,12 @@ A high-converting, accessible, and beautifully designed fashion shopping journey
                             {% if product.fit %}
                                 <p><strong class="font-semibold text-slate-900 dark:text-white">Fit Category:</strong> {{ product.fit.name }}</p>
                             {% endif %}
+                            {% if product.fabric_stretch %}
+                                <p><strong class="font-semibold text-slate-900 dark:text-white">Fabric Stretch:</strong> {{ product.get_fabric_stretch_display }}</p>
+                            {% endif %}
+                            {% if product.silhouette %}
+                                <p><strong class="font-semibold text-slate-900 dark:text-white">Cut / Silhouette:</strong> {{ product.silhouette }}</p>
+                            {% endif %}
                             {% if materials %}
                                 <p>
                                     <strong class="font-semibold text-slate-900 dark:text-white">Composition:</strong>

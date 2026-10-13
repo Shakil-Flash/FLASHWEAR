@@ -152,6 +152,18 @@ def products(*, q: str = "", status: str = "", issue: str = "", sort: str = "") 
         qs = qs.filter(image_count=0)
     elif issue == "no_active_variants":
         qs = qs.filter(active_variant_count=0)
+    elif issue == "missing_stock":
+        qs = qs.filter(variants__is_active=True, variants__stock__isnull=True).distinct()
+    elif issue == "blocking":
+        qs = qs.filter(
+            Q(status=Product.Status.ACTIVE)
+            & (
+                Q(image_count=0)
+                | Q(active_variant_count=0)
+                | Q(published_at__isnull=True)
+                | Q(variants__is_active=True, variants__stock__isnull=True)
+            )
+        ).distinct()
 
     return sort_queryset(qs, sort, PRODUCT_SORTS, "-created_at")[0]
 
@@ -171,6 +183,7 @@ def catalog_health() -> dict[str, int]:
         .count(),
         "active_without_publish_date": active.filter(published_at__isnull=True).count(),
         "inactive_variants": ProductVariant.objects.filter(is_active=False).count(),
+        "missing_stock": ProductVariant.objects.filter(is_active=True, stock__isnull=True).count(),
     }
 
 

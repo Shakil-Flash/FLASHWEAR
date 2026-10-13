@@ -292,22 +292,13 @@ def extract_review_signals(user) -> dict[str, list[str] | None]:
 def _build_base_queryset(user) -> models.QuerySet[Product]:
     """Build a base product queryset obeying all catalog visibility rules.
 
-    This is the foundation every candidate set starts from. It mirrors
-    ``ProductQuerySet.published()`` but returns a fresh queryset so callers
-    can add their own filters.
+    This is the foundation every candidate set starts from. Uses
+    ``ProductQuerySet.published()`` so candidates are strictly live, published
+    products with active categories and active brands.
     """
     from apps.catalog.models import Product as CatProduct
 
-    return (
-        CatProduct.objects.filter(
-            status=CatProduct.Status.ACTIVE,
-        )
-        .filter(
-            Q(published_at__lte=None) | Q(published_at__lte=models.functions.Now()),
-        )
-        .filter(models.Q(category__is_active=True) | models.Q(category__isnull=True))
-        .filter(models.Q(brand__is_active=True) | models.Q(brand__isnull=True))
-    )
+    return CatProduct.objects.published()
 
 
 def _apply_dna_filters(
@@ -962,7 +953,7 @@ def get_customer_recommendations(user, limit: int = 4) -> list[dict]:
     from apps.catalog.models import Product
 
     qs = (
-        Product.objects.filter(status=Product.Status.ACTIVE)
+        Product.objects.published()
         .select_related("brand", "fit", "category")
         .prefetch_related("images", "variants__stock")
         .order_by("-is_featured", "-published_at", "-id")[:limit]

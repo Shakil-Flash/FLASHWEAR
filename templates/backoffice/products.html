@@ -20,6 +20,12 @@
             </p>
         </div>
         <div class="flex items-center gap-2.5">
+            <a href="{% url 'backoffice:catalog_health' %}" class="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 shadow-xs transition hover:bg-slate-50 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2">
+                <svg class="h-4 w-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Health Report &amp; Audit
+            </a>
             {% if can_manage %}
                 <a href="{% url 'admin:catalog_product_add' %}" class="inline-flex items-center justify-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-xs transition hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2">
                     + New Product
@@ -80,6 +86,9 @@
                 <option value="">
                     Any issue
                 </option>
+                <option value="blocking" {% if filters.issue == 'blocking' %}selected{% endif %}>
+                    Blocking errors
+                </option>
                 <option value="unpublished" {% if filters.issue == 'unpublished' %}selected{% endif %}>
                     Not live
                 </option>
@@ -88,6 +97,9 @@
                 </option>
                 <option value="no_active_variants" {% if filters.issue == 'no_active_variants' %}selected{% endif %}>
                     No sellable variant
+                </option>
+                <option value="missing_stock" {% if filters.issue == 'missing_stock' %}selected{% endif %}>
+                    Missing stock records
                 </option>
             </select>
         </div>

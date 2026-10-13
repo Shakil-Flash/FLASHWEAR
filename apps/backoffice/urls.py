@@ -111,6 +111,9 @@ urlpatterns = [
     # Merchandising
     path("products/", views.products, name="products"),
     path("products/bulk/", views.products_bulk, name="products_bulk"),
+    path("products/health/", views.catalog_health_report, name="catalog_health"),
+    path("products/health/export/", views.export_catalog_health_csv, name="catalog_health_export"),
+    path("products/remediate/", views.catalog_remediate, name="catalog_remediate"),
     path("inventory/", views.inventory, name="inventory"),
     path("inventory/adjust/", views.adjust_stock, name="inventory_adjust"),
     path("drops/", views.drops, name="drops"),

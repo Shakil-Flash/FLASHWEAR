@@ -488,14 +488,7 @@ def get_search_suggestions(query: str, limit: int = 10):
         .distinct()[:5]
     )
     for p in products:
-        primary_img = getattr(p, "primary_image", None)
-        img_url = ""
-        if primary_img and getattr(primary_img, "image", None):
-            img_url = primary_img.image.url
-        elif p.images.all():
-            first_img = p.images.all()[0]
-            if getattr(first_img, "image", None):
-                img_url = first_img.image.url
+        img_url = p.primary_image_url
 
         price_str = ""
         first_variant = p.variants.filter(is_active=True).first()

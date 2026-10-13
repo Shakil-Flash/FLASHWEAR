@@ -59,6 +59,9 @@ ACTIONS = (
     "merch.product.add",
     "merch.product.remove",
     "merch.product.reorder",
+    "catalog.remediate.ensure_stock",
+    "catalog.remediate.normalize_primary_images",
+    "catalog.remediate.populate_alt_text",
 )
 
 _DOMAINS = {value for value, _label in AuditEvent.Domain.choices}

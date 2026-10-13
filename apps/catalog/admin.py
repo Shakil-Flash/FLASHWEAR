@@ -1314,6 +1314,81 @@ class ProductAdmin(admin.ModelAdmin):
         )
         return response
 
+    @admin.action(description=_("Audit data quality for selected products"))
+    def audit_quality_selected(self, request, queryset):
+        from apps.catalog.quality import audit_product
+
+        blocking_total = 0
+        warning_total = 0
+        for p in queryset:
+            audit = audit_product(p)
+            blocking_total += audit.blocking_count
+            warning_total += audit.warning_count
+        msg = _(
+            "Audited %(count)d products: %(blocking)d blocking errors, %(warning)d warnings."
+        ) % {
+            "count": queryset.count(),
+            "blocking": blocking_total,
+            "warning": warning_total,
+        }
+        level = messages.WARNING if blocking_total > 0 else messages.SUCCESS
+        self.message_user(request, msg, level=level)
+
+    @admin.action(description=_("Initialize missing stock rows for variants"))
+    def ensure_stock_selected(self, request, queryset):
+        from apps.catalog.quality import ensure_variant_stock
+
+        variants = ProductVariant.objects.filter(product__in=queryset, stock__isnull=True)
+        count = ensure_variant_stock(variants)
+        record_audit(
+            actor=request.user,
+            domain=AuditEvent.Domain.CATALOG,
+            action="catalog.remediate.stock",
+            object_type="catalog.product",
+            object_repr=f"Initialized {count} missing stock rows",
+        )
+        self.message_user(
+            request,
+            _("Initialized %(count)d missing stock record(s).") % {"count": count},
+            level=messages.SUCCESS,
+        )
+
+    @admin.action(description=_("Normalize primary images (ensure exactly 1)"))
+    def normalize_images_selected(self, request, queryset):
+        from apps.catalog.quality import normalize_primary_images
+
+        count = normalize_primary_images(queryset)
+        record_audit(
+            actor=request.user,
+            domain=AuditEvent.Domain.CATALOG,
+            action="catalog.remediate.primary_images",
+            object_type="catalog.product",
+            object_repr=f"Normalized primary images for {count} products",
+        )
+        self.message_user(
+            request,
+            _("Normalized primary images across %(count)d product(s).") % {"count": count},
+            level=messages.SUCCESS,
+        )
+
+    @admin.action(description=_("Populate fallback alt text for empty image tags"))
+    def populate_alt_text_selected(self, request, queryset):
+        from apps.catalog.quality import populate_fallback_alt_text
+
+        count = populate_fallback_alt_text(queryset)
+        record_audit(
+            actor=request.user,
+            domain=AuditEvent.Domain.CATALOG,
+            action="catalog.remediate.alt_text",
+            object_type="catalog.product",
+            object_repr=f"Populated fallback alt text for {count} images",
+        )
+        self.message_user(
+            request,
+            _("Populated fallback alt text for %(count)d image(s).") % {"count": count},
+            level=messages.SUCCESS,
+        )
+
     actions = (
         "publish_selected",
         "unpublish_selected",
@@ -1325,6 +1400,10 @@ class ProductAdmin(admin.ModelAdmin):
         "bulk_assign_collection",
         "bulk_update_tags",
         "derive_seo_metadata",
+        "audit_quality_selected",
+        "ensure_stock_selected",
+        "normalize_images_selected",
+        "populate_alt_text_selected",
         "export_selected_to_csv",
     )
 
