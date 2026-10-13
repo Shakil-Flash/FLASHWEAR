@@ -1,0 +1,239 @@
+{% extends "backoffice/base.html" %}
+
+{% block title %}
+    {{ title }}
+{% endblock title %}
+{% block breadcrumb %}
+    <a href="{% url 'backoffice:procurement_dashboard' %}" class="hover:underline">Procurement</a> /
+    <a href="{% url 'backoffice:suppliers' %}" class="hover:underline">Suppliers</a> /
+    {% if supplier %}{{ supplier.name }}{% else %}New{% endif %}
+{% endblock breadcrumb %}
+
+{% block content %}
+    <header class="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-3xl">
+                {{ title }}
+            </h1>
+            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                Configure vendor identification, communication channels, and purchasing defaults.
+            </p>
+        </div>
+        <div class="flex items-center gap-2.5">
+            <a href="{% url 'backoffice:suppliers' %}" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-xs transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                &larr; Back to Directory
+            </a>
+        </div>
+    </header>
+
+    <div class="max-w-3xl rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+        <form method="post" action="{{ action_url }}" class="space-y-6">
+            {% csrf_token %}
+
+            <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                        Supplier Name *
+                    </label>
+                    <input
+                        type="text"
+                        name="name"
+                        value="{{ supplier.name|default:'' }}"
+                        required
+                        placeholder="e.g. Acme Textiles Ltd"
+                        class="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-hidden dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                    />
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                        Supplier Business Code *
+                    </label>
+                    <input
+                        type="text"
+                        name="code"
+                        value="{{ supplier.code|default:'' }}"
+                        required
+                        {% if supplier %}readonly class="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm text-slate-500 dark:border-slate-800 dark:bg-slate-800/40 dark:text-slate-400"{% else %}placeholder="e.g. SUP-001" class="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-hidden dark:border-slate-700 dark:bg-slate-800 dark:text-white"{% endif %}
+                    />
+                    <p class="mt-1 text-xs text-slate-400">Unique vendor reference identifier.</p>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                        Contact Person
+                    </label>
+                    <input
+                        type="text"
+                        name="contact_name"
+                        value="{{ supplier.contact_name|default:'' }}"
+                        placeholder="e.g. Jane Doe"
+                        class="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-hidden dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                    />
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                        Business Email
+                    </label>
+                    <input
+                        type="email"
+                        name="email"
+                        value="{{ supplier.email|default:'' }}"
+                        placeholder="e.g. orders@acme.com"
+                        class="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-hidden dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                    />
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                        Telephone
+                    </label>
+                    <input
+                        type="text"
+                        name="phone"
+                        value="{{ supplier.phone|default:'' }}"
+                        placeholder="+44 20 7946 0991"
+                        class="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-hidden dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                    />
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                        Default Currency
+                    </label>
+                    <input
+                        type="text"
+                        name="currency"
+                        value="{{ supplier.currency|default:'USD' }}"
+                        maxlength="3"
+                        placeholder="USD"
+                        class="mt-1.5 w-full uppercase rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-hidden dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                    />
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                        Expected Lead Time (Days)
+                    </label>
+                    <input
+                        type="number"
+                        name="lead_time_days"
+                        min="0"
+                        value="{{ supplier.lead_time_days|default:'' }}"
+                        placeholder="14"
+                        class="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-hidden dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                    />
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                        Minimum Order Quantity (MOQ)
+                    </label>
+                    <input
+                        type="number"
+                        name="minimum_order_quantity"
+                        min="1"
+                        value="{{ supplier.minimum_order_quantity|default:'1' }}"
+                        class="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-hidden dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                    />
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                        Address Line 1
+                    </label>
+                    <input
+                        type="text"
+                        name="address_line1"
+                        value="{{ supplier.address_line1|default:'' }}"
+                        class="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-hidden dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                    />
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                        Address Line 2
+                    </label>
+                    <input
+                        type="text"
+                        name="address_line2"
+                        value="{{ supplier.address_line2|default:'' }}"
+                        class="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-hidden dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                    />
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                        City
+                    </label>
+                    <input
+                        type="text"
+                        name="city"
+                        value="{{ supplier.city|default:'' }}"
+                        class="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-hidden dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                    />
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                        Postal Code
+                    </label>
+                    <input
+                        type="text"
+                        name="postal_code"
+                        value="{{ supplier.postal_code|default:'' }}"
+                        class="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-hidden dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                    />
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                        Country
+                    </label>
+                    <input
+                        type="text"
+                        name="country"
+                        value="{{ supplier.country|default:'United Kingdom' }}"
+                        class="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-hidden dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                    />
+                </div>
+
+                <div class="flex items-center pt-6">
+                    <label class="relative flex items-center gap-3 cursor-pointer">
+                        <input
+                            type="checkbox"
+                            name="is_active"
+                            {% if not supplier or supplier.is_active %}checked{% endif %}
+                            class="h-4 w-4 rounded-md border-slate-300 text-indigo-600 focus:ring-indigo-500 dark:border-slate-700 dark:bg-slate-800"
+                        />
+                        <span class="text-sm font-semibold text-slate-900 dark:text-white">Active Supplier</span>
+                    </label>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                    Internal Notes
+                </label>
+                <textarea
+                    name="notes"
+                    rows="3"
+                    placeholder="Payment terms, contract references, preferred logistics..."
+                    class="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-hidden dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                >{{ supplier.notes|default:'' }}</textarea>
+            </div>
+
+            <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+                <a href="{% url 'backoffice:suppliers' %}" class="rounded-xl border border-slate-300 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300">
+                    Cancel
+                </a>
+                <button type="submit" class="rounded-xl bg-indigo-600 px-5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-indigo-500">
+                    {% if supplier %}Save Changes{% else %}Create Supplier{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+{% endblock content %}

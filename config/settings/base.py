@@ -91,6 +91,7 @@ LOCAL_APPS = [
     # (checkout handoff) and inventory/payments, which both hang off it.
     "apps.orders",
     "apps.inventory",
+    "apps.procurement",
     "apps.payments",
     # Phase 7: reviews, FLASH Points and promotions. A leaf app: it reads the shop,
     # orders and catalogue but nothing above imports it directly (the checkout reaches

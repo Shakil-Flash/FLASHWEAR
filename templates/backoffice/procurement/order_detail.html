@@ -1,0 +1,273 @@
+{% extends "backoffice/base.html" %}
+
+{% block title %}
+    {{ po.reference }} — Purchase Order
+{% endblock title %}
+{% block breadcrumb %}
+    <a href="{% url 'backoffice:procurement_dashboard' %}" class="hover:underline">Procurement</a> /
+    <a href="{% url 'backoffice:purchase_orders' %}" class="hover:underline">Purchase Orders</a> /
+    {{ po.reference }}
+{% endblock breadcrumb %}
+
+{% block content %}
+    {# ---- Page Header -------------------------------------------------------------------------- #}
+    <header class="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div>
+            <div class="flex items-center gap-3">
+                <h1 class="font-mono text-2xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-3xl">
+                    {{ po.reference }}
+                </h1>
+                <span class="inline-flex items-center rounded-full px-3 py-0.5 text-xs font-semibold
+                    {% if po.status == 'fully_received' %}bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300
+                    {% elif po.status == 'ordered' %}bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-300
+                    {% elif po.status == 'partially_received' %}bg-sky-100 text-sky-800 dark:bg-sky-900/50 dark:text-sky-300
+                    {% elif po.status == 'approved' %}bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300
+                    {% elif po.status == 'cancelled' %}bg-rose-100 text-rose-800 dark:bg-rose-900/50 dark:text-rose-300
+                    {% else %}bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300{% endif %}">
+                    {{ po.get_status_display }}
+                </span>
+                {% if po.is_overdue %}
+                    <span class="inline-flex items-center rounded-full bg-rose-100 px-2.5 py-0.5 text-xs font-bold text-rose-700 dark:bg-rose-950 dark:text-rose-400">
+                        ⚠ Overdue
+                    </span>
+                {% endif %}
+            </div>
+            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                Supplier: <a href="{% url 'backoffice:supplier_detail' po.supplier.pk %}" class="font-semibold text-slate-900 hover:underline dark:text-white">{{ po.supplier.name }}</a> ({{ po.supplier.code }}) · Created {{ po.created_at|date:"Y-m-d H:i" }}
+            </p>
+        </div>
+
+        {# ---- Action Buttons ------------------------------------------------------------------- #}
+        <div class="flex flex-wrap items-center gap-2">
+            <a href="{% url 'backoffice:purchase_order_print' po.pk %}" target="_blank" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-xs transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                Print Order
+            </a>
+
+            {% if can_manage and po.can_edit_items %}
+                <a href="{% url 'backoffice:purchase_order_edit' po.pk %}" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-xs transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                    Edit Lines
+                </a>
+            {% endif %}
+
+            {% if can_manage and po.status == 'draft' %}
+                <form method="post" action="{% url 'backoffice:purchase_order_action' po.pk %}" class="inline">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="submit" />
+                    <button type="submit" class="rounded-lg bg-indigo-600 px-3.5 py-2 text-xs font-semibold text-white shadow-xs transition hover:bg-indigo-500">
+                        Submit for Approval
+                    </button>
+                </form>
+            {% endif %}
+
+            {% if can_approve and po.status == 'pending_approval' or can_approve and po.status == 'draft' %}
+                <form method="post" action="{% url 'backoffice:purchase_order_action' po.pk %}" class="inline">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="approve" />
+                    <button type="submit" class="rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white shadow-xs transition hover:bg-emerald-500">
+                        Approve Order
+                    </button>
+                </form>
+            {% endif %}
+
+            {% if can_manage and po.status == 'approved' %}
+                <form method="post" action="{% url 'backoffice:purchase_order_action' po.pk %}" class="inline">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="send" />
+                    <button type="submit" class="rounded-lg bg-indigo-600 px-3.5 py-2 text-xs font-semibold text-white shadow-xs transition hover:bg-indigo-500">
+                        Mark Sent to Supplier
+                    </button>
+                </form>
+            {% endif %}
+
+            {% if can_manage and po.can_receive %}
+                <a href="{% url 'backoffice:purchase_order_receive' po.pk %}" class="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white shadow-xs transition hover:bg-emerald-500">
+                    Receive Goods Delivery &rarr;
+                </a>
+            {% endif %}
+
+            {% if can_manage and not po.is_terminal %}
+                <form method="post" action="{% url 'backoffice:purchase_order_action' po.pk %}" class="inline" data-confirm="Are you sure you want to cancel this purchase order?">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="cancel" />
+                    <button type="submit" class="rounded-lg border border-rose-300 bg-white px-3.5 py-2 text-xs font-semibold text-rose-700 shadow-xs transition hover:bg-rose-50 dark:border-rose-800 dark:bg-rose-950/20 dark:text-rose-400">
+                        Cancel Order
+                    </button>
+                </form>
+            {% endif %}
+        </div>
+    </header>
+
+    {# ---- Order Metadata Cards ----------------------------------------------------------------- #}
+    <div class="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <div class="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+            <span class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Total Units</span>
+            <div class="mt-2 text-2xl font-black text-slate-900 dark:text-white">
+                {{ po.total_received_units }} / {{ po.total_ordered_units }}
+            </div>
+            <span class="mt-1 block text-xs text-slate-400">{{ po.total_outstanding_units }} units outstanding</span>
+        </div>
+
+        <div class="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+            <span class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Total Purchase Cost</span>
+            <div class="mt-2 text-2xl font-black text-slate-900 dark:text-white">
+                ${{ po.total_cost|floatformat:2 }}
+            </div>
+            <span class="mt-1 block font-mono text-xs text-slate-400">{{ po.currency }}</span>
+        </div>
+
+        <div class="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+            <span class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Expected Delivery</span>
+            <div class="mt-2 text-lg font-bold {% if po.is_overdue %}text-rose-600 dark:text-rose-400{% else %}text-slate-900 dark:text-white{% endif %}">
+                {{ po.expected_delivery_date|default:"Not scheduled" }}
+            </div>
+            <span class="mt-1 block text-xs text-slate-400">
+                {% if po.sent_at %}Sent {{ po.sent_at|date:"Y-m-d" }}{% else %}Not dispatched{% endif %}
+            </span>
+        </div>
+
+        <div class="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+            <span class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Approval &amp; Audit</span>
+            <div class="mt-2 text-sm font-semibold text-slate-900 dark:text-white">
+                {% if po.approved_by %}{{ po.approved_by.email }}{% else %}Pending Approval{% endif %}
+            </div>
+            <span class="mt-1 block text-xs text-slate-400">
+                Created by {{ po.created_by.email|default:"Staff" }}
+            </span>
+        </div>
+    </div>
+
+    {% if po.notes %}
+        <div class="mb-8 rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs dark:border-slate-800 dark:bg-slate-800/40">
+            <span class="font-bold uppercase tracking-wider text-slate-500">Logistics &amp; Order Notes:</span>
+            <p class="mt-1 text-slate-700 dark:text-slate-300">{{ po.notes }}</p>
+        </div>
+    {% endif %}
+
+    {# ---- Line Items Table --------------------------------------------------------------------- #}
+    <div class="mb-8">
+        <h2 class="mb-3 text-lg font-bold text-slate-900 dark:text-white">Order Line Items</h2>
+
+        <div class="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900">
+            <table class="min-w-full divide-y divide-slate-200 text-left text-sm dark:divide-slate-800">
+                <thead class="bg-slate-50 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">
+                    <tr>
+                        <th scope="col" class="px-5 py-3.5">SKU</th>
+                        <th scope="col" class="px-5 py-3.5">Product Name</th>
+                        <th scope="col" class="px-5 py-3.5 text-right">Agreed Unit Cost</th>
+                        <th scope="col" class="px-5 py-3.5 text-right">Ordered Units</th>
+                        <th scope="col" class="px-5 py-3.5 text-right">Received</th>
+                        <th scope="col" class="px-5 py-3.5 text-right">Outstanding</th>
+                        <th scope="col" class="px-5 py-3.5 text-right">Line Total</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-800/60">
+                    {% for item in items %}
+                        <tr class="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
+                            <td class="px-5 py-4 font-mono font-bold text-slate-900 dark:text-white">
+                                {{ item.variant.sku }}
+                            </td>
+                            <td class="px-5 py-4 text-slate-700 dark:text-slate-300">
+                                {{ item.variant.product.name }}
+                                {% if item.notes %}<span class="block text-xs text-slate-400">{{ item.notes }}</span>{% endif %}
+                            </td>
+                            <td class="px-5 py-4 text-right font-mono text-slate-700 dark:text-slate-300">
+                                ${{ item.unit_cost|floatformat:2 }}
+                            </td>
+                            <td class="px-5 py-4 text-right font-medium text-slate-900 dark:text-white">
+                                {{ item.ordered_quantity }}
+                            </td>
+                            <td class="px-5 py-4 text-right font-medium text-emerald-600 dark:text-emerald-400">
+                                {{ item.received_quantity }}
+                            </td>
+                            <td class="px-5 py-4 text-right font-medium {% if item.outstanding_quantity > 0 %}text-amber-600 dark:text-amber-400{% else %}text-slate-400{% endif %}">
+                                {{ item.outstanding_quantity }}
+                            </td>
+                            <td class="px-5 py-4 text-right font-mono font-bold text-slate-900 dark:text-white">
+                                ${{ item.line_total|floatformat:2 }}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="border-t-2 border-slate-200 bg-slate-50 text-xs font-bold text-slate-900 dark:border-slate-800 dark:bg-slate-800/60 dark:text-white">
+                    <tr>
+                        <td colspan="3" class="px-5 py-3 uppercase tracking-wider">Total</td>
+                        <td class="px-5 py-3 text-right">{{ po.total_ordered_units }}</td>
+                        <td class="px-5 py-3 text-right text-emerald-600 dark:text-emerald-400">{{ po.total_received_units }}</td>
+                        <td class="px-5 py-3 text-right text-amber-600 dark:text-amber-400">{{ po.total_outstanding_units }}</td>
+                        <td class="px-5 py-3 text-right font-mono text-sm">${{ po.total_cost|floatformat:2 }}</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+
+    {# ---- Goods Receipts & Delivery History ---------------------------------------------------- #}
+    <div>
+        <div class="mb-3 flex items-center justify-between">
+            <div>
+                <h2 class="text-lg font-bold text-slate-900 dark:text-white">Verified Delivery Receipts</h2>
+                <p class="text-xs text-slate-500 dark:text-slate-400">Atomic movements credited into physical warehouse stock.</p>
+            </div>
+            {% if can_manage and po.can_receive %}
+                <a href="{% url 'backoffice:purchase_order_receive' po.pk %}" class="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white shadow-xs transition hover:bg-emerald-500">
+                    + Receive Delivery
+                </a>
+            {% endif %}
+        </div>
+
+        <div class="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900">
+            <table class="min-w-full divide-y divide-slate-200 text-left text-sm dark:divide-slate-800">
+                <thead class="bg-slate-50 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">
+                    <tr>
+                        <th scope="col" class="px-5 py-3.5">Delivery Reference</th>
+                        <th scope="col" class="px-5 py-3.5">Received Date</th>
+                        <th scope="col" class="px-5 py-3.5">Received By</th>
+                        <th scope="col" class="px-5 py-3.5">Items Breakdown</th>
+                        <th scope="col" class="px-5 py-3.5 text-right">Accepted Units</th>
+                        <th scope="col" class="px-5 py-3.5 text-right">Damaged Units</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-800/60">
+                    {% for rcpt in receipts %}
+                        <tr class="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
+                            <td class="px-5 py-4 font-mono font-bold text-slate-900 dark:text-white">
+                                {{ rcpt.delivery_reference }}
+                            </td>
+                            <td class="px-5 py-4 text-xs text-slate-600 dark:text-slate-400">
+                                {{ rcpt.received_at|date:"Y-m-d H:i" }}
+                            </td>
+                            <td class="px-5 py-4 text-xs text-slate-600 dark:text-slate-300">
+                                {{ rcpt.received_by.email|default:"Staff" }}
+                            </td>
+                            <td class="px-5 py-4 text-xs text-slate-700 dark:text-slate-300">
+                                <ul class="list-disc pl-4 space-y-0.5">
+                                    {% for r_item in rcpt.items.all %}
+                                        <li>
+                                            {{ r_item.line_item.variant.sku }}:
+                                            <span class="font-semibold text-emerald-600">+{{ r_item.quantity_received }} accepted</span>
+                                            {% if r_item.quantity_damaged %}
+                                                <span class="font-semibold text-rose-600">({{ r_item.quantity_damaged }} damaged/quarantined)</span>
+                                            {% endif %}
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            </td>
+                            <td class="px-5 py-4 text-right font-bold text-emerald-600 dark:text-emerald-400">
+                                +{% for r_item in rcpt.items.all %}{{ r_item.quantity_received }}{% if not forloop.last %} + {% endif %}{% endfor %}
+                            </td>
+                            <td class="px-5 py-4 text-right font-medium text-rose-600 dark:text-rose-400">
+                                {% for r_item in rcpt.items.all %}{% if r_item.quantity_damaged %}{{ r_item.quantity_damaged }}{% endif %}{% endfor %}
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="6" class="px-5 py-8 text-center text-sm text-slate-500 dark:text-slate-400">
+                                No goods receipts recorded for this purchase order yet.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% endblock content %}

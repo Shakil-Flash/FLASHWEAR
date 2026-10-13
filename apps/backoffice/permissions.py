@@ -68,6 +68,9 @@ __all__ = [
     "ORDERS_MANAGE",
     "ORDERS_VIEW",
     "PAYMENTS_VIEW",
+    "PURCHASING_APPROVE",
+    "PURCHASING_MANAGE",
+    "PURCHASING_VIEW",
     "STAFF_MANAGE",
     "SUPPORT_MANAGE",
     "SUPPORT_VIEW",
@@ -106,6 +109,9 @@ NOTIFICATIONS_MANAGE = "notifications.manage"
 AUDIT_VIEW = "audit.view"
 ANALYTICS_VIEW = "analytics.view"
 STAFF_MANAGE = "staff.manage"
+PURCHASING_VIEW = "purchasing.view"
+PURCHASING_MANAGE = "purchasing.manage"
+PURCHASING_APPROVE = "purchasing.approve"
 
 CAPABILITIES = (
     OPS_VIEW,
@@ -114,6 +120,9 @@ CAPABILITIES = (
     CUSTOMERS_VIEW,
     INVENTORY_VIEW,
     INVENTORY_MANAGE,
+    PURCHASING_VIEW,
+    PURCHASING_MANAGE,
+    PURCHASING_APPROVE,
     PAYMENTS_VIEW,
     CATALOG_VIEW,
     CATALOG_MANAGE,
@@ -202,6 +211,9 @@ CAPABILITY_GROUPS: dict[str, frozenset[str]] = {
     ),
     INVENTORY_VIEW: frozenset({OPERATOR_GROUP, INVENTORY_GROUP, CATALOG_GROUP, ADMIN_GROUP}),
     INVENTORY_MANAGE: frozenset({INVENTORY_GROUP, ADMIN_GROUP}),
+    PURCHASING_VIEW: frozenset({OPERATOR_GROUP, INVENTORY_GROUP, FINANCE_GROUP, ADMIN_GROUP}),
+    PURCHASING_MANAGE: frozenset({INVENTORY_GROUP, ADMIN_GROUP}),
+    PURCHASING_APPROVE: frozenset({FINANCE_GROUP, ADMIN_GROUP}),
     PAYMENTS_VIEW: frozenset({FINANCE_GROUP, ORDERS_GROUP, ADMIN_GROUP}),
     CATALOG_VIEW: frozenset({OPERATOR_GROUP, CATALOG_GROUP, MARKETING_GROUP, ADMIN_GROUP}),
     CATALOG_MANAGE: frozenset({CATALOG_GROUP, ADMIN_GROUP}),
@@ -364,6 +376,7 @@ NAVIGATION = (
         (
             ("products", "Products", "backoffice:products", CATALOG_VIEW),
             ("inventory", "Inventory", "backoffice:inventory", INVENTORY_VIEW),
+            ("procurement", "Procurement & POs", "backoffice:procurement_dashboard", PURCHASING_VIEW),
             ("categories", "Categories", "admin:catalog_category_changelist", CATALOG_VIEW),
             ("collections", "Collections", "admin:catalog_collection_changelist", CATALOG_VIEW),
         ),

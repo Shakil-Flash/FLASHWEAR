@@ -1,0 +1,226 @@
+{% extends "backoffice/base.html" %}
+
+{% block title %}
+    Procurement &amp; Purchasing
+{% endblock title %}
+{% block breadcrumb %}
+    Procurement
+{% endblock breadcrumb %}
+
+{% block content %}
+    {# ---- Page Header -------------------------------------------------------------------------- #}
+    <header class="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-3xl">
+                Procurement &amp; Purchasing Intelligence
+            </h1>
+            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                Authoritative supplier sourcing, purchase order lifecycles, and atomic goods receiving into inventory.
+            </p>
+        </div>
+        <div class="flex items-center gap-2.5">
+            <a href="{% url 'backoffice:purchase_order_create' %}" class="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3.5 py-2 text-xs font-semibold text-white shadow-xs transition hover:bg-indigo-500">
+                + New Purchase Order
+            </a>
+            <a href="{% url 'backoffice:supplier_create' %}" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-xs transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700">
+                + New Supplier
+            </a>
+        </div>
+    </header>
+
+    {# ---- Sub-Navigation Tabs ------------------------------------------------------------------ #}
+    <nav class="mb-6 flex space-x-2 border-b border-slate-200 dark:border-slate-800">
+        <a href="{% url 'backoffice:procurement_dashboard' %}" class="border-b-2 border-indigo-600 px-4 py-2.5 text-sm font-semibold text-indigo-600 dark:border-indigo-400 dark:text-indigo-400">
+            Purchasing Overview
+        </a>
+        <a href="{% url 'backoffice:purchase_orders' %}" class="border-b-2 border-transparent px-4 py-2.5 text-sm font-medium text-slate-500 hover:border-slate-300 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300">
+            Purchase Orders
+        </a>
+        <a href="{% url 'backoffice:suppliers' %}" class="border-b-2 border-transparent px-4 py-2.5 text-sm font-medium text-slate-500 hover:border-slate-300 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300">
+            Suppliers Directory
+        </a>
+        <a href="{% url 'backoffice:inventory' %}" class="border-b-2 border-transparent px-4 py-2.5 text-sm font-medium text-slate-500 hover:border-slate-300 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300">
+            Warehouse Inventory &rarr;
+        </a>
+    </nav>
+
+    {# ---- Key Metrics Summary ------------------------------------------------------------------ #}
+    <div class="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+        <div class="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+            <span class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Active Suppliers</span>
+            <div class="mt-2 text-2xl font-black text-slate-900 dark:text-white">{{ active_suppliers_count }}</div>
+            <span class="mt-1 block text-xs text-slate-400">{{ total_suppliers_count }} total vendors</span>
+        </div>
+
+        <div class="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+            <span class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Draft &amp; Pending</span>
+            <div class="mt-2 text-2xl font-black text-amber-600 dark:text-amber-400">{{ draft_count|add:pending_approval_count }}</div>
+            <span class="mt-1 block text-xs text-slate-400">{{ draft_count }} draft, {{ pending_approval_count }} review</span>
+        </div>
+
+        <div class="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+            <span class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Awaiting Delivery</span>
+            <div class="mt-2 text-2xl font-black text-indigo-600 dark:text-indigo-400">{{ ordered_count|add:approved_count }}</div>
+            <span class="mt-1 block text-xs text-slate-400">{{ ordered_count }} sent, {{ approved_count }} approved</span>
+        </div>
+
+        <div class="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+            <span class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Partially Received</span>
+            <div class="mt-2 text-2xl font-black text-sky-600 dark:text-sky-400">{{ partially_received_count }}</div>
+            <span class="mt-1 block text-xs text-slate-400">Open split shipments</span>
+        </div>
+
+        <div class="rounded-2xl border border-rose-200/80 bg-rose-50/50 p-4 shadow-xs dark:border-rose-900/60 dark:bg-rose-950/20">
+            <span class="text-xs font-semibold uppercase tracking-wider text-rose-700 dark:text-rose-400">Overdue Orders</span>
+            <div class="mt-2 text-2xl font-black text-rose-700 dark:text-rose-400">{{ overdue_count }}</div>
+            <span class="mt-1 block text-xs text-rose-600/80 dark:text-rose-400/80">Past delivery date</span>
+        </div>
+
+        <div class="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+            <span class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Committed Spend</span>
+            <div class="mt-2 text-xl font-black text-slate-900 dark:text-white">${{ total_committed_spend|floatformat:2 }}</div>
+            <span class="mt-1 block text-xs text-slate-400">{{ total_outstanding_units }} units due</span>
+        </div>
+    </div>
+
+    {# ---- Urgent & Overdue Orders Section ------------------------------------------------------- #}
+    <div class="mb-8">
+        <div class="mb-4 flex items-center justify-between">
+            <div>
+                <h2 class="text-lg font-bold text-slate-900 dark:text-white">Orders Requiring Attention</h2>
+                <p class="text-xs text-slate-500 dark:text-slate-400">Orders overdue or expected within 72 hours.</p>
+            </div>
+            <a href="{% url 'backoffice:purchase_orders' %}?overdue=1" class="text-xs font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-400">
+                View all overdue &rarr;
+            </a>
+        </div>
+
+        <div class="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900">
+            <table class="min-w-full divide-y divide-slate-200 text-left text-sm dark:divide-slate-800">
+                <thead class="bg-slate-50 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">
+                    <tr>
+                        <th scope="col" class="px-5 py-3.5">Reference</th>
+                        <th scope="col" class="px-5 py-3.5">Supplier</th>
+                        <th scope="col" class="px-5 py-3.5">Status</th>
+                        <th scope="col" class="px-5 py-3.5">Expected Delivery</th>
+                        <th scope="col" class="px-5 py-3.5 text-right">Outstanding Units</th>
+                        <th scope="col" class="px-5 py-3.5 text-right">Total Cost</th>
+                        <th scope="col" class="px-5 py-3.5 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-800/60">
+                    {% for order in urgent_orders %}
+                        <tr class="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
+                            <td class="px-5 py-4 font-mono font-bold text-slate-900 dark:text-white">
+                                <a href="{% url 'backoffice:purchase_order_detail' order.pk %}" class="hover:text-indigo-600 hover:underline">
+                                    {{ order.reference }}
+                                </a>
+                            </td>
+                            <td class="px-5 py-4 text-slate-700 dark:text-slate-300">
+                                {{ order.supplier.name }}
+                            </td>
+                            <td class="px-5 py-4">
+                                <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium
+                                    {% if order.status == 'ordered' %}bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-300
+                                    {% elif order.status == 'partially_received' %}bg-sky-100 text-sky-800 dark:bg-sky-900/50 dark:text-sky-300
+                                    {% elif order.status == 'approved' %}bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300
+                                    {% else %}bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300{% endif %}">
+                                    {{ order.get_status_display }}
+                                </span>
+                            </td>
+                            <td class="px-5 py-4">
+                                {% if order.is_overdue %}
+                                    <span class="inline-flex items-center font-semibold text-rose-600 dark:text-rose-400">
+                                        ⚠ {{ order.expected_delivery_date }} (Overdue)
+                                    </span>
+                                {% else %}
+                                    <span class="text-slate-600 dark:text-slate-400">
+                                        {{ order.expected_delivery_date|default:"Not scheduled" }}
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td class="px-5 py-4 text-right font-medium text-slate-900 dark:text-white">
+                                {{ order.total_outstanding_units }}
+                            </td>
+                            <td class="px-5 py-4 text-right font-mono text-slate-700 dark:text-slate-300">
+                                ${{ order.total_cost|floatformat:2 }}
+                            </td>
+                            <td class="px-5 py-4 text-right">
+                                <a href="{% url 'backoffice:purchase_order_receive' order.pk %}" class="rounded-lg bg-indigo-50 px-2.5 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-900/40 dark:text-indigo-300">
+                                    Receive Goods
+                                </a>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="7" class="px-5 py-8 text-center text-sm text-slate-500 dark:text-slate-400">
+                                No urgent or overdue orders at this time. All expected deliveries are on schedule.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {# ---- Recent Goods Receipts Ledger ---------------------------------------------------------- #}
+    <div>
+        <div class="mb-4 flex items-center justify-between">
+            <div>
+                <h2 class="text-lg font-bold text-slate-900 dark:text-white">Recent Goods Deliveries</h2>
+                <p class="text-xs text-slate-500 dark:text-slate-400">Deliveries received and verified into the stock ledger.</p>
+            </div>
+        </div>
+
+        <div class="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900">
+            <table class="min-w-full divide-y divide-slate-200 text-left text-sm dark:divide-slate-800">
+                <thead class="bg-slate-50 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">
+                    <tr>
+                        <th scope="col" class="px-5 py-3.5">Delivery Ref</th>
+                        <th scope="col" class="px-5 py-3.5">Purchase Order</th>
+                        <th scope="col" class="px-5 py-3.5">Supplier</th>
+                        <th scope="col" class="px-5 py-3.5">Received At</th>
+                        <th scope="col" class="px-5 py-3.5">Received By</th>
+                        <th scope="col" class="px-5 py-3.5 text-right">Units Accepted</th>
+                        <th scope="col" class="px-5 py-3.5 text-right">Units Damaged</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-800/60">
+                    {% for rcpt in recent_receipts %}
+                        <tr class="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
+                            <td class="px-5 py-4 font-mono font-medium text-slate-900 dark:text-white">
+                                {{ rcpt.delivery_reference }}
+                            </td>
+                            <td class="px-5 py-4 font-mono text-indigo-600 dark:text-indigo-400">
+                                <a href="{% url 'backoffice:purchase_order_detail' rcpt.purchase_order.pk %}" class="hover:underline">
+                                    {{ rcpt.purchase_order.reference }}
+                                </a>
+                            </td>
+                            <td class="px-5 py-4 text-slate-700 dark:text-slate-300">
+                                {{ rcpt.purchase_order.supplier.name }}
+                            </td>
+                            <td class="px-5 py-4 text-xs text-slate-500 dark:text-slate-400">
+                                {{ rcpt.received_at|date:"Y-m-d H:i" }}
+                            </td>
+                            <td class="px-5 py-4 text-xs text-slate-600 dark:text-slate-300">
+                                {{ rcpt.received_by.email|default:"Staff" }}
+                            </td>
+                            <td class="px-5 py-4 text-right font-bold text-emerald-600 dark:text-emerald-400">
+                                +{% for itm in rcpt.items.all %}{{ itm.quantity_received }}{% if not forloop.last %} + {% endif %}{% empty %}0{% endfor %}
+                            </td>
+                            <td class="px-5 py-4 text-right font-medium text-rose-600 dark:text-rose-400">
+                                {% for itm in rcpt.items.all %}{% if itm.quantity_damaged %}{{ itm.quantity_damaged }} (quarantine){% endif %}{% endfor %}
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="7" class="px-5 py-8 text-center text-sm text-slate-500 dark:text-slate-400">
+                                No goods receipts recorded yet.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% endblock content %}

@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Purchase Order — {{ po.reference }}</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            color: #1e293b;
+            background: #fff;
+            margin: 0;
+            padding: 40px;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            border-bottom: 2px solid #0f172a;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        .brand {
+            font-size: 28px;
+            font-weight: 900;
+            letter-spacing: -0.03em;
+            color: #0f172a;
+        }
+        .po-title {
+            text-align: right;
+        }
+        .po-title h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 800;
+            color: #0f172a;
+        }
+        .po-ref {
+            font-family: monospace;
+            font-size: 16px;
+            font-weight: 700;
+            color: #4f46e5;
+            margin-top: 4px;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            margin-bottom: 30px;
+        }
+        .box {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 16px;
+        }
+        .box h3 {
+            margin: 0 0 10px 0;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #64748b;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+        }
+        th {
+            background: #f1f5f9;
+            color: #475569;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: 10px 14px;
+            text-align: left;
+            border-bottom: 1px solid #cbd5e1;
+        }
+        td {
+            padding: 12px 14px;
+            border-bottom: 1px solid #e2e8f0;
+            font-size: 13px;
+        }
+        .text-right {
+            text-align: right;
+        }
+        .font-mono {
+            font-family: monospace;
+        }
+        .totals-table {
+            width: 320px;
+            margin-left: auto;
+            border-collapse: collapse;
+        }
+        .totals-table td {
+            padding: 8px 14px;
+            border: none;
+        }
+        .totals-table tr.grand-total td {
+            font-size: 16px;
+            font-weight: 800;
+            border-top: 2px solid #0f172a;
+            color: #0f172a;
+        }
+        .footer {
+            margin-top: 60px;
+            padding-top: 20px;
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: #64748b;
+        }
+        .signature-box {
+            margin-top: 40px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .sig-line {
+            width: 240px;
+            border-top: 1px solid #94a3b8;
+            padding-top: 6px;
+            font-size: 12px;
+            color: #475569;
+        }
+        @media print {
+            body { padding: 0; }
+            .no-print { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="no-print" style="margin-bottom: 20px;">
+        <button type="button" class="print-trigger" style="background: #0f172a; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 13px;">
+            🖨️ Print / Save as PDF (Ctrl+P / Cmd+P)
+        </button>
+    </div>
+
+    <div class="header">
+        <div>
+            <div class="brand">FLASHWEAR</div>
+            <div style="color: #64748b; font-size: 12px; margin-top: 4px;">
+                Flashwear Clothing Co. · Global Operations &amp; Logistics<br />
+                London, United Kingdom · operations@flashwear.internal
+            </div>
+        </div>
+        <div class="po-title">
+            <h1>PURCHASE ORDER</h1>
+            <div class="po-ref">{{ po.reference }}</div>
+            <div style="font-size: 12px; color: #64748b; margin-top: 4px;">
+                Status: {{ po.get_status_display }}
+            </div>
+        </div>
+    </div>
+
+    <div class="grid">
+        <div class="box">
+            <h3>Vendor / Supplier</h3>
+            <strong style="font-size: 15px; color: #0f172a;">{{ po.supplier.name }}</strong> ({{ po.supplier.code }})<br />
+            {% if po.supplier.contact_name %}Attn: {{ po.supplier.contact_name }}<br />{% endif %}
+            {% if po.supplier.address_line1 %}{{ po.supplier.address_line1 }}<br />{% endif %}
+            {% if po.supplier.address_line2 %}{{ po.supplier.address_line2 }}<br />{% endif %}
+            {{ po.supplier.city }}{% if po.supplier.postal_code %}, {{ po.supplier.postal_code }}{% endif %}<br />
+            {{ po.supplier.country }}<br />
+            {% if po.supplier.email %}Email: {{ po.supplier.email }}<br />{% endif %}
+            {% if po.supplier.phone %}Tel: {{ po.supplier.phone }}{% endif %}
+        </div>
+
+        <div class="box">
+            <h3>Order &amp; Delivery Logistics</h3>
+            <strong>Order Date:</strong> {{ po.created_at|date:"F j, Y" }}<br />
+            <strong>Expected Delivery:</strong> {{ po.expected_delivery_date|date:"F j, Y"|default:"To be determined" }}<br />
+            <strong>Currency:</strong> {{ po.currency }}<br />
+            <strong>Created By:</strong> {{ po.created_by.email|default:"Procurement Staff" }}<br />
+            {% if po.approved_by %}<strong>Approved By:</strong> {{ po.approved_by.email }} ({{ po.approved_at|date:"Y-m-d" }})<br />{% endif %}
+            {% if po.notes %}<strong>Notes:</strong> {{ po.notes }}<br />{% endif %}
+        </div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Item / SKU</th>
+                <th>Product Description</th>
+                <th class="text-right">Unit Cost</th>
+                <th class="text-right">Ordered Units</th>
+                <th class="text-right">Line Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+                <tr>
+                    <td class="font-mono"><strong>{{ item.variant.sku }}</strong></td>
+                    <td>
+                        {{ item.variant.product.name }}
+                        {% if item.notes %}<div style="font-size: 11px; color: #64748b;">{{ item.notes }}</div>{% endif %}
+                    </td>
+                    <td class="text-right font-mono">${{ item.unit_cost|floatformat:2 }}</td>
+                    <td class="text-right" style="font-weight: 600;">{{ item.ordered_quantity }}</td>
+                    <td class="text-right font-mono" style="font-weight: 700;">${{ item.line_total|floatformat:2 }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <table class="totals-table">
+        <tr>
+            <td style="color: #64748b;">Total Ordered Quantity:</td>
+            <td class="text-right" style="font-weight: 700;">{{ po.total_ordered_units }} units</td>
+        </tr>
+        <tr>
+            <td style="color: #64748b;">Currency:</td>
+            <td class="text-right font-mono">{{ po.currency }}</td>
+        </tr>
+        <tr class="grand-total">
+            <td>ORDER TOTAL:</td>
+            <td class="text-right font-mono">${{ po.total_cost|floatformat:2 }}</td>
+        </tr>
+    </table>
+
+    <div class="signature-box">
+        <div class="sig-line">
+            Authorized Purchaser Signature
+        </div>
+        <div class="sig-line">
+            Vendor Acceptance &amp; Date
+        </div>
+    </div>
+
+    <div class="footer">
+        <div>FLASHWEAR Purchasing &amp; Supply Chain Management</div>
+        <div>Generated on {{ today|date:"Y-m-d" }} · Confidential internal record</div>
+    </div>
+</body>
+</html>
