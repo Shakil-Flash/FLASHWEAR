@@ -512,28 +512,67 @@ class ReturnRequest(TimestampedModel):
 
     class Status(models.TextChoices):
         REQUESTED = "requested", _("Requested")
+        UNDER_REVIEW = "under_review", _("Under Review")
         APPROVED = "approved", _("Approved")
-        RECEIVED = "received", _("Received")
+        AWAITING_SHIPMENT = "awaiting_shipment", _("Awaiting Shipment")
+        RECEIVED = "received", _("Item Received")
         INSPECTED = "inspected", _("Inspected")
-        REFUND_PENDING = "refund_pending", _("Refund Pending")
-        EXCHANGE_PENDING = "exchange_pending", _("Exchange Pending")
+        INSPECTION_PASSED = "inspection_passed", _("Inspection Passed")
+        INSPECTION_FAILED = "inspection_failed", _("Inspection Failed")
+        REFUND_PENDING = "refund_pending", _("Refund Processing")
+        EXCHANGE_PENDING = "exchange_pending", _("Exchange Processing")
         REFUNDED = "refunded", _("Refunded")
         COMPLETED = "completed", _("Completed")
         REJECTED = "rejected", _("Rejected")
         CANCELLED = "cancelled", _("Cancelled")
 
     ITEM_RECEIVED = Status.RECEIVED
+    REFUND_PROCESSING = Status.REFUND_PENDING
+    EXCHANGE_PROCESSING = Status.EXCHANGE_PENDING
 
     ALLOWED_TRANSITIONS: dict[str, tuple[str, ...]] = {
-        Status.REQUESTED: (Status.APPROVED, Status.REJECTED, Status.CANCELLED),
-        Status.APPROVED: (Status.RECEIVED, Status.REJECTED, Status.CANCELLED),
-        Status.RECEIVED: (Status.INSPECTED,),
+        Status.REQUESTED: (
+            Status.UNDER_REVIEW,
+            Status.APPROVED,
+            Status.REJECTED,
+            Status.CANCELLED,
+        ),
+        Status.UNDER_REVIEW: (
+            Status.APPROVED,
+            Status.REJECTED,
+            Status.CANCELLED,
+        ),
+        Status.APPROVED: (
+            Status.AWAITING_SHIPMENT,
+            Status.RECEIVED,
+            Status.REJECTED,
+            Status.CANCELLED,
+        ),
+        Status.AWAITING_SHIPMENT: (
+            Status.RECEIVED,
+            Status.CANCELLED,
+        ),
+        Status.RECEIVED: (
+            Status.INSPECTED,
+            Status.INSPECTION_PASSED,
+            Status.INSPECTION_FAILED,
+        ),
         Status.INSPECTED: (
             Status.REFUND_PENDING,
             Status.EXCHANGE_PENDING,
             Status.REFUNDED,
             Status.COMPLETED,
             Status.REJECTED,
+        ),
+        Status.INSPECTION_PASSED: (
+            Status.REFUND_PENDING,
+            Status.EXCHANGE_PENDING,
+            Status.REFUNDED,
+            Status.COMPLETED,
+        ),
+        Status.INSPECTION_FAILED: (
+            Status.REJECTED,
+            Status.COMPLETED,
         ),
         Status.REFUND_PENDING: (Status.REFUNDED, Status.COMPLETED),
         Status.EXCHANGE_PENDING: (Status.COMPLETED,),
@@ -549,7 +588,11 @@ class ReturnRequest(TimestampedModel):
 
     class Reason(models.TextChoices):
         SIZE_FIT = "size_fit", _("Size or fit issue")
+        WRONG_SIZE = "wrong_size", _("Wrong size")
+        DAMAGED = "damaged", _("Damaged item")
+        INCORRECT_ITEM = "incorrect_item", _("Incorrect item")
         DEFECTIVE = "defective", _("Defective or damaged")
+        DEFECTIVE_PRODUCT = "defective_product", _("Defective product")
         NOT_AS_DESCRIBED = "not_as_described", _("Item not as described")
         CHANGED_MIND = "changed_mind", _("Changed mind")
         WRONG_ITEM = "wrong_item", _("Wrong item received")
@@ -604,9 +647,13 @@ class ReturnRequest(TimestampedModel):
     tracking_number = models.CharField(_("return tracking number"), max_length=64, blank=True)
 
     # Lifecycle timestamps
+    under_review_at = models.DateTimeField(_("under review at"), null=True, blank=True)
     approved_at = models.DateTimeField(_("approved at"), null=True, blank=True)
+    awaiting_shipment_at = models.DateTimeField(_("awaiting shipment at"), null=True, blank=True)
     received_at = models.DateTimeField(_("received at"), null=True, blank=True)
     inspected_at = models.DateTimeField(_("inspected at"), null=True, blank=True)
+    inspection_passed_at = models.DateTimeField(_("inspection passed at"), null=True, blank=True)
+    inspection_failed_at = models.DateTimeField(_("inspection failed at"), null=True, blank=True)
     refund_pending_at = models.DateTimeField(_("refund pending at"), null=True, blank=True)
     exchange_pending_at = models.DateTimeField(_("exchange pending at"), null=True, blank=True)
     refunded_at = models.DateTimeField(_("refunded at"), null=True, blank=True)
@@ -629,8 +676,13 @@ class ReturnRequest(TimestampedModel):
 
     @property
     def is_cancellable_by_customer(self) -> bool:
-        """Customer may cancel their return while in REQUESTED or APPROVED state."""
-        return self.status in (self.Status.REQUESTED, self.Status.APPROVED)
+        """Customer may cancel their return while in REQUESTED, UNDER_REVIEW, APPROVED, or AWAITING_SHIPMENT state."""
+        return self.status in (
+            self.Status.REQUESTED,
+            self.Status.UNDER_REVIEW,
+            self.Status.APPROVED,
+            self.Status.AWAITING_SHIPMENT,
+        )
 
     @property
     def estimated_refund_amount(self) -> Decimal:
@@ -704,6 +756,12 @@ class ReturnItem(models.Model):
         DEFECTIVE = "defective", _("Defective item")
         WORN = "worn", _("Worn or washed")
 
+    class Disposition(models.TextChoices):
+        RESTOCKABLE = "restockable", _("Restockable")
+        DAMAGED = "damaged", _("Damaged - do not restock")
+        DEFECTIVE = "defective", _("Defective - do not restock")
+        DISPOSAL = "disposal", _("Disposal required - do not restock")
+
     return_request = models.ForeignKey(
         ReturnRequest,
         on_delete=models.CASCADE,
@@ -752,6 +810,12 @@ class ReturnItem(models.Model):
         choices=Condition.choices,
         blank=True,
     )
+    disposition = models.CharField(
+        _("disposition"),
+        max_length=32,
+        choices=Disposition.choices,
+        default=Disposition.RESTOCKABLE,
+    )
     inspection_notes = models.TextField(_("inspection notes"), blank=True)
     refund_amount = models.DecimalField(
         _("refund amount"),
@@ -760,6 +824,7 @@ class ReturnItem(models.Model):
         default=Decimal("0.00"),
     )
     is_restocked = models.BooleanField(_("is restocked"), default=False)
+    restocked_quantity = models.PositiveIntegerField(_("restocked quantity"), default=0)
 
     class Meta:
         verbose_name = _("return item")

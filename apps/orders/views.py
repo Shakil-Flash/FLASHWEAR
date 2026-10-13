@@ -386,7 +386,7 @@ def return_cancel(request, number: str):
     note = request.POST.get("note", "Cancelled by customer")
     try:
         cancel_return_request(return_request, user=request.user, note=note)
-    except InvalidTransition:
+    except (InvalidTransition, ValidationError):
         messages.error(request, _("This return request can no longer be cancelled."))
         return redirect("account:return-detail", number=return_request.number)
 

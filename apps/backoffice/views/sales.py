@@ -14,6 +14,8 @@ from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect
 from django.views.decorators.http import require_POST
 
+from decimal import Decimal
+
 from apps.backoffice import selectors
 from apps.backoffice.forms import OrderActionForm, OrderNoteForm
 from apps.backoffice.permissions import (
@@ -38,9 +40,12 @@ from apps.orders.models import (
 from apps.orders.returns_services import (
     approve_return_request,
     inspect_return,
+    mark_return_awaiting_shipment,
     mark_return_received,
+    mark_return_under_review,
     process_exchange_for_return,
     process_refund_for_return,
+    record_manual_refund_for_return,
     reject_return_request,
 )
 from apps.payments.models import Payment
@@ -294,6 +299,7 @@ def return_detail(request, number: str):
         return_request=return_request,
         can_manage=has(request.user, ORDERS_MANAGE),
         condition_choices=ReturnItem.Condition.choices,
+        disposition_choices=ReturnItem.Disposition.choices,
     )
 
 
@@ -306,7 +312,21 @@ def return_action(request, number: str):
     action = request.POST.get("action", "")
 
     try:
-        if action == "approve":
+        if action == "under_review":
+            note = request.POST.get("note", "").strip()
+            mark_return_under_review(return_request, staff_user=request.user, note=note)
+            audit_service.record(
+                actor=request.user,
+                domain="orders",
+                action="return.under_review",
+                object_type="return_request",
+                object_id=return_request.pk,
+                object_repr=return_request.number,
+                reason=note,
+            )
+            messages.success(request, f"Return {return_request.number} moved to Under Review.")
+
+        elif action == "approve":
             note = request.POST.get("note", "").strip()
             customer_explanation = request.POST.get("customer_explanation", "").strip()
             approve_return_request(
@@ -325,6 +345,20 @@ def return_action(request, number: str):
                 reason=note or customer_explanation,
             )
             messages.success(request, f"Return {return_request.number} approved.")
+
+        elif action == "awaiting_shipment":
+            note = request.POST.get("note", "").strip()
+            mark_return_awaiting_shipment(return_request, staff_user=request.user, note=note)
+            audit_service.record(
+                actor=request.user,
+                domain="orders",
+                action="return.awaiting_shipment",
+                object_type="return_request",
+                object_id=return_request.pk,
+                object_repr=return_request.number,
+                reason=note,
+            )
+            messages.success(request, f"Return {return_request.number} marked as Awaiting Shipment.")
 
         elif action == "reject":
             reason = request.POST.get("reason", "").strip()
@@ -376,16 +410,18 @@ def return_action(request, number: str):
                 accepted = int(request.POST.get(f"accepted_{item.pk}", 0) or 0)
                 rejected = int(request.POST.get(f"rejected_{item.pk}", 0) or 0)
                 cond = request.POST.get(f"condition_{item.pk}", ReturnItem.Condition.LIKE_NEW)
+                disp = request.POST.get(f"disposition_{item.pk}", "")
                 notes = request.POST.get(f"notes_{item.pk}", "").strip()
-                inspections.append(
-                    {
-                        "item_id": item.pk,
-                        "accepted_quantity": accepted,
-                        "rejected_quantity": rejected,
-                        "condition": cond,
-                        "inspection_notes": notes,
-                    }
-                )
+                insp_dict = {
+                    "item_id": item.pk,
+                    "accepted_quantity": accepted,
+                    "rejected_quantity": rejected,
+                    "condition": cond,
+                    "inspection_notes": notes,
+                }
+                if disp:
+                    insp_dict["disposition"] = disp
+                inspections.append(insp_dict)
             staff_note = request.POST.get("staff_note", "").strip()
             customer_explanation = request.POST.get("customer_explanation", "").strip()
             inspect_return(
@@ -425,6 +461,37 @@ def return_action(request, number: str):
                 metadata={"refund_shipping": refund_shipping},
             )
             messages.success(request, f"Refund completed for return {return_request.number}.")
+
+        elif action == "manual_refund":
+            raw_amount = request.POST.get("amount", "").strip()
+            ref = request.POST.get("reference", "").strip()
+            staff_note = request.POST.get("note", "").strip()
+            try:
+                amt = Decimal(raw_amount)
+            except Exception:
+                messages.error(request, "Please enter a valid numeric refund amount.")
+                return redirect("backoffice:return_detail", number=number)
+
+            record_manual_refund_for_return(
+                return_request,
+                staff_user=request.user,
+                amount=amt,
+                reference=ref,
+                note=staff_note,
+            )
+            audit_service.record(
+                actor=request.user,
+                domain="orders",
+                action="return.manual_refund",
+                object_type="return_request",
+                object_id=return_request.pk,
+                object_repr=return_request.number,
+                metadata={"amount": str(amt), "reference": ref},
+            )
+            messages.success(
+                request,
+                f"Manual refund of {amt} {return_request.order.currency} recorded for return {return_request.number}.",
+            )
 
         elif action == "exchange":
             staff_note = request.POST.get("note", "").strip()

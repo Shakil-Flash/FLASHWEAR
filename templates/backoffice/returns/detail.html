@@ -158,7 +158,7 @@
                                     <p class="text-sm font-semibold text-slate-900">
                                         {{ item.order_item.product_name }} ({{ item.quantity }} requested)
                                     </p>
-                                    <div class="grid gap-3 sm:grid-cols-4 text-xs">
+                                    <div class="grid gap-3 sm:grid-cols-5 text-xs">
                                         <div>
                                             <label class="block font-medium text-slate-600" for="accepted_{{ item.pk }}">
                                                 Accepted Qty
@@ -184,10 +184,22 @@
                                             </select>
                                         </div>
                                         <div>
+                                            <label class="block font-medium text-slate-600" for="disposition_{{ item.pk }}">
+                                                Safety Outcome
+                                            </label>
+                                            <select id="disposition_{{ item.pk }}" name="disposition_{{ item.pk }}" class="mt-1 w-full rounded border border-slate-300 p-1.5 focus:border-indigo-500 focus:outline-none">
+                                                {% for val, lab in disposition_choices %}
+                                                    <option value="{{ val }}" {% if val == 'restockable' %}selected{% endif %}>
+                                                        {{ lab }}
+                                                    </option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        <div>
                                             <label class="block font-medium text-slate-600" for="notes_{{ item.pk }}">
                                                 Inspection Note
                                             </label>
-                                            <input type="text" id="notes_{{ item.pk }}" name="notes_{{ item.pk }}" placeholder="Optional condition notes" class="mt-1 w-full rounded border border-slate-300 p-1.5 focus:border-indigo-500 focus:outline-none" />
+                                            <input type="text" id="notes_{{ item.pk }}" name="notes_{{ item.pk }}" placeholder="Optional notes" class="mt-1 w-full rounded border border-slate-300 p-1.5 focus:border-indigo-500 focus:outline-none" />
                                         </div>
                                     </div>
                                 </div>
@@ -296,7 +308,7 @@
                         Actions
                     </h2>
 
-                    {% if return_request.status == 'requested' %}
+                    {% if return_request.status == 'requested' or return_request.status == 'under_review' %}
                         <form method="post" action="{% url 'backoffice:return_action' return_request.number %}" class="space-y-2">
                             {% csrf_token %}
                             <input type="hidden" name="action" value="approve" />
@@ -306,6 +318,17 @@
                                 Approve Return Request
                             </button>
                         </form>
+
+                        {% if return_request.status == 'requested' %}
+                        <form method="post" action="{% url 'backoffice:return_action' return_request.number %}" class="space-y-2 border-t border-slate-100 pt-2">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="under_review" />
+                            <input type="text" name="note" placeholder="Review note" class="w-full rounded border border-slate-300 p-1.5 text-xs focus:outline-none" />
+                            <button type="submit" class="w-full rounded-lg bg-amber-600 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-amber-500">
+                                Place Under Review
+                            </button>
+                        </form>
+                        {% endif %}
 
                         <form method="post" action="{% url 'backoffice:return_action' return_request.number %}" class="space-y-2 border-t border-slate-100 pt-3" data-confirm="Reject this return request?">
                             {% csrf_token %}
@@ -317,8 +340,19 @@
                             </button>
                         </form>
 
-                    {% elif return_request.status == 'approved' %}
-                        <form method="post" action="{% url 'backoffice:return_action' return_request.number %}" class="space-y-2">
+                    {% elif return_request.status == 'approved' or return_request.status == 'awaiting_shipment' %}
+                        {% if return_request.status == 'approved' %}
+                        <form method="post" action="{% url 'backoffice:return_action' return_request.number %}" class="space-y-2 pb-2">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="awaiting_shipment" />
+                            <input type="text" name="note" placeholder="Shipment instructions note" class="w-full rounded border border-slate-300 p-1.5 text-xs focus:outline-none" />
+                            <button type="submit" class="w-full rounded-lg bg-sky-700 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-sky-600">
+                                Mark Awaiting Shipment
+                            </button>
+                        </form>
+                        {% endif %}
+
+                        <form method="post" action="{% url 'backoffice:return_action' return_request.number %}" class="space-y-2 border-t border-slate-100 pt-2">
                             {% csrf_token %}
                             <input type="hidden" name="action" value="receive" />
                             <input type="text" name="tracking_number" placeholder="Inbound tracking number" class="w-full rounded border border-slate-300 p-1.5 text-xs focus:outline-none" />
@@ -328,7 +362,7 @@
                             </button>
                         </form>
 
-                    {% elif return_request.status == 'inspected' %}
+                    {% elif return_request.status == 'inspected' or return_request.status == 'inspection_passed' or return_request.status == 'refund_pending' %}
                         {% if return_request.return_type == 'refund' %}
                             <form method="post" action="{% url 'backoffice:return_action' return_request.number %}" class="space-y-3">
                                 {% csrf_token %}
@@ -341,9 +375,26 @@
                                 </div>
                                 <input type="text" name="note" placeholder="Refund note (optional)" class="w-full rounded border border-slate-300 p-1.5 text-xs focus:outline-none" />
                                 <button type="submit" class="w-full rounded-lg bg-emerald-600 py-2 text-xs font-semibold text-white shadow-sm hover:bg-emerald-500">
-                                    Execute Refund
+                                    Execute Automated Refund
                                 </button>
                             </form>
+
+                            {# Manual / Offline Refund option #}
+                            <details class="border-t border-slate-100 pt-3 text-xs">
+                                <summary class="cursor-pointer font-medium text-slate-600 hover:text-slate-900">
+                                    Record Offline / Manual Refund
+                                </summary>
+                                <form method="post" action="{% url 'backoffice:return_action' return_request.number %}" class="mt-2 space-y-2">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="manual_refund" />
+                                    <input type="number" step="0.01" name="amount" placeholder="Amount (e.g. 50.00)" class="w-full rounded border border-slate-300 p-1.5 text-xs focus:outline-none" required />
+                                    <input type="text" name="reference" placeholder="Payment reference / receipt #" class="w-full rounded border border-slate-300 p-1.5 text-xs focus:outline-none" />
+                                    <input type="text" name="note" placeholder="Manual settlement note" class="w-full rounded border border-slate-300 p-1.5 text-xs focus:outline-none" />
+                                    <button type="submit" class="w-full rounded-lg bg-slate-800 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-slate-700">
+                                        Record Manual Refund
+                                    </button>
+                                </form>
+                            </details>
                         {% elif return_request.return_type == 'exchange' %}
                             <form method="post" action="{% url 'backoffice:return_action' return_request.number %}" class="space-y-3">
                                 {% csrf_token %}
