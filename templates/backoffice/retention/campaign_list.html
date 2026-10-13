@@ -1,0 +1,150 @@
+{% extends "backoffice/base.html" %}
+
+{% block title %}
+    Retention Campaigns — Customer Retention Intelligence
+{% endblock title %}
+{% block breadcrumb %}
+    Customers & Care › Retention & Win-Back › Retention Campaigns
+{% endblock breadcrumb %}
+
+{% block content %}
+    <header class="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">
+                Retention Campaigns &amp; Outreach
+            </h1>
+            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                Idempotent audience dispatches, consent-enforced reach, and multi-day revenue attribution.
+            </p>
+        </div>
+        <div>
+            <a href="{% url 'backoffice:retention_campaign_create' %}"
+               class="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-1.5 text-xs font-semibold text-white shadow-xs transition hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100">
+                <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+                Create Campaign
+            </a>
+        </div>
+    </header>
+
+    {% with active_tab="campaigns" %}
+        {% include "backoffice/retention/_subnav.html" %}
+    {% endwith %}
+
+    {# Status Filters #}
+    <div class="mb-6 flex flex-wrap items-center gap-2">
+        <a href="?" class="rounded-full px-3 py-1 text-xs font-semibold transition {% if not status_filter %}bg-slate-900 text-white dark:bg-white dark:text-slate-900{% else %}bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700{% endif %}">
+            All Statuses
+        </a>
+        {% for code, label in status_choices %}
+            <a href="?status={{ code }}"
+               class="rounded-full px-3 py-1 text-xs font-semibold transition {% if status_filter == code %}bg-slate-900 text-white dark:bg-white dark:text-slate-900{% else %}bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700{% endif %}">
+                {{ label }}
+            </a>
+        {% endfor %}
+    </div>
+
+    {# Campaigns Table #}
+    <div class="rounded-2xl border border-slate-200 bg-white shadow-soft dark:border-slate-800 dark:bg-slate-900">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+                <thead>
+                    <tr class="border-b border-slate-200 bg-slate-50/50 text-slate-500 dark:border-slate-800 dark:bg-slate-800/30 dark:text-slate-400">
+                        <th class="p-4 font-semibold">Campaign Name</th>
+                        <th class="p-4 font-semibold">Objective</th>
+                        <th class="p-4 font-semibold">Target Segment</th>
+                        <th class="p-4 font-semibold">Status</th>
+                        <th class="p-4 text-right font-semibold">Sent</th>
+                        <th class="p-4 text-right font-semibold">Attributed Orders</th>
+                        <th class="p-4 text-right font-semibold">Attributed Revenue</th>
+                        <th class="p-4 text-right font-semibold">Conversion</th>
+                        <th class="p-4 text-right font-semibold">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                    {% for cmp in page %}
+                        <tr class="transition hover:bg-slate-50/50 dark:hover:bg-slate-800/20">
+                            <td class="p-4">
+                                <a href="{% url 'backoffice:retention_campaign_detail' pk=cmp.pk %}" class="font-semibold text-slate-900 hover:text-indigo-600 dark:text-white dark:hover:text-indigo-400">
+                                    {{ cmp.name }}
+                                </a>
+                                {% if cmp.promotion %}
+                                    <p class="text-[11px] text-slate-500 dark:text-slate-400">
+                                        Promo: <code class="font-mono font-semibold">{{ cmp.promotion.code }}</code>
+                                    </p>
+                                {% endif %}
+                            </td>
+                            <td class="p-4 text-slate-700 dark:text-slate-300">
+                                {{ cmp.get_objective_display }}
+                            </td>
+                            <td class="p-4 text-slate-700 dark:text-slate-300">
+                                {{ cmp.get_target_segment_display }}
+                            </td>
+                            <td class="p-4">
+                                <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider {% if cmp.status == 'active' %}bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300{% elif cmp.status == 'draft' %}bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300{% elif cmp.status == 'completed' %}bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300{% elif cmp.status == 'cancelled' %}bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300{% else %}bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300{% endif %}">
+                                    {{ cmp.status }}
+                                </span>
+                            </td>
+                            <td class="p-4 text-right font-semibold tabular-nums text-slate-900 dark:text-white">
+                                {{ cmp.sent_count }}
+                            </td>
+                            <td class="p-4 text-right font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
+                                {{ cmp.attributed_count }}
+                            </td>
+                            <td class="p-4 text-right font-bold tabular-nums text-slate-900 dark:text-white">
+                                £{{ cmp.total_attributed_revenue|default:"0.00"|floatformat:2 }}
+                            </td>
+                            <td class="p-4 text-right tabular-nums text-slate-700 dark:text-slate-300">
+                                {{ cmp.conversion_rate_pct }}%
+                            </td>
+                            <td class="p-4 text-right">
+                                <div class="flex items-center justify-end gap-2">
+                                    <a href="{% url 'backoffice:retention_campaign_detail' pk=cmp.pk %}"
+                                       class="font-semibold text-indigo-600 hover:underline dark:text-indigo-400">
+                                        View
+                                    </a>
+                                    {% if cmp.is_editable %}
+                                        <a href="{% url 'backoffice:retention_campaign_edit' pk=cmp.pk %}"
+                                           class="text-slate-500 hover:text-slate-900 dark:hover:text-white">
+                                            Edit
+                                        </a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="9" class="p-8 text-center text-slate-500 dark:text-slate-400">
+                                No retention campaigns match the selected filters.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {# Pagination #}
+        {% if page.has_other_pages %}
+            <div class="flex items-center justify-between border-t border-slate-200 p-4 dark:border-slate-800">
+                <div class="text-xs text-slate-500 dark:text-slate-400">
+                    Showing page {{ page.number }} of {{ page.paginator.num_pages }}
+                </div>
+                <div class="flex items-center gap-2">
+                    {% if page.has_previous %}
+                        <a href="?page={{ page.previous_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}"
+                           class="rounded border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
+                            &larr; Previous
+                        </a>
+                    {% endif %}
+                    {% if page.has_next %}
+                        <a href="?page={{ page.next_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}"
+                           class="rounded border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
+                            Next &rarr;
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        {% endif %}
+    </div>
+{% endblock content %}

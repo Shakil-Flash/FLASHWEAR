@@ -26,16 +26,25 @@ from django.utils.translation import gettext_lazy as _
 
 from apps.engagement.forms import ReviewForm
 from apps.engagement.models import (
+    CampaignRecipient,
     PointsReservation,
     PointsTransaction,
     Promotion,
     PromotionUsage,
+    RetentionCampaign,
     Review,
 )
 from apps.engagement.services import loyalty, reviews
 from apps.engagement.services.errors import LoyaltyError
 
-__all__ = ["PointsReservationAdmin", "PointsTransactionAdmin", "PromotionAdmin", "ReviewAdmin"]
+__all__ = [
+    "CampaignRecipientAdmin",
+    "PointsReservationAdmin",
+    "PointsTransactionAdmin",
+    "PromotionAdmin",
+    "RetentionCampaignAdmin",
+    "ReviewAdmin",
+]
 
 
 # =============================================================================
@@ -322,3 +331,69 @@ class PointsReservationAdmin(admin.ModelAdmin):
             status=PointsReservation.Status.RELEASED, updated_at=timezone.now()
         )
         messages.success(request, _("%(count)d hold(s) released.") % {"count": updated})
+
+
+# =============================================================================
+# Retention & Campaigns (Phase 49)
+# =============================================================================
+
+
+class CampaignRecipientInline(admin.TabularInline):
+    from apps.engagement.models.retention import CampaignRecipient
+    model = CampaignRecipient
+    extra = 0
+    readonly_fields = (
+        "user",
+        "status",
+        "exclusion_reason",
+        "dispatched_at",
+        "attributed_order",
+        "attributed_at",
+        "attributed_revenue",
+        "promotion_used",
+        "idempotency_key",
+    )
+    can_delete = False
+
+
+@admin.register(RetentionCampaign)
+class RetentionCampaignAdmin(admin.ModelAdmin):
+    list_display = (
+        "name",
+        "objective",
+        "target_segment",
+        "status",
+        "starts_at",
+        "ends_at",
+        "promotion",
+        "recipients_count",
+    )
+    list_filter = ("status", "objective", "target_segment")
+    search_fields = ("name", "slug", "message_subject")
+    prepopulated_fields = {"slug": ("name",)}
+    inlines = [CampaignRecipientInline]
+
+    @admin.display(description=_("Recipients"))
+    def recipients_count(self, obj: RetentionCampaign) -> int:
+        return obj.recipients.count()
+
+
+@admin.register(CampaignRecipient)
+class CampaignRecipientAdmin(admin.ModelAdmin):
+    list_display = (
+        "campaign",
+        "user_email",
+        "status",
+        "dispatched_at",
+        "attributed_order",
+        "attributed_revenue",
+        "promotion_used",
+    )
+    list_filter = ("status", "promotion_used", "campaign")
+    search_fields = ("user__email", "campaign__name", "idempotency_key")
+    list_select_related = ("campaign", "user", "attributed_order")
+
+    @admin.display(description=_("Customer"))
+    def user_email(self, obj: CampaignRecipient) -> str:
+        return obj.user.email
+

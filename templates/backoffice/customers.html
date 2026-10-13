@@ -19,7 +19,13 @@
                 Account records, order totals, and customer care statistics.
             </p>
         </div>
-        {% include "backoffice/_range_filter.html" %}
+        <div class="flex items-center gap-3">
+            <a href="{% url 'backoffice:retention_dashboard' %}"
+               class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-xs transition hover:bg-slate-50">
+                Retention &amp; Win-Back &rarr;
+            </a>
+            {% include "backoffice/_range_filter.html" %}
+        </div>
     </header>
 
     {# ---- Search & Filters Bar ----------------------------------------------------------------- #}

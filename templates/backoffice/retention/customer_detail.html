@@ -1,0 +1,197 @@
+{% extends "backoffice/base.html" %}
+
+{% block title %}
+    Customer Retention Profile — {{ profile.email }}
+{% endblock title %}
+{% block breadcrumb %}
+    Customers & Care › Retention & Win-Back › Customer {{ profile.email }}
+{% endblock breadcrumb %}
+
+{% block content %}
+    <div class="mb-6">
+        <a href="{% url 'backoffice:retention_segments' %}" class="inline-flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white">
+            &larr; Back to Segments
+        </a>
+    </div>
+
+    <header class="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div>
+            <div class="flex items-center gap-3">
+                <h1 class="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">
+                    {{ profile.email }}
+                </h1>
+                {% if profile.marketing_subscribed %}
+                    <span class="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">
+                        Marketing Consented
+                    </span>
+                {% else %}
+                    <span class="inline-flex items-center rounded-full bg-rose-100 px-2.5 py-0.5 text-xs font-semibold text-rose-800 dark:bg-rose-900/40 dark:text-rose-300">
+                        Marketing Opted-Out
+                    </span>
+                {% endif %}
+            </div>
+            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                Customer ID #{{ profile.user_id }} &bull; Joined {{ profile.user.date_joined|date:"M d, Y" }}
+            </p>
+        </div>
+        <div class="flex items-center gap-2">
+            <a href="{% url 'backoffice:customers' %}?q={{ profile.email }}"
+               class="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-xs transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
+                View Account Care Profile &rarr;
+            </a>
+        </div>
+    </header>
+
+    {# KPI Row #}
+    <div class="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
+        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-soft dark:border-slate-800 dark:bg-slate-900">
+            <p class="text-xs font-medium text-slate-500 dark:text-slate-400">Net Spend</p>
+            <p class="mt-1 text-xl font-bold tabular-nums text-slate-900 dark:text-white">
+                £{{ profile.net_spend|floatformat:2 }}
+            </p>
+        </div>
+        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-soft dark:border-slate-800 dark:bg-slate-900">
+            <p class="text-xs font-medium text-slate-500 dark:text-slate-400">Completed Orders</p>
+            <p class="mt-1 text-xl font-bold tabular-nums text-slate-900 dark:text-white">
+                {{ profile.orders_count }}
+            </p>
+        </div>
+        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-soft dark:border-slate-800 dark:bg-slate-900">
+            <p class="text-xs font-medium text-slate-500 dark:text-slate-400">Average Order</p>
+            <p class="mt-1 text-xl font-bold tabular-nums text-slate-900 dark:text-white">
+                £{{ profile.avg_order_value|floatformat:2 }}
+            </p>
+        </div>
+        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-soft dark:border-slate-800 dark:bg-slate-900">
+            <p class="text-xs font-medium text-slate-500 dark:text-slate-400">Days Since Last Order</p>
+            <p class="mt-1 text-xl font-bold tabular-nums text-slate-900 dark:text-white">
+                {{ profile.days_since_last_order }}d
+            </p>
+        </div>
+        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-soft dark:border-slate-800 dark:bg-slate-900">
+            <p class="text-xs font-medium text-slate-500 dark:text-slate-400">Average Interval</p>
+            <p class="mt-1 text-xl font-bold tabular-nums text-slate-900 dark:text-white">
+                {% if profile.avg_interval_days %}{{ profile.avg_interval_days }}d{% else %}N/A{% endif %}
+            </p>
+        </div>
+        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-soft dark:border-slate-800 dark:bg-slate-900">
+            <p class="text-xs font-medium text-slate-500 dark:text-slate-400">FLASH Points</p>
+            <p class="mt-1 text-xl font-bold tabular-nums text-purple-600 dark:text-purple-400">
+                {{ profile.points_balance }}
+            </p>
+        </div>
+    </div>
+
+    {# Consent & Preferences Context #}
+    <div class="mb-8 grid gap-6 lg:grid-cols-2">
+        {# Privacy & Consent #}
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft dark:border-slate-800 dark:bg-slate-900">
+            <h2 class="text-sm font-semibold text-slate-900 dark:text-white">
+                Privacy, Consent &amp; Communication Channels
+            </h2>
+            <div class="mt-4 space-y-3 text-xs">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-2 dark:border-slate-800">
+                    <span class="text-slate-500 dark:text-slate-400">Marketing Email Consent:</span>
+                    <span class="font-semibold {% if profile.email_opt_in %}text-emerald-600 dark:text-emerald-400{% else %}text-slate-500{% endif %}">
+                        {% if profile.email_opt_in %}Opted-In (Active){% else %}Opted-Out{% endif %}
+                    </span>
+                </div>
+                <div class="flex items-center justify-between border-b border-slate-100 pb-2 dark:border-slate-800">
+                    <span class="text-slate-500 dark:text-slate-400">Marketing SMS Consent:</span>
+                    <span class="font-semibold {% if profile.sms_opt_in %}text-emerald-600 dark:text-emerald-400{% else %}text-slate-500{% endif %}">
+                        {% if profile.sms_opt_in %}Opted-In{% else %}Opted-Out{% endif %}
+                    </span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-slate-500 dark:text-slate-400">Assigned Segments:</span>
+                    <div class="flex flex-wrap gap-1">
+                        {% for seg in profile.segments %}
+                            {% if seg != "all" %}
+                                <span class="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                                    {{ seg }}
+                                </span>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {# Style DNA Context if set #}
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft dark:border-slate-800 dark:bg-slate-900">
+            <h2 class="text-sm font-semibold text-slate-900 dark:text-white">
+                Fashion &amp; Style DNA Context
+            </h2>
+            {% if profile.style_preferences %}
+                <div class="mt-4 space-y-3 text-xs">
+                    <div>
+                        <span class="font-medium text-slate-500 dark:text-slate-400">Favorite Styles:</span>
+                        <div class="mt-1 flex flex-wrap gap-1">
+                            {% for s in profile.style_preferences.favorite_styles %}
+                                <span class="rounded bg-indigo-50 px-2 py-0.5 font-medium text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300">
+                                    {{ s }}
+                                </span>
+                            {% empty %}
+                                <span class="text-slate-400">None specified</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div>
+                        <span class="font-medium text-slate-500 dark:text-slate-400">Favorite Colors:</span>
+                        <div class="mt-1 flex flex-wrap gap-1">
+                            {% for c in profile.style_preferences.favorite_colors %}
+                                <span class="rounded bg-slate-100 px-2 py-0.5 font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                                    {{ c }}
+                                </span>
+                            {% empty %}
+                                <span class="text-slate-400">None specified</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            {% else %}
+                <p class="mt-4 text-xs text-slate-500 dark:text-slate-400">
+                    No Flash DNA preferences submitted by customer yet. Recommendations derive from category purchase history.
+                </p>
+            {% endif %}
+        </div>
+    </div>
+
+    {# Tailored Retention Recommendations #}
+    {% if profile.recommendations %}
+        <div class="mb-8">
+            <h2 class="mb-4 text-base font-semibold text-slate-900 dark:text-white">
+                Advisory Recommendations for {{ profile.email }}
+            </h2>
+            <div class="grid gap-4 sm:grid-cols-2">
+                {% for rec in profile.recommendations %}
+                    <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft dark:border-slate-800 dark:bg-slate-900">
+                        <div class="mb-2 flex items-center justify-between">
+                            <span class="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-bold uppercase text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-300">
+                                {{ rec.type|slugify }}
+                            </span>
+                        </div>
+                        <h3 class="text-sm font-semibold text-slate-900 dark:text-white">{{ rec.title }}</h3>
+                        <p class="mt-1 text-xs text-slate-600 dark:text-slate-300">{{ rec.reason }}</p>
+                        <div class="mt-2 text-xs font-semibold text-slate-800 dark:text-slate-200">
+                            Suggested Action: {{ rec.recommended_action }}
+                        </div>
+                        <div class="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
+                            Eligibility: {{ rec.eligibility_restrictions }}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
+
+    {# Purchase History Timeline #}
+    <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft dark:border-slate-800 dark:bg-slate-900">
+        <h2 class="mb-4 text-base font-semibold text-slate-900 dark:text-white">
+            Completed Orders &amp; Inter-Purchase Timeline
+        </h2>
+        <div class="text-xs text-slate-500 dark:text-slate-400">
+            Total completed purchases: {{ profile.orders_count }} &bull; First order: {{ profile.first_order_date }} &bull; Most recent order: {{ profile.last_order_date }}
+        </div>
+    </div>
+{% endblock content %}

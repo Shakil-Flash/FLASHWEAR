@@ -1,0 +1,229 @@
+{% extends "backoffice/base.html" %}
+
+{% block title %}
+    {{ campaign.name }} — Retention Campaign
+{% endblock title %}
+{% block breadcrumb %}
+    Customers & Care › Retention & Win-Back › Campaign #{{ campaign.pk }}
+{% endblock breadcrumb %}
+
+{% block content %}
+    <div class="mb-6">
+        <a href="{% url 'backoffice:retention_campaigns' %}" class="inline-flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white">
+            &larr; Back to Campaigns
+        </a>
+    </div>
+
+    <header class="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div>
+            <div class="flex items-center gap-3">
+                <h1 class="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">
+                    {{ campaign.name }}
+                </h1>
+                <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider {% if campaign.status == 'active' %}bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300{% elif campaign.status == 'draft' %}bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300{% elif campaign.status == 'completed' %}bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300{% elif campaign.status == 'cancelled' %}bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300{% else %}bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300{% endif %}">
+                    {{ campaign.status }}
+                </span>
+            </div>
+            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                {{ campaign.get_objective_display }} &bull; Target Segment: <span class="font-semibold">{{ campaign.get_target_segment_display }}</span> &bull; Attribution Window: {{ campaign.attribution_window_days }} days
+            </p>
+        </div>
+
+        {# Action Buttons #}
+        <div class="flex flex-wrap items-center gap-2">
+            {% if campaign.is_editable %}
+                <a href="{% url 'backoffice:retention_campaign_edit' pk=campaign.pk %}"
+                   class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
+                    Edit Campaign
+                </a>
+            {% endif %}
+
+            {% if campaign.status in 'draft review scheduled' %}
+                <form method="post" action="{% url 'backoffice:retention_campaign_action' pk=campaign.pk %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="launch">
+                    <button type="submit"
+                            data-confirm="Are you sure you want to launch this campaign? Outreach will be sent to all consented, eligible recipients."
+                            class="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-emerald-700">
+                        <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                        Launch Campaign
+                    </button>
+                </form>
+            {% endif %}
+
+            {% if campaign.status not in 'completed cancelled' %}
+                <form method="post" action="{% url 'backoffice:retention_campaign_action' pk=campaign.pk %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="cancel">
+                    <button type="submit"
+                            data-confirm="Are you sure you want to cancel this campaign?"
+                            class="rounded-lg border border-rose-300 bg-white px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-50 dark:border-rose-900/60 dark:bg-slate-800 dark:text-rose-400 dark:hover:bg-rose-950/20">
+                        Cancel Campaign
+                    </button>
+                </form>
+            {% endif %}
+        </div>
+    </header>
+
+    {# KPI Scorecard #}
+    <div class="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-soft dark:border-slate-800 dark:bg-slate-900">
+            <p class="text-xs font-medium text-slate-500 dark:text-slate-400">Total Evaluated</p>
+            <p class="mt-1 text-xl font-bold tabular-nums text-slate-900 dark:text-white">
+                {{ preview.total_evaluated }}
+            </p>
+        </div>
+        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-soft dark:border-slate-800 dark:bg-slate-900">
+            <p class="text-xs font-medium text-slate-500 dark:text-slate-400">Eligible (Consented)</p>
+            <p class="mt-1 text-xl font-bold tabular-nums text-indigo-600 dark:text-indigo-400">
+                {{ preview.eligible_count }}
+            </p>
+        </div>
+        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-soft dark:border-slate-800 dark:bg-slate-900">
+            <p class="text-xs font-medium text-slate-500 dark:text-slate-400">Dispatched (Sent)</p>
+            <p class="mt-1 text-xl font-bold tabular-nums text-slate-900 dark:text-white">
+                {{ campaign.sent_count }}
+            </p>
+        </div>
+        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-soft dark:border-slate-800 dark:bg-slate-900">
+            <p class="text-xs font-medium text-slate-500 dark:text-slate-400">Attributed Orders</p>
+            <p class="mt-1 text-xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
+                {{ attributed_orders_count }}
+            </p>
+        </div>
+        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-soft dark:border-slate-800 dark:bg-slate-900">
+            <p class="text-xs font-medium text-slate-500 dark:text-slate-400">Attributed Revenue</p>
+            <p class="mt-1 text-xl font-bold tabular-nums text-slate-900 dark:text-white">
+                £{{ total_attributed_revenue|floatformat:2 }}
+            </p>
+        </div>
+    </div>
+
+    {# Campaign Metadata & Copy #}
+    <div class="mb-8 grid gap-6 lg:grid-cols-3">
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft dark:border-slate-800 dark:bg-slate-900 lg:col-span-2">
+            <h2 class="text-sm font-semibold text-slate-900 dark:text-white">
+                Message Content &amp; Copy
+            </h2>
+            <div class="mt-4 space-y-3 text-xs">
+                <div>
+                    <span class="font-semibold text-slate-500 dark:text-slate-400">Subject:</span>
+                    <p class="mt-1 text-sm font-medium text-slate-900 dark:text-white">{{ campaign.message_subject }}</p>
+                </div>
+                <div>
+                    <span class="font-semibold text-slate-500 dark:text-slate-400">Message Body:</span>
+                    <div class="mt-1 whitespace-pre-line rounded-lg border border-slate-200 bg-slate-50/50 p-3 font-sans text-xs text-slate-800 dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-200">
+                        {{ campaign.message_body }}
+                    </div>
+                </div>
+                {% if campaign.internal_notes %}
+                    <div>
+                        <span class="font-semibold text-slate-500 dark:text-slate-400">Internal Governance Notes:</span>
+                        <p class="mt-1 text-slate-600 dark:text-slate-300">{{ campaign.internal_notes }}</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft dark:border-slate-800 dark:bg-slate-900 lg:col-span-1">
+            <h2 class="text-sm font-semibold text-slate-900 dark:text-white">
+                Configuration &amp; Governance
+            </h2>
+            <div class="mt-4 space-y-2.5 text-xs text-slate-600 dark:text-slate-300">
+                <div class="flex justify-between border-b border-slate-100 pb-2 dark:border-slate-800">
+                    <span class="text-slate-500 dark:text-slate-400">Incentive Voucher:</span>
+                    <span class="font-semibold text-slate-900 dark:text-white">
+                        {% if campaign.promotion %}{{ campaign.promotion.code }} ({{ campaign.promotion.discount_percent }}% off){% else %}None{% endif %}
+                    </span>
+                </div>
+                <div class="flex justify-between border-b border-slate-100 pb-2 dark:border-slate-800">
+                    <span class="text-slate-500 dark:text-slate-400">Attribution Window:</span>
+                    <span class="font-semibold text-slate-900 dark:text-white">{{ campaign.attribution_window_days }} days</span>
+                </div>
+                <div class="flex justify-between border-b border-slate-100 pb-2 dark:border-slate-800">
+                    <span class="text-slate-500 dark:text-slate-400">Created By:</span>
+                    <span class="font-semibold text-slate-900 dark:text-white">{{ campaign.created_by.get_full_name|default:campaign.created_by.email }}</span>
+                </div>
+                <div class="flex justify-between border-b border-slate-100 pb-2 dark:border-slate-800">
+                    <span class="text-slate-500 dark:text-slate-400">Created At:</span>
+                    <span class="font-semibold text-slate-900 dark:text-white">{{ campaign.created_at|date:"M d, Y H:i" }}</span>
+                </div>
+                {% if campaign.launched_at %}
+                    <div class="flex justify-between border-b border-slate-100 pb-2 dark:border-slate-800">
+                        <span class="text-slate-500 dark:text-slate-400">Launched At:</span>
+                        <span class="font-semibold text-slate-900 dark:text-white">{{ campaign.launched_at|date:"M d, Y H:i" }}</span>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {# Recipients Preview / Activity Table #}
+    <div class="rounded-2xl border border-slate-200 bg-white shadow-soft dark:border-slate-800 dark:bg-slate-900">
+        <div class="border-b border-slate-200 p-4 dark:border-slate-800">
+            <h2 class="text-sm font-semibold text-slate-900 dark:text-white">
+                {% if campaign.status in 'draft review scheduled' %}Audience Preview (Consent-Enforced){% else %}Recipient Delivery &amp; Attribution Logs{% endif %}
+            </h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400">
+                Idempotency and marketing subscription status evaluated prior to transmission.
+            </p>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+                <thead>
+                    <tr class="border-b border-slate-200 bg-slate-50/50 text-slate-500 dark:border-slate-800 dark:bg-slate-800/30 dark:text-slate-400">
+                        <th class="p-4 font-semibold">Recipient</th>
+                        <th class="p-4 font-semibold">Eligibility / Status</th>
+                        <th class="p-4 font-semibold">Exclusion Reason</th>
+                        <th class="p-4 text-right font-semibold">Attributed Order</th>
+                        <th class="p-4 text-right font-semibold">Attributed Revenue</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                    {% for r in preview.recipients %}
+                        <tr class="transition hover:bg-slate-50/50 dark:hover:bg-slate-800/20">
+                            <td class="p-4">
+                                <a href="{% url 'backoffice:retention_customer_detail' pk=r.user_id %}" class="font-semibold text-slate-900 hover:text-indigo-600 dark:text-white dark:hover:text-indigo-400">
+                                    {{ r.email|default:r.user.email }}
+                                </a>
+                            </td>
+                            <td class="p-4">
+                                <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider {% if r.status == 'sent' or r.eligible %}bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300{% elif r.status == 'attributed' %}bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300{% else %}bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300{% endif %}">
+                                    {% if r.status %}{{ r.status }}{% elif r.eligible %}Eligible{% else %}Excluded{% endif %}
+                                </span>
+                            </td>
+                            <td class="p-4 text-slate-500 dark:text-slate-400">
+                                {% if r.exclusion_reason %}{{ r.exclusion_reason }}{% elif r.reason %}{{ r.reason }}{% else %}—{% endif %}
+                            </td>
+                            <td class="p-4 text-right text-slate-700 dark:text-slate-300">
+                                {% if r.attributed_order %}
+                                    <a href="{% url 'backoffice:order_detail' number=r.attributed_order.order_number %}" class="font-semibold hover:underline">
+                                        {{ r.attributed_order.order_number }}
+                                    </a>
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </td>
+                            <td class="p-4 text-right font-bold text-slate-900 dark:text-white">
+                                {% if r.attributed_revenue %}
+                                    £{{ r.attributed_revenue|floatformat:2 }}
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="5" class="p-8 text-center text-slate-500 dark:text-slate-400">
+                                No recipients found matching this campaign's target segment.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% endblock content %}

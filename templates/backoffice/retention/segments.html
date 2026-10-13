@@ -1,0 +1,175 @@
+{% extends "backoffice/base.html" %}
+
+{% block title %}
+    Customer Segments & Cohorts — Retention Intelligence
+{% endblock title %}
+{% block breadcrumb %}
+    Customers & Care › Retention & Win-Back › Customer Segments
+{% endblock breadcrumb %}
+
+{% block content %}
+    <header class="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">
+                Customer Segments &amp; Cohorts
+            </h1>
+            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                Explore customers by verified purchasing behavior, order intervals, and win-back risk.
+            </p>
+        </div>
+        <div class="flex items-center gap-3">
+            <a href="{% url 'backoffice:retention_export_csv' %}?segment={{ selected_segment }}"
+               class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-xs transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
+                <svg class="h-3.5 w-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Export Current Segment (CSV)
+            </a>
+        </div>
+    </header>
+
+    {% with active_tab="segments" %}
+        {% include "backoffice/retention/_subnav.html" %}
+    {% endwith %}
+
+    {# Segment Filter Pills #}
+    <div class="mb-6 flex flex-wrap items-center gap-2">
+        {% for code, label in segment_choices %}
+            <a href="?segment={{ code }}{% if q %}&q={{ q }}{% endif %}{% if sort %}&sort={{ sort }}{% endif %}"
+               class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition {% if selected_segment == code %}bg-slate-900 text-white dark:bg-white dark:text-slate-900{% else %}bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700{% endif %}">
+                {{ label }}
+            </a>
+        {% endfor %}
+    </div>
+
+    {# Filter & Search Card #}
+    <div class="mb-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-soft dark:border-slate-800 dark:bg-slate-900">
+        <form method="get" class="flex flex-wrap items-center justify-between gap-4">
+            <input type="hidden" name="segment" value="{{ selected_segment }}">
+            <div class="flex flex-1 items-center gap-3">
+                <div class="relative w-full max-w-sm">
+                    <input type="text"
+                           name="q"
+                           value="{{ q }}"
+                           placeholder="Search by customer email or name..."
+                           class="w-full rounded-lg border border-slate-300 bg-transparent px-3 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none dark:border-slate-700 dark:text-white" />
+                </div>
+                <button type="submit"
+                        class="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100">
+                    Search
+                </button>
+                {% if q %}
+                    <a href="?segment={{ selected_segment }}" class="text-xs text-slate-500 hover:underline dark:text-slate-400">
+                        Clear
+                    </a>
+                {% endif %}
+            </div>
+
+            <div class="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                <span>Sort by:</span>
+                <a href="?segment={{ selected_segment }}&q={{ q }}&sort=-net_spend" class="{% if sort == '-net_spend' %}font-bold text-slate-900 dark:text-white{% else %}hover:underline{% endif %}">Net Spend &darr;</a>
+                <span>|</span>
+                <a href="?segment={{ selected_segment }}&q={{ q }}&sort=-orders_count" class="{% if sort == '-orders_count' %}font-bold text-slate-900 dark:text-white{% else %}hover:underline{% endif %}">Orders &darr;</a>
+                <span>|</span>
+                <a href="?segment={{ selected_segment }}&q={{ q }}&sort=-days_since_last_order" class="{% if sort == '-days_since_last_order' %}font-bold text-slate-900 dark:text-white{% else %}hover:underline{% endif %}">Days Inactive &darr;</a>
+            </div>
+        </form>
+    </div>
+
+    {# Customers Table #}
+    <div class="rounded-2xl border border-slate-200 bg-white shadow-soft dark:border-slate-800 dark:bg-slate-900">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+                <thead>
+                    <tr class="border-b border-slate-200 bg-slate-50/50 text-slate-500 dark:border-slate-800 dark:bg-slate-800/30 dark:text-slate-400">
+                        <th class="p-4 font-semibold">Customer</th>
+                        <th class="p-4 text-right font-semibold">Completed Orders</th>
+                        <th class="p-4 text-right font-semibold">Net Spend</th>
+                        <th class="p-4 text-right font-semibold">Average Order</th>
+                        <th class="p-4 text-right font-semibold">Days Inactive</th>
+                        <th class="p-4 text-right font-semibold">Avg Interval</th>
+                        <th class="p-4 font-semibold">Segments</th>
+                        <th class="p-4 text-right font-semibold">Action</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                    {% for c in page %}
+                        <tr class="transition hover:bg-slate-50/50 dark:hover:bg-slate-800/20">
+                            <td class="p-4">
+                                <a href="{% url 'backoffice:retention_customer_detail' pk=c.user_id %}" class="font-semibold text-slate-900 hover:text-indigo-600 dark:text-white dark:hover:text-indigo-400">
+                                    {{ c.email }}
+                                </a>
+                                {% if c.user.get_full_name %}
+                                    <p class="text-[11px] text-slate-500 dark:text-slate-400">
+                                        {{ c.user.get_full_name }}
+                                    </p>
+                                {% endif %}
+                            </td>
+                            <td class="p-4 text-right font-semibold tabular-nums text-slate-900 dark:text-white">
+                                {{ c.orders_count }}
+                            </td>
+                            <td class="p-4 text-right font-bold tabular-nums text-slate-900 dark:text-white">
+                                £{{ c.net_spend|floatformat:2 }}
+                            </td>
+                            <td class="p-4 text-right tabular-nums text-slate-700 dark:text-slate-300">
+                                £{{ c.avg_order_value|floatformat:2 }}
+                            </td>
+                            <td class="p-4 text-right tabular-nums {% if c.days_since_last_order > 60 %}text-amber-600 dark:text-amber-400 font-semibold{% else %}text-slate-600 dark:text-slate-400{% endif %}">
+                                {{ c.days_since_last_order }}d
+                            </td>
+                            <td class="p-4 text-right tabular-nums text-slate-600 dark:text-slate-400">
+                                {% if c.avg_interval_days %}{{ c.avg_interval_days }}d{% else %}—{% endif %}
+                            </td>
+                            <td class="p-4">
+                                <div class="flex flex-wrap gap-1">
+                                    {% for seg in c.segments %}
+                                        {% if seg != "all" %}
+                                            <span class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                                                {{ seg }}
+                                            </span>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                            </td>
+                            <td class="p-4 text-right">
+                                <a href="{% url 'backoffice:retention_customer_detail' pk=c.user_id %}"
+                                   class="font-semibold text-indigo-600 hover:underline dark:text-indigo-400">
+                                    Profile &rarr;
+                                </a>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="8" class="p-8 text-center text-slate-500 dark:text-slate-400">
+                                No customers matched the current segment and query filters.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {# Pagination #}
+        {% if page.has_other_pages %}
+            <div class="flex items-center justify-between border-t border-slate-200 p-4 dark:border-slate-800">
+                <div class="text-xs text-slate-500 dark:text-slate-400">
+                    Showing page {{ page.number }} of {{ page.paginator.num_pages }} ({{ total_count }} total)
+                </div>
+                <div class="flex items-center gap-2">
+                    {% if page.has_previous %}
+                        <a href="?page={{ page.previous_page_number }}&segment={{ selected_segment }}&q={{ q }}&sort={{ sort }}"
+                           class="rounded border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
+                            &larr; Previous
+                        </a>
+                    {% endif %}
+                    {% if page.has_next %}
+                        <a href="?page={{ page.next_page_number }}&segment={{ selected_segment }}&q={{ q }}&sort={{ sort }}"
+                           class="rounded border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
+                            Next &rarr;
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        {% endif %}
+    </div>
+{% endblock content %}

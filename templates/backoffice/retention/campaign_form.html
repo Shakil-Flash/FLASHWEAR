@@ -1,0 +1,177 @@
+{% extends "backoffice/base.html" %}
+
+{% block title %}
+    {% if campaign %}Edit Campaign: {{ campaign.name }}{% else %}New Retention Campaign{% endif %} — FLASHWEAR
+{% endblock title %}
+{% block breadcrumb %}
+    Customers & Care › Retention & Win-Back › {% if campaign %}Edit {{ campaign.name }}{% else %}New Campaign{% endif %}
+{% endblock breadcrumb %}
+
+{% block content %}
+    <div class="mb-6">
+        <a href="{% url 'backoffice:retention_campaigns' %}" class="inline-flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white">
+            &larr; Back to Campaigns
+        </a>
+    </div>
+
+    <header class="mb-6">
+        <h1 class="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">
+            {% if campaign %}Edit Campaign: {{ campaign.name }}{% else %}Create Retention Campaign{% endif %}
+        </h1>
+        <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            Define objectives, target segment criteria, optional promotion voucher, and notification content.
+        </p>
+    </header>
+
+    <div class="max-w-3xl">
+        <form method="post" class="space-y-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-soft dark:border-slate-800 dark:bg-slate-900">
+            {% csrf_token %}
+
+            {# Campaign Name #}
+            <div>
+                <label for="id_name" class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                    Campaign Name <span class="text-rose-500">*</span>
+                </label>
+                <input type="text"
+                       id="id_name"
+                       name="name"
+                       required
+                       value="{% if campaign %}{{ campaign.name }}{% endif %}"
+                       placeholder="e.g. VIP Win-Back Autumn 2026"
+                       class="mt-1.5 w-full rounded-lg border border-slate-300 bg-transparent px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none dark:border-slate-700 dark:text-white" />
+            </div>
+
+            {# Objective & Target Segment Grid #}
+            <div class="grid gap-4 sm:grid-cols-2">
+                <div>
+                    <label for="id_objective" class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                        Campaign Objective <span class="text-rose-500">*</span>
+                    </label>
+                    <select id="id_objective"
+                            name="objective"
+                            required
+                            class="mt-1.5 w-full rounded-lg border border-slate-300 bg-transparent px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-white">
+                        {% for code, label in objectives %}
+                            <option value="{{ code }}" {% if campaign and campaign.objective == code %}selected{% endif %}>
+                                {{ label }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label for="id_target_segment" class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                        Target Segment <span class="text-rose-500">*</span>
+                    </label>
+                    <select id="id_target_segment"
+                            name="target_segment"
+                            required
+                            class="mt-1.5 w-full rounded-lg border border-slate-300 bg-transparent px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-white">
+                        {% for code, label in segments %}
+                            {% if code != "all" %}
+                                <option value="{{ code }}" {% if campaign and campaign.target_segment == code %}selected{% endif %}>
+                                    {{ label }}
+                                </option>
+                            {% endif %}
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            {# Attached Promotion #}
+            <div>
+                <label for="id_promotion" class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                    Attached Incentive Promotion (Optional)
+                </label>
+                <select id="id_promotion"
+                        name="promotion_id"
+                        class="mt-1.5 w-full rounded-lg border border-slate-300 bg-transparent px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-white">
+                    <option value="">-- No Discount Voucher --</option>
+                    {% for promo in promotions %}
+                        <option value="{{ promo.pk }}" {% if campaign and campaign.promotion_id == promo.pk %}selected{% endif %}>
+                            {{ promo.name }} (Code: {{ promo.code }} - {{ promo.discount_percent }}% off, expires {{ promo.ends_at|date:"M d, Y" }})
+                        </option>
+                    {% endfor %}
+                </select>
+                <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                    Promotion must be active and not expired at the time of campaign launch.
+                </p>
+            </div>
+
+            {# Attribution Window Days #}
+            <div>
+                <label for="id_attribution" class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                    Attribution Window (Days) <span class="text-rose-500">*</span>
+                </label>
+                <input type="number"
+                       id="id_attribution"
+                       name="attribution_window_days"
+                       min="1"
+                       max="90"
+                       required
+                       value="{% if campaign %}{{ campaign.attribution_window_days }}{% else %}14{% endif %}"
+                       class="mt-1.5 w-32 rounded-lg border border-slate-300 bg-transparent px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none dark:border-slate-700 dark:text-white" />
+                <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                    Orders placed within this number of days after delivery will be attributed to this campaign (standard: 14 days).
+                </p>
+            </div>
+
+            {# Message Subject #}
+            <div>
+                <label for="id_subject" class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                    Notification Subject <span class="text-rose-500">*</span>
+                </label>
+                <input type="text"
+                       id="id_subject"
+                       name="message_subject"
+                       required
+                       value="{% if campaign %}{{ campaign.message_subject }}{% endif %}"
+                       placeholder="e.g. We miss you at FLASHWEAR — here is 15% off your next style"
+                       class="mt-1.5 w-full rounded-lg border border-slate-300 bg-transparent px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none dark:border-slate-700 dark:text-white" />
+            </div>
+
+            {# Message Body #}
+            <div>
+                <label for="id_body" class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                    Notification Body <span class="text-rose-500">*</span>
+                </label>
+                <textarea id="id_body"
+                          name="message_body"
+                          rows="4"
+                          required
+                          placeholder="Write your email/in-app message copy..."
+                          class="mt-1.5 w-full rounded-lg border border-slate-300 bg-transparent px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none dark:border-slate-700 dark:text-white">{% if campaign %}{{ campaign.message_body }}{% endif %}</textarea>
+            </div>
+
+            {# Internal Notes #}
+            <div>
+                <label for="id_notes" class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                    Internal Governance Notes
+                </label>
+                <textarea id="id_notes"
+                          name="internal_notes"
+                          rows="2"
+                          placeholder="Rationale, target metrics, or operational context..."
+                          class="mt-1.5 w-full rounded-lg border border-slate-300 bg-transparent px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none dark:border-slate-700 dark:text-white">{% if campaign %}{{ campaign.internal_notes }}{% endif %}</textarea>
+            </div>
+
+            {# Privacy & Governance Advisory Callout #}
+            <div class="rounded-xl border border-indigo-100 bg-indigo-50/50 p-4 text-xs text-indigo-900 dark:border-indigo-900/50 dark:bg-indigo-950/20 dark:text-indigo-300">
+                <span class="font-bold">Privacy &amp; Consent Guard:</span>
+                Campaign dispatches automatically exclude customers who have opted out of marketing communications. Idempotency guarantees suppress duplicate emails to the same recipient within 7 days.
+            </div>
+
+            {# Submit & Cancel Buttons #}
+            <div class="flex items-center justify-end gap-3 pt-2">
+                <a href="{% url 'backoffice:retention_campaigns' %}"
+                   class="rounded-lg border border-slate-300 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
+                    Cancel
+                </a>
+                <button type="submit"
+                        class="rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100">
+                    {% if campaign %}Save Changes{% else %}Create Campaign{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+{% endblock content %}

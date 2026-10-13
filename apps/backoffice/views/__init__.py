@@ -104,6 +104,17 @@ from apps.backoffice.views.procurement import (
     supplier_payments_list,
     suppliers_list,
 )
+from apps.backoffice.views.retention import (
+    retention_campaign_action_view,
+    retention_campaign_create_view,
+    retention_campaign_detail_view,
+    retention_campaign_edit_view,
+    retention_campaigns_list_view,
+    retention_customer_detail_view,
+    retention_dashboard,
+    retention_export_csv_view,
+    retention_segments_view,
+)
 from apps.backoffice.views.sales import (
     customers,
     order_action,
@@ -189,6 +200,15 @@ __all__ = [
     "purchase_order_receive",
     "purchase_orders_list",
     "quests",
+    "retention_campaign_action_view",
+    "retention_campaign_create_view",
+    "retention_campaign_detail_view",
+    "retention_campaign_edit_view",
+    "retention_campaigns_list_view",
+    "retention_customer_detail_view",
+    "retention_dashboard",
+    "retention_export_csv_view",
+    "retention_segments_view",
     "return_action",
     "return_detail",
     "returns",

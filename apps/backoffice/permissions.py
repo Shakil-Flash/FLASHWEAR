@@ -75,6 +75,9 @@ __all__ = [
     "PURCHASING_APPROVE",
     "PURCHASING_MANAGE",
     "PURCHASING_VIEW",
+    "RETENTION_VIEW",
+    "RETENTION_MANAGE",
+    "CAMPAIGNS_MANAGE",
     "STAFF_MANAGE",
     "SUPPORT_MANAGE",
     "SUPPORT_VIEW",
@@ -127,6 +130,9 @@ PROFITABILITY_VIEW = "profitability.view"
 CASHFLOW_VIEW = "cashflow.view"
 CASHFLOW_MANAGE = "cashflow.manage"
 WORKING_CAPITAL_VIEW = "working_capital.view"
+RETENTION_VIEW = "retention.view"
+RETENTION_MANAGE = "retention.manage"
+CAMPAIGNS_MANAGE = "campaigns.manage"
 
 CAPABILITIES = (
     OPS_VIEW,
@@ -149,6 +155,9 @@ CAPABILITIES = (
     CASHFLOW_VIEW,
     CASHFLOW_MANAGE,
     WORKING_CAPITAL_VIEW,
+    RETENTION_VIEW,
+    RETENTION_MANAGE,
+    CAMPAIGNS_MANAGE,
     PAYMENTS_VIEW,
     CATALOG_VIEW,
     CATALOG_MANAGE,
@@ -251,6 +260,9 @@ CAPABILITY_GROUPS: dict[str, frozenset[str]] = {
     CASHFLOW_VIEW: frozenset({FINANCE_GROUP, ADMIN_GROUP}),
     CASHFLOW_MANAGE: frozenset({FINANCE_GROUP, ADMIN_GROUP}),
     WORKING_CAPITAL_VIEW: frozenset({FINANCE_GROUP, ADMIN_GROUP}),
+    RETENTION_VIEW: frozenset({MARKETING_GROUP, OPERATOR_GROUP, FINANCE_GROUP, ADMIN_GROUP}),
+    RETENTION_MANAGE: frozenset({MARKETING_GROUP, ADMIN_GROUP}),
+    CAMPAIGNS_MANAGE: frozenset({MARKETING_GROUP, ADMIN_GROUP}),
     PAYMENTS_VIEW: frozenset({FINANCE_GROUP, ORDERS_GROUP, ADMIN_GROUP}),
     CATALOG_VIEW: frozenset({OPERATOR_GROUP, CATALOG_GROUP, MARKETING_GROUP, ADMIN_GROUP}),
     CATALOG_MANAGE: frozenset({CATALOG_GROUP, ADMIN_GROUP}),
@@ -456,6 +468,7 @@ NAVIGATION = (
         "Customers & Care",
         (
             ("customers", "Customers", "backoffice:customers", CUSTOMERS_VIEW),
+            ("retention", "Retention & Win-Back", "backoffice:retention_dashboard", RETENTION_VIEW),
             ("support", "Support", "backoffice:support", SUPPORT_VIEW),
             ("reviews", "Reviews", "backoffice:reviews", MODERATION_VIEW),
             ("loyalty", "Loyalty", "backoffice:points", LOYALTY_VIEW),

@@ -1,0 +1,369 @@
+{% extends "backoffice/base.html" %}
+{% load catalog_extras %}
+
+{% block title %}
+    Customer Retention & Repeat-Purchase Intelligence
+{% endblock title %}
+{% block breadcrumb %}
+    Customers & Care › Retention & Win-Back
+{% endblock breadcrumb %}
+
+{% block content %}
+    <header class="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">
+                Customer Retention &amp; Repeat-Purchase Intelligence
+            </h1>
+            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                Verified repurchase rates, cohort retention curves, behavioral segmentation, and win-back opportunities.
+            </p>
+        </div>
+        <div class="flex flex-wrap items-center gap-3">
+            <a href="{% url 'backoffice:retention_export_csv' %}"
+               class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-xs transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
+                <svg class="h-3.5 w-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Export Retention Data (CSV)
+            </a>
+            <a href="{% url 'backoffice:retention_campaign_create' %}"
+               class="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-1.5 text-xs font-semibold text-white shadow-xs transition hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100">
+                <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+                Create Campaign
+            </a>
+        </div>
+    </header>
+
+    {% with active_tab="dashboard" %}
+        {% include "backoffice/retention/_subnav.html" %}
+    {% endwith %}
+
+    {# ---- 1. Headline Retention KPIs ------------------------------------------------------------- #}
+    <section aria-labelledby="retention-kpis" class="mb-8">
+        <h2 id="retention-kpis" class="sr-only">Retention Performance Indicators</h2>
+        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+            {# Repeat-Purchase Rate #}
+            <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft dark:border-slate-800 dark:bg-slate-900">
+                <p class="text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    Repeat-Purchase Rate
+                </p>
+                <p class="mt-1 text-2xl font-bold tabular-nums text-indigo-600 dark:text-indigo-400">
+                    {{ metrics.repeat_purchase_rate }}%
+                </p>
+                <p class="mt-1.5 text-xs text-slate-500 dark:text-slate-400">
+                    {{ metrics.repeat_customers }} of {{ metrics.total_customers }} customers
+                </p>
+            </div>
+
+            {# Returning Revenue Contribution #}
+            <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft dark:border-slate-800 dark:bg-slate-900">
+                <p class="text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    Returning Revenue %
+                </p>
+                <p class="mt-1 text-2xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
+                    {{ metrics.returning_revenue_share_pct }}%
+                </p>
+                <p class="mt-1.5 text-xs text-slate-500 dark:text-slate-400">
+                    £{{ metrics.total_repeat_revenue|floatformat:2 }} of £{{ metrics.total_net_revenue|floatformat:2 }}
+                </p>
+            </div>
+
+            {# Purchase Frequency #}
+            <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft dark:border-slate-800 dark:bg-slate-900">
+                <p class="text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    Purchase Frequency
+                </p>
+                <p class="mt-1 text-2xl font-bold tabular-nums text-slate-900 dark:text-white">
+                    {{ metrics.avg_purchase_frequency }}
+                </p>
+                <p class="mt-1.5 text-xs text-slate-500 dark:text-slate-400">
+                    Orders per customer
+                </p>
+            </div>
+
+            {# Inter-Purchase Interval #}
+            <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft dark:border-slate-800 dark:bg-slate-900">
+                <p class="text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    Time Between Orders
+                </p>
+                <p class="mt-1 text-2xl font-bold tabular-nums text-slate-900 dark:text-white">
+                    {{ metrics.avg_inter_purchase_interval_days }}d
+                </p>
+                <p class="mt-1.5 text-xs text-slate-500 dark:text-slate-400">
+                    Average interval (repeat buyers)
+                </p>
+            </div>
+
+            {# Average Order Value #}
+            <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft dark:border-slate-800 dark:bg-slate-900">
+                <p class="text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    Average Order Value
+                </p>
+                <p class="mt-1 text-2xl font-bold tabular-nums text-slate-900 dark:text-white">
+                    £{{ metrics.avg_order_value|floatformat:2 }}
+                </p>
+                <p class="mt-1.5 text-xs text-slate-500 dark:text-slate-400">
+                    Net value (refunds deducted)
+                </p>
+            </div>
+
+            {# Customer Lifetime Value #}
+            <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft dark:border-slate-800 dark:bg-slate-900">
+                <p class="text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    CLV Estimate
+                </p>
+                <p class="mt-1 text-2xl font-bold tabular-nums text-purple-600 dark:text-purple-400">
+                    £{{ metrics.clv_predictive_estimate|floatformat:2 }}
+                </p>
+                <p class="mt-1.5 text-xs text-slate-500 dark:text-slate-400" title="Historical Descriptive: £{{ metrics.clv_historical_descriptive|floatformat:2 }}">
+                    Hist: £{{ metrics.clv_historical_descriptive|floatformat:2 }} (actual)
+                </p>
+            </div>
+        </div>
+    </section>
+
+    {# ---- 2. Segment Distribution & Cohort Matrix Grid ------------------------------------------ #}
+    <div class="mb-8 grid gap-6 lg:grid-cols-3">
+        {# Segment Breakdown Card #}
+        <section aria-labelledby="segments-heading" class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft dark:border-slate-800 dark:bg-slate-900 lg:col-span-1">
+            <div class="mb-4 flex items-center justify-between">
+                <h2 id="segments-heading" class="text-base font-semibold text-slate-900 dark:text-white">
+                    Customer Segments
+                </h2>
+                <a href="{% url 'backoffice:retention_segments' %}" class="text-xs font-medium text-indigo-600 hover:underline dark:text-indigo-400">
+                    View All &rarr;
+                </a>
+            </div>
+            <div class="space-y-3">
+                {% for code, label in segment_choices %}
+                    {% if code != "all" %}
+                        <a href="{% url 'backoffice:retention_segments' %}?segment={{ code }}"
+                           class="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50/50 p-3 transition hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-800/40 dark:hover:bg-slate-800">
+                            <div>
+                                <p class="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                                    {{ label }}
+                                </p>
+                            </div>
+                            <span class="inline-flex items-center rounded-full bg-slate-200 px-2.5 py-0.5 text-xs font-bold text-slate-800 dark:bg-slate-700 dark:text-slate-200">
+                                {% if code == "new" %}{{ segments_summary.segments.new }}
+                                {% elif code == "repeat" %}{{ segments_summary.segments.repeat }}
+                                {% elif code == "active" %}{{ segments_summary.segments.active }}
+                                {% elif code == "loyal" %}{{ segments_summary.segments.loyal }}
+                                {% elif code == "high_spenders" %}{{ segments_summary.segments.high_spenders }}
+                                {% elif code == "at_risk" %}{{ segments_summary.segments.at_risk }}
+                                {% elif code == "churned" %}{{ segments_summary.segments.churned }}
+                                {% else %}0{% endif %}
+                            </span>
+                        </a>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </section>
+
+        {# Cohort Retention Matrix #}
+        <section aria-labelledby="cohort-heading" class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft dark:border-slate-800 dark:bg-slate-900 lg:col-span-2">
+            <div class="mb-4 flex items-center justify-between">
+                <div>
+                    <h2 id="cohort-heading" class="text-base font-semibold text-slate-900 dark:text-white">
+                        Cohort Retention Analysis
+                    </h2>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">
+                        Percentage of customers returning in subsequent months after first completed purchase.
+                    </p>
+                </div>
+            </div>
+
+            {% if cohort_matrix %}
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs">
+                        <thead>
+                            <tr class="border-b border-slate-200 text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                                <th class="pb-2.5 font-semibold">Cohort Month</th>
+                                <th class="pb-2.5 text-right font-semibold">New Buyers</th>
+                                <th class="pb-2.5 text-right font-semibold">M0</th>
+                                <th class="pb-2.5 text-right font-semibold">M1</th>
+                                <th class="pb-2.5 text-right font-semibold">M2</th>
+                                <th class="pb-2.5 text-right font-semibold">M3</th>
+                                <th class="pb-2.5 text-right font-semibold">M6</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                            {% for c in cohort_matrix %}
+                                <tr>
+                                    <td class="py-2.5 font-medium text-slate-900 dark:text-white">
+                                        {{ c.cohort }}
+                                    </td>
+                                    <td class="py-2.5 text-right font-semibold text-slate-700 dark:text-slate-300">
+                                        {{ c.cohort_size }}
+                                    </td>
+                                    <td class="py-2.5 text-right font-semibold text-indigo-600 dark:text-indigo-400">
+                                        100%
+                                    </td>
+                                    <td class="py-2.5 text-right tabular-nums {% if c.retention_rates.1 > 20 %}text-emerald-600 dark:text-emerald-400 font-semibold{% else %}text-slate-600 dark:text-slate-400{% endif %}">
+                                        {{ c.retention_rates.1 }}%
+                                    </td>
+                                    <td class="py-2.5 text-right tabular-nums {% if c.retention_rates.2 > 15 %}text-emerald-600 dark:text-emerald-400 font-semibold{% else %}text-slate-600 dark:text-slate-400{% endif %}">
+                                        {{ c.retention_rates.2 }}%
+                                    </td>
+                                    <td class="py-2.5 text-right tabular-nums {% if c.retention_rates.3 > 15 %}text-emerald-600 dark:text-emerald-400 font-semibold{% else %}text-slate-600 dark:text-slate-400{% endif %}">
+                                        {{ c.retention_rates.3 }}%
+                                    </td>
+                                    <td class="py-2.5 text-right tabular-nums {% if c.retention_rates.6 > 10 %}text-emerald-600 dark:text-emerald-400 font-semibold{% else %}text-slate-600 dark:text-slate-400{% endif %}">
+                                        {{ c.retention_rates.6 }}%
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="py-8 text-center text-xs text-slate-500 dark:text-slate-400">
+                    No cohort data recorded yet.
+                </div>
+            {% endif %}
+        </section>
+    </div>
+
+    {# ---- 3. Retention Opportunity Recommendations ---------------------------------------------- #}
+    <section aria-labelledby="recommendations-heading" class="mb-8">
+        <div class="mb-4 flex items-center justify-between">
+            <div>
+                <h2 id="recommendations-heading" class="text-base font-semibold text-slate-900 dark:text-white">
+                    Retention Opportunity Recommendations (Advisory)
+                </h2>
+                <p class="text-xs text-slate-500 dark:text-slate-400">
+                    Behavior-driven suggestions for win-backs, loyalty activations, and catalog re-engagement.
+                </p>
+            </div>
+        </div>
+
+        {% if recommendations %}
+            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {% for rec in recommendations %}
+                    <div class="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-soft dark:border-slate-800 dark:bg-slate-900">
+                        <div>
+                            <div class="mb-2 flex items-center justify-between gap-2">
+                                <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider {% if rec.type == 'WIN_BACK_LAPSED' %}bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300{% elif rec.type == 'LOYALTY_UNSPENT_POINTS' %}bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300{% else %}bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300{% endif %}">
+                                    {{ rec.type|slugify }}
+                                </span>
+                                {% if rec.is_consented %}
+                                    <span class="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400" title="Consented to marketing communications">
+                                        ✓ Consented
+                                    </span>
+                                {% else %}
+                                    <span class="text-[10px] font-semibold text-rose-500" title="Opted out of marketing emails">
+                                        Opted-Out
+                                    </span>
+                                {% endif %}
+                            </div>
+                            <h3 class="text-sm font-semibold text-slate-900 dark:text-white">
+                                {{ rec.title }}
+                            </h3>
+                            <p class="mt-1 text-xs text-slate-600 dark:text-slate-300">
+                                {{ rec.reason }}
+                            </p>
+                            <div class="mt-2.5 rounded-lg bg-slate-50 p-2.5 text-[11px] text-slate-500 dark:bg-slate-800/50 dark:text-slate-400">
+                                <span class="font-semibold text-slate-700 dark:text-slate-300">Evidence:</span> {{ rec.supporting_data }}
+                            </div>
+                        </div>
+
+                        <div class="mt-4 border-t border-slate-100 pt-3 dark:border-slate-800">
+                            <p class="text-[11px] font-medium text-slate-700 dark:text-slate-300">
+                                <span class="font-bold">Action:</span> {{ rec.recommended_action }}
+                            </p>
+                            <div class="mt-2.5 flex items-center justify-between">
+                                <a href="{% url 'backoffice:retention_customer_detail' pk=rec.user_id %}"
+                                   class="text-xs font-semibold text-indigo-600 hover:underline dark:text-indigo-400">
+                                    Customer Profile &rarr;
+                                </a>
+                                <a href="{% url 'backoffice:retention_campaign_create' %}?customer={{ rec.user_id }}"
+                                   class="inline-flex items-center rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
+                                    Prepare Outreach
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="rounded-2xl border border-slate-200 bg-white p-8 text-center text-xs text-slate-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
+                All purchasing customers are currently active within their standard repurchase intervals.
+            </div>
+        {% endif %}
+    </section>
+
+    {# ---- 4. Recent Retention Campaigns & Attribution -------------------------------------------- #}
+    <section aria-labelledby="campaigns-heading" class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft dark:border-slate-800 dark:bg-slate-900">
+        <div class="mb-4 flex items-center justify-between">
+            <div>
+                <h2 id="campaigns-heading" class="text-base font-semibold text-slate-900 dark:text-white">
+                    Active &amp; Recent Campaigns
+                </h2>
+                <p class="text-xs text-slate-500 dark:text-slate-400">
+                    Track dispatches, consent-enforced reach, and 14-day attributed orders.
+                </p>
+            </div>
+            <a href="{% url 'backoffice:retention_campaigns' %}" class="text-xs font-semibold text-indigo-600 hover:underline dark:text-indigo-400">
+                Manage Campaigns &rarr;
+            </a>
+        </div>
+
+        {% if recent_campaigns %}
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                    <thead>
+                        <tr class="border-b border-slate-200 text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                            <th class="pb-2.5 font-semibold">Campaign</th>
+                            <th class="pb-2.5 font-semibold">Target Segment</th>
+                            <th class="pb-2.5 font-semibold">Status</th>
+                            <th class="pb-2.5 text-right font-semibold">Dispatched</th>
+                            <th class="pb-2.5 text-right font-semibold">Attributed Orders</th>
+                            <th class="pb-2.5 text-right font-semibold">Attributed Revenue</th>
+                            <th class="pb-2.5 text-right font-semibold">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                        {% for cmp in recent_campaigns %}
+                            <tr>
+                                <td class="py-2.5 font-medium text-slate-900 dark:text-white">
+                                    <a href="{% url 'backoffice:retention_campaign_detail' pk=cmp.pk %}" class="hover:underline">
+                                        {{ cmp.name }}
+                                    </a>
+                                </td>
+                                <td class="py-2.5 text-slate-600 dark:text-slate-300">
+                                    {{ cmp.get_target_segment_display }}
+                                </td>
+                                <td class="py-2.5">
+                                    <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider {% if cmp.status == 'active' %}bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300{% elif cmp.status == 'draft' %}bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300{% elif cmp.status == 'completed' %}bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300{% else %}bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300{% endif %}">
+                                        {{ cmp.status }}
+                                    </span>
+                                </td>
+                                <td class="py-2.5 text-right font-semibold text-slate-700 dark:text-slate-300">
+                                    {{ cmp.sent_count }}
+                                </td>
+                                <td class="py-2.5 text-right font-semibold text-emerald-600 dark:text-emerald-400">
+                                    {{ cmp.attributed_count }}
+                                </td>
+                                <td class="py-2.5 text-right font-bold text-slate-900 dark:text-white">
+                                    £{{ cmp.total_attributed_revenue|default:"0.00"|floatformat:2 }}
+                                </td>
+                                <td class="py-2.5 text-right">
+                                    <a href="{% url 'backoffice:retention_campaign_detail' pk=cmp.pk %}"
+                                       class="font-semibold text-indigo-600 hover:underline dark:text-indigo-400">
+                                        Details
+                                    </a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="py-8 text-center text-xs text-slate-500 dark:text-slate-400">
+                No campaigns created yet. Start with a second-purchase incentive or win-back campaign.
+            </div>
+        {% endif %}
+    </section>
+{% endblock content %}
