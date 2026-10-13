@@ -30,6 +30,8 @@ from apps.notifications.services import in_app, preferences
 from apps.notifications.throttling import NotificationThrottle
 
 __all__ = [
+    "NotificationDismissAllView",
+    "NotificationDismissView",
     "NotificationListView",
     "NotificationPreferencesView",
     "NotificationReadAllView",
@@ -50,6 +52,8 @@ def _serialize(row: Notification) -> dict:
         "priority": row.priority,
         "read_at": row.read_at,
         "is_unread": row.is_unread,
+        "dismissed_at": row.dismissed_at,
+        "is_dismissed": row.is_dismissed,
         "created_at": row.created_at,
     }
 
@@ -69,8 +73,8 @@ def _throttled(throttle: NotificationThrottle, action: str, ident) -> Response |
 class NotificationListView(APIView):
     """``GET /api/v1/notifications/`` -- the caller's in-app rows, newest first.
 
-    ``?unread=1`` narrows to unread; the payload carries the live ``unread_count`` so a
-    client can render its badge from the same response.
+    ``?unread=1`` narrows to unread; ``?dismissed=1`` narrows to archived/dismissed rows.
+    The payload carries the live ``unread_count`` so a client can render its badge from the same response.
     """
 
     permission_classes = [IsAuthenticated]
@@ -82,13 +86,16 @@ class NotificationListView(APIView):
         queryset = Notification.objects.filter(user=request.user, channel=Channel.IN_APP).order_by(
             "-created_at", "-pk"
         )
+        if request.query_params.get("dismissed") == "1" or request.query_params.get("archived") == "1":
+            queryset = queryset.filter(dismissed_at__isnull=False)
+        else:
+            queryset = queryset.filter(dismissed_at__isnull=True)
+
         if request.query_params.get("unread") == "1":
             queryset = queryset.filter(read_at__isnull=True)
         paginator = PageNumberPagination()
         page = paginator.paginate_queryset(queryset, request)
         response = paginator.get_paginated_response([_serialize(row) for row in page])
-        # The count rides on the same payload so a client renders its list and its badge
-        # from one round trip.
         response.data["unread_count"] = in_app.unread_count(request.user)
         return response
 
@@ -106,6 +113,22 @@ class NotificationReadView(APIView):
 
     def post(self, request, pk: int, *args, **kwargs) -> Response:
         row = in_app.mark_read(request.user, pk)
+        if row is None:
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+        return Response(
+            {"notification": _serialize(row), "unread_count": in_app.unread_count(request.user)}
+        )
+
+
+class NotificationDismissView(APIView):
+    """``POST /api/v1/notifications/<pk>/dismiss/`` -- dismiss one in-app row from inbox."""
+
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "notifications_write"
+
+    def post(self, request, pk: int, *args, **kwargs) -> Response:
+        row = in_app.dismiss(request.user, pk)
         if row is None:
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
         return Response(
@@ -132,6 +155,23 @@ class NotificationReadAllView(APIView):
         marked = in_app.mark_all_read(request.user)
         throttle.record("read_all", request.user.pk)
         return Response({"marked": marked, "unread_count": 0})
+
+
+class NotificationDismissAllView(APIView):
+    """``POST /api/v1/notifications/dismiss-all/`` -- dismiss all active in-app rows."""
+
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "notifications_write"
+
+    def post(self, request, *args, **kwargs) -> Response:
+        throttle = NotificationThrottle()
+        blocked = _throttled(throttle, "dismiss_all", request.user.pk)
+        if blocked is not None:
+            return blocked
+        dismissed = in_app.dismiss_all(request.user)
+        throttle.record("dismiss_all", request.user.pk)
+        return Response({"dismissed": dismissed, "unread_count": in_app.unread_count(request.user)})
 
 
 class NotificationPreferencesView(APIView):

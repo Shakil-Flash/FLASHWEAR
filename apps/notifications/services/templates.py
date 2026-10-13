@@ -112,17 +112,15 @@ MARKETING_CATEGORIES = frozenset({NotificationCategory.PROMOTIONS})
 def category_defaults(category: str) -> dict[str, bool]:
     """Out-of-the-box channel switches for a category (used to seed preference rows).
 
-    Mandatory categories default to everything on -- the dispatcher overrides them anyway,
-    but the preferences UI shows honest state instead of phantom toggles. Optional
-    categories: transactional-but-optional families (loyalty, drops, creator, loop, quests)
-    ship with email on; promotions ships with email *off* (marketing must be opted into),
-    recommendations ships in-app only (an email digest nobody asked for is spam).
+    Mandatory categories default to essential channels on (email, in-app); SMS and push default to off
+    unless explicitly configured. Optional categories: transactional-but-optional families
+    (loyalty, drops, creator, loop, quests) ship with email on; promotions ships with marketing channels off.
     """
     if category in MANDATORY_CATEGORIES:
-        return {"email": True, "in_app": True}
+        return {"email": True, "in_app": True, "sms": False, "push": False}
     if category in (NotificationCategory.PROMOTIONS, NotificationCategory.RECOMMENDATIONS):
-        return {"email": False, "in_app": True}
-    return {"email": True, "in_app": True}
+        return {"email": False, "in_app": True, "sms": False, "push": False}
+    return {"email": True, "in_app": True, "sms": False, "push": False}
 
 
 def _spec(

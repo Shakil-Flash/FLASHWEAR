@@ -16,14 +16,16 @@ same contract as the support app):
 
 from __future__ import annotations
 
+import json
 import logging
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from django.http import Http404, HttpRequest, HttpResponse
+from django.http import Http404, HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 from django.utils.translation import gettext as _
+from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
 from apps.notifications import selectors
@@ -47,16 +49,20 @@ def _client_ip(request: HttpRequest) -> str:
 @require_http_methods(["GET"])
 def center(request: HttpRequest) -> HttpResponse:
     """The notification center: paginated, filterable, badge-accurate."""
-    unread_only = request.GET.get("filter") == "unread"
+    tab = request.GET.get("tab", "inbox")
+    is_archived = tab == "archived" or request.GET.get("filter") == "archived"
+    unread_only = request.GET.get("filter") == "unread" and not is_archived
     category = request.GET.get("category", "")
     if category not in NotificationCategory.values:
         category = ""
 
-    qs = selectors.user_notifications(request.user, unread=unread_only, category=category)
+    qs = selectors.user_notifications(
+        request.user, unread=unread_only, category=category, dismissed=is_archived
+    )
     paginator = Paginator(qs, PER_PAGE)
     page_obj = paginator.get_page(request.GET.get("page"))
 
-    counts = selectors.status_counts(request.user)
+    counts = selectors.status_counts(request.user, include_archived=True)
     # The bell badge (context processor) would otherwise run its own unread COUNT a
     # second time during this same render.
     try:
@@ -71,6 +77,7 @@ def center(request: HttpRequest) -> HttpResponse:
             "page_obj": page_obj,
             "notifications": page_obj.object_list,
             "unread_only": unread_only,
+            "active_tab": "archived" if is_archived else "inbox",
             "active_category": category,
             "categories": [(value, label) for value, label in NotificationCategory.choices],
             "counts": counts,
@@ -144,6 +151,69 @@ def action_click(request: HttpRequest, pk: int) -> HttpResponse:
 
 @login_required
 @require_http_methods(["POST"])
+def mark_read_action(request: HttpRequest, pk: int) -> HttpResponse:
+    """Mark one notification read via POST without navigating away."""
+    throttle = NotificationThrottle()
+    decision = throttle.check("mark_read", request.user.pk)
+    if decision.blocked:
+        if request.headers.get("x-requested-with") == "XMLHttpRequest":
+            return JsonResponse({"detail": "Rate limit exceeded."}, status=429)
+        messages.warning(request, _("Please wait a moment before marking another notification read."))
+        return redirect("notifications:center")
+
+    notification = in_app.mark_read(request.user, pk)
+    if notification is None:
+        raise Http404(_("No notification matches the given id."))
+
+    throttle.record("mark_read", request.user.pk)
+    if request.headers.get("x-requested-with") == "XMLHttpRequest":
+        return JsonResponse({"success": True, "unread_count": in_app.unread_count(request.user)})
+    messages.success(request, _("Notification marked as read."))
+    return redirect("notifications:center")
+
+
+@login_required
+@require_http_methods(["POST"])
+def dismiss(request: HttpRequest, pk: int) -> HttpResponse:
+    """Dismiss one in-app notification from the user's active center."""
+    throttle = NotificationThrottle()
+    decision = throttle.check("dismiss", request.user.pk)
+    if decision.blocked:
+        if request.headers.get("x-requested-with") == "XMLHttpRequest":
+            return JsonResponse({"detail": "Rate limit exceeded."}, status=429)
+        messages.warning(request, _("Please wait a moment before dismissing another notification."))
+        return redirect("notifications:center")
+
+    notification = in_app.dismiss(request.user, pk)
+    if notification is None:
+        raise Http404(_("No notification matches the given id."))
+
+    throttle.record("dismiss", request.user.pk)
+    if request.headers.get("x-requested-with") == "XMLHttpRequest":
+        return JsonResponse({"success": True, "unread_count": in_app.unread_count(request.user)})
+    messages.success(request, _("Notification dismissed."))
+    return redirect("notifications:center")
+
+
+@login_required
+@require_http_methods(["POST"])
+def dismiss_all(request: HttpRequest) -> HttpResponse:
+    """Dismiss all active in-app notifications from the user's active center."""
+    throttle = NotificationThrottle()
+    decision = throttle.check("dismiss_all", request.user.pk)
+    if decision.blocked:
+        messages.warning(request, _("That is a lot of dismissals in a row. Please wait a moment."))
+        return redirect("notifications:center")
+
+    count = in_app.dismiss_all(request.user)
+    throttle.record("dismiss_all", request.user.pk)
+    if count:
+        messages.success(request, _("%(count)d notifications dismissed.") % {"count": count})
+    return redirect("notifications:center")
+
+
+@login_required
+@require_http_methods(["POST"])
 def read_all(request: HttpRequest) -> HttpResponse:
     """Mark everything read. Throttled: it is free, idempotent, and scriptable."""
     throttle = NotificationThrottle()
@@ -192,11 +262,12 @@ def preferences_view(request: HttpRequest) -> HttpResponse:
     )
 
 
-@require_http_methods(["GET"])
+@csrf_exempt
+@require_http_methods(["GET", "POST"])
 def unsubscribe(request: HttpRequest, token: str) -> HttpResponse:
-    """One-click marketing unsubscribe (Phase 17 §16).
+    """One-click marketing unsubscribe (Phase 17 §16, Phase 51 §4).
 
-    GET, because that is what mail clients and every sender's instructions promise, and
+    GET or POST, because mail clients support both RFC 8058 and one-click link clicks, and
     because the token *is* the capability: unguessable, opaque, and useless without the
     database row behind it. Deliberately **not** behind ``login_required`` -- the
     recipient clicks from an email, possibly on a device where they never signed in, and
@@ -219,3 +290,37 @@ def unsubscribe(request: HttpRequest, token: str) -> HttpResponse:
     throttle.record("unsubscribe", _client_ip(request))
     preferences.apply_unsubscribe(row.user)
     return render(request, "notifications/unsubscribe.html", {"valid": True})
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def delivery_webhook(request: HttpRequest, provider_key: str) -> HttpResponse:
+    """Provider delivery status webhook endpoint (Phase 51 §5, §9).
+
+    Requires valid signature, prevents replay attacks, updates delivery state safely.
+    """
+    from apps.notifications.services import webhooks
+
+    try:
+        webhooks.verify_webhook_signature(request, provider_key)
+    except webhooks.WebhookAuthenticationError as exc:
+        logger.warning("Rejected webhook signature for provider '%s': %s", provider_key, exc)
+        return JsonResponse({"error": str(exc)}, status=401)
+
+    try:
+        payload = json.loads(request.body.decode("utf-8"))
+        if not isinstance(payload, dict):
+            return JsonResponse({"error": "Payload must be a JSON object."}, status=400)
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse({"error": "Malformed JSON payload."}, status=400)
+
+    try:
+        result = webhooks.process_delivery_webhook(provider_key, payload)
+        return JsonResponse(result, status=200)
+    except webhooks.WebhookProcessingError as exc:
+        logger.warning("Failed processing webhook for provider '%s': %s", provider_key, exc)
+        return JsonResponse({"error": str(exc)}, status=400)
+    except Exception:
+        logger.exception("Unexpected error processing webhook for provider '%s'", provider_key)
+        return JsonResponse({"error": "Internal processing error."}, status=500)
+

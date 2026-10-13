@@ -64,6 +64,8 @@ from apps.loop.api import (
     TradeInListCreateView,
 )
 from apps.notifications.api import (
+    NotificationDismissAllView,
+    NotificationDismissView,
     NotificationListView,
     NotificationPreferencesView,
     NotificationReadAllView,
@@ -214,6 +216,11 @@ urlpatterns = [
         name="notification-read-all",
     ),
     path(
+        "notifications/dismiss-all/",
+        NotificationDismissAllView.as_view(),
+        name="notification-dismiss-all",
+    ),
+    path(
         "notifications/preferences/",
         NotificationPreferencesView.as_view(),
         name="notification-preferences",
@@ -222,6 +229,11 @@ urlpatterns = [
         "notifications/<int:pk>/read/",
         NotificationReadView.as_view(),
         name="notification-read",
+    ),
+    path(
+        "notifications/<int:pk>/dismiss/",
+        NotificationDismissView.as_view(),
+        name="notification-dismiss",
     ),
     # Phase 8: FLASH Closet and outfits (customer-scoped).
     path("closet/", ClosetItemListView.as_view(), name="closet-item-list"),

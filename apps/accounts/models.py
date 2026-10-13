@@ -199,6 +199,7 @@ class Profile(models.Model):
     # Explicit opt-in: an unchecked box must stay unchecked, so these default to False.
     marketing_email_opt_in = models.BooleanField(_("marketing email opt-in"), default=False)
     marketing_sms_opt_in = models.BooleanField(_("marketing SMS opt-in"), default=False)
+    marketing_push_opt_in = models.BooleanField(_("marketing push opt-in"), default=False)
     created_at = models.DateTimeField(_("created at"), auto_now_add=True)
     updated_at = models.DateTimeField(_("updated at"), auto_now=True)
 
@@ -219,6 +220,15 @@ class Profile(models.Model):
 
     def __str__(self) -> str:
         return f"Profile<{self.user.email}>"
+
+    @property
+    def marketing_opt_in(self) -> bool:
+        """Alias for marketing_email_opt_in for unified consent checking."""
+        return self.marketing_email_opt_in
+
+    @marketing_opt_in.setter
+    def marketing_opt_in(self, value: bool) -> None:
+        self.marketing_email_opt_in = bool(value)
 
 
 class Address(models.Model):

@@ -1,4 +1,4 @@
-"""Preference resolution (Phase 17 §14).
+"""Preference resolution (Phase 17 §14, Phase 51 §4).
 
 The one place that answers "does this recipient want this channel for this category?".
 Everything else -- dispatcher, bulk broadcast -- asks here, so the rules cannot drift:
@@ -7,15 +7,13 @@ Everything else -- dispatcher, bulk broadcast -- asks here, so the rules cannot 
   suppress an order, payment, delivery, support or account-security message;
 * **optional categories read the stored row**, created lazily from the registry defaults so
   a customer who never opens the screen behaves as designed;
-* **marketing email additionally needs the profile opt-in** -- promotions email is gated by
-  both the category preference and ``Profile.marketing_email_opt_in``, which is what the
-  one-click unsubscribe endpoint flips;
-* **recipient validity is checked here too** -- no email address or inactive account means
-  no email leg, regardless of preferences.
+* **marketing channels additionally need the profile opt-in** -- promotions email/sms/push are gated by
+  both the category preference and profile opt-ins, which is what the one-click unsubscribe endpoint flips;
+* **channel capabilities are checked here too** -- unconfigured SMS or push providers are never simulated;
+* **recipient validity is checked here too** -- missing email/phone or inactive account stops delivery.
 
 Writes from the preferences screen are coerced: mandatory categories are forced back to
-enabled on the way in, so a hostile POST changes nothing that matters (the screen also
-renders them disabled, and the API returns ``mandatory: true`` so a client can too).
+enabled on the way in, and marketing opt-ins synchronize cleanly with Profile flags.
 """
 
 from __future__ import annotations
@@ -50,58 +48,103 @@ __all__ = [
     "preference_rows",
     "set_preferences",
     "user_can_receive_email",
+    "user_can_receive_push",
+    "user_can_receive_sms",
 ]
 
 
 def _profile_marketing_opt_in(user) -> bool:
-    """Read the profile flag defensively: users may exist without a profile row."""
+    """Read the profile email opt-in flag defensively."""
     profile = getattr(user, "profile", None)
     if profile is None:
         return False
     return bool(getattr(profile, "marketing_email_opt_in", False))
 
 
-def marketing_subscribed(user) -> bool:
-    """True when promotions email may flow (category preference AND profile opt-in)."""
-    if not _profile_marketing_opt_in(user):
+def _profile_marketing_sms_opt_in(user) -> bool:
+    """Read the profile SMS opt-in flag defensively."""
+    profile = getattr(user, "profile", None)
+    if profile is None:
         return False
+    return bool(getattr(profile, "marketing_sms_opt_in", False))
+
+
+def _profile_marketing_push_opt_in(user) -> bool:
+    """Read the profile push opt-in flag defensively."""
+    profile = getattr(user, "profile", None)
+    if profile is None:
+        return False
+    return bool(getattr(profile, "marketing_push_opt_in", False))
+
+
+def marketing_subscribed(user, channel: str = Channel.EMAIL) -> bool:
+    """True when promotions may flow on this channel (category preference AND profile opt-in)."""
     pref = get_preference(user, NotificationCategory.PROMOTIONS)
-    return pref.email_enabled
+    if channel == Channel.EMAIL:
+        return _profile_marketing_opt_in(user) and pref.email_enabled
+    if channel == Channel.SMS:
+        return _profile_marketing_sms_opt_in(user) and pref.sms_enabled
+    if channel == Channel.PUSH:
+        return _profile_marketing_push_opt_in(user) and pref.push_enabled
+    if channel == Channel.IN_APP:
+        return pref.in_app_enabled
+    return False
 
 
 def get_preference(user, category: str) -> NotificationPreference:
-    """Fetch or seed the preference row for ``(user, category)``.
-
-    Seeding is a read-side concern on purpose: preferences must work for a customer who
-    never visited the screen, and two concurrent seeds race into the unique constraint,
-    which the ``IntegrityError`` fallback resolves to the winner's row.
-    """
+    """Fetch or seed the preference row for ``(user, category)``."""
     try:
         return NotificationPreference.objects.get(user=user, category=category)
     except NotificationPreference.DoesNotExist:
         defaults = category_defaults(category)
         try:
-            # A savepoint, not a bare INSERT: the dispatcher often runs inside the
-            # caller's transaction, and a lost seeding race must not poison it.
             with transaction.atomic():
                 return NotificationPreference.objects.create(
                     user=user,
                     category=category,
-                    email_enabled=defaults["email"],
-                    in_app_enabled=defaults["in_app"],
+                    email_enabled=defaults.get("email", True),
+                    in_app_enabled=defaults.get("in_app", True),
+                    sms_enabled=defaults.get("sms", False),
+                    push_enabled=defaults.get("push", False),
                 )
         except IntegrityError:
             return NotificationPreference.objects.get(user=user, category=category)
 
 
 def user_can_receive_email(user) -> bool:
-    """A live account with a usable address. Checked on every dispatch, not once at signup."""
+    """A live account with a usable email address."""
     if user is None:
         return False
     if not getattr(user, "is_active", False):
         return False
     email = (getattr(user, "email", "") or "").strip()
     return "@" in email
+
+
+def user_can_receive_sms(user) -> bool:
+    """Configured provider and a live account with a phone number."""
+    from apps.notifications.services.sms import is_sms_configured
+
+    if not is_sms_configured():
+        return False
+    if user is None or not getattr(user, "is_active", False):
+        return False
+    profile = getattr(user, "profile", None)
+    if profile is None:
+        return False
+    phone = (getattr(profile, "phone", "") or "").strip()
+    return bool(phone)
+
+
+def user_can_receive_push(user) -> bool:
+    """Configured push provider and a live account."""
+    from apps.notifications.services.push import is_push_configured
+
+    if not is_push_configured():
+        return False
+    if user is None or not getattr(user, "is_active", False):
+        return False
+    return True
 
 
 def effective_channels(
@@ -111,9 +154,8 @@ def effective_channels(
 ) -> list[str]:
     """Resolve the channels this delivery may use.
 
-    ``requested`` narrows the registry's channel set (call sites use it to add an in-app
-    copy without a second email, or vice versa); it can never *widen* it -- a caller must
-    not be able to force a channel the type does not declare.
+    ``requested`` narrows the registry's channel set; it can never widen it.
+    Rechecks consent and channel capabilities immediately before delivery.
     """
     spec = get_spec(notification_type)
     wanted = [ch for ch in (requested or spec.channels) if ch in spec.channels]
@@ -121,95 +163,187 @@ def effective_channels(
     allowed: list[str] = []
     for channel in wanted:
         if channel == Channel.IN_APP:
+            if spec.is_mandatory or get_preference(user, spec.category).in_app_enabled:
+                allowed.append(channel)
+            continue
+
+        if channel == Channel.EMAIL:
+            if not user_can_receive_email(user):
+                continue
+            if spec.is_mandatory:
+                allowed.append(channel)
+                continue
+            pref = get_preference(user, spec.category)
+            if not pref.email_enabled:
+                continue
+            if spec.category in MARKETING_CATEGORIES and not _profile_marketing_opt_in(user):
+                continue
             allowed.append(channel)
             continue
-        # channel == EMAIL
-        if not user_can_receive_email(user):
-            continue
-        if spec.is_mandatory:
+
+        if channel == Channel.SMS:
+            if not user_can_receive_sms(user):
+                continue
+            if spec.is_mandatory:
+                allowed.append(channel)
+                continue
+            pref = get_preference(user, spec.category)
+            if not pref.sms_enabled:
+                continue
+            if spec.category in MARKETING_CATEGORIES and not _profile_marketing_sms_opt_in(user):
+                continue
             allowed.append(channel)
             continue
-        pref = get_preference(user, spec.category)
-        if not pref.email_enabled:
+
+        if channel == Channel.PUSH:
+            if not user_can_receive_push(user):
+                continue
+            if spec.is_mandatory:
+                allowed.append(channel)
+                continue
+            pref = get_preference(user, spec.category)
+            if not pref.push_enabled:
+                continue
+            if spec.category in MARKETING_CATEGORIES and not _profile_marketing_push_opt_in(user):
+                continue
+            allowed.append(channel)
             continue
-        if spec.category in MARKETING_CATEGORIES and not _profile_marketing_opt_in(user):
-            continue
-        allowed.append(channel)
-    # In-app for optional categories still respects the stored toggle.
-    if Channel.IN_APP in allowed and not spec.is_mandatory:
-        if not get_preference(user, spec.category).in_app_enabled:
-            allowed.remove(Channel.IN_APP)
+
     return allowed
 
 
 def set_preferences(user, payload: dict[str, Any]) -> list[NotificationPreference]:
-    """Apply a preferences payload: ``{category: {"email": bool, "in_app": bool}}``.
+    """Apply a preferences payload: ``{category: {"email": bool, "in_app": bool, "sms": bool, "push": bool}}``.
 
-    Unknown categories are ignored; mandatory categories are coerced to enabled (a request
-    cannot silence order, payment, delivery, support or account messages); categories the
-    customer switches *on* for marketing email additionally require the profile opt-in --
-    turning the toggle on without opting in is honoured by re-reading the profile flag at
-    dispatch time, but we keep the stored row honest here too.
-
-    Returns the rows as they now stand.
+    Unknown categories are ignored; mandatory categories are coerced to enabled on essential channels;
+    categories the customer switches on for marketing additionally synchronize with Profile opt-in flags.
     """
     rows: list[NotificationPreference] = []
+    profile = getattr(user, "profile", None)
+    user_phone = (getattr(profile, "phone", "") or "").strip() if profile else ""
+
     for category, flags in payload.items():
         if category not in NotificationCategory.values:
             continue
         pref = get_preference(user, category)
+        flags = flags or {}
         if category in MANDATORY_CATEGORIES:
             pref.email_enabled = True
             pref.in_app_enabled = True
+            pref.sms_enabled = bool(flags.get("sms", pref.sms_enabled))
+            pref.push_enabled = bool(flags.get("push", pref.push_enabled))
         else:
-            pref.email_enabled = bool((flags or {}).get("email", pref.email_enabled))
-            pref.in_app_enabled = bool((flags or {}).get("in_app", pref.in_app_enabled))
-        pref.save(update_fields=["email_enabled", "in_app_enabled", "updated_at"])
+            pref.email_enabled = bool(flags.get("email", pref.email_enabled))
+            pref.in_app_enabled = bool(flags.get("in_app", pref.in_app_enabled))
+            pref.sms_enabled = bool(flags.get("sms", pref.sms_enabled))
+            pref.push_enabled = bool(flags.get("push", pref.push_enabled))
+
+        if pref.sms_enabled and not user_phone:
+            # Cannot enable marketing/optional SMS without a phone number on profile
+            pref.sms_enabled = False
+
+        pref.save(
+            update_fields=[
+                "email_enabled",
+                "in_app_enabled",
+                "sms_enabled",
+                "push_enabled",
+                "updated_at",
+            ]
+        )
         rows.append(pref)
+
+        # Synchronize Profile marketing opt-in booleans for the PROMOTIONS category
+        if category == NotificationCategory.PROMOTIONS and profile is not None:
+            profile_dirty = False
+            if profile.marketing_email_opt_in != pref.email_enabled:
+                profile.marketing_email_opt_in = pref.email_enabled
+                profile_dirty = True
+            desired_sms_opt = pref.sms_enabled and bool(user_phone)
+            if profile.marketing_sms_opt_in != desired_sms_opt:
+                profile.marketing_sms_opt_in = desired_sms_opt
+                profile_dirty = True
+            if getattr(profile, "marketing_push_opt_in", False) != pref.push_enabled:
+                profile.marketing_push_opt_in = pref.push_enabled
+                profile_dirty = True
+            if profile_dirty:
+                profile.save()
+
     return rows
 
 
 def ensure_unsubscribe_token(user) -> UnsubscribeToken:
-    """Fetch or mint the opaque marketing-unsubscribe handle for this recipient.
-
-    Emails mint it lazily at render time (an unsubscribe URL with no token row would be a
-    dead link), and the random value means no URL ever encodes who it belongs to.
-    """
+    """Fetch or mint the opaque marketing-unsubscribe handle for this recipient."""
     token, _created = UnsubscribeToken.objects.get_or_create(user=user)
     return token
 
 
 def find_unsubscribe_token(token: str) -> UnsubscribeToken | None:
-    """Resolve a presented token. Lookup, never decode -- tampering reduces to guessing
-    256 bits of randomness, and a forged token simply resolves to nobody."""
+    """Resolve a presented token. Lookup, never decode."""
     if not token or len(token) > 64:
         return None
     return UnsubscribeToken.objects.select_related("user").filter(token=token).first()
 
 
-def apply_unsubscribe(user) -> bool:
-    """One-click unsubscribe (Phase 17 §16): turn promotions email off.
+def apply_unsubscribe(
+    user,
+    *,
+    channels: tuple[str, ...] = (Channel.EMAIL, Channel.SMS, Channel.PUSH),
+) -> bool:
+    """One-click unsubscribe (Phase 17 §16, Phase 51 §4): turn marketing off across channels.
 
-    Idempotent by construction -- running it twice flips nothing the second time. Also
-    clears the profile marketing opt-in so no other marketing path re-arms the toggle; the
-    preferences screen is the (authenticated) way to opt back in.
+    Idempotent by construction -- running it twice flips nothing the second time.
+    Also clears the profile marketing opt-ins.
     """
     pref = get_preference(user, NotificationCategory.PROMOTIONS)
     changed = False
-    if pref.email_enabled:
+    pref_updates = []
+    if Channel.EMAIL in channels and pref.email_enabled:
         pref.email_enabled = False
-        pref.save(update_fields=["email_enabled", "updated_at"])
+        pref_updates.append("email_enabled")
         changed = True
+    if Channel.SMS in channels and pref.sms_enabled:
+        pref.sms_enabled = False
+        pref_updates.append("sms_enabled")
+        changed = True
+    if Channel.PUSH in channels and pref.push_enabled:
+        pref.push_enabled = False
+        pref_updates.append("push_enabled")
+        changed = True
+
+    if pref_updates:
+        pref_updates.append("updated_at")
+        pref.save(update_fields=pref_updates)
+
     profile = Profile.objects.filter(user=user).first()
-    if profile is not None and profile.marketing_email_opt_in:
-        profile.marketing_email_opt_in = False
-        profile.save(update_fields=["marketing_email_opt_in", "updated_at"])
-        changed = True
+    if profile is not None:
+        prof_updates = []
+        if Channel.EMAIL in channels and profile.marketing_email_opt_in:
+            profile.marketing_email_opt_in = False
+            prof_updates.append("marketing_email_opt_in")
+            changed = True
+        if Channel.SMS in channels and profile.marketing_sms_opt_in:
+            profile.marketing_sms_opt_in = False
+            prof_updates.append("marketing_sms_opt_in")
+            changed = True
+        if Channel.PUSH in channels and getattr(profile, "marketing_push_opt_in", False):
+            profile.marketing_push_opt_in = False
+            prof_updates.append("marketing_push_opt_in")
+            changed = True
+        if prof_updates:
+            prof_updates.append("updated_at")
+            profile.save(update_fields=prof_updates)
+
     return changed
 
 
 def preference_rows(user) -> list[dict[str, Any]]:
     """The screen/API payload: every category, seeded, with mandatory flagged."""
+    from apps.notifications.services.push import is_push_configured
+    from apps.notifications.services.sms import is_sms_configured
+
+    sms_avail = is_sms_configured()
+    push_avail = is_push_configured()
     rows = []
     for category in NotificationCategory.choices:
         value = category[0]
@@ -220,6 +354,10 @@ def preference_rows(user) -> list[dict[str, Any]]:
                 "label": str(dict(NotificationCategory.choices)[value]),
                 "email": pref.email_enabled,
                 "in_app": pref.in_app_enabled,
+                "sms": pref.sms_enabled,
+                "push": pref.push_enabled,
+                "sms_available": sms_avail,
+                "push_available": push_avail,
                 "mandatory": value in MANDATORY_CATEGORIES,
             }
         )

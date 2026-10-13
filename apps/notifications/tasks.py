@@ -36,6 +36,8 @@ logger = logging.getLogger("flashwear.notifications.tasks")
 __all__ = [
     "broadcast_batch",
     "send_email",
+    "send_push",
+    "send_sms",
     "sweep_drop_events",
     "sweep_drop_upcoming_reminders",
     "sweep_points_expiring",
@@ -83,14 +85,14 @@ def _mark_sent(pk: int) -> None:
     )
 
 
-def _claim(pk: int) -> int | None:
+def _claim(pk: int, channel: str = "email") -> int | None:
     """CAS-claim one attempt. Returns the new attempt number, or None if not ours.
 
     Filtering on the *read* ``attempts`` value means two workers that both read ``0``
     cannot both claim: the second UPDATE matches zero rows. That is the whole duplicate
     protection -- no advisory locks, no SELECT FOR UPDATE required.
     """
-    row = Notification.objects.filter(pk=pk, channel="email").values("status", "attempts").first()
+    row = Notification.objects.filter(pk=pk, channel=channel).values("status", "attempts").first()
     if row is None:
         return None
     if row["status"] != NotificationStatus.QUEUED:
@@ -167,6 +169,96 @@ def send_email(notification_id: int) -> dict:
                 return {"status": "retrying", "attempts": attempt}
     except Exception:  # pragma: no cover - last-resort guard: this task must never raise
         logger.exception("Unexpected failure delivering notification %s", notification_id)
+        return {"status": "error"}
+
+
+@shared_task(name="notifications.send_sms")
+def send_sms(notification_id: int) -> dict:
+    """Deliver one queued SMS row. If provider is unconfigured, marks failed without faking."""
+    from apps.notifications.services.sms import (
+        PermanentSmsError,
+        SmsSendError,
+        get_sms_provider,
+    )
+
+    try:
+        while True:
+            attempt = _claim(notification_id, channel="sms")
+            if attempt is None:
+                row = Notification.objects.filter(pk=notification_id).values("status").first()
+                return {"status": row["status"] if row else "missing", "skipped": True}
+            try:
+                row = Notification.objects.select_related("user__profile").filter(pk=notification_id).first()
+                if row is None:
+                    return {"status": "missing", "attempts": attempt}
+                provider = get_sms_provider()
+                phone = getattr(getattr(row.user, "profile", None), "phone", "")
+                provider.send(text_body=f"{row.title}\n{row.body}", recipient_phone=phone)
+                _mark_sent(notification_id)
+                return {"status": "sent", "attempts": attempt}
+            except PermanentSmsError as exc:
+                _fail(notification_id, str(exc) or "SMS delivery rejected.")
+                return {"status": "failed", "attempts": attempt, "permanent": True}
+            except Exception as exc:
+                if attempt >= _max_attempts():
+                    _fail(notification_id, str(exc) or exc.__class__.__name__)
+                    return {"status": "failed", "attempts": attempt, "permanent": False}
+                if _eager():
+                    continue
+                try:
+                    send_sms.apply_async(args=[notification_id], countdown=_countdown(attempt))
+                except Exception:
+                    logger.exception("Could not re-queue notification SMS %s", notification_id)
+                return {"status": "retrying", "attempts": attempt}
+    except Exception:
+        logger.exception("Unexpected failure delivering notification SMS %s", notification_id)
+        return {"status": "error"}
+
+
+@shared_task(name="notifications.send_push")
+def send_push(notification_id: int) -> dict:
+    """Deliver one queued push row. If provider is unconfigured, marks failed without faking."""
+    from apps.notifications.services.push import (
+        PermanentPushError,
+        PushSendError,
+        get_push_provider,
+    )
+
+    try:
+        while True:
+            attempt = _claim(notification_id, channel="push")
+            if attempt is None:
+                row = Notification.objects.filter(pk=notification_id).values("status").first()
+                return {"status": row["status"] if row else "missing", "skipped": True}
+            try:
+                row = Notification.objects.select_related("user").filter(pk=notification_id).first()
+                if row is None:
+                    return {"status": "missing", "attempts": attempt}
+                provider = get_push_provider()
+                provider.send(
+                    title=row.title,
+                    body=row.body,
+                    recipient_user_id=row.user_id,
+                    action_url=row.action_url or "",
+                )
+                _mark_sent(notification_id)
+                return {"status": "sent", "attempts": attempt}
+            except PermanentPushError as exc:
+                _fail(notification_id, str(exc) or "Push delivery rejected.")
+                return {"status": "failed", "attempts": attempt, "permanent": True}
+            except Exception as exc:
+                if attempt >= _max_attempts():
+                    _fail(notification_id, str(exc) or exc.__class__.__name__)
+                    return {"status": "failed", "attempts": attempt, "permanent": False}
+                if _eager():
+                    continue
+                try:
+                    send_push.apply_async(args=[notification_id], countdown=_countdown(attempt))
+                except Exception:
+                    logger.exception("Could not re-queue notification Push %s", notification_id)
+                return {"status": "retrying", "attempts": attempt}
+    except Exception:
+        logger.exception("Unexpected failure delivering notification Push %s", notification_id)
         return {"status": "error"}
 
 

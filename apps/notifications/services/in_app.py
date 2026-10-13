@@ -14,6 +14,8 @@ from apps.notifications.models import Channel, Notification, NotificationStatus
 
 __all__ = [
     "create",
+    "dismiss",
+    "dismiss_all",
     "mark_all_read",
     "mark_read",
     "unread_count",
@@ -56,12 +58,28 @@ def mark_all_read(user) -> int:
     """
     now = timezone.now()
     return Notification.objects.filter(
-        user=user, channel=Channel.IN_APP, read_at__isnull=True
+        user=user, channel=Channel.IN_APP, read_at__isnull=True, dismissed_at__isnull=True
     ).update(read_at=now, updated_at=now)
 
 
+def dismiss(user, pk: int) -> Notification | None:
+    """Dismiss one in-app notification from the caller's inbox without deleting the delivery record."""
+    notification = Notification.objects.filter(user=user, pk=pk, channel=Channel.IN_APP).first()
+    if notification is None:
+        return None
+    return notification.dismiss()
+
+
+def dismiss_all(user) -> int:
+    """Dismiss all active in-app notifications from the caller's inbox without deleting records."""
+    now = timezone.now()
+    return Notification.objects.filter(
+        user=user, channel=Channel.IN_APP, dismissed_at__isnull=True
+    ).update(dismissed_at=now, updated_at=now)
+
+
 def unread_count(user) -> int:
-    """The bell badge: unread in-app rows only (what the center actually lists).
+    """The bell badge: unread active in-app rows only (what the center actually lists).
 
     Cheap (index on ``user`` + ``read_at``) and safe for anonymous callers to never
     reach -- views pass ``request.user`` only when authenticated.
@@ -69,14 +87,17 @@ def unread_count(user) -> int:
     if user is None or not getattr(user, "is_authenticated", False):
         return 0
     return Notification.objects.filter(
-        user=user, channel=Channel.IN_APP, read_at__isnull=True
+        user=user, channel=Channel.IN_APP, read_at__isnull=True, dismissed_at__isnull=True
     ).count()
 
 
 def unread_ids(user, limit: int = 200) -> list[int]:
     """Unread in-app ids, newest first. Used by "mark these visible rows read" updates."""
     return list(
-        Notification.objects.filter(user=user, channel=Channel.IN_APP, read_at__isnull=True)
+        Notification.objects.filter(
+            user=user, channel=Channel.IN_APP, read_at__isnull=True, dismissed_at__isnull=True
+        )
         .order_by("-created_at")
         .values_list("id", flat=True)[:limit]
     )
+

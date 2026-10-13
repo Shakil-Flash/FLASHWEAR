@@ -28,14 +28,17 @@ def _fingerprint(*parts) -> str:
 
 
 class NotificationThrottle:
-    """Three counters: read-all, preference writes, and unsubscribe (keyed by IP)."""
+    """Counters: read-all, mark-read, dismiss, preference writes, and unsubscribe."""
 
-    ACTIONS = ("read_all", "preferences", "unsubscribe")
+    ACTIONS = ("read_all", "preferences", "unsubscribe", "mark_read", "dismiss", "dismiss_all")
 
     def __init__(self, cache_alias: str = "default") -> None:
         self.max_read_all = int(getattr(settings, "NOTIFICATIONS_READ_ALL_MAX", 10))
         self.max_preferences = int(getattr(settings, "NOTIFICATIONS_PREFERENCES_MAX", 20))
         self.max_unsubscribe = int(getattr(settings, "NOTIFICATIONS_UNSUBSCRIBE_MAX", 10))
+        self.max_mark_read = int(getattr(settings, "NOTIFICATIONS_MARK_READ_MAX", 60))
+        self.max_dismiss = int(getattr(settings, "NOTIFICATIONS_DISMISS_MAX", 60))
+        self.max_dismiss_all = int(getattr(settings, "NOTIFICATIONS_DISMISS_ALL_MAX", 10))
         self.window = int(getattr(settings, "NOTIFICATIONS_THROTTLE_WINDOW_SECONDS", 300))
         self._cache = cache
         self.alias = cache_alias
@@ -45,6 +48,9 @@ class NotificationThrottle:
             "read_all": self.max_read_all,
             "preferences": self.max_preferences,
             "unsubscribe": self.max_unsubscribe,
+            "mark_read": self.max_mark_read,
+            "dismiss": self.max_dismiss,
+            "dismiss_all": self.max_dismiss_all,
         }[action]
 
     def _key(self, action: str, ident) -> str:

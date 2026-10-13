@@ -227,9 +227,37 @@ def launch_retention_campaign(
         exclusion_reason = item["exclusion_reason"]
         key = f"campaign:{campaign.pk}:user:{user.pk}"
 
-        # If eligible, mark as SENT
-        dispatched_at = now if status == RecipientStatus.ELIGIBLE else None
-        final_status = RecipientStatus.SENT if status == RecipientStatus.ELIGIBLE else status
+        if status == RecipientStatus.ELIGIBLE:
+            # Re-check consent immediately before dispatching
+            if not marketing_subscribed(user):
+                final_status = RecipientStatus.EXCLUDED_UNSUBSCRIBED
+                exclusion_reason = "Customer has opted out of marketing communications"
+                dispatched_at = None
+            else:
+                final_status = RecipientStatus.SENT
+                dispatched_at = now
+                try:
+                    from apps.notifications.models import NotificationType
+                    from apps.notifications.services import events
+
+                    promo_code = getattr(campaign.promotion, "code", "") if campaign.promotion else ""
+                    events.emit(
+                        notification_type=NotificationType.PROMOTION_AVAILABLE,
+                        user=user,
+                        idempotency_key=f"retention:campaign:{campaign.pk}:user:{user.pk}",
+                        context={
+                            "promotion_name": campaign.name,
+                            "promotion_code": promo_code,
+                        },
+                        action_url="/account/",
+                        related_object_type="retention_campaign",
+                        related_object_id=campaign.pk,
+                    )
+                except Exception as emit_exc:
+                    logger.warning("Failed to emit retention notification: %s", emit_exc)
+        else:
+            final_status = status
+            dispatched_at = None
 
         CampaignRecipient.objects.update_or_create(
             campaign=campaign,

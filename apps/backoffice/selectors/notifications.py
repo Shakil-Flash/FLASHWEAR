@@ -27,6 +27,7 @@ __all__ = [
     "NOTIFICATION_SORTS",
     "STATUS_CHOICES",
     "TYPE_CHOICES",
+    "notification_delivery_events",
     "notification_detail",
     "notification_metrics",
     "notifications",
@@ -63,10 +64,12 @@ def notifications(
     notification_type: str = "",
     failed_only: bool = False,
     sort: str = "",
+    q: str = "",
 ) -> QuerySet:
     """The inspection rows, newest first. No bodies, no metadata -- by design."""
     queryset = Notification.objects.values(
         "id",
+        "title",
         "notification_type",
         "category",
         "channel",
@@ -79,6 +82,7 @@ def notifications(
         "failed_at",
         "failure_reason",
         "action_url",
+        "idempotency_key",
         "user_id",
         "user__email",
     )
@@ -90,18 +94,33 @@ def notifications(
         queryset = queryset.filter(notification_type=notification_type)
     if failed_only:
         queryset = queryset.filter(status=NotificationStatus.FAILED)
+    if q:
+        q_clean = q.strip()
+        queryset = queryset.filter(
+            Q(user__email__icontains=q_clean)
+            | Q(title__icontains=q_clean)
+            | Q(idempotency_key__icontains=q_clean)
+            | Q(failure_reason__icontains=q_clean)
+        )
     queryset, _key = sort_queryset(queryset, sort, NOTIFICATION_SORTS, "-created_at")
     return queryset
 
 
 def notification_detail(pk: int) -> Notification | None:
     """One row *with* content, for the detail route (gated by NOTIFICATIONS_VIEW)."""
-    return Notification.objects.select_related("user").filter(pk=pk).first()
+    return Notification.objects.select_related("user", "user__profile").filter(pk=pk).first()
+
+
+def notification_delivery_events(notification_id: int) -> QuerySet:
+    """Linked delivery webhook events for audit and diagnostic inspection."""
+    from apps.notifications.models import DeliveryWebhookEvent
+
+    return DeliveryWebhookEvent.objects.filter(notification_id=notification_id).order_by("-received_at")
 
 
 def notification_metrics() -> dict:
     """The spec's §23 counts in a single aggregate: no invented rates, only real states."""
-    return Notification.objects.aggregate(
+    counts = Notification.objects.aggregate(
         queued=Count("id", filter=Q(status=NotificationStatus.QUEUED)),
         scheduled=Count("id", filter=Q(status=NotificationStatus.PENDING)),
         sent=Count("id", filter=Q(status=NotificationStatus.SENT)),
@@ -114,3 +133,7 @@ def notification_metrics() -> dict:
         retried=Count("id", filter=Q(attempts__gt=1)),
         total=Count("id"),
     )
+    total = counts.get("total") or 0
+    failed = counts.get("failed") or 0
+    counts["failure_rate"] = round((failed / total * 100), 1) if total > 0 else 0.0
+    return counts

@@ -35,6 +35,7 @@ from django.utils.translation import gettext_lazy as _
 
 __all__ = [
     "Channel",
+    "DeliveryWebhookEvent",
     "Notification",
     "NotificationCategory",
     "NotificationPreference",
@@ -61,15 +62,17 @@ class Channel(models.TextChoices):
 
     IN_APP = "in_app", _("In app")
     EMAIL = "email", _("Email")
+    SMS = "sms", _("SMS")
+    PUSH = "push", _("Push notification")
 
 
 class NotificationStatus(models.TextChoices):
-    """Delivery lifecycle (Phase 17 §6).
+    """Delivery lifecycle (Phase 17 §6, Phase 51 §5).
 
     ``PENDING`` rows are created for future-scheduled sends; ``QUEUED`` means a channel
     sender owns the row; ``SENT`` means the provider *accepted* it -- never "the customer
-    read it". ``DELIVERED`` is reserved for providers that actually report delivery (none
-    of ours do, so nothing ever sets it: a fake delivery state would be a lie).
+    read it". ``DELIVERED`` is reserved for providers that actually report delivery.
+    ``UNKNOWN`` represents ambiguous or unverified delivery status.
     """
 
     PENDING = "pending", _("Pending")
@@ -78,6 +81,7 @@ class NotificationStatus(models.TextChoices):
     DELIVERED = "delivered", _("Delivered")
     FAILED = "failed", _("Failed")
     CANCELLED = "cancelled", _("Cancelled")
+    UNKNOWN = "unknown", _("Unknown")
 
 
 class Priority(models.TextChoices):
@@ -182,6 +186,12 @@ class NotificationQuerySet(models.QuerySet):
     def unread(self):
         return self.filter(read_at__isnull=True)
 
+    def active(self):
+        return self.filter(dismissed_at__isnull=True)
+
+    def dismissed(self):
+        return self.filter(dismissed_at__isnull=False)
+
 
 class Notification(models.Model):
     """One delivery of one business event to one recipient on one channel."""
@@ -190,16 +200,28 @@ class Notification(models.Model):
         NotificationStatus.PENDING: {
             NotificationStatus.QUEUED,
             NotificationStatus.CANCELLED,
+            NotificationStatus.UNKNOWN,
         },
         NotificationStatus.QUEUED: {
             NotificationStatus.SENT,
             NotificationStatus.FAILED,
             NotificationStatus.CANCELLED,
+            NotificationStatus.UNKNOWN,
         },
-        NotificationStatus.SENT: {NotificationStatus.DELIVERED},
-        NotificationStatus.FAILED: {NotificationStatus.QUEUED},  # a staff retry
-        NotificationStatus.DELIVERED: set(),
+        NotificationStatus.SENT: {
+            NotificationStatus.DELIVERED,
+            NotificationStatus.FAILED,
+            NotificationStatus.UNKNOWN,
+        },
+        NotificationStatus.FAILED: {
+            NotificationStatus.QUEUED,  # a staff retry
+            NotificationStatus.UNKNOWN,
+        },
+        NotificationStatus.DELIVERED: {NotificationStatus.UNKNOWN},
         NotificationStatus.CANCELLED: set(),
+        NotificationStatus.UNKNOWN: {
+            NotificationStatus.QUEUED,
+        },
     }
 
     user = models.ForeignKey(
@@ -243,6 +265,13 @@ class Notification(models.Model):
     )
     sent_at = models.DateTimeField(_("sent at"), null=True, blank=True)
     read_at = models.DateTimeField(_("read at"), null=True, blank=True)
+    dismissed_at = models.DateTimeField(
+        _("dismissed at"),
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text=_("When the customer dismissed or archived this from their inbox."),
+    )
     failed_at = models.DateTimeField(_("failed at"), null=True, blank=True)
     failure_reason = models.CharField(_("failure reason"), max_length=300, blank=True)
     attempts = models.PositiveSmallIntegerField(
@@ -287,6 +316,7 @@ class Notification(models.Model):
         indexes = [
             models.Index(fields=["user", "-created_at"], name="notif_user_created_idx"),
             models.Index(fields=["user", "read_at"], name="notif_user_read_idx"),
+            models.Index(fields=["user", "dismissed_at"], name="notif_user_dismiss_idx"),
             models.Index(fields=["notification_type"], name="notif_type_idx"),
             models.Index(fields=["channel", "status"], name="notif_channel_status_idx"),
             models.Index(fields=["status", "-created_at"], name="notif_status_created_idx"),
@@ -340,17 +370,32 @@ class Notification(models.Model):
         )
         return self
 
-    # -- read state ----------------------------------------------------------
+    # -- read and dismissal state --------------------------------------------
 
     @property
     def is_unread(self) -> bool:
         return self.read_at is None
+
+    @property
+    def is_read(self) -> bool:
+        return self.read_at is not None
+
+    @property
+    def is_dismissed(self) -> bool:
+        return self.dismissed_at is not None
 
     def mark_read(self) -> Notification:
         """Idempotent: a second mark keeps the original timestamp."""
         if self.read_at is None:
             self.read_at = timezone.now()
             self.save(update_fields=["read_at", "updated_at"])
+        return self
+
+    def dismiss(self) -> Notification:
+        """Idempotent: dismiss/archive from inbox without deleting delivery audit record."""
+        if self.dismissed_at is None:
+            self.dismissed_at = timezone.now()
+            self.save(update_fields=["dismissed_at", "updated_at"])
         return self
 
     @property
@@ -386,6 +431,8 @@ class NotificationPreference(models.Model):
     category = models.CharField(_("category"), max_length=24, choices=NotificationCategory.choices)
     email_enabled = models.BooleanField(_("email enabled"), default=True)
     in_app_enabled = models.BooleanField(_("in-app enabled"), default=True)
+    sms_enabled = models.BooleanField(_("SMS enabled"), default=False)
+    push_enabled = models.BooleanField(_("push enabled"), default=False)
     updated_at = models.DateTimeField(_("updated at"), auto_now=True)
 
     class Meta:
@@ -473,3 +520,35 @@ class UnsubscribeToken(models.Model):
 
     def __str__(self) -> str:
         return f"unsubscribe token for user {self.user_id}"
+
+
+class DeliveryWebhookEvent(models.Model):
+    """Record of received provider delivery webhooks for verification, audit, and replay protection."""
+
+    provider = models.CharField(_("provider"), max_length=32)
+    event_id = models.CharField(_("provider event id"), max_length=128)
+    notification = models.ForeignKey(
+        Notification,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="delivery_events",
+        verbose_name=_("notification"),
+    )
+    event_type = models.CharField(_("event type"), max_length=32)
+    payload = models.JSONField(_("payload"), default=dict, blank=True)
+    processed_at = models.DateTimeField(_("processed at"), auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("delivery webhook event")
+        verbose_name_plural = _("delivery webhook events")
+        ordering = ("-processed_at",)
+        constraints = [
+            models.UniqueConstraint(
+                fields=["provider", "event_id"],
+                name="notif_webhook_provider_event_uniq",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.provider}:{self.event_id} ({self.event_type})"

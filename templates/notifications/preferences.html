@@ -2,17 +2,17 @@
 
 {% block account_title %}Notification preferences{% endblock account_title %}
 {% block account_heading %}Notification preferences{% endblock account_heading %}
-{% block account_intro %}Choose what reaches you and how. Mandatory categories stay on -- they carry order, payment and security information you need.{% endblock account_intro %}
+{% block account_intro %}Choose what reaches you and how. Mandatory categories stay on — they carry order, payment, and security information you need.{% endblock account_intro %}
 {% block meta_robots %}noindex, follow{% endblock meta_robots %}
 
 {% block account_content %}
 <div class="max-w-3xl space-y-6">
-    <p class="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-600 shadow-soft">
-        Looking for your messages?
-        <a href="{% url 'notifications:center' %}" class="font-medium text-flash-600 underline-offset-4 hover:underline">Open the notification center</a>.
-    </p>
+    <div class="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-600 shadow-soft">
+        <span>Looking for your recent notifications?</span>
+        <a href="{% url 'notifications:center' %}" class="font-medium text-flash-600 underline-offset-4 hover:underline">Open notification center &rarr;</a>
+    </div>
 
-    <form method="post" action="{% url 'account:notifications' %}" class="space-y-4">
+    <form method="post" action="{% url 'account:notifications' %}" class="space-y-5">
         {% csrf_token %}
 
         {% if form.non_field_errors %}
@@ -21,42 +21,86 @@
         </div>
         {% endif %}
 
-        <div class="rounded-2xl border border-slate-200 bg-white shadow-soft">
+        <div class="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-soft">
             <table class="w-full text-left text-sm">
                 <thead>
-                    <tr class="border-b border-slate-200 text-xs font-medium uppercase tracking-wide text-slate-500">
-                        <th scope="col" class="px-5 py-3">Category</th>
-                        <th scope="col" class="px-5 py-3 text-center">Email</th>
-                        <th scope="col" class="px-5 py-3 text-center">In app</th>
+                    <tr class="border-b border-slate-200 text-xs font-semibold uppercase tracking-wide text-slate-500 bg-slate-50/50">
+                        <th scope="col" class="px-5 py-3.5">Category</th>
+                        <th scope="col" class="px-4 py-3.5 text-center">Email</th>
+                        <th scope="col" class="px-4 py-3.5 text-center">In App</th>
+                        <th scope="col" class="px-4 py-3.5 text-center">
+                            SMS
+                            <span class="block text-[10px] font-normal normal-case text-slate-400">Mobile</span>
+                        </th>
+                        <th scope="col" class="px-4 py-3.5 text-center">
+                            Push
+                            <span class="block text-[10px] font-normal normal-case text-slate-400">Browser/App</span>
+                        </th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody class="divide-y divide-slate-100">
                     {% for row in form.rows %}
-                    <tr class="border-b border-slate-100 last:border-b-0">
+                    <tr class="hover:bg-slate-50/50 transition">
                         <th scope="row" class="px-5 py-4 font-normal">
                             <span class="block font-medium text-slate-900">{{ row.label }}</span>
                             {% if row.mandatory %}
-                            <span class="mt-1 inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[0.65rem] font-medium uppercase tracking-wide text-slate-600">Always on</span>
-                            <span class="mt-1 block text-xs font-normal text-slate-500">Required to operate your account and orders.</span>
+                            <div class="mt-1 flex items-center gap-1.5">
+                                <span class="inline-flex items-center rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">Always on</span>
+                                <span class="text-xs text-slate-400">Required for account security &amp; orders.</span>
+                            </div>
                             {% endif %}
                         </th>
-                        <td class="px-5 py-4 text-center">
+                        
+                        <!-- Email -->
+                        <td class="px-4 py-4 text-center">
                             <div class="flex items-center justify-center">
                                 {% if row.mandatory %}
-                                <span class="text-slate-400" aria-hidden="true">✓</span>
+                                <span class="text-emerald-600 font-bold" title="Always enabled" aria-hidden="true">✓</span>
                                 <span class="sr-only">{{ row.label }} email is always on</span>
                                 {% else %}
                                 {{ row.email }}
                                 {% endif %}
                             </div>
                         </td>
-                        <td class="px-5 py-4 text-center">
+
+                        <!-- In-App -->
+                        <td class="px-4 py-4 text-center">
                             <div class="flex items-center justify-center">
                                 {% if row.mandatory %}
-                                <span class="text-slate-400" aria-hidden="true">✓</span>
+                                <span class="text-emerald-600 font-bold" title="Always enabled" aria-hidden="true">✓</span>
                                 <span class="sr-only">{{ row.label }} in-app is always on</span>
                                 {% else %}
                                 {{ row.in_app }}
+                                {% endif %}
+                            </div>
+                        </td>
+
+                        <!-- SMS -->
+                        <td class="px-4 py-4 text-center">
+                            <div class="flex items-center justify-center">
+                                {% if not row.sms_available %}
+                                <span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-500" title="SMS service is currently unavailable or requires a verified mobile number">
+                                    Unavailable
+                                </span>
+                                {% elif row.mandatory %}
+                                <span class="text-slate-400 font-medium text-xs">Optional</span>
+                                {% else %}
+                                {{ row.sms }}
+                                {% endif %}
+                            </div>
+                        </td>
+
+                        <!-- Push -->
+                        <td class="px-4 py-4 text-center">
+                            <div class="flex items-center justify-center">
+                                {% if not row.push_available %}
+                                <span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-500" title="Push notifications are not configured on this device/server">
+                                    Unavailable
+                                </span>
+                                {% elif row.mandatory %}
+                                <span class="text-slate-400 font-medium text-xs">Optional</span>
+                                {% else %}
+                                {{ row.push }}
                                 {% endif %}
                             </div>
                         </td>
@@ -66,14 +110,20 @@
             </table>
         </div>
 
-        <p class="text-xs text-slate-500">
-            Promotions email also follows your marketing opt-in on the profile page, and every
-            promotional email carries a one-click unsubscribe link.
-        </p>
+        <div class="rounded-2xl border border-slate-200 bg-slate-50/50 p-4 text-xs text-slate-600 leading-relaxed space-y-1.5">
+            <p><strong>Privacy &amp; Communication Safeguards:</strong></p>
+            <p>• Promotional communications follow your marketing opt-in preferences. Every marketing message carries an immediate one-click unsubscribe mechanism.</p>
+            <p>• Unconfigured channels are marked as unavailable and will never simulate or fake delivery.</p>
+            <p>• Transactional messages (orders, payments, delivery status, security notices) cannot be unsubscribed because they are essential to fulfilling your purchases.</p>
+        </div>
 
-        <div class="flex items-center gap-3">
-            <button type="submit" class="inline-flex items-center justify-center rounded-full bg-flash-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-flash-700">Save preferences</button>
-            <a href="{% url 'notifications:center' %}" class="text-sm font-medium text-slate-700 underline-offset-4 hover:underline">Cancel</a>
+        <div class="flex items-center gap-3 pt-2">
+            <button type="submit" class="inline-flex items-center justify-center rounded-full bg-flash-600 px-6 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-flash-700 focus:outline-none focus:ring-2 focus:ring-flash-500/30">
+                Save preferences
+            </button>
+            <a href="{% url 'notifications:center' %}" class="text-sm font-medium text-slate-600 underline-offset-4 hover:underline hover:text-slate-900">
+                Cancel
+            </a>
         </div>
     </form>
 </div>

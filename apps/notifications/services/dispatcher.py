@@ -104,6 +104,34 @@ def _queue_email(pk: int):
     return _schedule
 
 
+def _queue_sms(pk: int):
+    """An ``on_commit`` callback: schedule the SMS sender without raising."""
+
+    def _schedule() -> None:
+        try:
+            from apps.notifications.tasks import send_sms
+
+            send_sms.delay(pk)
+        except Exception:  # pragma: no cover
+            logger.exception("Failed to queue notification SMS %s", pk)
+
+    return _schedule
+
+
+def _queue_push(pk: int):
+    """An ``on_commit`` callback: schedule the push sender without raising."""
+
+    def _schedule() -> None:
+        try:
+            from apps.notifications.tasks import send_push
+
+            send_push.delay(pk)
+        except Exception:  # pragma: no cover
+            logger.exception("Failed to queue notification push %s", pk)
+
+    return _schedule
+
+
 def _create_row(
     *,
     user,
@@ -222,8 +250,11 @@ def emit(
                 scheduled_for=scheduled_for,
             )
             created.append(row)
-            if was_created and channel == Channel.EMAIL and row_status == NotificationStatus.QUEUED:
-                # Only *after* the row exists, *inside* the same atomic block: the task
-                # fires once this transaction commits, never before.
-                transaction.on_commit(_queue_email(row.pk))
+            if was_created and row_status == NotificationStatus.QUEUED:
+                if channel == Channel.EMAIL:
+                    transaction.on_commit(_queue_email(row.pk))
+                elif channel == Channel.SMS:
+                    transaction.on_commit(_queue_sms(row.pk))
+                elif channel == Channel.PUSH:
+                    transaction.on_commit(_queue_push(row.pk))
     return created
