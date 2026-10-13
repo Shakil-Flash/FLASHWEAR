@@ -89,8 +89,9 @@ yarn-error.log*
 # Project
 # Runtime directories are ignored, but their .gitkeep placeholders are tracked so the
 # layout exists in a fresh clone.
-media/
+media/*
 !media/.gitkeep
+!media/catalog/
 logs/
 !logs/.gitkeep
 test-media/

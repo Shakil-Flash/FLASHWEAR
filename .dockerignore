@@ -28,7 +28,8 @@ npm-debug.log*
 # Runtime artefacts: staticfiles are rebuilt by collectstatic, media and logs are
 # written by the running application.
 staticfiles
-media
+media/*
+!media/catalog
 logs
 test-media
 *.sqlite3
