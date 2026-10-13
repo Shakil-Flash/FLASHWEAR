@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import csv
+import datetime
 from decimal import Decimal
 from typing import Any
 
@@ -16,26 +18,42 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from apps.backoffice.permissions import (
+    CASHFLOW_MANAGE,
+    CASHFLOW_VIEW,
+    EXPENSES_APPROVE,
+    EXPENSES_MANAGE,
+    EXPENSES_VIEW,
     INVOICES_APPROVE,
     INVOICES_MANAGE,
     INVOICES_VIEW,
     PAYMENTS_AP_RECORD,
+    PROFITABILITY_VIEW,
     PURCHASING_APPROVE,
     PURCHASING_MANAGE,
     PURCHASING_VIEW,
+    WORKING_CAPITAL_VIEW,
     backoffice_access,
     has,
 )
 from apps.catalog.models import ProductVariant
 from apps.procurement.models import (
+    CashAccount,
+    CashAccountAdjustment,
+    CashAccountType,
+    CashForecastScenario,
     CreditNoteStatus,
+    ExpenseBudget,
+    ExpenseCategory,
+    ExpenseStatus,
     InvoiceMatchingStatus,
     InvoiceMatchRecord,
+    OperatingExpense,
     PaymentMethod,
     PurchaseOrder,
     PurchaseOrderItem,
     PurchaseOrderReceipt,
     PurchaseOrderStatus,
+    ScenarioAdjustment,
     Supplier,
     SupplierCreditNote,
     SupplierInvoice,
@@ -47,8 +65,16 @@ from apps.procurement.models import (
     SupplierVariant,
 )
 from apps.procurement.selectors import (
+    generate_cash_flow_forecast,
     get_accounts_payable_dashboard_metrics,
+    get_cash_accounts_queryset,
+    get_cash_flow_alerts,
+    get_cash_flow_dashboard_metrics,
+    get_expense_budget_vs_actual,
+    get_operating_expenses_queryset,
     get_procurement_dashboard_metrics,
+    get_product_profitability_metrics,
+    get_profitability_metrics,
     get_purchase_orders_queryset,
     get_supplier_ap_summary,
     get_supplier_credit_notes_queryset,
@@ -56,6 +82,7 @@ from apps.procurement.selectors import (
     get_supplier_payments_queryset,
     get_supplier_performance,
     get_suppliers_queryset,
+    get_working_capital_metrics,
 )
 from apps.procurement.services import (
     CreditNoteApplicationError,
@@ -63,6 +90,7 @@ from apps.procurement.services import (
     DuplicateInvoiceError,
     DuplicateReceiptError,
     InsufficientInvoiceBalanceError,
+    InvalidExpenseOperationError,
     InvalidInvoiceOperationError,
     InvalidStatusTransition,
     OrderImmutableError,
@@ -70,25 +98,39 @@ from apps.procurement.services import (
     PaymentReversalError,
     ProcurementError,
     SeparationOfDutiesError,
+    add_scenario_adjustment,
+    adjust_cash_account_balance,
     apply_credit_note_to_invoice,
+    approve_operating_expense,
     approve_purchase_order,
     approve_supplier_invoice,
     cancel_purchase_order,
+    create_cash_account,
+    create_forecast_scenario,
+    create_operating_expense,
+    create_or_update_budget,
     create_purchase_order,
     create_supplier,
     create_supplier_credit_note,
     create_supplier_invoice,
+    delete_scenario_adjustment,
     dispute_supplier_invoice,
+    pay_operating_expense,
     perform_three_way_match,
     receive_purchase_order_delivery,
     record_supplier_payment,
+    reject_operating_expense,
     reverse_supplier_payment,
     send_purchase_order,
     submit_for_approval,
+    submit_operating_expense,
     submit_supplier_invoice,
+    update_cash_account,
+    update_operating_expense,
     update_purchase_order,
     update_supplier,
     update_supplier_invoice,
+    void_operating_expense,
     void_supplier_invoice,
 )
 
@@ -1237,4 +1279,403 @@ def supplier_credit_note_apply(request: HttpRequest, pk: int) -> HttpResponse:
         messages.error(request, msg)
 
     return redirect("backoffice:supplier_credit_notes")
+
+
+# =============================================================================
+# Phase 48: Cash Flow Forecasting & Treasury Views
+# =============================================================================
+
+
+@backoffice_access(CASHFLOW_VIEW)
+def cash_flow_dashboard(request: HttpRequest) -> HttpResponse:
+    """Cash Flow Forecasting & Working Capital executive dashboard."""
+    currency = request.GET.get("currency", "USD").upper()
+    horizon_raw = request.GET.get("horizon", "30")
+    try:
+        horizon_days = int(horizon_raw)
+        if horizon_days not in (30, 60, 90):
+            horizon_days = 30
+    except ValueError:
+        horizon_days = 30
+
+    scenario_id_raw = request.GET.get("scenario_id")
+    scenario_id = int(scenario_id_raw) if scenario_id_raw and scenario_id_raw.isdigit() else None
+    scenario_mode = request.GET.get("scenario_mode", "expected")
+    if scenario_mode not in ("conservative", "expected", "optimistic"):
+        scenario_mode = "expected"
+
+    data = get_cash_flow_dashboard_metrics(
+        currency=currency,
+        horizon_days=horizon_days,
+        scenario_id=scenario_id,
+        scenario_mode=scenario_mode,
+    )
+
+    can_manage = has(request.user, CASHFLOW_MANAGE)
+
+    context = {
+        "title": _("Cash Flow & Working Capital Intelligence"),
+        "active_tab": "cash_flow",
+        "can_manage": can_manage,
+        **data,
+    }
+    return render(request, "backoffice/procurement/cash_flow_dashboard.html", context)
+
+
+@backoffice_access(CASHFLOW_VIEW)
+def cash_accounts_list(request: HttpRequest) -> HttpResponse:
+    """Directory of cash accounts, bank balances, and safety thresholds."""
+    currency = request.GET.get("currency", "USD").upper()
+    accounts = get_cash_accounts_queryset(currency=currency, active_only=False)
+    currencies = list(CashAccount.objects.values_list("currency", flat=True).distinct()) or ["USD"]
+    can_manage = has(request.user, CASHFLOW_MANAGE)
+
+    total_balance = sum((acc.current_balance for acc in accounts if acc.is_active), Decimal("0.00"))
+
+    context = {
+        "title": _("Cash & Bank Accounts"),
+        "active_tab": "cash_flow",
+        "accounts": accounts,
+        "currency": currency,
+        "currencies": currencies,
+        "total_balance": total_balance,
+        "can_manage": can_manage,
+    }
+    return render(request, "backoffice/procurement/cash_accounts_list.html", context)
+
+
+@backoffice_access(CASHFLOW_MANAGE)
+def cash_account_create(request: HttpRequest) -> HttpResponse:
+    """Create a new cash/treasury account."""
+    if request.method == "POST":
+        name = request.POST.get("name", "").strip()
+        account_type = request.POST.get("account_type", CashAccountType.CHECKING)
+        institution_name = request.POST.get("institution_name", "").strip()
+        account_number_last4 = request.POST.get("account_number_last4", "").strip()
+        currency = request.POST.get("currency", "USD").upper().strip()
+        opening_balance = request.POST.get("opening_balance", "0.00")
+        minimum_threshold = request.POST.get("minimum_threshold", "5000.00")
+        description = request.POST.get("description", "").strip()
+
+        try:
+            account = create_cash_account(
+                name=name,
+                account_type=account_type,
+                currency=currency,
+                opening_balance=Decimal(opening_balance),
+                minimum_threshold=Decimal(minimum_threshold),
+                institution_name=institution_name,
+                account_number_last4=account_number_last4,
+                description=description,
+                user=request.user,
+            )
+            messages.success(request, _("Cash account '%(name)s' created successfully.") % {"name": account.name})
+            return redirect("backoffice:cash_accounts")
+        except (ValidationError, Exception) as ex:
+            msg = ex.message if hasattr(ex, "message") else str(ex)
+            messages.error(request, msg)
+
+    context = {
+        "title": _("New Cash Account"),
+        "active_tab": "cash_flow",
+        "account_types": CashAccountType.choices,
+        "today": timezone.localdate(),
+    }
+    return render(request, "backoffice/procurement/cash_account_form.html", context)
+
+
+@backoffice_access(CASHFLOW_MANAGE)
+def cash_account_edit(request: HttpRequest, pk: int) -> HttpResponse:
+    """Edit cash account parameters, safety threshold, and active status."""
+    account = get_object_or_404(CashAccount, pk=pk)
+
+    if request.method == "POST":
+        name = request.POST.get("name", "").strip()
+        account_type = request.POST.get("account_type")
+        institution_name = request.POST.get("institution_name", "").strip()
+        account_number_last4 = request.POST.get("account_number_last4", "").strip()
+        minimum_threshold = request.POST.get("minimum_threshold", "5000.00")
+        description = request.POST.get("description", "").strip()
+        is_active = request.POST.get("is_active") == "on"
+
+        try:
+            update_cash_account(
+                account,
+                name=name,
+                account_type=account_type,
+                minimum_threshold=Decimal(minimum_threshold),
+                institution_name=institution_name,
+                account_number_last4=account_number_last4,
+                description=description,
+                is_active=is_active,
+                user=request.user,
+            )
+            messages.success(request, _("Account '%(name)s' updated successfully.") % {"name": account.name})
+            return redirect("backoffice:cash_accounts")
+        except (ValidationError, Exception) as ex:
+            msg = ex.message if hasattr(ex, "message") else str(ex)
+            messages.error(request, msg)
+
+    context = {
+        "title": _("Edit Cash Account"),
+        "active_tab": "cash_flow",
+        "account": account,
+        "account_types": CashAccountType.choices,
+    }
+    return render(request, "backoffice/procurement/cash_account_form.html", context)
+
+
+@backoffice_access(CASHFLOW_MANAGE)
+def cash_account_adjust(request: HttpRequest, pk: int) -> HttpResponse:
+    """Record an audited balance adjustment or bank reconciliation."""
+    if request.method != "POST":
+        return redirect("backoffice:cash_accounts")
+
+    account = get_object_or_404(CashAccount, pk=pk)
+    amount_raw = request.POST.get("amount", "0.00")
+    adjustment_type = request.POST.get("adjustment_type", "reconciliation")
+    reason = request.POST.get("reason", "").strip()
+    reference = request.POST.get("reference", "").strip()
+
+    try:
+        amount = Decimal(amount_raw)
+        adj = adjust_cash_account_balance(
+            account,
+            amount=amount,
+            adjustment_type=adjustment_type,
+            reason=reason,
+            reference=reference,
+            user=request.user,
+        )
+        messages.success(
+            request,
+            _("Adjusted %(acc)s by %(curr)s %(amt)s. New balance: %(new)s") % {
+                "acc": account.name,
+                "curr": account.currency,
+                "amt": amount,
+                "new": account.current_balance,
+            },
+        )
+    except (ValidationError, Exception) as ex:
+        msg = ex.message if hasattr(ex, "message") else str(ex)
+        messages.error(request, msg)
+
+    return redirect("backoffice:cash_accounts")
+
+
+@backoffice_access(CASHFLOW_VIEW)
+def cash_forecast_scenarios_list(request: HttpRequest) -> HttpResponse:
+    """Manage What-If liquidity simulation scenarios."""
+    scenarios = CashForecastScenario.objects.all().order_by("-created_at")
+    can_manage = has(request.user, CASHFLOW_MANAGE)
+
+    context = {
+        "title": _("What-If Planning Scenarios"),
+        "active_tab": "cash_flow",
+        "scenarios": scenarios,
+        "can_manage": can_manage,
+    }
+    return render(request, "backoffice/procurement/scenarios_list.html", context)
+
+
+@backoffice_access(CASHFLOW_MANAGE)
+def cash_forecast_scenario_create(request: HttpRequest) -> HttpResponse:
+    """Create a new What-If simulation scenario."""
+    if request.method == "POST":
+        name = request.POST.get("name", "").strip()
+        description = request.POST.get("description", "").strip()
+        horizon_days = int(request.POST.get("horizon_days", 30))
+
+        try:
+            scenario = create_forecast_scenario(
+                name=name,
+                description=description,
+                horizon_days=horizon_days,
+                user=request.user,
+            )
+            messages.success(request, _("Scenario '%(name)s' created.") % {"name": scenario.name})
+            return redirect("backoffice:scenario_detail", pk=scenario.pk)
+        except (ValidationError, Exception) as ex:
+            msg = ex.message if hasattr(ex, "message") else str(ex)
+            messages.error(request, msg)
+
+    return redirect("backoffice:forecast_scenarios")
+
+
+@backoffice_access(CASHFLOW_VIEW)
+def cash_forecast_scenario_detail(request: HttpRequest, pk: int) -> HttpResponse:
+    """Detail view of a What-If scenario with adjustment ledger and simulation preview."""
+    scenario = get_object_or_404(CashForecastScenario, pk=pk)
+    adjustments = scenario.adjustments.all().order_by("adjusted_date")
+    can_manage = has(request.user, CASHFLOW_MANAGE)
+
+    # Run side-by-side forecast comparison: Baseline vs Scenario
+    baseline_forecast = generate_cash_flow_forecast(
+        currency="USD",
+        horizon_days=scenario.horizon_days,
+        scenario=None,
+        scenario_mode="expected",
+    )
+    simulated_forecast = generate_cash_flow_forecast(
+        currency="USD",
+        horizon_days=scenario.horizon_days,
+        scenario=scenario,
+        scenario_mode="expected",
+    )
+
+    open_invoices = SupplierInvoice.objects.filter(
+        status__in=[SupplierInvoiceStatus.APPROVED, SupplierInvoiceStatus.PARTIALLY_PAID]
+    ).order_by("due_date")[:20]
+
+    context = {
+        "title": f"Scenario: {scenario.name}",
+        "active_tab": "cash_flow",
+        "scenario": scenario,
+        "adjustments": adjustments,
+        "can_manage": can_manage,
+        "baseline_forecast": baseline_forecast,
+        "simulated_forecast": simulated_forecast,
+        "open_invoices": open_invoices,
+        "adjustment_types": ScenarioAdjustment.AdjustmentType.choices,
+        "today": timezone.localdate(),
+    }
+    return render(request, "backoffice/procurement/scenario_detail.html", context)
+
+
+@backoffice_access(CASHFLOW_MANAGE)
+def scenario_adjustment_add(request: HttpRequest, pk: int) -> HttpResponse:
+    """Add a simulated adjustment to a What-If scenario."""
+    if request.method != "POST":
+        return redirect("backoffice:scenario_detail", pk=pk)
+
+    scenario = get_object_or_404(CashForecastScenario, pk=pk)
+    adjustment_type = request.POST.get("adjustment_type")
+    adjusted_date_raw = request.POST.get("adjusted_date")
+    amount_raw = request.POST.get("amount", "0.01")
+    notes = request.POST.get("notes", "").strip()
+    invoice_id = request.POST.get("target_supplier_invoice")
+
+    target_invoice = None
+    if invoice_id and invoice_id.isdigit():
+        target_invoice = SupplierInvoice.objects.filter(pk=int(invoice_id)).first()
+
+    try:
+        adjusted_date = datetime.date.fromisoformat(adjusted_date_raw)
+        amount = Decimal(amount_raw)
+        original_date = target_invoice.due_date if target_invoice else None
+
+        add_scenario_adjustment(
+            scenario=scenario,
+            adjustment_type=adjustment_type,
+            adjusted_date=adjusted_date,
+            amount=amount,
+            original_date=original_date,
+            target_supplier_invoice=target_invoice,
+            notes=notes,
+            user=request.user,
+        )
+        messages.success(request, _("Adjustment added to %(scen)s.") % {"scen": scenario.name})
+    except (ValueError, ValidationError, Exception) as ex:
+        msg = ex.message if hasattr(ex, "message") else str(ex)
+        messages.error(request, msg)
+
+    return redirect("backoffice:scenario_detail", pk=pk)
+
+
+@backoffice_access(CASHFLOW_MANAGE)
+def scenario_adjustment_delete(request: HttpRequest, pk: int) -> HttpResponse:
+    """Remove a simulated adjustment from a What-If scenario."""
+    adjustment = get_object_or_404(ScenarioAdjustment, pk=pk)
+    scenario_pk = adjustment.scenario.pk
+    delete_scenario_adjustment(adjustment, user=request.user)
+    messages.success(request, _("Simulated adjustment deleted."))
+    return redirect("backoffice:scenario_detail", pk=scenario_pk)
+
+
+def _sanitize_csv_cell(value: Any) -> Any:
+    """Defend against CSV / formula injection (CWE-1236)."""
+    if isinstance(value, str) and value.startswith(("=", "+", "-", "@", "\t", "\r")):
+        return f"'{value}"
+    return value
+
+
+@backoffice_access(CASHFLOW_VIEW)
+def cash_flow_forecast_export_csv(request: HttpRequest) -> HttpResponse:
+    """Safe CSV export of daily cash flow forecast timeline."""
+    currency = request.GET.get("currency", "USD").upper()
+    horizon_raw = request.GET.get("horizon", "30")
+    try:
+        horizon_days = int(horizon_raw)
+        if horizon_days not in (30, 60, 90):
+            horizon_days = 30
+    except ValueError:
+        horizon_days = 30
+
+    scenario_id_raw = request.GET.get("scenario_id")
+    scenario_id = int(scenario_id_raw) if scenario_id_raw and scenario_id_raw.isdigit() else None
+    scenario_mode = request.GET.get("scenario_mode", "expected")
+
+    scenario = None
+    if scenario_id:
+        scenario = CashForecastScenario.objects.filter(pk=scenario_id, is_active=True).first()
+
+    today = timezone.localdate()
+    forecast = generate_cash_flow_forecast(
+        as_of_date=today,
+        currency=currency,
+        horizon_days=horizon_days,
+        scenario=scenario,
+        scenario_mode=scenario_mode,
+    )
+
+    response = HttpResponse(content_type="text/csv")
+    filename = f"cash_flow_forecast_{currency}_{horizon_days}d_{today.isoformat()}.csv"
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+
+    writer = csv.writer(response)
+    writer.writerow([
+        "Day",
+        "Date",
+        "Opening Balance",
+        "Confirmed Inflows",
+        "Projected Inflows",
+        "Custom Inflows",
+        "Total Inflows",
+        "Committed AP Outflows",
+        "Committed OpEx Outflows",
+        "PO Commitments Outflows",
+        "Recurring Outflows",
+        "Custom Outflows",
+        "Refund Reserve Outflows",
+        "Total Outflows",
+        "Net Movement",
+        "Closing Balance",
+        "Below Threshold",
+        "Deficit",
+    ])
+
+    for row in forecast["timeline"]:
+        writer.writerow([
+            _sanitize_csv_cell(row["day_index"]),
+            _sanitize_csv_cell(row["date"].isoformat()),
+            _sanitize_csv_cell(str(row["opening_balance"])),
+            _sanitize_csv_cell(str(row["confirmed_inflows"])),
+            _sanitize_csv_cell(str(row["projected_inflows"])),
+            _sanitize_csv_cell(str(row["custom_inflows"])),
+            _sanitize_csv_cell(str(row["total_inflows"])),
+            _sanitize_csv_cell(str(row["ap_outflows"])),
+            _sanitize_csv_cell(str(row["opex_outflows"])),
+            _sanitize_csv_cell(str(row["po_outflows"])),
+            _sanitize_csv_cell(str(row["recurring_outflows"])),
+            _sanitize_csv_cell(str(row["custom_outflows"])),
+            _sanitize_csv_cell(str(row["refund_reserves"])),
+            _sanitize_csv_cell(str(row["total_outflows"])),
+            _sanitize_csv_cell(str(row["net_movement"])),
+            _sanitize_csv_cell(str(row["closing_balance"])),
+            _sanitize_csv_cell("YES" if row["is_below_threshold"] else "NO"),
+            _sanitize_csv_cell("YES" if row["is_deficit"] else "NO"),
+        ])
+
+    return response
+
 

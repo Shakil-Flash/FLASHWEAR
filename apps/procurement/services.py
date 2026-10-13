@@ -26,6 +26,10 @@ from apps.catalog.models import ProductVariant
 from apps.inventory.models import InventoryMovement
 from apps.inventory.services import adjust_stock
 from apps.procurement.models import (
+    CashAccount,
+    CashAccountAdjustment,
+    CashAccountType,
+    CashForecastScenario,
     CreditNoteApplication,
     CreditNoteStatus,
     ExpenseBudget,
@@ -40,6 +44,7 @@ from apps.procurement.models import (
     PurchaseOrderReceipt,
     PurchaseOrderReceiptItem,
     PurchaseOrderStatus,
+    ScenarioAdjustment,
     Supplier,
     SupplierCreditNote,
     SupplierInvoice,
@@ -65,17 +70,22 @@ __all__ = [
     "PaymentReversalError",
     "ProcurementError",
     "SeparationOfDutiesError",
+    "add_scenario_adjustment",
+    "adjust_cash_account_balance",
     "apply_credit_note_to_invoice",
     "approve_operating_expense",
     "approve_purchase_order",
     "approve_supplier_invoice",
     "cancel_purchase_order",
+    "create_cash_account",
+    "create_forecast_scenario",
     "create_operating_expense",
     "create_or_update_budget",
     "create_purchase_order",
     "create_supplier",
     "create_supplier_credit_note",
     "create_supplier_invoice",
+    "delete_scenario_adjustment",
     "dispute_supplier_invoice",
     "generate_expense_number",
     "generate_payment_reference",
@@ -91,6 +101,7 @@ __all__ = [
     "submit_for_approval",
     "submit_operating_expense",
     "submit_supplier_invoice",
+    "update_cash_account",
     "update_operating_expense",
     "update_purchase_order",
     "update_supplier",
@@ -2099,4 +2110,264 @@ def create_or_update_budget(
         reason=f"{'Created' if created else 'Updated'} budget for {category.name} ({year}-{month:02d}): {currency} {amt}",
     )
     return budget
+
+
+# =============================================================================
+# Phase 48: Cash Account & Forecast Scenario Domain Services
+# =============================================================================
+
+
+def create_cash_account(
+    *,
+    name: str,
+    account_type: str = CashAccountType.CHECKING,
+    currency: str = "USD",
+    opening_balance: Decimal = Decimal("0.00"),
+    opening_balance_date: Any = None,
+    minimum_threshold: Decimal = Decimal("5000.00"),
+    institution_name: str = "",
+    account_number_last4: str = "",
+    description: str = "",
+    user: Any = None,
+) -> CashAccount:
+    """Create a new cash/treasury account with verified opening balance."""
+    name = name.strip()
+    if not name:
+        raise ValidationError(_("Account name is required."))
+
+    op_bal = Decimal(str(opening_balance or "0.00"))
+    min_thresh = Decimal(str(minimum_threshold or "5000.00"))
+    if min_thresh < Decimal("0.00"):
+        raise ValidationError(_("Minimum threshold cannot be negative."))
+
+    op_date = opening_balance_date or timezone.localdate()
+
+    account = CashAccount.objects.create(
+        name=name,
+        account_type=account_type,
+        currency=currency,
+        opening_balance=op_bal,
+        opening_balance_date=op_date,
+        current_balance=op_bal,
+        minimum_threshold=min_thresh,
+        institution_name=institution_name.strip(),
+        account_number_last4=account_number_last4.strip()[-4:],
+        description=description.strip(),
+        is_active=True,
+    )
+
+    audit_service.record(
+        actor=user,
+        domain=AuditEvent.Domain.PAYMENTS,
+        action="cash_account.create",
+        object_type="procurement.cash_account",
+        object_id=str(account.pk),
+        object_repr=str(account),
+        reason=f"Created cash account {account.name} with opening balance {currency} {op_bal}",
+        metadata={"currency": currency, "opening_balance": str(op_bal)},
+    )
+    return account
+
+
+def update_cash_account(
+    account: CashAccount,
+    *,
+    name: str | None = None,
+    account_type: str | None = None,
+    minimum_threshold: Decimal | None = None,
+    institution_name: str | None = None,
+    account_number_last4: str | None = None,
+    description: str | None = None,
+    is_active: bool | None = None,
+    user: Any = None,
+) -> CashAccount:
+    """Update metadata and thresholds of a cash account."""
+    if name is not None:
+        name = name.strip()
+        if not name:
+            raise ValidationError(_("Account name cannot be empty."))
+        account.name = name
+
+    if account_type is not None:
+        account.account_type = account_type
+
+    if minimum_threshold is not None:
+        min_thresh = Decimal(str(minimum_threshold))
+        if min_thresh < Decimal("0.00"):
+            raise ValidationError(_("Minimum threshold cannot be negative."))
+        account.minimum_threshold = min_thresh
+
+    if institution_name is not None:
+        account.institution_name = institution_name.strip()
+
+    if account_number_last4 is not None:
+        account.account_number_last4 = account_number_last4.strip()[-4:]
+
+    if description is not None:
+        account.description = description.strip()
+
+    if is_active is not None:
+        account.is_active = is_active
+
+    account.save()
+
+    audit_service.record(
+        actor=user,
+        domain=AuditEvent.Domain.PAYMENTS,
+        action="cash_account.update",
+        object_type="procurement.cash_account",
+        object_id=str(account.pk),
+        object_repr=str(account),
+        reason=f"Updated cash account {account.name} settings",
+    )
+    return account
+
+
+def adjust_cash_account_balance(
+    account: CashAccount,
+    *,
+    amount: Decimal,
+    adjustment_type: str,
+    reason: str,
+    effective_date: Any = None,
+    reference: str = "",
+    user: Any = None,
+) -> CashAccountAdjustment:
+    """Record an audited manual or reconciliation adjustment to a cash account balance."""
+    reason = reason.strip()
+    if not reason:
+        raise ValidationError(_("A documented reason is mandatory for cash balance adjustments."))
+
+    amt = Decimal(str(amount))
+    eff_date = effective_date or timezone.localdate()
+
+    with transaction.atomic():
+        account = CashAccount.objects.select_for_update().get(pk=account.pk)
+        new_balance = account.current_balance + amt
+        if new_balance < Decimal("0.00"):
+            raise ValidationError(_("Adjustment would result in a negative balance."))
+
+        adjustment = CashAccountAdjustment.objects.create(
+            account=account,
+            amount=amt,
+            adjustment_type=adjustment_type,
+            effective_date=eff_date,
+            reason=reason,
+            reference=reference.strip(),
+            created_by=user,
+        )
+        account.current_balance = new_balance
+        if adjustment_type == CashAccountAdjustment.AdjustmentType.RECONCILIATION:
+            account.last_reconciled_at = timezone.now()
+        account.save(update_fields=["current_balance", "last_reconciled_at", "updated_at"])
+
+    audit_service.record(
+        actor=user,
+        domain=AuditEvent.Domain.PAYMENTS,
+        action="cash_account.adjust",
+        object_type="procurement.cash_account_adjustment",
+        object_id=str(adjustment.pk),
+        object_repr=str(adjustment),
+        reason=f"Adjusted cash account {account.name} by {account.currency} {amt}: {reason}",
+        metadata={
+            "account_id": account.pk,
+            "delta": str(amt),
+            "new_balance": str(account.current_balance),
+            "adjustment_type": adjustment_type,
+        },
+    )
+    return adjustment
+
+
+def create_forecast_scenario(
+    *,
+    name: str,
+    description: str = "",
+    horizon_days: int = 30,
+    user: Any = None,
+) -> CashForecastScenario:
+    """Create a temporary What-If planning scenario."""
+    name = name.strip()
+    if not name:
+        raise ValidationError(_("Scenario name is required."))
+    if horizon_days not in (30, 60, 90):
+        horizon_days = 30
+
+    scenario = CashForecastScenario.objects.create(
+        name=name,
+        description=description.strip(),
+        horizon_days=horizon_days,
+        created_by=user,
+        is_active=True,
+    )
+
+    audit_service.record(
+        actor=user,
+        domain=AuditEvent.Domain.PAYMENTS,
+        action="forecast_scenario.create",
+        object_type="procurement.cash_forecast_scenario",
+        object_id=str(scenario.pk),
+        object_repr=str(scenario),
+        reason=f"Created forecast scenario {scenario.name} ({horizon_days}d)",
+    )
+    return scenario
+
+
+def add_scenario_adjustment(
+    scenario: CashForecastScenario,
+    *,
+    adjustment_type: str,
+    adjusted_date: Any,
+    amount: Decimal,
+    original_date: Any = None,
+    target_supplier_invoice: SupplierInvoice | None = None,
+    target_purchase_order: PurchaseOrder | None = None,
+    target_operating_expense: OperatingExpense | None = None,
+    notes: str = "",
+    user: Any = None,
+) -> ScenarioAdjustment:
+    """Add a hypothetical adjustment to a simulation scenario without modifying base records."""
+    amt = Decimal(str(amount))
+    if amt <= Decimal("0.00"):
+        raise ValidationError(_("Simulated adjustment amount must be greater than zero."))
+
+    adj = ScenarioAdjustment.objects.create(
+        scenario=scenario,
+        adjustment_type=adjustment_type,
+        target_supplier_invoice=target_supplier_invoice,
+        target_purchase_order=target_purchase_order,
+        target_operating_expense=target_operating_expense,
+        original_date=original_date,
+        adjusted_date=adjusted_date,
+        amount=amt,
+        notes=notes.strip(),
+    )
+
+    audit_service.record(
+        actor=user,
+        domain=AuditEvent.Domain.PAYMENTS,
+        action="forecast_scenario.add_adjustment",
+        object_type="procurement.scenario_adjustment",
+        object_id=str(adj.pk),
+        object_repr=str(adj),
+        reason=f"Added simulated adjustment to {scenario.name} ({adjustment_type} on {adjusted_date}: {amt})",
+    )
+    return adj
+
+
+def delete_scenario_adjustment(adjustment: ScenarioAdjustment, user: Any = None) -> None:
+    """Remove a hypothetical adjustment from a scenario."""
+    scenario_name = adjustment.scenario.name
+    adj_id = adjustment.pk
+    adjustment.delete()
+
+    audit_service.record(
+        actor=user,
+        domain=AuditEvent.Domain.PAYMENTS,
+        action="forecast_scenario.delete_adjustment",
+        object_type="procurement.scenario_adjustment",
+        object_id=str(adj_id),
+        object_repr=f"ScenarioAdjustment #{adj_id}",
+        reason=f"Deleted scenario adjustment #{adj_id} from {scenario_name}",
+    )
 

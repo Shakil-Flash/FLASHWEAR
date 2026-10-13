@@ -1,0 +1,120 @@
+{% extends "backoffice/base.html" %}
+
+{% block title %}What-If Planning Scenarios{% endblock title %}
+{% block breadcrumb %}Simulation Scenarios{% endblock breadcrumb %}
+
+{% block content %}
+    {# ---- Page Header -------------------------------------------------------------------------- #}
+    <header class="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-3xl">
+                What-If Planning Scenarios
+            </h1>
+            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                Non-destructive sandbox simulations to model vendor payment delays, revenue contractions, and capital injections.
+            </p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2.5">
+            <a href="{% url 'backoffice:cash_flow_dashboard' %}" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-xs transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700">
+                &larr; Cash Flow Forecast
+            </a>
+            {% if can_manage %}
+            <details class="relative inline-block text-left">
+                <summary class="cursor-pointer inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white shadow-xs transition hover:bg-emerald-500">
+                    + New Scenario
+                </summary>
+                <div class="absolute right-0 z-20 mt-2 w-80 rounded-xl border border-slate-200 bg-white p-5 shadow-xl dark:border-slate-700 dark:bg-slate-800">
+                    <form method="post" action="{% url 'backoffice:scenario_create' %}">
+                        {% csrf_token %}
+                        <h4 class="text-sm font-bold text-slate-900 dark:text-white">Create Simulation Scenario</h4>
+                        <p class="mt-0.5 text-xs text-slate-500">Define a What-If scenario sandbox.</p>
+
+                        <div class="mt-4 space-y-3">
+                            <div>
+                                <label class="block text-[11px] font-semibold text-slate-700 dark:text-slate-300">Scenario Name *</label>
+                                <input type="text" name="name" required placeholder="e.g. Q4 Vendor Deferral" class="mt-1 w-full rounded-md border border-slate-300 px-2.5 py-1.5 text-xs text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-semibold text-slate-700 dark:text-slate-300">Horizon Days</label>
+                                <select name="horizon_days" class="mt-1 w-full rounded-md border border-slate-300 px-2.5 py-1.5 text-xs text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white">
+                                    <option value="30">30 Days</option>
+                                    <option value="60">60 Days</option>
+                                    <option value="90">90 Days</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-semibold text-slate-700 dark:text-slate-300">Description</label>
+                                <textarea name="description" rows="2" placeholder="Model pushing invoice payments back by 15 days." class="mt-1 w-full rounded-md border border-slate-300 px-2.5 py-1.5 text-xs text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"></textarea>
+                            </div>
+                            <button type="submit" class="mt-2 w-full rounded-md bg-emerald-600 py-2 text-xs font-semibold text-white shadow-xs hover:bg-emerald-500">
+                                Create &amp; Add Adjustments
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </details>
+            {% endif %}
+        </div>
+    </header>
+
+    {# ---- Sub-Navigation Tabs ------------------------------------------------------------------ #}
+    <nav class="mb-6 flex flex-wrap space-x-2 border-b border-slate-200 dark:border-slate-800">
+        <a href="{% url 'backoffice:procurement_dashboard' %}" class="border-b-2 border-transparent px-4 py-2.5 text-sm font-medium text-slate-500 hover:border-slate-300 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300">
+            Purchasing Overview
+        </a>
+        <a href="{% url 'backoffice:purchase_orders' %}" class="border-b-2 border-transparent px-4 py-2.5 text-sm font-medium text-slate-500 hover:border-slate-300 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300">
+            Purchase Orders
+        </a>
+        <a href="{% url 'backoffice:accounts_payable_dashboard' %}" class="border-b-2 border-transparent px-4 py-2.5 text-sm font-medium text-slate-500 hover:border-slate-300 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300">
+            AP &amp; Invoices
+        </a>
+        <a href="{% url 'backoffice:cash_flow_dashboard' %}" class="border-b-2 border-transparent px-4 py-2.5 text-sm font-medium text-slate-500 hover:border-slate-300 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300">
+            Cash Flow &amp; Runway
+        </a>
+        <a href="{% url 'backoffice:cash_accounts' %}" class="border-b-2 border-transparent px-4 py-2.5 text-sm font-medium text-slate-500 hover:border-slate-300 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300">
+            Cash Accounts
+        </a>
+        <a href="{% url 'backoffice:forecast_scenarios' %}" class="border-b-2 border-indigo-600 px-4 py-2.5 text-sm font-semibold text-indigo-600 dark:border-indigo-400 dark:text-indigo-400">
+            Simulation Scenarios
+        </a>
+    </nav>
+
+    {# ---- Scenarios List ----------------------------------------------------------------------- #}
+    <div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {% for sc in scenarios %}
+        <div class="flex flex-col justify-between rounded-xl border border-slate-200 bg-white p-5 shadow-xs transition hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
+            <div>
+                <div class="flex items-center justify-between">
+                    <span class="rounded bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300">
+                        {{ sc.horizon_days }}-Day Horizon
+                    </span>
+                    <span class="text-[11px] text-slate-400">{{ sc.created_at|date:"M d, Y" }}</span>
+                </div>
+                <h3 class="mt-3 text-base font-bold text-slate-900 dark:text-white">
+                    {{ sc.name }}
+                </h3>
+                <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                    {{ sc.description|default:"No description provided." }}
+                </p>
+                <div class="mt-4 flex items-center gap-3 text-xs text-slate-600 dark:text-slate-300">
+                    <span><strong>{{ sc.adjustments.count }}</strong> hypothetical adjustments</span>
+                </div>
+            </div>
+
+            <div class="mt-6 flex items-center justify-end gap-2 border-t border-slate-100 pt-4 dark:border-slate-800">
+                <a href="{% url 'backoffice:cash_flow_dashboard' %}?scenario_id={{ sc.pk }}&horizon={{ sc.horizon_days }}" class="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-indigo-500">
+                    Simulate
+                </a>
+                <a href="{% url 'backoffice:scenario_detail' sc.pk %}" class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
+                    Manage Adjustments &rarr;
+                </a>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-span-3 rounded-xl border border-dashed border-slate-300 p-12 text-center dark:border-slate-800">
+            <h4 class="text-sm font-bold text-slate-900 dark:text-white">No Custom Scenarios Created</h4>
+            <p class="mt-1 text-xs text-slate-500">Create a What-If scenario to model hypothetical financial adjustments without affecting live records.</p>
+        </div>
+        {% endfor %}
+    </div>
+{% endblock content %}

@@ -120,6 +120,13 @@ INVOICES_VIEW = "invoices.view"
 INVOICES_MANAGE = "invoices.manage"
 INVOICES_APPROVE = "invoices.approve"
 PAYMENTS_AP_RECORD = "payments_ap.record"
+EXPENSES_VIEW = "expenses.view"
+EXPENSES_MANAGE = "expenses.manage"
+EXPENSES_APPROVE = "expenses.approve"
+PROFITABILITY_VIEW = "profitability.view"
+CASHFLOW_VIEW = "cashflow.view"
+CASHFLOW_MANAGE = "cashflow.manage"
+WORKING_CAPITAL_VIEW = "working_capital.view"
 
 CAPABILITIES = (
     OPS_VIEW,
@@ -135,6 +142,13 @@ CAPABILITIES = (
     INVOICES_MANAGE,
     INVOICES_APPROVE,
     PAYMENTS_AP_RECORD,
+    EXPENSES_VIEW,
+    EXPENSES_MANAGE,
+    EXPENSES_APPROVE,
+    PROFITABILITY_VIEW,
+    CASHFLOW_VIEW,
+    CASHFLOW_MANAGE,
+    WORKING_CAPITAL_VIEW,
     PAYMENTS_VIEW,
     CATALOG_VIEW,
     CATALOG_MANAGE,
@@ -230,6 +244,13 @@ CAPABILITY_GROUPS: dict[str, frozenset[str]] = {
     INVOICES_MANAGE: frozenset({FINANCE_GROUP, ADMIN_GROUP}),
     INVOICES_APPROVE: frozenset({FINANCE_GROUP, ADMIN_GROUP}),
     PAYMENTS_AP_RECORD: frozenset({FINANCE_GROUP, ADMIN_GROUP}),
+    EXPENSES_VIEW: frozenset({OPERATOR_GROUP, INVENTORY_GROUP, FINANCE_GROUP, ADMIN_GROUP}),
+    EXPENSES_MANAGE: frozenset({FINANCE_GROUP, ADMIN_GROUP}),
+    EXPENSES_APPROVE: frozenset({FINANCE_GROUP, ADMIN_GROUP}),
+    PROFITABILITY_VIEW: frozenset({FINANCE_GROUP, ADMIN_GROUP}),
+    CASHFLOW_VIEW: frozenset({FINANCE_GROUP, ADMIN_GROUP}),
+    CASHFLOW_MANAGE: frozenset({FINANCE_GROUP, ADMIN_GROUP}),
+    WORKING_CAPITAL_VIEW: frozenset({FINANCE_GROUP, ADMIN_GROUP}),
     PAYMENTS_VIEW: frozenset({FINANCE_GROUP, ORDERS_GROUP, ADMIN_GROUP}),
     CATALOG_VIEW: frozenset({OPERATOR_GROUP, CATALOG_GROUP, MARKETING_GROUP, ADMIN_GROUP}),
     CATALOG_MANAGE: frozenset({CATALOG_GROUP, ADMIN_GROUP}),
@@ -394,6 +415,7 @@ NAVIGATION = (
             ("inventory", "Inventory", "backoffice:inventory", INVENTORY_VIEW),
             ("procurement", "Procurement & POs", "backoffice:procurement_dashboard", PURCHASING_VIEW),
             ("accounts_payable", "Invoices & AP", "backoffice:accounts_payable_dashboard", INVOICES_VIEW),
+            ("cash_flow", "Cash Flow & Treasury", "backoffice:cash_flow_dashboard", CASHFLOW_VIEW),
             ("categories", "Categories", "admin:catalog_category_changelist", CATALOG_VIEW),
             ("collections", "Collections", "admin:catalog_collection_changelist", CATALOG_VIEW),
         ),

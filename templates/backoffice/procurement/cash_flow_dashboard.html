@@ -1,0 +1,364 @@
+{% extends "backoffice/base.html" %}
+
+{% block title %}Cash Flow & Working Capital Intelligence{% endblock title %}
+{% block breadcrumb %}Cash Flow & Treasury{% endblock breadcrumb %}
+
+{% block content %}
+    {# ---- Page Header -------------------------------------------------------------------------- #}
+    <header class="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-3xl">
+                Cash Flow &amp; Working Capital Intelligence
+            </h1>
+            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                Transparent multi-horizon liquidity forecasting, working capital ratios, runway estimation, and What-If simulations.
+            </p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2.5">
+            <a href="{% url 'backoffice:cash_flow_export_csv' %}?currency={{ currency }}&horizon={{ horizon_days }}&scenario_mode={{ scenario_mode }}{% if selected_scenario %}&scenario_id={{ selected_scenario.pk }}{% endif %}" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-xs transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700">
+                <svg class="h-3.5 w-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                Export CSV
+            </a>
+            {% if can_manage %}
+            <a href="{% url 'backoffice:cash_account_create' %}" class="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3.5 py-2 text-xs font-semibold text-white shadow-xs transition hover:bg-indigo-500">
+                + New Cash Account
+            </a>
+            <a href="{% url 'backoffice:forecast_scenarios' %}" class="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white shadow-xs transition hover:bg-emerald-500">
+                What-If Scenarios
+            </a>
+            {% endif %}
+        </div>
+    </header>
+
+    {# ---- Sub-Navigation Tabs ------------------------------------------------------------------ #}
+    <nav class="mb-6 flex flex-wrap space-x-2 border-b border-slate-200 dark:border-slate-800">
+        <a href="{% url 'backoffice:procurement_dashboard' %}" class="border-b-2 border-transparent px-4 py-2.5 text-sm font-medium text-slate-500 hover:border-slate-300 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300">
+            Purchasing Overview
+        </a>
+        <a href="{% url 'backoffice:purchase_orders' %}" class="border-b-2 border-transparent px-4 py-2.5 text-sm font-medium text-slate-500 hover:border-slate-300 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300">
+            Purchase Orders
+        </a>
+        <a href="{% url 'backoffice:accounts_payable_dashboard' %}" class="border-b-2 border-transparent px-4 py-2.5 text-sm font-medium text-slate-500 hover:border-slate-300 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300">
+            AP &amp; Invoices
+        </a>
+        <a href="{% url 'backoffice:cash_flow_dashboard' %}" class="border-b-2 border-indigo-600 px-4 py-2.5 text-sm font-semibold text-indigo-600 dark:border-indigo-400 dark:text-indigo-400">
+            Cash Flow &amp; Runway
+        </a>
+        <a href="{% url 'backoffice:cash_accounts' %}" class="border-b-2 border-transparent px-4 py-2.5 text-sm font-medium text-slate-500 hover:border-slate-300 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300">
+            Cash Accounts
+        </a>
+        <a href="{% url 'backoffice:forecast_scenarios' %}" class="border-b-2 border-transparent px-4 py-2.5 text-sm font-medium text-slate-500 hover:border-slate-300 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300">
+            Simulation Scenarios
+        </a>
+    </nav>
+
+    {# ---- Scenario & Horizon Controls Filter Bar ---------------------------------------------- #}
+    <div class="mb-6 rounded-xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+        <form method="get" class="flex flex-wrap items-center justify-between gap-4">
+            <div class="flex flex-wrap items-center gap-4">
+                {# Horizon Selector #}
+                <div>
+                    <span class="mr-2 text-xs font-semibold text-slate-500 uppercase tracking-wider dark:text-slate-400">Horizon:</span>
+                    <div class="inline-flex rounded-lg border border-slate-300 p-0.5 dark:border-slate-700">
+                        <a href="?horizon=30&currency={{ currency }}&scenario_mode={{ scenario_mode }}{% if selected_scenario %}&scenario_id={{ selected_scenario.pk }}{% endif %}" class="rounded-md px-3 py-1 text-xs font-medium transition {% if horizon_days == 30 %}bg-indigo-600 text-white shadow-xs{% else %}text-slate-700 hover:text-indigo-600 dark:text-slate-300{% endif %}">
+                            30 Days
+                        </a>
+                        <a href="?horizon=60&currency={{ currency }}&scenario_mode={{ scenario_mode }}{% if selected_scenario %}&scenario_id={{ selected_scenario.pk }}{% endif %}" class="rounded-md px-3 py-1 text-xs font-medium transition {% if horizon_days == 60 %}bg-indigo-600 text-white shadow-xs{% else %}text-slate-700 hover:text-indigo-600 dark:text-slate-300{% endif %}">
+                            60 Days
+                        </a>
+                        <a href="?horizon=90&currency={{ currency }}&scenario_mode={{ scenario_mode }}{% if selected_scenario %}&scenario_id={{ selected_scenario.pk }}{% endif %}" class="rounded-md px-3 py-1 text-xs font-medium transition {% if horizon_days == 90 %}bg-indigo-600 text-white shadow-xs{% else %}text-slate-700 hover:text-indigo-600 dark:text-slate-300{% endif %}">
+                            90 Days
+                        </a>
+                    </div>
+                </div>
+
+                {# Model Archetype Selector #}
+                <div>
+                    <span class="mr-2 text-xs font-semibold text-slate-500 uppercase tracking-wider dark:text-slate-400">Archetype:</span>
+                    <div class="inline-flex rounded-lg border border-slate-300 p-0.5 dark:border-slate-700">
+                        <a href="?scenario_mode=conservative&horizon={{ horizon_days }}&currency={{ currency }}" class="rounded-md px-2.5 py-1 text-xs font-medium transition {% if scenario_mode == 'conservative' and not selected_scenario %}bg-amber-600 text-white shadow-xs{% else %}text-slate-700 hover:text-amber-600 dark:text-slate-300{% endif %}">
+                            Conservative (0% Sales)
+                        </a>
+                        <a href="?scenario_mode=expected&horizon={{ horizon_days }}&currency={{ currency }}" class="rounded-md px-2.5 py-1 text-xs font-medium transition {% if scenario_mode == 'expected' and not selected_scenario %}bg-indigo-600 text-white shadow-xs{% else %}text-slate-700 hover:text-indigo-600 dark:text-slate-300{% endif %}">
+                            Expected (100% Sales)
+                        </a>
+                        <a href="?scenario_mode=optimistic&horizon={{ horizon_days }}&currency={{ currency }}" class="rounded-md px-2.5 py-1 text-xs font-medium transition {% if scenario_mode == 'optimistic' and not selected_scenario %}bg-emerald-600 text-white shadow-xs{% else %}text-slate-700 hover:text-emerald-600 dark:text-slate-300{% endif %}">
+                            Optimistic (+20% Sales)
+                        </a>
+                    </div>
+                </div>
+
+                {# What-If Custom Scenario Dropdown #}
+                {% if scenarios %}
+                <div>
+                    <span class="mr-2 text-xs font-semibold text-slate-500 uppercase tracking-wider dark:text-slate-400">Custom Simulation:</span>
+                    <select name="scenario_id" class="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                        <option value="">-- Baseline (No Scenario) --</option>
+                        {% for sc in scenarios %}
+                        <option value="{{ sc.pk }}" {% if selected_scenario.pk == sc.pk %}selected{% endif %}>{{ sc.name }} ({{ sc.adjustments.count }} adjs)</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+            </div>
+
+            {# Currency Selector & Apply #}
+            <div class="flex items-center gap-2">
+                <span class="text-xs text-slate-500 dark:text-slate-400">Currency:</span>
+                <select name="currency" class="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                    {% for curr in currencies %}
+                    <option value="{{ curr }}" {% if currency == curr %}selected{% endif %}>{{ curr }}</option>
+                    {% endfor %}
+                </select>
+                <input type="hidden" name="horizon" value="{{ horizon_days }}">
+                <input type="hidden" name="scenario_mode" value="{{ scenario_mode }}">
+                <button type="submit" class="rounded-lg bg-slate-800 px-2.5 py-1 text-xs font-semibold text-white hover:bg-slate-700 dark:bg-slate-700 dark:hover:bg-slate-600">
+                    Apply
+                </button>
+            </div>
+        </form>
+    </div>
+
+    {# ---- Actionable Risk Alerts Banner -------------------------------------------------------- #}
+    {% if alerts %}
+    <div class="mb-6 space-y-3">
+        {% for alert in alerts %}
+        <div class="flex items-start gap-3 rounded-xl border p-4 shadow-xs {% if alert.severity == 'critical' %}border-rose-300 bg-rose-50 dark:border-rose-900/50 dark:bg-rose-950/40{% elif alert.severity == 'warning' %}border-amber-300 bg-amber-50 dark:border-amber-900/50 dark:bg-amber-950/40{% else %}border-sky-300 bg-sky-50 dark:border-sky-900/50 dark:bg-sky-950/40{% endif %}">
+            <div class="mt-0.5 shrink-0">
+                {% if alert.severity == 'critical' %}
+                <span class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-rose-600 text-xs font-bold text-white">!</span>
+                {% elif alert.severity == 'warning' %}
+                <span class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-amber-600 text-xs font-bold text-white">▲</span>
+                {% else %}
+                <span class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-sky-600 text-xs font-bold text-white">ℹ</span>
+                {% endif %}
+            </div>
+            <div class="flex-1">
+                <div class="flex items-center gap-2">
+                    <h3 class="text-sm font-bold {% if alert.severity == 'critical' %}text-rose-900 dark:text-rose-200{% elif alert.severity == 'warning' %}text-amber-900 dark:text-amber-200{% else %}text-sky-900 dark:text-sky-200{% endif %}">
+                        {{ alert.title }}
+                    </h3>
+                    <span class="rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase {% if alert.severity == 'critical' %}bg-rose-200 text-rose-800 dark:bg-rose-900 dark:text-rose-300{% elif alert.severity == 'warning' %}bg-amber-200 text-amber-800 dark:bg-amber-900 dark:text-amber-300{% else %}bg-sky-200 text-sky-800 dark:bg-sky-900 dark:text-sky-300{% endif %}">
+                        {{ alert.severity }}
+                    </span>
+                </div>
+                <p class="mt-1 text-xs text-slate-700 dark:text-slate-300">
+                    {{ alert.description }}
+                </p>
+                <p class="mt-1.5 text-xs font-medium text-slate-600 dark:text-slate-400">
+                    <strong class="font-semibold text-slate-900 dark:text-white">Recommended Action:</strong> {{ alert.suggested_action }}
+                </p>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {# ---- Working Capital & Liquidity Intelligence Cards --------------------------------------- #}
+    <div class="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+        {# Card 1: Verified Cash & Equivalents #}
+        <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+            <span class="text-xs font-medium text-slate-500 dark:text-slate-400">Cash &amp; Equivalents</span>
+            <div class="mt-2 text-xl font-bold tracking-tight text-slate-900 dark:text-white">
+                {{ currency }} {{ working_capital.cash_and_equivalents|floatformat:2 }}
+            </div>
+            <span class="mt-1 block text-[11px] text-slate-400">Across {{ working_capital.accounts|length }} active accounts</span>
+        </div>
+
+        {# Card 2: 30-Day Obligations #}
+        <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+            <span class="text-xs font-medium text-slate-500 dark:text-slate-400">30-Day Obligations</span>
+            <div class="mt-2 text-xl font-bold tracking-tight text-rose-600 dark:text-rose-400">
+                {{ currency }} {{ working_capital.near_term_obligations|floatformat:2 }}
+            </div>
+            <span class="mt-1 block text-[11px] text-slate-400">AP: {{ currency }} {{ working_capital.near_term_ap_30d|floatformat:0 }} | OpEx: {{ currency }} {{ working_capital.near_term_opex_30d|floatformat:0 }}</span>
+        </div>
+
+        {# Card 3: Net Working Liquidity #}
+        <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+            <span class="text-xs font-medium text-slate-500 dark:text-slate-400">Net Working Liquidity</span>
+            <div class="mt-2 text-xl font-bold tracking-tight {% if working_capital.net_working_liquidity >= 0 %}text-emerald-600 dark:text-emerald-400{% else %}text-rose-600 dark:text-rose-400{% endif %}">
+                {{ currency }} {{ working_capital.net_working_liquidity|floatformat:2 }}
+            </div>
+            <span class="mt-1 block text-[11px] text-slate-400">Liquid assets minus current debt</span>
+        </div>
+
+        {# Card 4: Liquidity Coverage (Quick Ratio) #}
+        <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+            <span class="text-xs font-medium text-slate-500 dark:text-slate-400">Coverage (Quick Ratio)</span>
+            <div class="mt-2 text-xl font-bold tracking-tight {% if working_capital.liquidity_coverage_ratio >= 1.5 %}text-emerald-600 dark:text-emerald-400{% elif working_capital.liquidity_coverage_ratio >= 1.0 %}text-indigo-600 dark:text-indigo-400{% else %}text-rose-600 dark:text-rose-400{% endif %}">
+                {{ working_capital.liquidity_coverage_ratio }}x
+            </div>
+            <span class="mt-1 block text-[11px] text-slate-400">{% if working_capital.liquidity_coverage_ratio >= 1.0 %}Fully Covered{% else %}Obligations Exceed Cash{% endif %}</span>
+        </div>
+
+        {# Card 5: Estimated Runway #}
+        <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+            <span class="text-xs font-medium text-slate-500 dark:text-slate-400">Cash Runway</span>
+            <div class="mt-2 text-lg font-bold tracking-tight text-slate-900 dark:text-white">
+                {{ working_capital.runway_status }}
+            </div>
+            <span class="mt-1 block text-[11px] text-slate-400">Daily burn: {{ currency }} {{ working_capital.daily_burn_rate|floatformat:0 }}/d</span>
+        </div>
+
+        {# Card 6: Lowest Forecast Trough #}
+        <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+            <span class="text-xs font-medium text-slate-500 dark:text-slate-400">Projected Trough</span>
+            <div class="mt-2 text-xl font-bold tracking-tight {% if forecast.lowest_projected_balance < 0 %}text-rose-600 dark:text-rose-400{% elif forecast.lowest_projected_balance < forecast.minimum_threshold %}text-amber-600 dark:text-amber-400{% else %}text-emerald-600 dark:text-emerald-400{% endif %}">
+                {{ currency }} {{ forecast.lowest_projected_balance|floatformat:2 }}
+            </div>
+            <span class="mt-1 block text-[11px] text-slate-400">On {{ forecast.trough_date|date:"M d, Y" }}</span>
+        </div>
+    </div>
+
+    {# ---- What-If Active Banner (if scenario applied) ------------------------------------------- #}
+    {% if selected_scenario %}
+    <div class="mb-6 rounded-xl border border-indigo-300 bg-indigo-50 p-4 shadow-xs dark:border-indigo-900 dark:bg-indigo-950/40">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+                <span class="rounded bg-indigo-200 px-2 py-0.5 text-xs font-bold text-indigo-900 uppercase tracking-wide dark:bg-indigo-900 dark:text-indigo-200">Simulation Active</span>
+                <span class="ml-2 font-bold text-indigo-950 dark:text-indigo-200">{{ selected_scenario.name }}</span>
+                <p class="mt-1 text-xs text-indigo-800 dark:text-indigo-300">
+                    {{ selected_scenario.description|default:"Non-destructive simulation with custom date and amount overrides." }}
+                    (Applied: {{ forecast.scenario_adjustments_applied|length }} adjustments).
+                </p>
+            </div>
+            <div class="flex items-center gap-2">
+                <a href="{% url 'backoffice:scenario_detail' selected_scenario.pk %}" class="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-indigo-500">
+                    Manage Adjustments
+                </a>
+                <a href="?horizon={{ horizon_days }}&currency={{ currency }}&scenario_mode={{ scenario_mode }}" class="rounded-lg border border-indigo-300 bg-white px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-50 dark:border-indigo-700 dark:bg-slate-900 dark:text-indigo-300">
+                    Exit Scenario
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {# ---- Visual Forecast Runway (Daily Timeline) --------------------------------------------- #}
+    <div class="mb-8 rounded-xl border border-slate-200 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900">
+        <div class="flex flex-wrap items-center justify-between border-b border-slate-200 px-6 py-4 dark:border-slate-800">
+            <div>
+                <h2 class="text-base font-bold text-slate-900 dark:text-white">
+                    {{ horizon_days }}-Day Liquidity Timeline
+                </h2>
+                <p class="text-xs text-slate-500 dark:text-slate-400">
+                    Opening position: <strong>{{ currency }} {{ forecast.opening_cash|floatformat:2 }}</strong> | 
+                    Total projected inflows: <strong>{{ currency }} {{ forecast.total_inflows|floatformat:2 }}</strong> | 
+                    Total scheduled obligations: <strong>{{ currency }} {{ forecast.total_outflows|floatformat:2 }}</strong> | 
+                    Net movement: <strong class="{% if forecast.net_projected_movement >= 0 %}text-emerald-600{% else %}text-rose-600{% endif %}">{{ currency }} {{ forecast.net_projected_movement|floatformat:2 }}</strong>
+                </p>
+            </div>
+            <div class="text-right">
+                <span class="text-xs font-medium text-slate-500">Ending Projected Cash:</span>
+                <span class="ml-1 text-sm font-bold {% if forecast.closing_projected_balance >= forecast.minimum_threshold %}text-emerald-600 dark:text-emerald-400{% elif forecast.closing_projected_balance >= 0 %}text-amber-600 dark:text-amber-400{% else %}text-rose-600 dark:text-rose-400{% endif %}">
+                    {{ currency }} {{ forecast.closing_projected_balance|floatformat:2 }}
+                </span>
+            </div>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+                <thead class="bg-slate-50 text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:bg-slate-800/50 dark:text-slate-400">
+                    <tr>
+                        <th class="px-4 py-3">Day</th>
+                        <th class="px-4 py-3">Date</th>
+                        <th class="px-4 py-3 text-right">Opening Cash</th>
+                        <th class="px-4 py-3 text-right text-emerald-600 dark:text-emerald-400">Inflows</th>
+                        <th class="px-4 py-3 text-right text-rose-600 dark:text-rose-400">Supplier AP</th>
+                        <th class="px-4 py-3 text-right text-rose-600 dark:text-rose-400">OpEx</th>
+                        <th class="px-4 py-3 text-right text-rose-600 dark:text-rose-400">POs / Other</th>
+                        <th class="px-4 py-3 text-right text-rose-600 dark:text-rose-400">Total Out</th>
+                        <th class="px-4 py-3 text-right">Net Flow</th>
+                        <th class="px-4 py-3 text-right font-bold">Closing Cash</th>
+                        <th class="px-4 py-3 text-center">Status</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                    {% for row in forecast.timeline %}
+                    <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 {% if row.is_deficit %}bg-rose-50/40 dark:bg-rose-950/20{% elif row.is_below_threshold %}bg-amber-50/30 dark:bg-amber-950/20{% endif %}">
+                        <td class="px-4 py-2.5 font-mono text-slate-500">Day {{ row.day_index }}</td>
+                        <td class="px-4 py-2.5 font-medium text-slate-900 dark:text-white">
+                            {{ row.date|date:"M d, D" }}
+                        </td>
+                        <td class="px-4 py-2.5 text-right font-mono text-slate-600 dark:text-slate-300">
+                            {{ row.opening_balance|floatformat:2 }}
+                        </td>
+                        <td class="px-4 py-2.5 text-right font-mono font-medium text-emerald-600 dark:text-emerald-400">
+                            +{{ row.total_inflows|floatformat:2 }}
+                            {% if row.confirmed_inflows > 0 %}
+                            <span class="block text-[10px] text-emerald-700 dark:text-emerald-300">({{ row.confirmed_inflows|floatformat:0 }} conf)</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-2.5 text-right font-mono text-slate-700 dark:text-slate-300">
+                            {% if row.ap_outflows > 0 %}-{{ row.ap_outflows|floatformat:2 }}{% else %}—{% endif %}
+                        </td>
+                        <td class="px-4 py-2.5 text-right font-mono text-slate-700 dark:text-slate-300">
+                            {% if row.opex_outflows > 0 %}-{{ row.opex_outflows|floatformat:2 }}{% else %}—{% endif %}
+                        </td>
+                        <td class="px-4 py-2.5 text-right font-mono text-slate-700 dark:text-slate-300">
+                            {% if row.po_outflows > 0 or row.recurring_outflows > 0 or row.custom_outflows > 0 or row.refund_reserves > 0 %}
+                            -{{ row.po_outflows|add:row.recurring_outflows|add:row.custom_outflows|add:row.refund_reserves|floatformat:2 }}
+                            {% else %}—{% endif %}
+                        </td>
+                        <td class="px-4 py-2.5 text-right font-mono font-medium text-rose-600 dark:text-rose-400">
+                            {% if row.total_outflows > 0 %}-{{ row.total_outflows|floatformat:2 }}{% else %}0.00{% endif %}
+                        </td>
+                        <td class="px-4 py-2.5 text-right font-mono font-semibold {% if row.net_movement >= 0 %}text-emerald-600 dark:text-emerald-400{% else %}text-rose-600 dark:text-rose-400{% endif %}">
+                            {% if row.net_movement >= 0 %}+{% endif %}{{ row.net_movement|floatformat:2 }}
+                        </td>
+                        <td class="px-4 py-2.5 text-right font-mono font-bold {% if row.is_deficit %}text-rose-600 dark:text-rose-400{% elif row.is_below_threshold %}text-amber-600 dark:text-amber-400{% else %}text-slate-900 dark:text-white{% endif %}">
+                            {{ row.closing_balance|floatformat:2 }}
+                        </td>
+                        <td class="px-4 py-2.5 text-center">
+                            {% if row.is_deficit %}
+                            <span class="inline-flex rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700 dark:bg-rose-900/40 dark:text-rose-300">DEFICIT</span>
+                            {% elif row.is_below_threshold %}
+                            <span class="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">LOW CUSHION</span>
+                            {% else %}
+                            <span class="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">SAFE</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {# ---- Treasury Accounts Quick Breakdown ---------------------------------------------------- #}
+    <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+        <div class="flex items-center justify-between border-b border-slate-200 pb-4 dark:border-slate-800">
+            <div>
+                <h3 class="text-sm font-bold text-slate-900 dark:text-white">Active Treasury Accounts</h3>
+                <p class="text-xs text-slate-500 dark:text-slate-400">Current balances forming the opening cash baseline.</p>
+            </div>
+            <a href="{% url 'backoffice:cash_accounts' %}" class="text-xs font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-400">
+                View All Accounts &rarr;
+            </a>
+        </div>
+        <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {% for acc in accounts %}
+            <div class="rounded-lg border border-slate-100 bg-slate-50 p-3.5 dark:border-slate-800 dark:bg-slate-800/40">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold text-slate-900 dark:text-white">{{ acc.name }}</span>
+                    <span class="rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-semibold text-slate-700 dark:bg-slate-700 dark:text-slate-300">{{ acc.get_account_type_display }}</span>
+                </div>
+                <div class="mt-2 text-lg font-bold text-slate-900 dark:text-white">
+                    {{ acc.currency }} {{ acc.current_balance|floatformat:2 }}
+                </div>
+                <div class="mt-1 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+                    <span>Min cushion: {{ acc.currency }} {{ acc.minimum_threshold|floatformat:0 }}</span>
+                    {% if acc.last_reconciled_at %}
+                    <span>Reconciled: {{ acc.last_reconciled_at|date:"M d" }}</span>
+                    {% else %}
+                    <span class="text-amber-600 dark:text-amber-400">Unreconciled</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% empty %}
+            <p class="col-span-4 text-center text-xs text-slate-500">No cash accounts configured. Click "+ New Cash Account" to establish opening balances.</p>
+            {% endfor %}
+        </div>
+    </div>
+{% endblock content %}

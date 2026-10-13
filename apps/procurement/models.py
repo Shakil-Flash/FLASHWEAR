@@ -25,6 +25,10 @@ if TYPE_CHECKING:
     from apps.catalog.models import ProductVariant
 
 __all__ = [
+    "CashAccount",
+    "CashAccountAdjustment",
+    "CashAccountType",
+    "CashForecastScenario",
     "CreditNoteApplication",
     "CreditNoteStatus",
     "ExpenseBudget",
@@ -39,6 +43,7 @@ __all__ = [
     "PurchaseOrderReceipt",
     "PurchaseOrderReceiptItem",
     "PurchaseOrderStatus",
+    "ScenarioAdjustment",
     "Supplier",
     "SupplierCreditNote",
     "SupplierInvoice",
@@ -721,6 +726,12 @@ class SupplierInvoice(models.Model):
 
     def __str__(self) -> str:
         return f"{self.invoice_number} ({self.supplier.name}) - {self.get_status_display()}"
+
+    def save(self, *args, **kwargs):
+        if not self.normalized_invoice_number and self.invoice_number:
+            import re
+            self.normalized_invoice_number = re.sub(r"[^A-Za-z0-9]", "", self.invoice_number).upper()
+        super().save(*args, **kwargs)
 
     @property
     def subtotal_amount(self) -> Decimal:
@@ -1525,4 +1536,239 @@ class OperatingExpense(models.Model):
     @property
     def can_void(self) -> bool:
         return self.status in (ExpenseStatus.DRAFT, ExpenseStatus.SUBMITTED, ExpenseStatus.APPROVED)
+
+
+# =============================================================================
+# Phase 48: Cash Accounts, Forecast Scenarios & Working Capital Models
+# =============================================================================
+
+
+class CashAccountType(models.TextChoices):
+    CHECKING = "checking", _("Operating Checking")
+    SAVINGS = "savings", _("Reserve / Savings")
+    PAYROLL = "payroll", _("Payroll Dedicated")
+    MERCHANT = "merchant", _("Merchant Gateway (Stripe)")
+    PETTY_CASH = "petty_cash", _("Petty Cash / Store Cash")
+    OTHER = "other", _("Other Treasury Account")
+
+
+class CashAccount(models.Model):
+    """Authoritative balance tracking for internal treasury and bank accounts."""
+
+    name = models.CharField(_("account name"), max_length=100, unique=True)
+    account_type = models.CharField(
+        _("account type"),
+        max_length=32,
+        choices=CashAccountType.choices,
+        default=CashAccountType.CHECKING,
+    )
+    institution_name = models.CharField(
+        _("financial institution"),
+        max_length=100,
+        blank=True,
+        help_text=_("Bank or payment processor name (e.g. JPMorgan Chase, Stripe)."),
+    )
+    account_number_last4 = models.CharField(
+        _("last 4 digits"),
+        max_length=8,
+        blank=True,
+    )
+    currency = models.CharField(_("currency"), max_length=3, default="USD")
+    opening_balance = models.DecimalField(
+        _("opening balance"),
+        max_digits=14,
+        decimal_places=2,
+        default=Decimal("0.00"),
+    )
+    opening_balance_date = models.DateField(
+        _("opening balance date"),
+        default=timezone.localdate,
+    )
+    current_balance = models.DecimalField(
+        _("current balance"),
+        max_digits=14,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        help_text=_("Current ledger balance including verified cash movements and authorized adjustments."),
+    )
+    minimum_threshold = models.DecimalField(
+        _("minimum safety threshold"),
+        max_digits=14,
+        decimal_places=2,
+        default=Decimal("5000.00"),
+        help_text=_("Minimum safe liquidity cushion. Triggers risk alerts if forecast dips below this."),
+    )
+    is_active = models.BooleanField(_("active"), default=True)
+    description = models.TextField(_("description"), blank=True)
+    last_reconciled_at = models.DateTimeField(_("last reconciled at"), null=True, blank=True)
+    created_at = models.DateTimeField(_("created at"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("updated at"), auto_now=True)
+
+    class Meta:
+        verbose_name = _("cash account")
+        verbose_name_plural = _("cash accounts")
+        ordering = ("name",)
+
+    def __str__(self) -> str:
+        return f"{self.name} [{self.currency}] ({self.get_account_type_display()}): {self.current_balance}"
+
+
+class CashAccountAdjustment(models.Model):
+    """Audited manual or reconciliation adjustment to a cash account balance."""
+
+    class AdjustmentType(models.TextChoices):
+        RECONCILIATION = "reconciliation", _("Bank Statement Reconciliation")
+        INTEREST = "interest", _("Interest Earned")
+        BANK_FEE = "bank_fee", _("Bank / Merchant Service Fee")
+        CAPITAL_INJECTION = "capital_injection", _("Capital Contribution")
+        TRANSFER = "transfer", _("Internal Account Transfer")
+        CORRECTION = "correction", _("Correction / Audit Adjustment")
+
+    account = models.ForeignKey(
+        CashAccount,
+        on_delete=models.CASCADE,
+        related_name="adjustments",
+        verbose_name=_("cash account"),
+    )
+    amount = models.DecimalField(
+        _("adjustment delta"),
+        max_digits=14,
+        decimal_places=2,
+        help_text=_("Signed amount. Positive for inflows, negative for fee/deductions."),
+    )
+    adjustment_type = models.CharField(
+        _("adjustment type"),
+        max_length=32,
+        choices=AdjustmentType.choices,
+        default=AdjustmentType.RECONCILIATION,
+    )
+    effective_date = models.DateField(
+        _("effective date"),
+        default=timezone.localdate,
+    )
+    reason = models.TextField(
+        _("adjustment reason"),
+        help_text=_("Mandatory business justification for modifying the cash position."),
+    )
+    reference = models.CharField(
+        _("external reference"),
+        max_length=100,
+        blank=True,
+        help_text=_("Bank statement reference, transaction ID, or audit ticket."),
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="cash_adjustments",
+        verbose_name=_("authorized by"),
+    )
+    created_at = models.DateTimeField(_("created at"), auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("cash account adjustment")
+        verbose_name_plural = _("cash account adjustments")
+        ordering = ("-effective_date", "-pk")
+
+    def __str__(self) -> str:
+        return f"{self.account.name}: {self.amount} ({self.get_adjustment_type_display()}) on {self.effective_date}"
+
+
+class CashForecastScenario(models.Model):
+    """What-if simulation container for temporary liquidity planning."""
+
+    name = models.CharField(_("scenario name"), max_length=100, unique=True)
+    description = models.TextField(_("description"), blank=True)
+    horizon_days = models.PositiveIntegerField(
+        _("horizon days"),
+        default=30,
+        choices=[(30, _("30 Days")), (60, _("60 Days")), (90, _("90 Days"))],
+    )
+    is_active = models.BooleanField(_("active"), default=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="forecast_scenarios",
+        verbose_name=_("created by"),
+    )
+    created_at = models.DateTimeField(_("created at"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("updated at"), auto_now=True)
+
+    class Meta:
+        verbose_name = _("cash forecast scenario")
+        verbose_name_plural = _("cash forecast scenarios")
+        ordering = ("-created_at",)
+
+    def __str__(self) -> str:
+        return f"{self.name} ({self.horizon_days}d)"
+
+
+class ScenarioAdjustment(models.Model):
+    """Non-destructive hypothetical date or amount adjustment within a What-If scenario."""
+
+    class AdjustmentType(models.TextChoices):
+        DELAY_AP_PAYMENT = "delay_ap_payment", _("Delay Supplier Payment")
+        DELAY_INFLOW = "delay_inflow", _("Delay Expected Inflow")
+        ADD_PO_COMMITMENT = "add_po_commitment", _("Proposed Inventory Purchase Order")
+        ADJUST_EXPENSE = "adjust_expense", _("Adjust OpEx Outflow")
+        CAPITAL_INJECTION = "capital_injection", _("Simulated Capital Injection")
+        CUSTOM_INFLOW = "custom_inflow", _("Hypothetical Inflow")
+        CUSTOM_OUTFLOW = "custom_outflow", _("Hypothetical Outflow")
+
+    scenario = models.ForeignKey(
+        CashForecastScenario,
+        on_delete=models.CASCADE,
+        related_name="adjustments",
+        verbose_name=_("scenario"),
+    )
+    adjustment_type = models.CharField(
+        _("adjustment type"),
+        max_length=32,
+        choices=AdjustmentType.choices,
+    )
+    target_supplier_invoice = models.ForeignKey(
+        SupplierInvoice,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name=_("target supplier invoice"),
+    )
+    target_purchase_order = models.ForeignKey(
+        PurchaseOrder,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name=_("target purchase order"),
+    )
+    target_operating_expense = models.ForeignKey(
+        OperatingExpense,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name=_("target operating expense"),
+    )
+    original_date = models.DateField(_("original date"), null=True, blank=True)
+    adjusted_date = models.DateField(_("adjusted simulation date"))
+    amount = models.DecimalField(
+        _("simulated amount"),
+        max_digits=14,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal("0.01"))],
+    )
+    notes = models.TextField(_("notes / rationale"), blank=True)
+    created_at = models.DateTimeField(_("created at"), auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("scenario adjustment")
+        verbose_name_plural = _("scenario adjustments")
+        ordering = ("adjusted_date", "pk")
+
+    def __str__(self) -> str:
+        return f"[{self.scenario.name}] {self.get_adjustment_type_display()} on {self.adjusted_date}: {self.amount}"
 

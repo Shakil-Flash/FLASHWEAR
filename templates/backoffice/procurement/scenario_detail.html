@@ -1,0 +1,212 @@
+{% extends "backoffice/base.html" %}
+
+{% block title %}Scenario: {{ scenario.name }}{% endblock title %}
+{% block breadcrumb %}
+    <a href="{% url 'backoffice:forecast_scenarios' %}" class="hover:underline">Scenarios</a> / {{ scenario.name }}
+{% endblock breadcrumb %}
+
+{% block content %}
+    {# ---- Page Header -------------------------------------------------------------------------- #}
+    <header class="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div>
+            <div class="flex items-center gap-2">
+                <span class="rounded bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300">
+                    {{ scenario.horizon_days }}-Day What-If Sandbox
+                </span>
+                <span class="text-xs text-slate-400">Created {{ scenario.created_at|date:"M d, Y" }}</span>
+            </div>
+            <h1 class="mt-1 text-2xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-3xl">
+                {{ scenario.name }}
+            </h1>
+            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                {{ scenario.description|default:"Hypothetical liquidity adjustments sandbox." }}
+            </p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2.5">
+            <a href="{% url 'backoffice:cash_flow_dashboard' %}?scenario_id={{ scenario.pk }}&horizon={{ scenario.horizon_days }}" class="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-xs transition hover:bg-indigo-500">
+                Run Simulation in Dashboard &rarr;
+            </a>
+        </div>
+    </header>
+
+    {# ---- Side-by-Side Comparison Scorecard (Baseline vs Scenario) ---------------------------- #}
+    <div class="mb-8 rounded-xl border border-slate-200 bg-white p-6 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+        <h3 class="text-sm font-bold text-slate-900 dark:text-white">Simulation Impact vs. Baseline</h3>
+        <p class="text-xs text-slate-500 dark:text-slate-400">Comparing live unadjusted baseline against simulated sandbox over {{ scenario.horizon_days }} days.</p>
+
+        <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+            {# Metric 1: Ending Balance Comparison #}
+            <div class="rounded-lg border border-slate-100 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-800/40">
+                <span class="text-xs font-medium text-slate-500">Projected Ending Cash</span>
+                <div class="mt-2 flex items-baseline justify-between">
+                    <div>
+                        <span class="text-xs text-slate-400">Baseline:</span>
+                        <div class="text-sm font-semibold text-slate-700 dark:text-slate-300">${{ baseline_forecast.closing_projected_balance|floatformat:2 }}</div>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-xs font-bold text-indigo-600 dark:text-indigo-400">Simulated:</span>
+                        <div class="text-lg font-bold text-slate-900 dark:text-white">${{ simulated_forecast.closing_projected_balance|floatformat:2 }}</div>
+                    </div>
+                </div>
+            </div>
+
+            {# Metric 2: Lowest Trough Comparison #}
+            <div class="rounded-lg border border-slate-100 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-800/40">
+                <span class="text-xs font-medium text-slate-500">Lowest Projected Trough</span>
+                <div class="mt-2 flex items-baseline justify-between">
+                    <div>
+                        <span class="text-xs text-slate-400">Baseline:</span>
+                        <div class="text-sm font-semibold text-slate-700 dark:text-slate-300">${{ baseline_forecast.lowest_projected_balance|floatformat:2 }}</div>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-xs font-bold text-indigo-600 dark:text-indigo-400">Simulated:</span>
+                        <div class="text-lg font-bold text-slate-900 dark:text-white">${{ simulated_forecast.lowest_projected_balance|floatformat:2 }}</div>
+                    </div>
+                </div>
+            </div>
+
+            {# Metric 3: Safety Cushion Breaches #}
+            <div class="rounded-lg border border-slate-100 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-800/40">
+                <span class="text-xs font-medium text-slate-500">Days Below Safety Cushion</span>
+                <div class="mt-2 flex items-baseline justify-between">
+                    <div>
+                        <span class="text-xs text-slate-400">Baseline:</span>
+                        <div class="text-sm font-semibold text-slate-700 dark:text-slate-300">{{ baseline_forecast.days_below_threshold }} Days</div>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-xs font-bold text-indigo-600 dark:text-indigo-400">Simulated:</span>
+                        <div class="text-lg font-bold text-slate-900 dark:text-white">{{ simulated_forecast.days_below_threshold }} Days</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# ---- Adjustments Ledger ------------------------------------------------------------------- #}
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        {# Ledger Table (2 cols) #}
+        <div class="lg:col-span-2">
+            <div class="rounded-xl border border-slate-200 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900">
+                <div class="border-b border-slate-200 px-6 py-4 dark:border-slate-800">
+                    <h3 class="text-sm font-bold text-slate-900 dark:text-white">Hypothetical Adjustments Ledger</h3>
+                    <p class="text-xs text-slate-500">List of non-destructive overrides applied to this scenario.</p>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-slate-50 text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:bg-slate-800/50 dark:text-slate-400">
+                            <tr>
+                                <th class="px-5 py-3">Type</th>
+                                <th class="px-5 py-3">Target Doc</th>
+                                <th class="px-5 py-3 text-right">Amount</th>
+                                <th class="px-5 py-3">Scheduled Date</th>
+                                <th class="px-5 py-3">Notes</th>
+                                <th class="px-5 py-3 text-right">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                            {% for adj in adjustments %}
+                            <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
+                                <td class="px-5 py-3.5">
+                                    <span class="rounded bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                                        {{ adj.get_adjustment_type_display }}
+                                    </span>
+                                </td>
+                                <td class="px-5 py-3.5 font-medium text-slate-900 dark:text-white">
+                                    {% if adj.target_supplier_invoice %}
+                                    Inv #{{ adj.target_supplier_invoice.invoice_number }} ({{ adj.target_supplier_invoice.supplier.name }})
+                                    {% elif adj.target_purchase_order %}
+                                    PO #{{ adj.target_purchase_order.po_number }}
+                                    {% else %}
+                                    Custom Override
+                                    {% endif %}
+                                </td>
+                                <td class="px-5 py-3.5 text-right font-mono font-bold text-slate-900 dark:text-white">
+                                    ${{ adj.amount|floatformat:2 }}
+                                </td>
+                                <td class="px-5 py-3.5 text-slate-600 dark:text-slate-400">
+                                    {{ adj.adjusted_date|date:"M d, Y" }}
+                                    {% if adj.original_date %}
+                                    <span class="block text-[10px] text-slate-400">from {{ adj.original_date|date:"M d" }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="px-5 py-3.5 text-slate-500 dark:text-slate-400">
+                                    {{ adj.notes|default:"—" }}
+                                </td>
+                                <td class="px-5 py-3.5 text-right">
+                                    {% if can_manage %}
+                                    <form method="post" action="{% url 'backoffice:scenario_adjustment_delete' adj.pk %}" class="inline">
+                                        {% csrf_token %}
+                                        <button type="submit" data-confirm="Remove this simulated adjustment from the scenario?" class="text-xs font-semibold text-rose-600 hover:text-rose-500">
+                                            Remove
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="px-5 py-8 text-center text-slate-500">
+                                    No adjustments added yet. Use the form on the right to add hypothetical overrides.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        {# Add Adjustment Form (1 col) #}
+        {% if can_manage %}
+        <div class="lg:col-span-1">
+            <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+                <h3 class="text-sm font-bold text-slate-900 dark:text-white">Add Simulated Adjustment</h3>
+                <p class="mt-0.5 text-xs text-slate-500">Injected into simulation without altering base records.</p>
+
+                <form method="post" action="{% url 'backoffice:scenario_adjustment_add' scenario.pk %}" class="mt-4 space-y-3">
+                    {% csrf_token %}
+
+                    <div>
+                        <label class="block text-[11px] font-semibold text-slate-700 dark:text-slate-300">Adjustment Type *</label>
+                        <select name="adjustment_type" required class="mt-1 w-full rounded-md border border-slate-300 px-2.5 py-1.5 text-xs text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-white">
+                            {% for code, label in adjustment_types %}
+                            <option value="{{ code }}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-[11px] font-semibold text-slate-700 dark:text-slate-300">Target Supplier Invoice (Optional)</label>
+                        <select name="target_supplier_invoice" class="mt-1 w-full rounded-md border border-slate-300 px-2.5 py-1.5 text-xs text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-white">
+                            <option value="">-- None / Custom Inflow or Outflow --</option>
+                            {% for inv in open_invoices %}
+                            <option value="{{ inv.pk }}">{{ inv.invoice_number }} - {{ inv.supplier.name }} (${{ inv.outstanding_balance|floatformat:0 }}, due {{ inv.due_date|date:"M d" }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-[11px] font-semibold text-slate-700 dark:text-slate-300">Amount *</label>
+                        <input type="number" step="0.01" name="amount" required placeholder="5000.00" class="mt-1 w-full rounded-md border border-slate-300 px-2.5 py-1.5 text-xs font-mono text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-white">
+                    </div>
+
+                    <div>
+                        <label class="block text-[11px] font-semibold text-slate-700 dark:text-slate-300">Simulated Date *</label>
+                        <input type="date" name="adjusted_date" required value="{{ today|date:'Y-m-d' }}" class="mt-1 w-full rounded-md border border-slate-300 px-2.5 py-1.5 text-xs text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-white">
+                    </div>
+
+                    <div>
+                        <label class="block text-[11px] font-semibold text-slate-700 dark:text-slate-300">Notes / Rationale</label>
+                        <textarea name="notes" rows="2" placeholder="e.g. Negotiated 15-day vendor payment deferral." class="mt-1 w-full rounded-md border border-slate-300 px-2.5 py-1.5 text-xs text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-white"></textarea>
+                    </div>
+
+                    <button type="submit" class="mt-2 w-full rounded-md bg-indigo-600 py-2 text-xs font-semibold text-white shadow-xs hover:bg-indigo-500">
+                        Post to Scenario
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+{% endblock content %}

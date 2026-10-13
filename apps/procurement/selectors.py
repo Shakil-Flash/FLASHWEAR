@@ -13,11 +13,15 @@ from typing import Any
 
 from django.db.models import Avg, Count, F, Q, Sum
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 
 from apps.catalog.models import Product, ProductVariant
 from apps.orders.models import Order, OrderItem, ReturnItem, ReturnRequest
 from apps.payments.models import Payment, Refund
 from apps.procurement.models import (
+    CashAccount,
+    CashAccountAdjustment,
+    CashForecastScenario,
     CreditNoteStatus,
     ExpenseBudget,
     ExpenseCategory,
@@ -28,6 +32,7 @@ from apps.procurement.models import (
     PurchaseOrderItem,
     PurchaseOrderReceipt,
     PurchaseOrderStatus,
+    ScenarioAdjustment,
     Supplier,
     SupplierCreditNote,
     SupplierInvoice,
@@ -39,7 +44,11 @@ from apps.procurement.models import (
 )
 
 __all__ = [
+    "generate_cash_flow_forecast",
     "get_accounts_payable_dashboard_metrics",
+    "get_cash_accounts_queryset",
+    "get_cash_flow_alerts",
+    "get_cash_flow_dashboard_metrics",
     "get_expense_budget_vs_actual",
     "get_operating_expenses_queryset",
     "get_procurement_dashboard_metrics",
@@ -52,6 +61,7 @@ __all__ = [
     "get_supplier_payments_queryset",
     "get_supplier_performance",
     "get_suppliers_queryset",
+    "get_working_capital_metrics",
 ]
 
 
@@ -1195,4 +1205,605 @@ def get_operating_expenses_queryset(
         qs = qs.filter(expense_date__lte=end_date)
 
     return qs
+
+
+# =============================================================================
+# Phase 48: Cash Flow Forecasting & Working Capital Selectors
+# =============================================================================
+
+
+def get_cash_accounts_queryset(currency: str = "USD", active_only: bool = True):
+    """Return cash and treasury accounts for a specific currency."""
+    qs = CashAccount.objects.filter(currency=currency)
+    if active_only:
+        qs = qs.filter(is_active=True)
+    return qs.order_by("account_type", "name")
+
+
+def generate_cash_flow_forecast(
+    as_of_date: Any = None,
+    currency: str = "USD",
+    horizon_days: int = 30,
+    scenario: CashForecastScenario | None = None,
+    scenario_mode: str = "expected",
+) -> dict[str, Any]:
+    """Generate transparent daily cash flow projections over configurable horizons.
+
+    Forecast Horizons: 30, 60, or 90 days.
+    Scenarios:
+    - conservative: 0% projected sales velocity, 100% committed AP/OpEx + 3% refund reserve.
+    - expected: 100% trailing 30d sales velocity, 100% committed AP/OpEx/POs.
+    - optimistic: 120% trailing 30d sales velocity, vendor payment optimization.
+    """
+    today = as_of_date or timezone.localdate()
+    if horizon_days not in (30, 60, 90):
+        horizon_days = 30
+
+    # 1. Opening Cash Position
+    accounts = list(CashAccount.objects.filter(currency=currency, is_active=True))
+    opening_cash = sum((acc.current_balance for acc in accounts), Decimal("0.00"))
+    min_threshold = min((acc.minimum_threshold for acc in accounts), default=Decimal("5000.00"))
+
+    # 2. Historical Daily Sales Velocity (Trailing 30 Days)
+    thirty_days_ago = today - datetime.timedelta(days=30)
+    paid_statuses = [
+        Order.Status.PAID,
+        Order.Status.PROCESSING,
+        Order.Status.SHIPPED,
+        Order.Status.DELIVERED,
+    ]
+    trailing_orders = Order.objects.filter(
+        status__in=paid_statuses,
+        created_at__date__gte=thirty_days_ago,
+        created_at__date__lt=today,
+    )
+    trailing_subtotal = trailing_orders.aggregate(Sum("subtotal"))["subtotal__sum"] or Decimal("0.00")
+    trailing_discount = trailing_orders.aggregate(Sum("discount_amount"))["discount_amount__sum"] or Decimal("0.00")
+    trailing_refunds = Refund.objects.filter(
+        status=Refund.Status.SUCCEEDED,
+        created_at__date__gte=thirty_days_ago,
+        created_at__date__lt=today,
+    ).aggregate(Sum("amount"))["amount__sum"] or Decimal("0.00")
+
+    net_trailing_sales = max(Decimal("0.00"), trailing_subtotal - trailing_discount - trailing_refunds)
+    daily_sales_velocity = (net_trailing_sales / Decimal("30.0")).quantize(Decimal("0.01"))
+
+    # Scenario Multiplier
+    if scenario_mode == "conservative":
+        velocity_multiplier = Decimal("0.00")
+        refund_reserve_percent = Decimal("0.03")
+    elif scenario_mode == "optimistic":
+        velocity_multiplier = Decimal("1.20")
+        refund_reserve_percent = Decimal("0.00")
+    else:
+        velocity_multiplier = Decimal("1.00")
+        refund_reserve_percent = Decimal("0.00")
+
+    daily_projected_sales = (daily_sales_velocity * velocity_multiplier).quantize(Decimal("0.01"))
+
+    # 3. Confirmed Receivables (Gateway Clearing T+2)
+    two_days_ago = today - datetime.timedelta(days=2)
+    pending_gateway_clearing = Payment.objects.filter(
+        status=Payment.Status.SUCCEEDED,
+        created_at__date__gte=two_days_ago,
+        created_at__date__lte=today,
+    ).aggregate(Sum("amount"))["amount__sum"] or Decimal("0.00")
+
+    # Group future scheduled cash movements by date
+    scheduled_confirmed_inflows: dict[datetime.date, Decimal] = {}
+    scheduled_projected_inflows: dict[datetime.date, Decimal] = {}
+    scheduled_ap_outflows: dict[datetime.date, Decimal] = {}
+    scheduled_opex_outflows: dict[datetime.date, Decimal] = {}
+    scheduled_po_outflows: dict[datetime.date, Decimal] = {}
+    scheduled_recurring_outflows: dict[datetime.date, Decimal] = {}
+    scheduled_custom_inflows: dict[datetime.date, Decimal] = {}
+    scheduled_custom_outflows: dict[datetime.date, Decimal] = {}
+
+    # Schedule pending gateway clearing on Day 2
+    clearing_target_date = today + datetime.timedelta(days=2)
+    if pending_gateway_clearing > Decimal("0.00"):
+        scheduled_confirmed_inflows[clearing_target_date] = scheduled_confirmed_inflows.get(clearing_target_date, Decimal("0.00")) + pending_gateway_clearing
+
+    # 4. Committed Accounts Payable (Supplier Invoices)
+    open_invoices = SupplierInvoice.objects.filter(
+        currency=currency,
+        status__in=[SupplierInvoiceStatus.APPROVED, SupplierInvoiceStatus.PARTIALLY_PAID],
+    )
+    for inv in open_invoices:
+        bal = inv.outstanding_balance
+        if bal <= Decimal("0.00"):
+            continue
+        # Map overdue invoices to today (immediate obligation)
+        sched_date = today if inv.due_date <= today else inv.due_date
+        if sched_date <= today + datetime.timedelta(days=horizon_days):
+            scheduled_ap_outflows[sched_date] = scheduled_ap_outflows.get(sched_date, Decimal("0.00")) + bal
+
+    # 5. Committed Operating Expenses (Approved OpEx)
+    open_expenses = OperatingExpense.objects.filter(
+        currency=currency,
+        status=ExpenseStatus.APPROVED,
+    )
+    for exp in open_expenses:
+        sched_date = today if exp.expense_date <= today else exp.expense_date
+        if sched_date <= today + datetime.timedelta(days=horizon_days):
+            scheduled_opex_outflows[sched_date] = scheduled_opex_outflows.get(sched_date, Decimal("0.00")) + exp.total_amount
+
+    # 6. Purchase Order Commitments (Uninvoiced Lines)
+    open_pos = PurchaseOrder.objects.filter(
+        currency=currency,
+        status__in=[PurchaseOrderStatus.APPROVED, PurchaseOrderStatus.ORDERED],
+    ).prefetch_related("invoices")
+    for po in open_pos:
+        # Deduplicate: exclude portions already invoiced
+        total_invoiced = sum((
+            inv.total_amount for inv in po.invoices.exclude(status=SupplierInvoiceStatus.VOIDED)
+        ), Decimal("0.00"))
+        uninvoiced_commitment = max(Decimal("0.00"), po.total_cost - total_invoiced)
+        if uninvoiced_commitment <= Decimal("0.00"):
+            continue
+
+        delivery_date = po.expected_delivery_date
+        if not delivery_date:
+            lead_days = po.supplier.lead_time_days if po.supplier and po.supplier.lead_time_days else 14
+            delivery_date = po.created_at.date() + datetime.timedelta(days=lead_days)
+
+        sched_date = today if delivery_date <= today else delivery_date
+        if sched_date <= today + datetime.timedelta(days=horizon_days):
+            scheduled_po_outflows[sched_date] = scheduled_po_outflows.get(sched_date, Decimal("0.00")) + uninvoiced_commitment
+
+    # 7. Recurring Operating Expenses
+    recurring_expenses = OperatingExpense.objects.filter(
+        currency=currency,
+        is_recurring=True,
+        status__in=[ExpenseStatus.APPROVED, ExpenseStatus.PAID],
+    )
+    for rec in recurring_expenses:
+        # Project on monthly cadence for upcoming months in horizon
+        rec_day = rec.expense_date.day
+        for month_offset in range(1, (horizon_days // 30) + 2):
+            try:
+                target_year = today.year + ((today.month - 1 + month_offset) // 12)
+                target_month = ((today.month - 1 + month_offset) % 12) + 1
+                rec_date = datetime.date(target_year, target_month, min(rec_day, 28))
+            except ValueError:
+                continue
+
+            if today < rec_date <= today + datetime.timedelta(days=horizon_days):
+                scheduled_recurring_outflows[rec_date] = scheduled_recurring_outflows.get(rec_date, Decimal("0.00")) + rec.total_amount
+
+    # 8. Apply What-If Scenario Adjustments (if scenario active)
+    scenario_adjustments_applied = []
+    if scenario and scenario.is_active:
+        for adj in scenario.adjustments.all():
+            scenario_adjustments_applied.append(adj)
+            a_type = adj.adjustment_type
+            a_date = adj.adjusted_date
+            a_amount = adj.amount
+            o_date = adj.original_date
+
+            if a_type == ScenarioAdjustment.AdjustmentType.DELAY_AP_PAYMENT:
+                # Remove from original date, add to adjusted date
+                if o_date and o_date in scheduled_ap_outflows:
+                    scheduled_ap_outflows[o_date] = max(Decimal("0.00"), scheduled_ap_outflows[o_date] - a_amount)
+                scheduled_ap_outflows[a_date] = scheduled_ap_outflows.get(a_date, Decimal("0.00")) + a_amount
+
+            elif a_type == ScenarioAdjustment.AdjustmentType.DELAY_INFLOW:
+                if o_date and o_date in scheduled_confirmed_inflows:
+                    scheduled_confirmed_inflows[o_date] = max(Decimal("0.00"), scheduled_confirmed_inflows[o_date] - a_amount)
+                scheduled_confirmed_inflows[a_date] = scheduled_confirmed_inflows.get(a_date, Decimal("0.00")) + a_amount
+
+            elif a_type == ScenarioAdjustment.AdjustmentType.ADD_PO_COMMITMENT:
+                scheduled_po_outflows[a_date] = scheduled_po_outflows.get(a_date, Decimal("0.00")) + a_amount
+
+            elif a_type == ScenarioAdjustment.AdjustmentType.ADJUST_EXPENSE:
+                if o_date and o_date in scheduled_opex_outflows:
+                    scheduled_opex_outflows[o_date] = max(Decimal("0.00"), scheduled_opex_outflows[o_date] - a_amount)
+                scheduled_opex_outflows[a_date] = scheduled_opex_outflows.get(a_date, Decimal("0.00")) + a_amount
+
+            elif a_type in (ScenarioAdjustment.AdjustmentType.CAPITAL_INJECTION, ScenarioAdjustment.AdjustmentType.CUSTOM_INFLOW):
+                scheduled_custom_inflows[a_date] = scheduled_custom_inflows.get(a_date, Decimal("0.00")) + a_amount
+
+            elif a_type == ScenarioAdjustment.AdjustmentType.CUSTOM_OUTFLOW:
+                scheduled_custom_outflows[a_date] = scheduled_custom_outflows.get(a_date, Decimal("0.00")) + a_amount
+
+    # 9. Build Daily Timeline Projection
+    timeline = []
+    current_balance = opening_cash
+    lowest_balance = current_balance
+    lowest_date = today
+    days_below_threshold = 0
+    first_breach_date = None
+
+    total_confirmed_inflows = Decimal("0.00")
+    total_projected_inflows = Decimal("0.00")
+    total_ap_outflows = Decimal("0.00")
+    total_opex_outflows = Decimal("0.00")
+    total_po_outflows = Decimal("0.00")
+    total_recurring_outflows = Decimal("0.00")
+    total_refund_reserves = Decimal("0.00")
+    total_custom_inflows = Decimal("0.00")
+    total_custom_outflows = Decimal("0.00")
+
+    for day_index in range(horizon_days):
+        day_date = today + datetime.timedelta(days=day_index)
+        opening_day_balance = current_balance
+
+        # Daily inflows
+        d_confirmed = scheduled_confirmed_inflows.get(day_date, Decimal("0.00"))
+        d_projected = daily_projected_sales
+        d_custom_inflow = scheduled_custom_inflows.get(day_date, Decimal("0.00"))
+        d_total_inflows = d_confirmed + d_projected + d_custom_inflow
+
+        # Daily outflows
+        d_ap = scheduled_ap_outflows.get(day_date, Decimal("0.00"))
+        d_opex = scheduled_opex_outflows.get(day_date, Decimal("0.00"))
+        d_po = scheduled_po_outflows.get(day_date, Decimal("0.00"))
+        d_rec = scheduled_recurring_outflows.get(day_date, Decimal("0.00"))
+        d_custom_outflow = scheduled_custom_outflows.get(day_date, Decimal("0.00"))
+        d_refund_reserve = (d_projected * refund_reserve_percent).quantize(Decimal("0.01"))
+        d_total_outflows = d_ap + d_opex + d_po + d_rec + d_custom_outflow + d_refund_reserve
+
+        # Net movement & closing
+        net_movement = d_total_inflows - d_total_outflows
+        closing_day_balance = opening_day_balance + net_movement
+        current_balance = closing_day_balance
+
+        # Accumulators
+        total_confirmed_inflows += d_confirmed
+        total_projected_inflows += d_projected
+        total_custom_inflows += d_custom_inflow
+        total_ap_outflows += d_ap
+        total_opex_outflows += d_opex
+        total_po_outflows += d_po
+        total_recurring_outflows += d_rec
+        total_custom_outflows += d_custom_outflow
+        total_refund_reserves += d_refund_reserve
+
+        # Cushion and deficit tracking
+        if closing_day_balance < lowest_balance:
+            lowest_balance = closing_day_balance
+            lowest_date = day_date
+
+        is_below_threshold = closing_day_balance < min_threshold
+        is_deficit = closing_day_balance < Decimal("0.00")
+
+        if is_below_threshold:
+            days_below_threshold += 1
+            if first_breach_date is None:
+                first_breach_date = day_date
+
+        timeline.append({
+            "day_index": day_index + 1,
+            "date": day_date,
+            "opening_balance": opening_day_balance,
+            "confirmed_inflows": d_confirmed,
+            "projected_inflows": d_projected,
+            "custom_inflows": d_custom_inflow,
+            "total_inflows": d_total_inflows,
+            "ap_outflows": d_ap,
+            "opex_outflows": d_opex,
+            "po_outflows": d_po,
+            "recurring_outflows": d_rec,
+            "custom_outflows": d_custom_outflow,
+            "refund_reserves": d_refund_reserve,
+            "total_outflows": d_total_outflows,
+            "net_movement": net_movement,
+            "closing_balance": closing_day_balance,
+            "is_below_threshold": is_below_threshold,
+            "is_deficit": is_deficit,
+        })
+
+    total_inflows = total_confirmed_inflows + total_projected_inflows + total_custom_inflows
+    total_outflows = total_ap_outflows + total_opex_outflows + total_po_outflows + total_recurring_outflows + total_custom_outflows + total_refund_reserves
+    net_projected_movement = total_inflows - total_outflows
+    closing_projected_balance = current_balance
+
+    return {
+        "as_of_date": today,
+        "currency": currency,
+        "horizon_days": horizon_days,
+        "scenario_mode": scenario_mode,
+        "scenario": scenario,
+        "scenario_adjustments_applied": scenario_adjustments_applied,
+        # Balances
+        "opening_cash": opening_cash,
+        "closing_projected_balance": closing_projected_balance,
+        "net_projected_movement": net_projected_movement,
+        "lowest_projected_balance": lowest_balance,
+        "trough_date": lowest_date,
+        "minimum_threshold": min_threshold,
+        "days_below_threshold": days_below_threshold,
+        "first_breach_date": first_breach_date,
+        # Inflows summary
+        "daily_sales_velocity": daily_sales_velocity,
+        "velocity_multiplier": velocity_multiplier,
+        "total_inflows": total_inflows,
+        "total_confirmed_inflows": total_confirmed_inflows,
+        "total_projected_inflows": total_projected_inflows,
+        "total_custom_inflows": total_custom_inflows,
+        # Outflows summary
+        "total_outflows": total_outflows,
+        "total_ap_outflows": total_ap_outflows,
+        "total_opex_outflows": total_opex_outflows,
+        "total_po_outflows": total_po_outflows,
+        "total_recurring_outflows": total_recurring_outflows,
+        "total_custom_outflows": total_custom_outflows,
+        "total_refund_reserves": total_refund_reserves,
+        # Timeline
+        "timeline": timeline,
+    }
+
+
+def get_working_capital_metrics(
+    as_of_date: Any = None,
+    currency: str = "USD",
+) -> dict[str, Any]:
+    """Calculate working capital, liquidity ratios, and cash runway indicators."""
+    today = as_of_date or timezone.localdate()
+
+    # 1. Cash & Equivalents
+    accounts = list(CashAccount.objects.filter(currency=currency, is_active=True))
+    cash_and_equivalents = sum((acc.current_balance for acc in accounts), Decimal("0.00"))
+
+    # 2. Outstanding & Overdue Supplier Accounts Payable
+    open_invoices = SupplierInvoice.objects.filter(
+        currency=currency,
+        status__in=[SupplierInvoiceStatus.APPROVED, SupplierInvoiceStatus.PARTIALLY_PAID],
+    )
+    outstanding_ap = Decimal("0.00")
+    overdue_ap = Decimal("0.00")
+    near_term_ap_30d = Decimal("0.00")
+    thirty_days_later = today + datetime.timedelta(days=30)
+
+    for inv in open_invoices:
+        bal = inv.outstanding_balance
+        if bal > Decimal("0.00"):
+            outstanding_ap += bal
+            if inv.due_date < today:
+                overdue_ap += bal
+            elif inv.due_date <= thirty_days_later:
+                near_term_ap_30d += bal
+
+    # 3. Uninvoiced Purchase Order Commitments
+    open_pos = PurchaseOrder.objects.filter(
+        currency=currency,
+        status__in=[PurchaseOrderStatus.APPROVED, PurchaseOrderStatus.ORDERED],
+    ).prefetch_related("invoices")
+    open_po_commitments = Decimal("0.00")
+    for po in open_pos:
+        total_invoiced = sum((
+            inv.total_amount for inv in po.invoices.exclude(status=SupplierInvoiceStatus.VOIDED)
+        ), Decimal("0.00"))
+        uninv = max(Decimal("0.00"), po.total_cost - total_invoiced)
+        open_po_commitments += uninv
+
+    # 4. Approved Operating Liabilities
+    approved_expenses = OperatingExpense.objects.filter(
+        currency=currency,
+        status=ExpenseStatus.APPROVED,
+    )
+    operating_liabilities = sum((e.total_amount for e in approved_expenses), Decimal("0.00"))
+    near_term_opex_30d = sum((
+        e.total_amount for e in approved_expenses if e.expense_date <= thirty_days_later
+    ), Decimal("0.00"))
+
+    # 5. Near-Term Obligations (Next 30 Days)
+    near_term_obligations = overdue_ap + near_term_ap_30d + near_term_opex_30d
+
+    # 6. Near-Term Receivables (Gateway Clearing + 30d Baseline Collections)
+    pending_gateway_clearing = Payment.objects.filter(
+        status=Payment.Status.SUCCEEDED,
+        created_at__date__gte=today - datetime.timedelta(days=2),
+        created_at__date__lte=today,
+    ).aggregate(Sum("amount"))["amount__sum"] or Decimal("0.00")
+
+    near_term_receivables = pending_gateway_clearing
+
+    # 7. Net Working Liquidity & Coverage Ratios
+    liquid_assets = cash_and_equivalents + near_term_receivables
+    net_working_liquidity = liquid_assets - near_term_obligations
+
+    if near_term_obligations > Decimal("0.00"):
+        liquidity_coverage_ratio = (liquid_assets / near_term_obligations).quantize(Decimal("0.01"))
+    else:
+        liquidity_coverage_ratio = Decimal("999.00") if liquid_assets > Decimal("0.00") else Decimal("0.00")
+
+    # 8. Cash Runway (Days)
+    # Average daily cash burn based on last 30 days of actual disbursements
+    thirty_days_ago = today - datetime.timedelta(days=30)
+    supplier_payments_30d = SupplierPayment.objects.filter(
+        status=SupplierPaymentStatus.COMPLETED,
+        payment_date__gte=thirty_days_ago,
+        payment_date__lte=today,
+    ).aggregate(Sum("amount"))["amount__sum"] or Decimal("0.00")
+
+    opex_paid_30d = OperatingExpense.objects.filter(
+        status=ExpenseStatus.PAID,
+        payment_date__gte=thirty_days_ago,
+        payment_date__lte=today,
+    ).aggregate(Sum("total_amount"))["total_amount__sum"] or Decimal("0.00")
+
+    refunds_30d = Refund.objects.filter(
+        status=Refund.Status.SUCCEEDED,
+        created_at__date__gte=thirty_days_ago,
+        created_at__date__lte=today,
+    ).aggregate(Sum("amount"))["amount__sum"] or Decimal("0.00")
+
+    customer_cash_30d = Payment.objects.filter(
+        status=Payment.Status.SUCCEEDED,
+        created_at__date__gte=thirty_days_ago,
+        created_at__date__lte=today,
+    ).aggregate(Sum("amount"))["amount__sum"] or Decimal("0.00")
+
+    total_disbursements_30d = supplier_payments_30d + opex_paid_30d + refunds_30d
+    net_cash_burn_30d = total_disbursements_30d - customer_cash_30d
+    daily_burn_rate = (net_cash_burn_30d / Decimal("30.0")).quantize(Decimal("0.01"))
+
+    if daily_burn_rate > Decimal("0.00"):
+        cash_runway_days = int((cash_and_equivalents / daily_burn_rate).quantize(Decimal("1")))
+        runway_status = f"{cash_runway_days} Days"
+    else:
+        cash_runway_days = 999
+        runway_status = "Positive Net Cash Flow"
+
+    return {
+        "as_of_date": today,
+        "currency": currency,
+        "cash_and_equivalents": cash_and_equivalents,
+        "accounts": accounts,
+        "outstanding_ap": outstanding_ap,
+        "overdue_ap": overdue_ap,
+        "near_term_ap_30d": near_term_ap_30d,
+        "open_po_commitments": open_po_commitments,
+        "operating_liabilities": operating_liabilities,
+        "near_term_opex_30d": near_term_opex_30d,
+        "near_term_obligations": near_term_obligations,
+        "near_term_receivables": near_term_receivables,
+        "liquid_assets": liquid_assets,
+        "net_working_liquidity": net_working_liquidity,
+        "liquidity_coverage_ratio": liquidity_coverage_ratio,
+        "cash_runway_days": cash_runway_days,
+        "runway_status": runway_status,
+        "daily_burn_rate": daily_burn_rate,
+        "total_disbursements_30d": total_disbursements_30d,
+        "customer_cash_30d": customer_cash_30d,
+    }
+
+
+def get_cash_flow_alerts(
+    as_of_date: Any = None,
+    currency: str = "USD",
+    forecast_data: dict[str, Any] | None = None,
+) -> list[dict[str, Any]]:
+    """Evaluate financial risks and return prioritized actionable warnings."""
+    today = as_of_date or timezone.localdate()
+    forecast = forecast_data or generate_cash_flow_forecast(as_of_date=today, currency=currency, horizon_days=30)
+    alerts = []
+
+    # 1. Critical Deficit Alert
+    if forecast["lowest_projected_balance"] < Decimal("0.00"):
+        alerts.append({
+            "severity": "critical",
+            "title": _("Cash Deficit Projected"),
+            "description": _(
+                f"Projected cash balance drops into negative ({currency} {forecast['lowest_projected_balance']}) "
+                f"on {forecast['trough_date']}. Immediate liquidity management required."
+            ),
+            "affected_date": forecast["trough_date"],
+            "suggested_action": _("Delay discretionary AP disbursements, pause non-urgent POs, or execute capital injection."),
+        })
+
+    # 2. Warning: Safety Cushion Breach
+    elif forecast["days_below_threshold"] > 0:
+        alerts.append({
+            "severity": "warning",
+            "title": _("Safety Liquidity Cushion Breach"),
+            "description": _(
+                f"Cash balance drops below safety threshold of {currency} {forecast['minimum_threshold']} "
+                f"on {forecast['first_breach_date']} (trough {currency} {forecast['lowest_projected_balance']})."
+            ),
+            "affected_date": forecast["first_breach_date"],
+            "suggested_action": _("Review upcoming accounts payable due dates and optimize vendor payment terms."),
+        })
+
+    # 3. Warning: Overdue Liabilities
+    overdue_invoices = SupplierInvoice.objects.filter(
+        currency=currency,
+        status__in=[SupplierInvoiceStatus.APPROVED, SupplierInvoiceStatus.PARTIALLY_PAID],
+        due_date__lt=today,
+    )
+    overdue_sum = sum((inv.outstanding_balance for inv in overdue_invoices), Decimal("0.00"))
+    if overdue_sum > Decimal("0.00"):
+        alerts.append({
+            "severity": "warning",
+            "title": _("Overdue Supplier Payables"),
+            "description": _(
+                f"{currency} {overdue_sum} in approved supplier bills are past due across {overdue_invoices.count()} invoices."
+            ),
+            "affected_date": today,
+            "suggested_action": _("Prioritize critical vendor disbursements to prevent inventory delivery holds."),
+        })
+
+    # 4. Info: Outflow Spike Concentration
+    opening_cash = forecast["opening_cash"]
+    if opening_cash > Decimal("0.00"):
+        for day in forecast["timeline"]:
+            if day["total_outflows"] > (opening_cash * Decimal("0.50")):
+                alerts.append({
+                    "severity": "info",
+                    "title": _("High Outflow Concentration"),
+                    "description": _(
+                        f"Large scheduled outflow of {currency} {day['total_outflows']} on {day['date']} "
+                        f"exceeds 50% of current cash position."
+                    ),
+                    "affected_date": day["date"],
+                    "suggested_action": _("Stagger supplier disbursements across payment windows."),
+                })
+                break
+
+    # 5. Info: Stale Bank Reconciliation
+    accounts = CashAccount.objects.filter(currency=currency, is_active=True)
+    thirty_days_ago_dt = timezone.now() - datetime.timedelta(days=30)
+    stale_accounts = [
+        acc for acc in accounts
+        if acc.last_reconciled_at is None or acc.last_reconciled_at < thirty_days_ago_dt
+    ]
+    if stale_accounts:
+        names = ", ".join(acc.name for acc in stale_accounts)
+        alerts.append({
+            "severity": "info",
+            "title": _("Unreconciled Cash Accounts"),
+            "description": _(f"Account balances for [{names}] have not been reconciled in over 30 days."),
+            "affected_date": today,
+            "suggested_action": _("Perform monthly bank statement reconciliation to ensure balance accuracy."),
+        })
+
+    return alerts
+
+
+def get_cash_flow_dashboard_metrics(
+    currency: str = "USD",
+    horizon_days: int = 30,
+    scenario_id: int | None = None,
+    scenario_mode: str = "expected",
+) -> dict[str, Any]:
+    """Compile comprehensive executive dataset for Cash Flow & Working Capital Dashboard."""
+    today = timezone.localdate()
+
+    scenario = None
+    if scenario_id:
+        scenario = CashForecastScenario.objects.filter(pk=scenario_id, is_active=True).first()
+
+    forecast = generate_cash_flow_forecast(
+        as_of_date=today,
+        currency=currency,
+        horizon_days=horizon_days,
+        scenario=scenario,
+        scenario_mode=scenario_mode,
+    )
+    working_capital = get_working_capital_metrics(as_of_date=today, currency=currency)
+    alerts = get_cash_flow_alerts(as_of_date=today, currency=currency, forecast_data=forecast)
+
+    # Available scenarios
+    scenarios = CashForecastScenario.objects.filter(is_active=True).order_by("-created_at")
+
+    # Accounts breakdown
+    accounts = CashAccount.objects.filter(currency=currency).order_by("account_type", "name")
+
+    # Available currencies
+    currencies = list(CashAccount.objects.values_list("currency", flat=True).distinct()) or ["USD"]
+
+    return {
+        "as_of_date": today,
+        "currency": currency,
+        "currencies": currencies,
+        "horizon_days": horizon_days,
+        "scenario_mode": scenario_mode,
+        "selected_scenario": scenario,
+        "scenarios": scenarios,
+        "forecast": forecast,
+        "working_capital": working_capital,
+        "alerts": alerts,
+        "accounts": accounts,
+    }
 

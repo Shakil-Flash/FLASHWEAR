@@ -1,0 +1,106 @@
+{% extends "backoffice/base.html" %}
+
+{% block title %}{{ title }}{% endblock title %}
+{% block breadcrumb %}
+    <a href="{% url 'backoffice:cash_accounts' %}" class="hover:underline">Cash Accounts</a> / {{ title }}
+{% endblock breadcrumb %}
+
+{% block content %}
+    <div class="mx-auto max-w-2xl">
+        <div class="mb-6">
+            <h1 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-3xl">
+                {{ title }}
+            </h1>
+            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                Configure treasury account parameters, institution links, and minimum safety reserves.
+            </p>
+        </div>
+
+        <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+            <form method="post" class="space-y-5">
+                {% csrf_token %}
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Account Name *</label>
+                    <input type="text" name="name" required value="{{ account.name|default:'' }}" placeholder="e.g. Primary Operating Checking" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 shadow-xs focus:border-indigo-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white">
+                </div>
+
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Account Type *</label>
+                        <select name="account_type" required class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 shadow-xs focus:border-indigo-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white">
+                            {% for code, label in account_types %}
+                            <option value="{{ code }}" {% if account.account_type == code %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    {% if not account %}
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Currency *</label>
+                        <input type="text" name="currency" required value="USD" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm uppercase text-slate-900 shadow-xs focus:border-indigo-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white">
+                    </div>
+                    {% else %}
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Currency</label>
+                        <input type="text" readonly value="{{ account.currency }}" class="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-800">
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Institution Name</label>
+                        <input type="text" name="institution_name" value="{{ account.institution_name|default:'' }}" placeholder="e.g. JPMorgan Chase, Silicon Valley Bank" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 shadow-xs focus:border-indigo-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Account Number (Last 4 Digits)</label>
+                        <input type="text" maxlength="4" name="account_number_last4" value="{{ account.account_number_last4|default:'' }}" placeholder="4821" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-mono text-slate-900 shadow-xs focus:border-indigo-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    {% if not account %}
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Opening Balance *</label>
+                        <input type="number" step="0.01" name="opening_balance" required value="0.00" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-mono text-slate-900 shadow-xs focus:border-indigo-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white">
+                    </div>
+                    {% else %}
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Current Balance</label>
+                        <input type="text" readonly value="{{ account.currency }} {{ account.current_balance|floatformat:2 }}" class="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-mono font-bold text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-white">
+                    </div>
+                    {% endif %}
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Minimum Safety Cushion Threshold *</label>
+                        <input type="number" step="0.01" name="minimum_threshold" required value="{{ account.minimum_threshold|default:'5000.00' }}" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-mono text-slate-900 shadow-xs focus:border-indigo-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white">
+                        <span class="mt-1 block text-[11px] text-slate-500">Alert triggers when forecast drops below this balance.</span>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Description / Internal Notes</label>
+                    <textarea name="description" rows="3" placeholder="Primary operating checking account used for vendor disbursements and payroll." class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 shadow-xs focus:border-indigo-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white">{{ account.description|default:'' }}</textarea>
+                </div>
+
+                {% if account %}
+                <div class="flex items-center gap-2 pt-2">
+                    <input type="checkbox" id="is_active" name="is_active" {% if account.is_active %}checked{% endif %} class="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
+                    <label for="is_active" class="text-xs font-medium text-slate-700 dark:text-slate-300">Account is active and included in liquidity forecasts</label>
+                </div>
+                {% endif %}
+
+                <div class="flex items-center justify-end gap-3 border-t border-slate-100 pt-5 dark:border-slate-800">
+                    <a href="{% url 'backoffice:cash_accounts' %}" class="rounded-lg border border-slate-300 px-4 py-2 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
+                        Cancel
+                    </a>
+                    <button type="submit" class="rounded-lg bg-indigo-600 px-5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-indigo-500">
+                        {% if account %}Save Changes{% else %}Create Cash Account{% endif %}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+{% endblock content %}

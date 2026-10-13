@@ -1,0 +1,198 @@
+{% extends "backoffice/base.html" %}
+
+{% block title %}Cash &amp; Bank Accounts{% endblock title %}
+{% block breadcrumb %}Cash Accounts{% endblock breadcrumb %}
+
+{% block content %}
+    {# ---- Page Header -------------------------------------------------------------------------- #}
+    <header class="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-3xl">
+                Cash &amp; Bank Accounts
+            </h1>
+            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                Operating bank accounts, liquidity safety cushions, and audited reconciliation history.
+            </p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2.5">
+            <a href="{% url 'backoffice:cash_flow_dashboard' %}?currency={{ currency }}" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-xs transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700">
+                &larr; Cash Flow Forecast
+            </a>
+            {% if can_manage %}
+            <a href="{% url 'backoffice:cash_account_create' %}" class="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3.5 py-2 text-xs font-semibold text-white shadow-xs transition hover:bg-indigo-500">
+                + New Cash Account
+            </a>
+            {% endif %}
+        </div>
+    </header>
+
+    {# ---- Sub-Navigation Tabs ------------------------------------------------------------------ #}
+    <nav class="mb-6 flex flex-wrap space-x-2 border-b border-slate-200 dark:border-slate-800">
+        <a href="{% url 'backoffice:procurement_dashboard' %}" class="border-b-2 border-transparent px-4 py-2.5 text-sm font-medium text-slate-500 hover:border-slate-300 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300">
+            Purchasing Overview
+        </a>
+        <a href="{% url 'backoffice:purchase_orders' %}" class="border-b-2 border-transparent px-4 py-2.5 text-sm font-medium text-slate-500 hover:border-slate-300 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300">
+            Purchase Orders
+        </a>
+        <a href="{% url 'backoffice:accounts_payable_dashboard' %}" class="border-b-2 border-transparent px-4 py-2.5 text-sm font-medium text-slate-500 hover:border-slate-300 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300">
+            AP &amp; Invoices
+        </a>
+        <a href="{% url 'backoffice:cash_flow_dashboard' %}" class="border-b-2 border-transparent px-4 py-2.5 text-sm font-medium text-slate-500 hover:border-slate-300 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300">
+            Cash Flow &amp; Runway
+        </a>
+        <a href="{% url 'backoffice:cash_accounts' %}" class="border-b-2 border-indigo-600 px-4 py-2.5 text-sm font-semibold text-indigo-600 dark:border-indigo-400 dark:text-indigo-400">
+            Cash Accounts
+        </a>
+        <a href="{% url 'backoffice:forecast_scenarios' %}" class="border-b-2 border-transparent px-4 py-2.5 text-sm font-medium text-slate-500 hover:border-slate-300 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300">
+            Simulation Scenarios
+        </a>
+    </nav>
+
+    {# ---- Summary Cards ------------------------------------------------------------------------ #}
+    <div class="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+            <span class="text-xs font-medium text-slate-500 dark:text-slate-400">Total Active Cash Balance</span>
+            <div class="mt-2 text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+                {{ currency }} {{ total_balance|floatformat:2 }}
+            </div>
+            <span class="mt-1 block text-xs text-slate-400">Current available liquid reserves</span>
+        </div>
+        <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+            <span class="text-xs font-medium text-slate-500 dark:text-slate-400">Accounts Configured</span>
+            <div class="mt-2 text-2xl font-bold tracking-tight text-indigo-600 dark:text-indigo-400">
+                {{ accounts|length }}
+            </div>
+            <span class="mt-1 block text-xs text-slate-400">Checking, savings, and clearing accounts</span>
+        </div>
+        <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+            <span class="text-xs font-medium text-slate-500 dark:text-slate-400">Active Currency</span>
+            <div class="mt-2 text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+                {{ currency }}
+            </div>
+            <span class="mt-1 block text-xs text-slate-400">Filter currency using dropdown</span>
+        </div>
+    </div>
+
+    {# ---- Accounts Directory Table ------------------------------------------------------------- #}
+    <div class="rounded-xl border border-slate-200 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+                <thead class="bg-slate-50 text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:bg-slate-800/50 dark:text-slate-400">
+                    <tr>
+                        <th class="px-6 py-3.5">Account Name</th>
+                        <th class="px-6 py-3.5">Type</th>
+                        <th class="px-6 py-3.5">Institution &amp; Acct #</th>
+                        <th class="px-6 py-3.5 text-right">Current Balance</th>
+                        <th class="px-6 py-3.5 text-right">Min Threshold</th>
+                        <th class="px-6 py-3.5 text-center">Status</th>
+                        <th class="px-6 py-3.5">Last Reconciled</th>
+                        <th class="px-6 py-3.5 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                    {% for acc in accounts %}
+                    <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
+                        <td class="px-6 py-4">
+                            <span class="font-bold text-slate-900 dark:text-white">{{ acc.name }}</span>
+                            {% if acc.description %}
+                            <span class="block text-[11px] text-slate-500">{{ acc.description|truncatewords:8 }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4">
+                            <span class="rounded bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                                {{ acc.get_account_type_display }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 text-slate-700 dark:text-slate-300">
+                            {{ acc.institution_name|default:"—" }}
+                            {% if acc.account_number_last4 %}
+                            <span class="font-mono text-slate-400">••••{{ acc.account_number_last4 }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 text-right font-mono font-bold text-slate-900 dark:text-white">
+                            {{ acc.currency }} {{ acc.current_balance|floatformat:2 }}
+                        </td>
+                        <td class="px-6 py-4 text-right font-mono text-slate-500 dark:text-slate-400">
+                            {{ acc.currency }} {{ acc.minimum_threshold|floatformat:2 }}
+                        </td>
+                        <td class="px-6 py-4 text-center">
+                            {% if not acc.is_active %}
+                            <span class="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-400">INACTIVE</span>
+                            {% elif acc.current_balance < acc.minimum_threshold %}
+                            <span class="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">LOW CUSHION</span>
+                            {% else %}
+                            <span class="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">HEALTHY</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 text-slate-600 dark:text-slate-400">
+                            {% if acc.last_reconciled_at %}
+                            {{ acc.last_reconciled_at|date:"M d, Y" }}
+                            {% else %}
+                            <span class="text-amber-600 dark:text-amber-400">Never</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 text-right">
+                            {% if can_manage %}
+                            <div class="flex items-center justify-end gap-2">
+                                <a href="{% url 'backoffice:cash_account_edit' acc.pk %}" class="rounded px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800">
+                                    Edit
+                                </a>
+                                {# Inline Balance Adjustment Form Drawer #}
+                                <details class="relative inline-block text-left">
+                                    <summary class="cursor-pointer rounded bg-indigo-50 px-2 py-1 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-950/50 dark:text-indigo-300">
+                                        Adjust / Reconcile
+                                    </summary>
+                                    <div class="absolute right-0 z-20 mt-2 w-72 rounded-xl border border-slate-200 bg-white p-4 shadow-xl dark:border-slate-700 dark:bg-slate-800">
+                                        <form method="post" action="{% url 'backoffice:cash_account_adjust' acc.pk %}">
+                                            {% csrf_token %}
+                                            <h4 class="text-xs font-bold text-slate-900 dark:text-white">Record Balance Adjustment</h4>
+                                            <p class="mt-0.5 text-[11px] text-slate-500">Audited change for {{ acc.name }}</p>
+
+                                            <div class="mt-3 space-y-2.5">
+                                                <div>
+                                                    <label class="block text-[10px] font-semibold text-slate-600 dark:text-slate-400">Adjustment Delta (+ or -)</label>
+                                                    <input type="number" step="0.01" name="amount" required placeholder="+500.00 or -200.00" class="mt-0.5 w-full rounded-md border border-slate-300 px-2 py-1 text-xs font-mono dark:border-slate-600 dark:bg-slate-700">
+                                                </div>
+                                                <div>
+                                                    <label class="block text-[10px] font-semibold text-slate-600 dark:text-slate-400">Type</label>
+                                                    <select name="adjustment_type" class="mt-0.5 w-full rounded-md border border-slate-300 px-2 py-1 text-xs dark:border-slate-600 dark:bg-slate-700">
+                                                        <option value="reconciliation">Bank Statement Reconciliation</option>
+                                                        <option value="interest">Earned Interest / Gain</option>
+                                                        <option value="fee">Bank Fees / Charges</option>
+                                                        <option value="transfer">Account Transfer</option>
+                                                        <option value="correction">Manual Correction</option>
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label class="block text-[10px] font-semibold text-slate-600 dark:text-slate-400">Documented Reason *</label>
+                                                    <input type="text" name="reason" required placeholder="Monthly statement reconciliation" class="mt-0.5 w-full rounded-md border border-slate-300 px-2 py-1 text-xs dark:border-slate-600 dark:bg-slate-700">
+                                                </div>
+                                                <div>
+                                                    <label class="block text-[10px] font-semibold text-slate-600 dark:text-slate-400">Reference / Doc #</label>
+                                                    <input type="text" name="reference" placeholder="Stmt-2026-10" class="mt-0.5 w-full rounded-md border border-slate-300 px-2 py-1 text-xs dark:border-slate-600 dark:bg-slate-700">
+                                                </div>
+                                                <button type="submit" class="mt-2 w-full rounded-md bg-indigo-600 py-1.5 text-xs font-semibold text-white hover:bg-indigo-500">
+                                                    Post Adjustment
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </details>
+                            </div>
+                            {% else %}
+                            <span class="text-slate-400">—</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="px-6 py-12 text-center text-slate-500">
+                            No cash accounts registered. Click "+ New Cash Account" to add bank or treasury accounts.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% endblock content %}

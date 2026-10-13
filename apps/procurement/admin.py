@@ -6,6 +6,9 @@ from django.contrib import admin
 from django.utils.translation import gettext_lazy as _
 
 from apps.procurement.models import (
+    CashAccount,
+    CashAccountAdjustment,
+    CashForecastScenario,
     CreditNoteApplication,
     ExpenseBudget,
     ExpenseCategory,
@@ -15,6 +18,7 @@ from apps.procurement.models import (
     PurchaseOrderItem,
     PurchaseOrderReceipt,
     PurchaseOrderReceiptItem,
+    ScenarioAdjustment,
     Supplier,
     SupplierCreditNote,
     SupplierInvoice,
@@ -281,4 +285,66 @@ class OperatingExpenseAdmin(admin.ModelAdmin):
     search_fields = ("expense_number", "title", "payee_name", "supplier__name", "payment_reference")
     autocomplete_fields = ("category", "supplier", "supplier_invoice")
     readonly_fields = ("created_at", "updated_at", "approved_at")
+
+
+class CashAccountAdjustmentInline(admin.TabularInline):
+    model = CashAccountAdjustment
+    extra = 0
+    readonly_fields = ("created_at", "created_by")
+
+
+@admin.register(CashAccount)
+class CashAccountAdmin(admin.ModelAdmin):
+    list_display = (
+        "name",
+        "account_type",
+        "institution_name",
+        "currency",
+        "current_balance",
+        "minimum_threshold",
+        "is_active",
+        "last_reconciled_at",
+    )
+    list_filter = ("account_type", "currency", "is_active")
+    search_fields = ("name", "institution_name", "account_number_last4", "description")
+    readonly_fields = ("created_at", "updated_at")
+    inlines = (CashAccountAdjustmentInline,)
+
+
+@admin.register(CashAccountAdjustment)
+class CashAccountAdjustmentAdmin(admin.ModelAdmin):
+    list_display = (
+        "account",
+        "amount",
+        "adjustment_type",
+        "effective_date",
+        "reference",
+        "created_by",
+        "created_at",
+    )
+    list_filter = ("adjustment_type", "effective_date", "account")
+    search_fields = ("account__name", "reason", "reference")
+    autocomplete_fields = ("account",)
+    readonly_fields = ("created_at",)
+
+
+class ScenarioAdjustmentInline(admin.TabularInline):
+    model = ScenarioAdjustment
+    extra = 0
+    autocomplete_fields = ("target_supplier_invoice", "target_purchase_order", "target_operating_expense")
+
+
+@admin.register(CashForecastScenario)
+class CashForecastScenarioAdmin(admin.ModelAdmin):
+    list_display = (
+        "name",
+        "horizon_days",
+        "is_active",
+        "created_by",
+        "created_at",
+    )
+    list_filter = ("horizon_days", "is_active")
+    search_fields = ("name", "description")
+    readonly_fields = ("created_at", "updated_at")
+    inlines = (ScenarioAdjustmentInline,)
 
