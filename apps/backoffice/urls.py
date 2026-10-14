@@ -189,4 +189,12 @@ urlpatterns = [
     path("audit/", views.audit, name="audit"),
     path("staff/", views.staff, name="staff"),
     path("staff/<int:pk>/update/", views.staff_update, name="staff_update"),
+    # Business Automation & Intelligent Operations (Phase 56)
+    path("automations/", views.automations, name="automations"),
+    path("automations/new/", views.automation_create, name="automation_create"),
+    path("automations/<int:pk>/edit/", views.automation_edit, name="automation_edit"),
+    path("automations/<int:pk>/toggle/", views.automation_toggle, name="automation_toggle"),
+    path("automations/<int:pk>/run/", views.automation_run, name="automation_run"),
+    path("automations/logs/", views.automation_logs, name="automation_logs"),
+    path("automations/logs/<int:pk>/", views.automation_log_detail, name="automation_log_detail"),
 ]

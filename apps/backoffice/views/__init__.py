@@ -12,6 +12,15 @@ Three conventions every screen here follows:
 
 from __future__ import annotations
 
+from apps.automation.views import (
+    execution_logs as automation_logs,
+    log_detail as automation_log_detail,
+    rule_create as automation_create,
+    rule_edit as automation_edit,
+    rule_list as automations,
+    rule_run as automation_run,
+    rule_toggle as automation_toggle,
+)
 from apps.backoffice.views.analytics import analytics, export_analytics_csv
 from apps.backoffice.views.community import (
     loop,
@@ -138,6 +147,13 @@ __all__ = [
     "alerts",
     "analytics",
     "audit",
+    "automation_create",
+    "automation_edit",
+    "automation_log_detail",
+    "automation_logs",
+    "automation_run",
+    "automation_toggle",
+    "automations",
     "cash_account_adjust",
     "cash_account_create",
     "cash_account_edit",

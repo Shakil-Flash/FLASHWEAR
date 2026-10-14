@@ -124,6 +124,8 @@ LOCAL_APPS = [
     # Phase 16: FLASHWEAR Back Office -- /operations/. Reads every domain above and calls
     # their services; its only table is the staff audit log, and nothing imports it back.
     "apps.backoffice",
+    # Phase 56: Business Automation & Intelligent Operations
+    "apps.automation",
 ]
 
 

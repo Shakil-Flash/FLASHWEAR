@@ -737,6 +737,15 @@ def registry() -> dict[str, TypeSpec]:
             email_text="emails/wishlist/back_in_stock.txt",
             priority=Priority.NORMAL,
         ),
+        # -- Operational & Intelligent Automation (Phase 56) -------------------
+        _spec(
+            NotificationType.OPERATIONAL_ALERT,
+            NotificationCategory.ACCOUNT,
+            _IN_APP_ONLY,
+            _("Operational Alert: {{ headline|default:'Notice' }}"),
+            _("{{ message|default:'An automated operational rule requires attention.' }}"),
+            priority=Priority.HIGH,
+        ),
     ]
     return {spec.notification_type: spec for spec in specs}
 

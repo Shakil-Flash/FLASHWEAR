@@ -39,6 +39,8 @@ __all__ = [
     "ADMIN_GROUP",
     "ANALYTICS_VIEW",
     "AUDIT_VIEW",
+    "AUTOMATION_MANAGE",
+    "AUTOMATION_VIEW",
     "BACKOFFICE_GROUPS",
     "CAPABILITIES",
     "CAPABILITY_GROUPS",
@@ -133,6 +135,8 @@ WORKING_CAPITAL_VIEW = "working_capital.view"
 RETENTION_VIEW = "retention.view"
 RETENTION_MANAGE = "retention.manage"
 CAMPAIGNS_MANAGE = "campaigns.manage"
+AUTOMATION_VIEW = "automation.view"
+AUTOMATION_MANAGE = "automation.manage"
 
 CAPABILITIES = (
     OPS_VIEW,
@@ -158,6 +162,8 @@ CAPABILITIES = (
     RETENTION_VIEW,
     RETENTION_MANAGE,
     CAMPAIGNS_MANAGE,
+    AUTOMATION_VIEW,
+    AUTOMATION_MANAGE,
     PAYMENTS_VIEW,
     CATALOG_VIEW,
     CATALOG_MANAGE,
@@ -287,6 +293,8 @@ CAPABILITY_GROUPS: dict[str, frozenset[str]] = {
         }
     ),
     NOTIFICATIONS_MANAGE: frozenset({OPERATOR_GROUP, ADMIN_GROUP}),
+    AUTOMATION_VIEW: frozenset({OPERATOR_GROUP, ORDERS_GROUP, INVENTORY_GROUP, FINANCE_GROUP, ADMIN_GROUP}),
+    AUTOMATION_MANAGE: frozenset({OPERATOR_GROUP, ADMIN_GROUP}),
     AUDIT_VIEW: MANAGER_GROUPS,
     # The funnel screen shows aggregates only, but it describes how the business is
     # trading: the floor and the campaign owner read it, finance reconciles it against
@@ -494,6 +502,7 @@ NAVIGATION = (
     (
         "System",
         (
+            ("automations", "Business Automation", "backoffice:automations", AUTOMATION_VIEW),
             ("notifications", "Notifications", "backoffice:notifications", NOTIFICATIONS_VIEW),
             ("audit", "Audit log", "backoffice:audit", AUDIT_VIEW),
             ("staff", "Staff & Permissions", "backoffice:staff", STAFF_MANAGE),

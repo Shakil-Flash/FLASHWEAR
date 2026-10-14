@@ -1,0 +1,120 @@
+{% extends "backoffice/base.html" %}
+
+{% block title %}
+    Execution History — Business Automation
+{% endblock title %}
+
+{% block breadcrumb %}
+    System › <a href="{% url 'backoffice:automations' %}" class="hover:underline">Business Automation</a> › Execution History
+{% endblock breadcrumb %}
+
+{% block content %}
+    <header class="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">
+                Automation Execution History
+            </h1>
+            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                Audited timeline of rule triggers, evaluated items, cooldown decisions, and error classifications.
+            </p>
+        </div>
+    </header>
+
+    {% with active_tab="logs" %}
+        {% include "backoffice/automation/_subnav.html" %}
+    {% endwith %}
+
+    {# ---- Filter Bar ---- #}
+    <form method="get" class="mb-6 flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+        <div>
+            <label for="filter-rule" class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Rule</label>
+            <select id="filter-rule" name="rule" class="mt-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                <option value="">All Rules</option>
+                {% for r in rules %}
+                    <option value="{{ r.pk }}" {% if selected_rule == r.pk|stringformat:"s" %}selected{% endif %}>{{ r.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div>
+            <label for="filter-status" class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Outcome</label>
+            <select id="filter-status" name="status" class="mt-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                <option value="">All Outcomes</option>
+                <option value="success" {% if selected_status == "success" %}selected{% endif %}>Success</option>
+                <option value="skipped" {% if selected_status == "skipped" %}selected{% endif %}>Skipped</option>
+                <option value="failed" {% if selected_status == "failed" %}selected{% endif %}>Failed</option>
+            </select>
+        </div>
+
+        <div class="pt-4">
+            <button type="submit" class="rounded-lg bg-slate-900 px-3.5 py-1.5 text-xs font-semibold text-white shadow-xs transition hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100">
+                Filter
+            </button>
+            <a href="{% url 'backoffice:automation_logs' %}" class="ml-2 text-xs text-slate-500 hover:underline dark:text-slate-400">Reset</a>
+        </div>
+    </form>
+
+    {# ---- Execution Table ---- #}
+    <div class="rounded-2xl border border-slate-200 bg-white shadow-soft dark:border-slate-800 dark:bg-slate-900">
+        {% if page.object_list %}
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                    <thead>
+                        <tr class="border-b border-slate-200 bg-slate-50/50 text-slate-500 dark:border-slate-800 dark:bg-slate-800/30 dark:text-slate-400">
+                            <th class="p-4 font-semibold">Timestamp</th>
+                            <th class="p-4 font-semibold">Rule Name</th>
+                            <th class="p-4 font-semibold">Trigger Event</th>
+                            <th class="p-4 font-semibold">Outcome</th>
+                            <th class="p-4 font-semibold">Evaluated</th>
+                            <th class="p-4 font-semibold">Affected</th>
+                            <th class="p-4 font-semibold">Duration</th>
+                            <th class="p-4 font-semibold">Summary</th>
+                            <th class="p-4 text-right font-semibold">Details</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 dark:divide-slate-800/60">
+                        {% for log in page.object_list %}
+                            <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/20">
+                                <td class="p-4 text-slate-500 dark:text-slate-400">{{ log.executed_at|date:"Y-m-d H:i:s" }}</td>
+                                <td class="p-4 font-semibold text-slate-900 dark:text-white">{{ log.rule.name }}</td>
+                                <td class="p-4 text-slate-600 dark:text-slate-400">{{ log.trigger_event }}</td>
+                                <td class="p-4">
+                                    {% if log.status == "success" %}
+                                        <span class="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">Success</span>
+                                    {% elif log.status == "skipped" %}
+                                        <span class="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-400">Skipped</span>
+                                    {% else %}
+                                        <span class="inline-flex items-center rounded-full bg-rose-50 px-2.5 py-0.5 text-[10px] font-semibold text-rose-700 dark:bg-rose-900/30 dark:text-rose-400">Failed</span>
+                                    {% endif %}
+                                </td>
+                                <td class="p-4 text-slate-700 dark:text-slate-300">{{ log.items_evaluated }}</td>
+                                <td class="p-4 text-slate-700 dark:text-slate-300">{{ log.items_affected }}</td>
+                                <td class="p-4 text-slate-500 dark:text-slate-400">{{ log.duration_ms }}ms</td>
+                                <td class="p-4 max-w-xs truncate text-slate-600 dark:text-slate-300">
+                                    {% if log.error_summary %}
+                                        <span class="text-rose-600 dark:text-rose-400">{{ log.error_summary }}</span>
+                                    {% else %}
+                                        {{ log.target_repr|default:"Batch evaluation" }}
+                                    {% endif %}
+                                </td>
+                                <td class="p-4 text-right">
+                                    <a href="{% url 'backoffice:automation_log_detail' log.pk %}"
+                                       class="font-medium text-slate-700 hover:text-slate-900 hover:underline dark:text-slate-300 dark:hover:text-white">
+                                        View
+                                    </a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="p-4">
+                {% include "backoffice/_pagination.html" %}
+            </div>
+        {% else %}
+            <div class="p-8 text-center text-xs text-slate-500 dark:text-slate-400">
+                No execution logs match the selected criteria.
+            </div>
+        {% endif %}
+    </div>
+{% endblock content %}

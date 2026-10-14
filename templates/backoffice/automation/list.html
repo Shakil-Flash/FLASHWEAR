@@ -1,0 +1,230 @@
+{% extends "backoffice/base.html" %}
+
+{% block title %}
+    Business Automation &amp; Intelligent Operations — FLASHWEAR Back Office
+{% endblock title %}
+
+{% block breadcrumb %}
+    System › Business Automation
+{% endblock breadcrumb %}
+
+{% block content %}
+    <header class="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">
+                Business Automation &amp; Intelligent Operations
+            </h1>
+            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                Secure, allowlisted event detection, condition checks, and safe operational actions.
+            </p>
+        </div>
+        <div>
+            {% if "automation.manage" in capabilities %}
+                <a href="{% url 'backoffice:automation_create' %}"
+                   class="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-1.5 text-xs font-semibold text-white shadow-xs transition hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100">
+                    <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                    New Automation Rule
+                </a>
+            {% endif %}
+        </div>
+    </header>
+
+    {% with active_tab="rules" %}
+        {% include "backoffice/automation/_subnav.html" %}
+    {% endwith %}
+
+    {# ---- Metrics Strip ------------------------------------------------------------- #}
+    <div class="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div class="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+            <span class="block text-xs font-medium text-slate-500 dark:text-slate-400">Total Rules</span>
+            <span class="mt-1 block text-2xl font-bold tracking-tight text-slate-900 dark:text-white">{{ metrics.total_rules }}</span>
+        </div>
+        <div class="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+            <span class="block text-xs font-medium text-slate-500 dark:text-slate-400">Active Automations</span>
+            <span class="mt-1 block text-2xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400">{{ metrics.active_rules }}</span>
+        </div>
+        <div class="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+            <span class="block text-xs font-medium text-slate-500 dark:text-slate-400">Evaluations Today</span>
+            <span class="mt-1 block text-2xl font-bold tracking-tight text-blue-600 dark:text-blue-400">{{ metrics.runs_today }}</span>
+        </div>
+        <div class="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+            <span class="block text-xs font-medium text-slate-500 dark:text-slate-400">Failures Today</span>
+            <span class="mt-1 block text-2xl font-bold tracking-tight {% if metrics.failures_today > 0 %}text-rose-600 dark:text-rose-400{% else %}text-slate-900 dark:text-white{% endif %}">{{ metrics.failures_today }}</span>
+        </div>
+    </div>
+
+    {# ---- Configured Rules Table ----------------------------------------------------- #}
+    <div class="mb-8 rounded-2xl border border-slate-200 bg-white shadow-soft dark:border-slate-800 dark:bg-slate-900">
+        <div class="border-b border-slate-200 px-6 py-4 dark:border-slate-800">
+            <h2 class="text-base font-semibold text-slate-900 dark:text-white">Active &amp; Configured Rules</h2>
+        </div>
+        {% if rules %}
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                    <thead>
+                        <tr class="border-b border-slate-200 bg-slate-50/50 text-slate-500 dark:border-slate-800 dark:bg-slate-800/30 dark:text-slate-400">
+                            <th class="p-4 font-semibold">Rule Name</th>
+                            <th class="p-4 font-semibold">Trigger Event</th>
+                            <th class="p-4 font-semibold">Action</th>
+                            <th class="p-4 font-semibold">Cooldown</th>
+                            <th class="p-4 font-semibold">State</th>
+                            <th class="p-4 font-semibold">Last Execution</th>
+                            <th class="p-4 text-right font-semibold">Controls</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 dark:divide-slate-800/60">
+                        {% for rule in rules %}
+                            <tr class="transition hover:bg-slate-50/50 dark:hover:bg-slate-800/20">
+                                <td class="p-4">
+                                    <div class="font-semibold text-slate-900 dark:text-white">{{ rule.name }}</div>
+                                    {% if rule.description %}
+                                        <div class="mt-0.5 max-w-sm truncate text-slate-500 dark:text-slate-400">{{ rule.description }}</div>
+                                    {% endif %}
+                                </td>
+                                <td class="p-4 text-slate-700 dark:text-slate-300">
+                                    <span class="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                                        {{ rule.get_trigger_type_display }}
+                                    </span>
+                                </td>
+                                <td class="p-4 text-slate-700 dark:text-slate-300">
+                                    <span class="inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                                        {{ rule.get_action_type_display }}
+                                    </span>
+                                </td>
+                                <td class="p-4 text-slate-600 dark:text-slate-400">
+                                    {{ rule.cooldown_minutes }}m
+                                </td>
+                                <td class="p-4">
+                                    {% if rule.is_active %}
+                                        <span class="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+                                            <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span> Active
+                                        </span>
+                                    {% else %}
+                                        <span class="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-400">
+                                            <span class="h-1.5 w-1.5 rounded-full bg-slate-400"></span> Disabled
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td class="p-4">
+                                    {% if rule.last_triggered_at %}
+                                        <div class="font-medium text-slate-700 dark:text-slate-300">
+                                            {{ rule.last_triggered_at|date:"M j, H:i" }}
+                                        </div>
+                                        {% if rule.last_status == "success" %}
+                                            <span class="text-[10px] text-emerald-600 dark:text-emerald-400">Success</span>
+                                        {% elif rule.last_status == "skipped" %}
+                                            <span class="text-[10px] text-slate-500 dark:text-slate-400">Skipped (cooldown)</span>
+                                        {% elif rule.last_status == "failed" %}
+                                            <span class="text-[10px] text-rose-600 dark:text-rose-400">Failed ({{ rule.consecutive_failures }}x)</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-slate-400 dark:text-slate-500">Never executed</span>
+                                    {% endif %}
+                                </td>
+                                <td class="p-4 text-right">
+                                    {% if "automation.manage" in capabilities %}
+                                        <div class="flex items-center justify-end gap-2">
+                                            <form method="post" action="{% url 'backoffice:automation_run' rule.pk %}" class="inline">
+                                                {% csrf_token %}
+                                                <button type="submit"
+                                                        class="rounded border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-700 shadow-xs transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                                                        title="Execute on-demand now">
+                                                    Run Now
+                                                </button>
+                                            </form>
+                                            <form method="post" action="{% url 'backoffice:automation_toggle' rule.pk %}" class="inline">
+                                                {% csrf_token %}
+                                                <button type="submit"
+                                                        class="rounded border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-700 shadow-xs transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
+                                                    {% if rule.is_active %}Disable{% else %}Enable{% endif %}
+                                                </button>
+                                            </form>
+                                            <a href="{% url 'backoffice:automation_edit' rule.pk %}"
+                                               class="rounded border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-700 shadow-xs transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
+                                                Edit
+                                            </a>
+                                        </div>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="p-8 text-center">
+                <svg class="mx-auto h-10 w-10 text-slate-300 dark:text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <h3 class="mt-2 text-sm font-semibold text-slate-900 dark:text-white">No automation rules configured</h3>
+                <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Configure your first operational automation to detect low stock, invoice due dates, or SLA breaches.</p>
+                {% if "automation.manage" in capabilities %}
+                    <div class="mt-4">
+                        <a href="{% url 'backoffice:automation_create' %}" class="inline-flex items-center gap-1 rounded-md bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-900">
+                            Create First Rule
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+
+    {# ---- Recent Execution Activity ------------------------------------------------- #}
+    <div class="rounded-2xl border border-slate-200 bg-white shadow-soft dark:border-slate-800 dark:bg-slate-900">
+        <div class="flex items-center justify-between border-b border-slate-200 px-6 py-4 dark:border-slate-800">
+            <h2 class="text-base font-semibold text-slate-900 dark:text-white">Recent Automation Activity</h2>
+            <a href="{% url 'backoffice:automation_logs' %}" class="text-xs font-medium text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white">
+                View All History &rarr;
+            </a>
+        </div>
+        {% if recent_logs %}
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                    <thead>
+                        <tr class="border-b border-slate-200 bg-slate-50/50 text-slate-500 dark:border-slate-800 dark:bg-slate-800/30 dark:text-slate-400">
+                            <th class="p-4 font-semibold">Timestamp</th>
+                            <th class="p-4 font-semibold">Rule</th>
+                            <th class="p-4 font-semibold">Status</th>
+                            <th class="p-4 font-semibold">Evaluated</th>
+                            <th class="p-4 font-semibold">Affected</th>
+                            <th class="p-4 font-semibold">Duration</th>
+                            <th class="p-4 font-semibold">Target / Outcome</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 dark:divide-slate-800/60">
+                        {% for log in recent_logs %}
+                            <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/20">
+                                <td class="p-4 text-slate-500 dark:text-slate-400">{{ log.executed_at|date:"M j, H:i:s" }}</td>
+                                <td class="p-4 font-medium text-slate-900 dark:text-white">{{ log.rule.name }}</td>
+                                <td class="p-4">
+                                    {% if log.status == "success" %}
+                                        <span class="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">Success</span>
+                                    {% elif log.status == "skipped" %}
+                                        <span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-400">Skipped</span>
+                                    {% else %}
+                                        <span class="inline-flex items-center rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-semibold text-rose-700 dark:bg-rose-900/30 dark:text-rose-400">Failed</span>
+                                    {% endif %}
+                                </td>
+                                <td class="p-4 text-slate-600 dark:text-slate-300">{{ log.items_evaluated }}</td>
+                                <td class="p-4 text-slate-600 dark:text-slate-300">{{ log.items_affected }}</td>
+                                <td class="p-4 text-slate-500 dark:text-slate-400">{{ log.duration_ms }}ms</td>
+                                <td class="p-4 max-w-xs truncate text-slate-600 dark:text-slate-300">
+                                    {% if log.error_summary %}
+                                        <span class="text-rose-600 dark:text-rose-400">{{ log.error_summary }}</span>
+                                    {% else %}
+                                        {{ log.target_repr|default:"Summary execution" }}
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="p-6 text-center text-xs text-slate-500 dark:text-slate-400">No automation logs recorded yet.</div>
+        {% endif %}
+    </div>
+{% endblock content %}

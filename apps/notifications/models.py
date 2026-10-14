@@ -182,6 +182,8 @@ class NotificationType(models.TextChoices):
     SAVED_BAG_REMINDER = "saved_bag_reminder", _("Saved bag reminder")
     STYLE_RECOMMENDATION = "style_recommendation", _("Style recommendation")
     RESTOCK_VIEWED = "restock_viewed", _("Viewed item restocked")
+    # Operational & Intelligent Automation (Phase 56)
+    OPERATIONAL_ALERT = "operational_alert", _("Operational alert")
 
 
 class NotificationQuerySet(models.QuerySet):
