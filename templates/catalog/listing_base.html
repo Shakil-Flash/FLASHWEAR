@@ -177,7 +177,7 @@ pagination live here so discovery UX remains consistent across the entire storef
 
             <!-- Price Range Filter -->
             <div>
-                <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2.5">Price Range (৳)</p>
+                <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2.5">Price Range ({{ currency_symbol|default:"£" }})</p>
                 <form method="get" action="{{ request.path }}" class="space-y-2">
                     {% if filters.query %}<input type="hidden" name="q" value="{{ filters.query }}">{% endif %}
                     {% if filters.category_slug %}<input type="hidden" name="category" value="{{ filters.category_slug }}">{% endif %}
@@ -191,13 +191,13 @@ pagination live here so discovery UX remains consistent across the entire storef
                         <input type="number"
                                name="min_price"
                                value="{{ filters.min_price|default:'' }}"
-                               placeholder="Min ৳"
+                               placeholder="Min ({{ currency_symbol|default:'£' }})"
                                class="w-full rounded-xl border border-slate-300 px-3 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:border-flash-600 focus:outline-none" />
                         <span class="text-slate-400 text-xs">–</span>
                         <input type="number"
                                name="max_price"
                                value="{{ filters.max_price|default:'' }}"
-                               placeholder="Max ৳"
+                               placeholder="Max ({{ currency_symbol|default:'£' }})"
                                class="w-full rounded-xl border border-slate-300 px-3 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:border-flash-600 focus:outline-none" />
                     </div>
                     <button type="submit"

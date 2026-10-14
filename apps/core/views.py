@@ -6,6 +6,8 @@ from Phase 2 onwards; these views only orchestrate the request/response cycle.
 
 from __future__ import annotations
 
+from decimal import Decimal
+
 from django.conf import settings
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import render
@@ -279,6 +281,7 @@ def home(request: HttpRequest) -> HttpResponse:
         # Phase 20: who runs this site and how to search it, from the real config row.
         "organization_schema": organization_schema(request),
         "website_schema": website_schema(request),
+        "free_shipping_threshold": getattr(settings, "CHECKOUT_SHIPPING_FREE_OVER", Decimal("100.00")),
     }
     return render(request, "pages/home.html", context)
 

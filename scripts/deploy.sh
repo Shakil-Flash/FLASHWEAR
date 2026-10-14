@@ -88,13 +88,15 @@ if [ "${DRY_RUN}" -eq 1 ]; then
 fi
 
 # ------------------------------------------------------------------------------
-# 5. Database Migrations
+# 5. Database Migrations & Media Reconciliation
 # ------------------------------------------------------------------------------
 echo "==> [Step 5/7] Applying reviewed database migrations..."
 if [ -f "docker-compose.prod.yml" ] && command -v docker >/dev/null 2>&1; then
     docker compose -f docker-compose.prod.yml run --rm web python manage.py migrate --noinput
+    docker compose -f docker-compose.prod.yml run --rm web python manage.py reconcile_catalog_images
 elif [ -f "manage.py" ]; then
     python manage.py migrate --noinput
+    python manage.py reconcile_catalog_images
 fi
 
 # ------------------------------------------------------------------------------

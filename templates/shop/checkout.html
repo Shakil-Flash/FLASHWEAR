@@ -142,10 +142,10 @@
                     until the next step.
                 </p>
 
-                <form method="post" action="{% url 'shop:checkout-place' %}">
+                <form method="post" action="{% url 'shop:checkout-place' %}" onsubmit="if(this.dataset.submitted) return false; this.dataset.submitted = 'true'; const btn = this.querySelector('button[type=submit]'); if(btn) { btn.disabled = true; btn.innerText = 'Securing order...'; }">
                     {% csrf_token %}
                     <input type="hidden" name="checkout_id" value="{{ checkout.pk }}" />
-                    <button type="submit" class="mt-5 flex w-full items-center justify-center rounded-full bg-flash-600 px-5 py-3.5 text-sm font-semibold text-white shadow-soft transition hover:bg-flash-700 focus:outline-none focus:ring-2 focus:ring-flash-500/30">
+                    <button type="submit" class="mt-5 flex w-full items-center justify-center rounded-full bg-flash-600 px-5 py-3.5 text-sm font-semibold text-white shadow-soft transition hover:bg-flash-700 focus:outline-none focus:ring-2 focus:ring-flash-500/30 disabled:opacity-60 disabled:cursor-not-allowed">
                         Place order →
                     </button>
                 </form>

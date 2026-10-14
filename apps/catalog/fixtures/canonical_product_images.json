@@ -1,0 +1,1280 @@
+[
+{
+  "model": "catalog.productimage",
+  "pk": 13,
+  "fields": {
+    "created_at": "2026-10-04T21:16:31.814Z",
+    "updated_at": "2026-10-04T21:16:31.814Z",
+    "product": 13,
+    "variant": null,
+    "image": "catalog/products/13/1bed8810204a42b4b4269cb2271b4f79.webp",
+    "alt_text": "P1",
+    "position": 0,
+    "is_primary": true,
+    "source_url": null,
+    "photographer": "",
+    "attribution": "",
+    "license": ""
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 14,
+  "fields": {
+    "created_at": "2026-10-04T21:16:31.856Z",
+    "updated_at": "2026-10-04T21:16:31.856Z",
+    "product": 13,
+    "variant": null,
+    "image": "catalog/products/13/8de8c73ded3042a18b53a7e5c56ab97a.jpg",
+    "alt_text": "P2",
+    "position": 0,
+    "is_primary": false,
+    "source_url": null,
+    "photographer": "",
+    "attribution": "",
+    "license": ""
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 15,
+  "fields": {
+    "created_at": "2026-10-04T21:16:33.477Z",
+    "updated_at": "2026-10-04T21:16:33.477Z",
+    "product": 13,
+    "variant": null,
+    "image": "catalog/products/13/57b701d8600d44b4978df7b29f2096da.webp",
+    "alt_text": "P1",
+    "position": 0,
+    "is_primary": false,
+    "source_url": null,
+    "photographer": "",
+    "attribution": "",
+    "license": ""
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 16,
+  "fields": {
+    "created_at": "2026-10-04T21:16:33.478Z",
+    "updated_at": "2026-10-04T21:16:33.478Z",
+    "product": 13,
+    "variant": null,
+    "image": "catalog/products/13/d4d5edb906064dd0b4343da801a02d24.jpg",
+    "alt_text": "P2",
+    "position": 0,
+    "is_primary": false,
+    "source_url": null,
+    "photographer": "",
+    "attribution": "",
+    "license": ""
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 17,
+  "fields": {
+    "created_at": "2026-10-07T01:39:01.674Z",
+    "updated_at": "2026-10-07T01:39:01.674Z",
+    "product": 1,
+    "variant": null,
+    "image": "catalog/products/1/fa42629eebab49d0ac3a50a7016b4365.jpg",
+    "alt_text": "Heavyweight Boxy Tee in Black",
+    "position": 0,
+    "is_primary": true,
+    "source_url": "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=1200&q=80",
+    "photographer": "Austin Wade",
+    "attribution": "Photo by Austin Wade on Unsplash",
+    "license": "Unsplash License"
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 18,
+  "fields": {
+    "created_at": "2026-10-07T01:39:01.810Z",
+    "updated_at": "2026-10-07T01:39:01.810Z",
+    "product": 1,
+    "variant": null,
+    "image": "catalog/products/1/b2dc688e73fc4caf9df7f66911debeec.jpg",
+    "alt_text": "Heavyweight Boxy Tee in White",
+    "position": 1,
+    "is_primary": false,
+    "source_url": "https://images.unsplash.com/photo-1581655353564-df123a1eb820?w=1200&q=80",
+    "photographer": "Mediamodifier",
+    "attribution": "Photo by Mediamodifier on Unsplash",
+    "license": "Unsplash License"
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 19,
+  "fields": {
+    "created_at": "2026-10-07T01:39:01.921Z",
+    "updated_at": "2026-10-07T01:39:01.921Z",
+    "product": 1,
+    "variant": null,
+    "image": "catalog/products/1/222097e4c7324c869d0da8d349d14dae.jpg",
+    "alt_text": "Heavyweight Boxy Tee in Sand",
+    "position": 2,
+    "is_primary": false,
+    "source_url": "https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?w=1200&q=80",
+    "photographer": "Alexander Andrews",
+    "attribution": "Photo by Alexander Andrews on Unsplash",
+    "license": "Unsplash License"
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 20,
+  "fields": {
+    "created_at": "2026-10-07T01:39:02.050Z",
+    "updated_at": "2026-10-07T01:39:02.050Z",
+    "product": 2,
+    "variant": null,
+    "image": "catalog/products/2/23ad32a1632d453b9eb6036d933ad50c.jpg",
+    "alt_text": "Everyday Pocket Tee in White",
+    "position": 0,
+    "is_primary": true,
+    "source_url": "https://images.unsplash.com/photo-1527719327859-c6ce80353573?w=1200&q=80",
+    "photographer": "Tamara Bellis",
+    "attribution": "Photo by Tamara Bellis on Unsplash",
+    "license": "Unsplash License"
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 21,
+  "fields": {
+    "created_at": "2026-10-07T01:39:02.150Z",
+    "updated_at": "2026-10-07T01:39:02.150Z",
+    "product": 2,
+    "variant": null,
+    "image": "catalog/products/2/f34d97a816f444ffad38a4f8806d3449.jpg",
+    "alt_text": "Everyday Pocket Tee chest pocket detail",
+    "position": 1,
+    "is_primary": false,
+    "source_url": "https://images.unsplash.com/photo-1562157873-818bc0726f68?w=1200&q=80",
+    "photographer": "Faith Yarn",
+    "attribution": "Photo by Faith Yarn on Unsplash",
+    "license": "Unsplash License"
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 22,
+  "fields": {
+    "created_at": "2026-10-07T01:39:02.231Z",
+    "updated_at": "2026-10-07T01:39:02.231Z",
+    "product": 3,
+    "variant": null,
+    "image": "catalog/products/3/32cedcec22e946a38b0d634e1e74431a.jpg",
+    "alt_text": "Studio Rib Tee in Black",
+    "position": 0,
+    "is_primary": true,
+    "source_url": "https://images.unsplash.com/photo-1485230895905-ec40ba36b9bc?w=1200&q=80",
+    "photographer": "Averie Woodard",
+    "attribution": "Photo by Averie Woodard on Unsplash",
+    "license": "Unsplash License"
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 23,
+  "fields": {
+    "created_at": "2026-10-07T01:39:02.320Z",
+    "updated_at": "2026-10-07T01:39:02.320Z",
+    "product": 3,
+    "variant": null,
+    "image": "catalog/products/3/128cf39d1fba4c649b7a5a69a6c3eee9.jpg",
+    "alt_text": "Studio Rib Tee fabric texture",
+    "position": 1,
+    "is_primary": false,
+    "source_url": "https://images.unsplash.com/photo-1485968579580-b6d095142e6e?w=1200&q=80",
+    "photographer": "Averie Woodard",
+    "attribution": "Photo by Averie Woodard on Unsplash",
+    "license": "Unsplash License"
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 24,
+  "fields": {
+    "created_at": "2026-10-07T01:39:02.416Z",
+    "updated_at": "2026-10-07T01:39:02.416Z",
+    "product": 4,
+    "variant": null,
+    "image": "catalog/products/4/ca457249595c48d985e9d141fd77b145.jpg",
+    "alt_text": "Fleece Layer Hoodie in Black",
+    "position": 0,
+    "is_primary": true,
+    "source_url": "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=1200&q=80",
+    "photographer": "Kamil Kalbarczyk",
+    "attribution": "Photo by Kamil Kalbarczyk on Unsplash",
+    "license": "Unsplash License"
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 25,
+  "fields": {
+    "created_at": "2026-10-07T01:39:02.495Z",
+    "updated_at": "2026-10-07T01:39:02.495Z",
+    "product": 4,
+    "variant": null,
+    "image": "catalog/products/4/53925b9412384d2aaf9a9102f28f3e90.jpg",
+    "alt_text": "Fleece Layer Hoodie side profile",
+    "position": 1,
+    "is_primary": false,
+    "source_url": "https://images.unsplash.com/photo-1512436991641-6745cdb1723f?w=1200&q=80",
+    "photographer": "Averie Woodard",
+    "attribution": "Photo by Averie Woodard on Unsplash",
+    "license": "Unsplash License"
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 26,
+  "fields": {
+    "created_at": "2026-10-07T01:39:02.603Z",
+    "updated_at": "2026-10-07T01:39:02.603Z",
+    "product": 5,
+    "variant": null,
+    "image": "catalog/products/5/7e3edf28f582453b91bdd8bdd61357e5.jpg",
+    "alt_text": "Loopback Crew Sweatshirt in Slate",
+    "position": 0,
+    "is_primary": true,
+    "source_url": "https://images.unsplash.com/photo-1578587018452-892bacefd3f2?w=1200&q=80",
+    "photographer": "Alexander Andrews",
+    "attribution": "Photo by Alexander Andrews on Unsplash",
+    "license": "Unsplash License"
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 27,
+  "fields": {
+    "created_at": "2026-10-07T01:39:02.693Z",
+    "updated_at": "2026-10-07T01:39:02.693Z",
+    "product": 5,
+    "variant": null,
+    "image": "catalog/products/5/bcbf331467c44120a06eb7a952bcbc28.jpg",
+    "alt_text": "Loopback Crew Sweatshirt relaxed fit",
+    "position": 1,
+    "is_primary": false,
+    "source_url": "https://images.unsplash.com/photo-1529374255404-311a2a4f1fd9?w=1200&q=80",
+    "photographer": "Dom Hill",
+    "attribution": "Photo by Dom Hill on Unsplash",
+    "license": "Unsplash License"
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 28,
+  "fields": {
+    "created_at": "2026-10-07T01:39:02.811Z",
+    "updated_at": "2026-10-07T01:39:02.811Z",
+    "product": 6,
+    "variant": null,
+    "image": "catalog/products/6/851c1c163c4041aa81b7f377a6b6113f.jpg",
+    "alt_text": "Oversized Button-Down in White",
+    "position": 0,
+    "is_primary": true,
+    "source_url": "https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=1200&q=80",
+    "photographer": "Nimble Made",
+    "attribution": "Photo by Nimble Made on Unsplash",
+    "license": "Unsplash License"
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 29,
+  "fields": {
+    "created_at": "2026-10-07T01:39:02.901Z",
+    "updated_at": "2026-10-07T01:39:02.901Z",
+    "product": 6,
+    "variant": null,
+    "image": "catalog/products/6/43d1686798d64775b8e7a82d1efc1fcf.jpg",
+    "alt_text": "Oversized Button-Down in Navy",
+    "position": 1,
+    "is_primary": false,
+    "source_url": "https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?w=1200&q=80",
+    "photographer": "Nimble Made",
+    "attribution": "Photo by Nimble Made on Unsplash",
+    "license": "Unsplash License"
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 30,
+  "fields": {
+    "created_at": "2026-10-07T01:39:02.985Z",
+    "updated_at": "2026-10-07T01:39:02.985Z",
+    "product": 7,
+    "variant": null,
+    "image": "catalog/products/7/df502de36c3c4fc1b5a2090983005afd.jpg",
+    "alt_text": "Utility Cargo Pant in Olive",
+    "position": 0,
+    "is_primary": true,
+    "source_url": "https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=1200&q=80",
+    "photographer": "Mo Eid",
+    "attribution": "Photo by Mo Eid on Unsplash",
+    "license": "Unsplash License"
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 31,
+  "fields": {
+    "created_at": "2026-10-07T01:39:03.084Z",
+    "updated_at": "2026-10-07T01:39:03.084Z",
+    "product": 7,
+    "variant": null,
+    "image": "catalog/products/7/479683ad01be4cb69221b96368a8f47d.jpg",
+    "alt_text": "Utility Cargo Pant in Sand",
+    "position": 1,
+    "is_primary": false,
+    "source_url": "https://images.unsplash.com/photo-1517445312882-bc9910d016b7?w=1200&q=80",
+    "photographer": "Brooke Cagle",
+    "attribution": "Photo by Brooke Cagle on Unsplash",
+    "license": "Unsplash License"
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 32,
+  "fields": {
+    "created_at": "2026-10-07T01:39:03.194Z",
+    "updated_at": "2026-10-07T01:39:03.194Z",
+    "product": 8,
+    "variant": null,
+    "image": "catalog/products/8/e4269751b60b4d089f0e7eddcf7972d7.jpg",
+    "alt_text": "Straight-Leg Denim in Raw Black",
+    "position": 0,
+    "is_primary": true,
+    "source_url": "https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=1200&q=80",
+    "photographer": "Amir Hosseini",
+    "attribution": "Photo by Amir Hosseini on Unsplash",
+    "license": "Unsplash License"
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 33,
+  "fields": {
+    "created_at": "2026-10-07T01:39:03.286Z",
+    "updated_at": "2026-10-07T01:39:03.287Z",
+    "product": 8,
+    "variant": null,
+    "image": "catalog/products/8/0b68905b34d44a46ad514c1dd5675889.jpg",
+    "alt_text": "Straight-Leg Denim in Classic Indigo",
+    "position": 1,
+    "is_primary": false,
+    "source_url": "https://images.unsplash.com/photo-1582552938357-32b906df40cb?w=1200&q=80",
+    "photographer": "Jason Leung",
+    "attribution": "Photo by Jason Leung on Unsplash",
+    "license": "Unsplash License"
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 34,
+  "fields": {
+    "created_at": "2026-10-07T01:39:03.398Z",
+    "updated_at": "2026-10-07T01:39:03.398Z",
+    "product": 9,
+    "variant": null,
+    "image": "catalog/products/9/503353b10cc4407a9e936c1896e104c1.jpg",
+    "alt_text": "Ribbed Tank in White",
+    "position": 0,
+    "is_primary": true,
+    "source_url": "https://images.unsplash.com/photo-1508427953056-b00b8d78ebf5?w=1200&q=80",
+    "photographer": "Carly Rae Hobbins",
+    "attribution": "Photo by Carly Rae Hobbins on Unsplash",
+    "license": "Unsplash License"
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 35,
+  "fields": {
+    "created_at": "2026-10-07T01:39:03.512Z",
+    "updated_at": "2026-10-07T01:39:03.512Z",
+    "product": 9,
+    "variant": null,
+    "image": "catalog/products/9/cb90a7444cd94d3191dee39789fde3fe.jpg",
+    "alt_text": "Ribbed Tank in Black",
+    "position": 1,
+    "is_primary": false,
+    "source_url": "https://images.unsplash.com/photo-1503342394128-c104d54dba01?w=1200&q=80",
+    "photographer": "Averie Woodard",
+    "attribution": "Photo by Averie Woodard on Unsplash",
+    "license": "Unsplash License"
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 36,
+  "fields": {
+    "created_at": "2026-10-07T01:39:03.622Z",
+    "updated_at": "2026-10-07T01:39:03.622Z",
+    "product": 10,
+    "variant": null,
+    "image": "catalog/products/10/a2b0b5391dac49f5af9659df83be67cb.jpg",
+    "alt_text": "Poplin Shirt Dress in Crisp White",
+    "position": 0,
+    "is_primary": true,
+    "source_url": "https://images.unsplash.com/photo-1572804013309-59a88b7e92f1?w=1200&q=80",
+    "photographer": "Tamara Bellis",
+    "attribution": "Photo by Tamara Bellis on Unsplash",
+    "license": "Unsplash License"
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 37,
+  "fields": {
+    "created_at": "2026-10-07T01:39:03.733Z",
+    "updated_at": "2026-10-07T01:39:03.733Z",
+    "product": 10,
+    "variant": null,
+    "image": "catalog/products/10/8460daf9e855446c80c9c9c928db3f1a.jpg",
+    "alt_text": "Poplin Shirt Dress in Deep Navy",
+    "position": 1,
+    "is_primary": false,
+    "source_url": "https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?w=1200&q=80",
+    "photographer": "Tamara Bellis",
+    "attribution": "Photo by Tamara Bellis on Unsplash",
+    "license": "Unsplash License"
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 38,
+  "fields": {
+    "created_at": "2026-10-07T01:39:03.838Z",
+    "updated_at": "2026-10-07T01:39:03.838Z",
+    "product": 11,
+    "variant": null,
+    "image": "catalog/products/11/11b655d56fc448ccb957b23d78aae895.jpg",
+    "alt_text": "Packable Shell Jacket in Black",
+    "position": 0,
+    "is_primary": true,
+    "source_url": "https://images.unsplash.com/photo-1544923246-77307dd654cb?w=1200&q=80",
+    "photographer": "Alexander Andrews",
+    "attribution": "Photo by Alexander Andrews on Unsplash",
+    "license": "Unsplash License"
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 39,
+  "fields": {
+    "created_at": "2026-10-07T01:39:03.939Z",
+    "updated_at": "2026-10-07T01:39:03.939Z",
+    "product": 11,
+    "variant": null,
+    "image": "catalog/products/11/a85556523af345fe9165b12b6400caf0.jpg",
+    "alt_text": "Packable Shell Jacket in Olive",
+    "position": 1,
+    "is_primary": false,
+    "source_url": "https://images.unsplash.com/photo-1548883354-7622d03aca27?w=1200&q=80",
+    "photographer": "Craig McKay",
+    "attribution": "Photo by Craig McKay on Unsplash",
+    "license": "Unsplash License"
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 40,
+  "fields": {
+    "created_at": "2026-10-07T01:39:04.033Z",
+    "updated_at": "2026-10-07T01:39:04.033Z",
+    "product": 12,
+    "variant": null,
+    "image": "catalog/products/12/f5085f0cc4dc4f44959db67561439305.jpg",
+    "alt_text": "Fleece-Lined Zip Vest in Slate",
+    "position": 0,
+    "is_primary": true,
+    "source_url": "https://images.unsplash.com/photo-1516257984-b1b4d707412e?w=1200&q=80",
+    "photographer": "Marlon Alves",
+    "attribution": "Photo by Marlon Alves on Unsplash",
+    "license": "Unsplash License"
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 41,
+  "fields": {
+    "created_at": "2026-10-07T01:39:04.140Z",
+    "updated_at": "2026-10-07T01:39:04.140Z",
+    "product": 12,
+    "variant": null,
+    "image": "catalog/products/12/f953cf4359574803a8d3206fe1390e1d.jpg",
+    "alt_text": "Fleece-Lined Zip Vest in Black",
+    "position": 1,
+    "is_primary": false,
+    "source_url": "https://images.unsplash.com/photo-1509551388413-e18d0ac5d495?w=1200&q=80",
+    "photographer": "Marlon Alves",
+    "attribution": "Photo by Marlon Alves on Unsplash",
+    "license": "Unsplash License"
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 42,
+  "fields": {
+    "created_at": "2026-10-07T01:39:04.214Z",
+    "updated_at": "2026-10-07T01:39:04.214Z",
+    "product": 39,
+    "variant": null,
+    "image": "catalog/products/39/5feb87df316947e8b362eb30b8826e09.jpg",
+    "alt_text": "Chunky Cable Knit Sweater in Sand",
+    "position": 0,
+    "is_primary": true,
+    "source_url": "https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=1200&q=80",
+    "photographer": "Rocknwool",
+    "attribution": "Photo by Rocknwool on Unsplash",
+    "license": "Unsplash License"
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 43,
+  "fields": {
+    "created_at": "2026-10-07T01:39:04.294Z",
+    "updated_at": "2026-10-07T01:39:04.294Z",
+    "product": 39,
+    "variant": null,
+    "image": "catalog/products/39/57233be2fc4d4bb3886d03f362ebe3f9.jpg",
+    "alt_text": "Chunky Cable Knit Sweater styling",
+    "position": 1,
+    "is_primary": false,
+    "source_url": "https://images.unsplash.com/photo-1620799140408-edc6dcb6d633?w=1200&q=80",
+    "photographer": "Dom Hill",
+    "attribution": "Photo by Dom Hill on Unsplash",
+    "license": "Unsplash License"
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 44,
+  "fields": {
+    "created_at": "2026-10-07T01:39:04.370Z",
+    "updated_at": "2026-10-07T01:39:04.370Z",
+    "product": 39,
+    "variant": null,
+    "image": "catalog/products/39/5429603c83ec4ff5948f975c7db4793b.jpg",
+    "alt_text": "Chunky Cable Knit Sweater rib texture",
+    "position": 2,
+    "is_primary": false,
+    "source_url": "https://images.unsplash.com/photo-1608231387042-66d1773070a5?w=1200&q=80",
+    "photographer": "Dom Hill",
+    "attribution": "Photo by Dom Hill on Unsplash",
+    "license": "Unsplash License"
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 45,
+  "fields": {
+    "created_at": "2026-10-07T01:39:04.453Z",
+    "updated_at": "2026-10-07T01:39:04.453Z",
+    "product": 40,
+    "variant": null,
+    "image": "catalog/products/40/0a6d37cd9cb64ebda252e1c880b51eff.jpg",
+    "alt_text": "Pleated Wide-Leg Trouser in Black",
+    "position": 0,
+    "is_primary": true,
+    "source_url": "https://images.unsplash.com/photo-1594633312681-425c7b97ccd1?w=1200&q=80",
+    "photographer": "Tamara Bellis",
+    "attribution": "Photo by Tamara Bellis on Unsplash",
+    "license": "Unsplash License"
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 46,
+  "fields": {
+    "created_at": "2026-10-07T01:39:04.573Z",
+    "updated_at": "2026-10-07T01:39:04.573Z",
+    "product": 40,
+    "variant": null,
+    "image": "catalog/products/40/339f68328bee4d95b6d767bf489cf00c.jpg",
+    "alt_text": "Pleated Wide-Leg Trouser drape",
+    "position": 1,
+    "is_primary": false,
+    "source_url": "https://images.unsplash.com/photo-1506629082955-511b1aa562c8?w=1200&q=80",
+    "photographer": "Alexandre Chambon",
+    "attribution": "Photo by Alexandre Chambon on Unsplash",
+    "license": "Unsplash License"
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 47,
+  "fields": {
+    "created_at": "2026-10-07T01:39:04.650Z",
+    "updated_at": "2026-10-07T01:39:04.650Z",
+    "product": 41,
+    "variant": null,
+    "image": "catalog/products/41/f7222772ae6d42f1b75adaad9709e6bc.jpg",
+    "alt_text": "Relaxed Camp Collar Linen Shirt in Sand",
+    "position": 0,
+    "is_primary": true,
+    "source_url": "https://images.unsplash.com/photo-1598033129183-c4f50c736f10?w=1200&q=80",
+    "photographer": "Sanford Creative",
+    "attribution": "Photo by Sanford Creative on Unsplash",
+    "license": "Unsplash License"
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 48,
+  "fields": {
+    "created_at": "2026-10-07T01:39:04.752Z",
+    "updated_at": "2026-10-07T01:39:04.752Z",
+    "product": 41,
+    "variant": null,
+    "image": "catalog/products/41/5100b5c35daa42ccbaf616347fd55b39.jpg",
+    "alt_text": "Relaxed Camp Collar Linen Shirt print detail",
+    "position": 1,
+    "is_primary": false,
+    "source_url": "https://images.unsplash.com/photo-1607345366928-199ea26cfe3e?w=1200&q=80",
+    "photographer": "Nimble Made",
+    "attribution": "Photo by Nimble Made on Unsplash",
+    "license": "Unsplash License"
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 49,
+  "fields": {
+    "created_at": "2026-10-07T01:39:04.819Z",
+    "updated_at": "2026-10-07T01:39:04.819Z",
+    "product": 42,
+    "variant": null,
+    "image": "catalog/products/42/3ecda7ffcaca4320af8aa6a033c1e870.jpg",
+    "alt_text": "Acid Wash Oversized Hoodie in Washed Black",
+    "position": 0,
+    "is_primary": true,
+    "source_url": "https://images.unsplash.com/photo-1509967419530-da38b4704bc6?w=1200&q=80",
+    "photographer": "Averie Woodard",
+    "attribution": "Photo by Averie Woodard on Unsplash",
+    "license": "Unsplash License"
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 50,
+  "fields": {
+    "created_at": "2026-10-07T01:39:04.919Z",
+    "updated_at": "2026-10-07T01:39:04.919Z",
+    "product": 42,
+    "variant": null,
+    "image": "catalog/products/42/e5573cd8ed4149a1a0fbb173d388f8a7.jpg",
+    "alt_text": "Acid Wash Oversized Hoodie texture",
+    "position": 1,
+    "is_primary": false,
+    "source_url": "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=1200&q=80",
+    "photographer": "Dom Hill",
+    "attribution": "Photo by Dom Hill on Unsplash",
+    "license": "Unsplash License"
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 51,
+  "fields": {
+    "created_at": "2026-10-07T01:39:04.987Z",
+    "updated_at": "2026-10-07T01:39:04.987Z",
+    "product": 43,
+    "variant": null,
+    "image": "catalog/products/43/2d898d09d9134516b804a47159b55dbf.jpg",
+    "alt_text": "Heavyweight Carpenter Denim Shorts in Washed Indigo",
+    "position": 0,
+    "is_primary": true,
+    "source_url": "https://images.unsplash.com/photo-1591195853828-11db59a44f6b?w=1200&q=80",
+    "photographer": "Tamara Bellis",
+    "attribution": "Photo by Tamara Bellis on Unsplash",
+    "license": "Unsplash License"
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 52,
+  "fields": {
+    "created_at": "2026-10-07T01:39:05.085Z",
+    "updated_at": "2026-10-07T01:39:05.085Z",
+    "product": 43,
+    "variant": null,
+    "image": "catalog/products/43/d461ef782a80486e87e13da8f5b7b004.jpg",
+    "alt_text": "Heavyweight Carpenter Denim Shorts tool pocket",
+    "position": 1,
+    "is_primary": false,
+    "source_url": "https://images.unsplash.com/photo-1565084888279-aca607ecce0c?w=1200&q=80",
+    "photographer": "Jason Leung",
+    "attribution": "Photo by Jason Leung on Unsplash",
+    "license": "Unsplash License"
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 53,
+  "fields": {
+    "created_at": "2026-10-07T01:39:05.231Z",
+    "updated_at": "2026-10-07T01:39:05.231Z",
+    "product": 44,
+    "variant": null,
+    "image": "catalog/products/44/308155f6b8894d1ab1e11c35421439cc.jpg",
+    "alt_text": "Minimalist Wool-Blend Overcoat in Charcoal Black",
+    "position": 0,
+    "is_primary": true,
+    "source_url": "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=1200&q=80",
+    "photographer": "Ali Pazani",
+    "attribution": "Photo by Ali Pazani on Unsplash",
+    "license": "Unsplash License"
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 54,
+  "fields": {
+    "created_at": "2026-10-07T01:39:05.300Z",
+    "updated_at": "2026-10-07T01:39:05.300Z",
+    "product": 44,
+    "variant": null,
+    "image": "catalog/products/44/46c6e36daffe43a1856f32eafb950ac9.jpg",
+    "alt_text": "Minimalist Wool-Blend Overcoat back vent view",
+    "position": 1,
+    "is_primary": false,
+    "source_url": "https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=1200&q=80",
+    "photographer": "Hunters Race",
+    "attribution": "Photo by Hunters Race on Unsplash",
+    "license": "Unsplash License"
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 55,
+  "fields": {
+    "created_at": "2026-10-07T01:39:05.406Z",
+    "updated_at": "2026-10-07T01:39:05.406Z",
+    "product": 45,
+    "variant": null,
+    "image": "catalog/products/45/2a4af5bb6b974163ac7fb547bc67a573.jpg",
+    "alt_text": "Structured Twill Midi Skirt in Black",
+    "position": 0,
+    "is_primary": true,
+    "source_url": "https://images.unsplash.com/photo-1583496661160-fb5886a0aaaa?w=1200&q=80",
+    "photographer": "Tamara Bellis",
+    "attribution": "Photo by Tamara Bellis on Unsplash",
+    "license": "Unsplash License"
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 56,
+  "fields": {
+    "created_at": "2026-10-07T01:39:05.484Z",
+    "updated_at": "2026-10-07T01:39:05.484Z",
+    "product": 45,
+    "variant": null,
+    "image": "catalog/products/45/af81529584744be68f43f76accc8dd3e.jpg",
+    "alt_text": "Structured Twill Midi Skirt pocket detail",
+    "position": 1,
+    "is_primary": false,
+    "source_url": "https://images.unsplash.com/photo-1576995853123-5a10305d93c0?w=1200&q=80",
+    "photographer": "Tamara Bellis",
+    "attribution": "Photo by Tamara Bellis on Unsplash",
+    "license": "Unsplash License"
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 57,
+  "fields": {
+    "created_at": "2026-10-07T01:39:05.558Z",
+    "updated_at": "2026-10-07T01:39:05.558Z",
+    "product": 46,
+    "variant": null,
+    "image": "catalog/products/46/1b9ebf296cc74ac1b3192dc8c9212ca5.jpg",
+    "alt_text": "Waffle Knit Long Sleeve Tee in Off-White",
+    "position": 0,
+    "is_primary": true,
+    "source_url": "https://images.unsplash.com/photo-1618354691373-d851c5c3a990?w=1200&q=80",
+    "photographer": "Faith Yarn",
+    "attribution": "Photo by Faith Yarn on Unsplash",
+    "license": "Unsplash License"
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 58,
+  "fields": {
+    "created_at": "2026-10-07T01:39:05.636Z",
+    "updated_at": "2026-10-07T01:39:05.636Z",
+    "product": 46,
+    "variant": null,
+    "image": "catalog/products/46/cd354d439be44d1ca8c8729e70f4018a.jpg",
+    "alt_text": "Waffle Knit Long Sleeve Tee fabric fold",
+    "position": 1,
+    "is_primary": false,
+    "source_url": "https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?w=1200&q=80",
+    "photographer": "NordWood Themes",
+    "attribution": "Photo by NordWood Themes on Unsplash",
+    "license": "Unsplash License"
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 59,
+  "fields": {
+    "created_at": "2026-10-14T16:55:00.814Z",
+    "updated_at": "2026-10-14T16:55:00.814Z",
+    "product": 14,
+    "variant": null,
+    "image": "catalog/products/14/placeholder_1.png",
+    "alt_text": "Demo Product 1 Studio Placeholder",
+    "position": 0,
+    "is_primary": true,
+    "source_url": "",
+    "photographer": "",
+    "attribution": "",
+    "license": ""
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 60,
+  "fields": {
+    "created_at": "2026-10-14T16:55:00.936Z",
+    "updated_at": "2026-10-14T16:55:00.936Z",
+    "product": 15,
+    "variant": null,
+    "image": "catalog/products/15/placeholder_2.png",
+    "alt_text": "Demo Product 2 Studio Placeholder",
+    "position": 0,
+    "is_primary": true,
+    "source_url": "",
+    "photographer": "",
+    "attribution": "",
+    "license": ""
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 61,
+  "fields": {
+    "created_at": "2026-10-14T16:55:01.022Z",
+    "updated_at": "2026-10-14T16:55:01.022Z",
+    "product": 16,
+    "variant": null,
+    "image": "catalog/products/16/placeholder_3.png",
+    "alt_text": "Demo Product 3 Studio Placeholder",
+    "position": 0,
+    "is_primary": true,
+    "source_url": "",
+    "photographer": "",
+    "attribution": "",
+    "license": ""
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 62,
+  "fields": {
+    "created_at": "2026-10-14T16:55:01.105Z",
+    "updated_at": "2026-10-14T16:55:01.105Z",
+    "product": 17,
+    "variant": null,
+    "image": "catalog/products/17/placeholder_4.png",
+    "alt_text": "Demo Product 4 Studio Placeholder",
+    "position": 0,
+    "is_primary": true,
+    "source_url": "",
+    "photographer": "",
+    "attribution": "",
+    "license": ""
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 63,
+  "fields": {
+    "created_at": "2026-10-14T16:55:01.189Z",
+    "updated_at": "2026-10-14T16:55:01.189Z",
+    "product": 18,
+    "variant": null,
+    "image": "catalog/products/18/placeholder_5.png",
+    "alt_text": "Demo Product 5 Studio Placeholder",
+    "position": 0,
+    "is_primary": true,
+    "source_url": "",
+    "photographer": "",
+    "attribution": "",
+    "license": ""
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 64,
+  "fields": {
+    "created_at": "2026-10-14T16:55:01.280Z",
+    "updated_at": "2026-10-14T16:55:01.280Z",
+    "product": 19,
+    "variant": null,
+    "image": "catalog/products/19/placeholder_6.png",
+    "alt_text": "Demo Product 6 Studio Placeholder",
+    "position": 0,
+    "is_primary": true,
+    "source_url": "",
+    "photographer": "",
+    "attribution": "",
+    "license": ""
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 65,
+  "fields": {
+    "created_at": "2026-10-14T16:55:01.405Z",
+    "updated_at": "2026-10-14T16:55:01.405Z",
+    "product": 20,
+    "variant": null,
+    "image": "catalog/products/20/placeholder_7.png",
+    "alt_text": "Demo Product 7 Studio Placeholder",
+    "position": 0,
+    "is_primary": true,
+    "source_url": "",
+    "photographer": "",
+    "attribution": "",
+    "license": ""
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 66,
+  "fields": {
+    "created_at": "2026-10-14T16:55:01.488Z",
+    "updated_at": "2026-10-14T16:55:01.488Z",
+    "product": 21,
+    "variant": null,
+    "image": "catalog/products/21/placeholder_8.png",
+    "alt_text": "Demo Product 8 Studio Placeholder",
+    "position": 0,
+    "is_primary": true,
+    "source_url": "",
+    "photographer": "",
+    "attribution": "",
+    "license": ""
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 67,
+  "fields": {
+    "created_at": "2026-10-14T16:55:01.603Z",
+    "updated_at": "2026-10-14T16:55:01.603Z",
+    "product": 22,
+    "variant": null,
+    "image": "catalog/products/22/placeholder_9.png",
+    "alt_text": "Demo Product 9 Studio Placeholder",
+    "position": 0,
+    "is_primary": true,
+    "source_url": "",
+    "photographer": "",
+    "attribution": "",
+    "license": ""
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 68,
+  "fields": {
+    "created_at": "2026-10-14T16:55:01.713Z",
+    "updated_at": "2026-10-14T16:55:01.713Z",
+    "product": 23,
+    "variant": null,
+    "image": "catalog/products/23/placeholder_10.png",
+    "alt_text": "Demo Product 10 Studio Placeholder",
+    "position": 0,
+    "is_primary": true,
+    "source_url": "",
+    "photographer": "",
+    "attribution": "",
+    "license": ""
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 69,
+  "fields": {
+    "created_at": "2026-10-14T16:55:01.830Z",
+    "updated_at": "2026-10-14T16:55:01.830Z",
+    "product": 24,
+    "variant": null,
+    "image": "catalog/products/24/placeholder_11.png",
+    "alt_text": "Demo Product 11 Studio Placeholder",
+    "position": 0,
+    "is_primary": true,
+    "source_url": "",
+    "photographer": "",
+    "attribution": "",
+    "license": ""
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 70,
+  "fields": {
+    "created_at": "2026-10-14T16:55:01.921Z",
+    "updated_at": "2026-10-14T16:55:01.921Z",
+    "product": 25,
+    "variant": null,
+    "image": "catalog/products/25/placeholder_12.png",
+    "alt_text": "Demo Product 12 Studio Placeholder",
+    "position": 0,
+    "is_primary": true,
+    "source_url": "",
+    "photographer": "",
+    "attribution": "",
+    "license": ""
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 71,
+  "fields": {
+    "created_at": "2026-10-14T16:55:02.022Z",
+    "updated_at": "2026-10-14T16:55:02.022Z",
+    "product": 26,
+    "variant": null,
+    "image": "catalog/products/26/placeholder_13.png",
+    "alt_text": "Demo Product 13 Studio Placeholder",
+    "position": 0,
+    "is_primary": true,
+    "source_url": "",
+    "photographer": "",
+    "attribution": "",
+    "license": ""
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 72,
+  "fields": {
+    "created_at": "2026-10-14T16:55:02.104Z",
+    "updated_at": "2026-10-14T16:55:02.104Z",
+    "product": 27,
+    "variant": null,
+    "image": "catalog/products/27/placeholder_14.png",
+    "alt_text": "Demo Product 14 Studio Placeholder",
+    "position": 0,
+    "is_primary": true,
+    "source_url": "",
+    "photographer": "",
+    "attribution": "",
+    "license": ""
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 73,
+  "fields": {
+    "created_at": "2026-10-14T16:55:02.196Z",
+    "updated_at": "2026-10-14T16:55:02.196Z",
+    "product": 28,
+    "variant": null,
+    "image": "catalog/products/28/placeholder_15.png",
+    "alt_text": "Demo Product 15 Studio Placeholder",
+    "position": 0,
+    "is_primary": true,
+    "source_url": "",
+    "photographer": "",
+    "attribution": "",
+    "license": ""
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 74,
+  "fields": {
+    "created_at": "2026-10-14T16:55:02.305Z",
+    "updated_at": "2026-10-14T16:55:02.305Z",
+    "product": 29,
+    "variant": null,
+    "image": "catalog/products/29/placeholder_16.png",
+    "alt_text": "Demo Product 16 Studio Placeholder",
+    "position": 0,
+    "is_primary": true,
+    "source_url": "",
+    "photographer": "",
+    "attribution": "",
+    "license": ""
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 75,
+  "fields": {
+    "created_at": "2026-10-14T16:55:02.396Z",
+    "updated_at": "2026-10-14T16:55:02.396Z",
+    "product": 30,
+    "variant": null,
+    "image": "catalog/products/30/placeholder_17.png",
+    "alt_text": "Demo Product 17 Studio Placeholder",
+    "position": 0,
+    "is_primary": true,
+    "source_url": "",
+    "photographer": "",
+    "attribution": "",
+    "license": ""
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 76,
+  "fields": {
+    "created_at": "2026-10-14T16:55:02.488Z",
+    "updated_at": "2026-10-14T16:55:02.488Z",
+    "product": 31,
+    "variant": null,
+    "image": "catalog/products/31/placeholder_18.png",
+    "alt_text": "Demo Product 18 Studio Placeholder",
+    "position": 0,
+    "is_primary": true,
+    "source_url": "",
+    "photographer": "",
+    "attribution": "",
+    "license": ""
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 77,
+  "fields": {
+    "created_at": "2026-10-14T16:55:02.597Z",
+    "updated_at": "2026-10-14T16:55:02.597Z",
+    "product": 32,
+    "variant": null,
+    "image": "catalog/products/32/placeholder_19.png",
+    "alt_text": "Demo Product 19 Studio Placeholder",
+    "position": 0,
+    "is_primary": true,
+    "source_url": "",
+    "photographer": "",
+    "attribution": "",
+    "license": ""
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 78,
+  "fields": {
+    "created_at": "2026-10-14T16:55:02.688Z",
+    "updated_at": "2026-10-14T16:55:02.688Z",
+    "product": 33,
+    "variant": null,
+    "image": "catalog/products/33/placeholder_20.png",
+    "alt_text": "Demo Product 20 Studio Placeholder",
+    "position": 0,
+    "is_primary": true,
+    "source_url": "",
+    "photographer": "",
+    "attribution": "",
+    "license": ""
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 79,
+  "fields": {
+    "created_at": "2026-10-14T16:55:02.796Z",
+    "updated_at": "2026-10-14T16:55:02.796Z",
+    "product": 34,
+    "variant": null,
+    "image": "catalog/products/34/placeholder_21.png",
+    "alt_text": "Demo Product 21 Studio Placeholder",
+    "position": 0,
+    "is_primary": true,
+    "source_url": "",
+    "photographer": "",
+    "attribution": "",
+    "license": ""
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 80,
+  "fields": {
+    "created_at": "2026-10-14T16:55:02.880Z",
+    "updated_at": "2026-10-14T16:55:02.880Z",
+    "product": 35,
+    "variant": null,
+    "image": "catalog/products/35/placeholder_22.png",
+    "alt_text": "Demo Product 22 Studio Placeholder",
+    "position": 0,
+    "is_primary": true,
+    "source_url": "",
+    "photographer": "",
+    "attribution": "",
+    "license": ""
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 81,
+  "fields": {
+    "created_at": "2026-10-14T16:55:02.972Z",
+    "updated_at": "2026-10-14T16:55:02.972Z",
+    "product": 36,
+    "variant": null,
+    "image": "catalog/products/36/placeholder_23.png",
+    "alt_text": "Demo Product 23 Studio Placeholder",
+    "position": 0,
+    "is_primary": true,
+    "source_url": "",
+    "photographer": "",
+    "attribution": "",
+    "license": ""
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 82,
+  "fields": {
+    "created_at": "2026-10-14T16:55:03.063Z",
+    "updated_at": "2026-10-14T16:55:03.063Z",
+    "product": 37,
+    "variant": null,
+    "image": "catalog/products/37/placeholder_24.png",
+    "alt_text": "Demo Product 24 Studio Placeholder",
+    "position": 0,
+    "is_primary": true,
+    "source_url": "",
+    "photographer": "",
+    "attribution": "",
+    "license": ""
+  }
+},
+{
+  "model": "catalog.productimage",
+  "pk": 83,
+  "fields": {
+    "created_at": "2026-10-14T16:55:03.155Z",
+    "updated_at": "2026-10-14T16:55:03.155Z",
+    "product": 38,
+    "variant": null,
+    "image": "catalog/products/38/placeholder_25.png",
+    "alt_text": "Demo Product 25 Studio Placeholder",
+    "position": 0,
+    "is_primary": true,
+    "source_url": "",
+    "photographer": "",
+    "attribution": "",
+    "license": ""
+  }
+}
+]

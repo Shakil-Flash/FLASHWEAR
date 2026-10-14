@@ -804,11 +804,16 @@ A high-converting, accessible, and beautifully designed fashion shopping journey
                             </p>
                         {% endif %}
                     {% else %}
-                        <button type="button" disabled class="w-full cursor-not-allowed rounded-full bg-slate-200 px-6 py-4 text-center text-sm font-bold text-slate-500 shadow-sm dark:bg-slate-800 dark:text-slate-500">
-                            Choose a colour and size
-                        </button>
+                        <a href="#variant-options"
+                           onclick="document.getElementById('variant-options')?.scrollIntoView({behavior: 'smooth', block: 'center'}); return false;"
+                           class="group relative flex w-full items-center justify-center gap-2 rounded-full border-2 border-dashed border-flash-400 bg-flash-50/70 px-6 py-4 text-center text-sm font-bold text-flash-800 shadow-sm transition hover:border-flash-600 hover:bg-flash-100 focus:outline-none focus:ring-4 focus:ring-flash-500/20 dark:border-flash-500/50 dark:bg-flash-950/30 dark:text-flash-200 dark:hover:bg-flash-950/50">
+                            <span>Select a Size &amp; Colour Above</span>
+                            <svg class="h-4 w-4 transition-transform group-hover:-translate-y-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                            </svg>
+                        </a>
                         <p class="text-center text-xs text-slate-500 dark:text-slate-400">
-                            Pick your options above to add this to your bag.
+                            Choose your preferred size and colour option to add this piece to your bag.
                         </p>
                     {% endif %}
 
@@ -836,7 +841,7 @@ A high-converting, accessible, and beautifully designed fashion shopping journey
                             <svg class="h-4 w-4 shrink-0 text-flash-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
                             </svg>
-                            <span class="font-medium">Free Over $100</span>
+                            <span class="font-medium">Free Over {{ free_shipping_threshold|money|default:"£100" }}</span>
                         </div>
                         <div class="flex items-center gap-2">
                             <svg class="h-4 w-4 shrink-0 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -999,8 +1004,8 @@ A high-converting, accessible, and beautifully designed fashion shopping journey
                             </span>
                         </summary>
                         <div class="mt-3 space-y-2 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
-                            <p>• <strong>Standard Shipping:</strong> 3–5 business days ($5.00, Free on orders over $100).</p>
-                            <p>• <strong>Express Delivery:</strong> 1–2 business days ($15.00 flat rate).</p>
+                            <p>• <strong>Standard Tracked Shipping:</strong> 3–5 business days (Free on orders over {{ free_shipping_threshold|money|default:"£100.00" }}).</p>
+                            <p>• <strong>Express Delivery:</strong> 1–2 business days.</p>
                             <p>• <strong>30-Day Return Window:</strong> Free returns and exchanges within 30 days of delivery on unworn garments with original tags attached.</p>
                         </div>
                     </details>

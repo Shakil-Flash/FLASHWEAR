@@ -427,6 +427,20 @@ class Product(TimestampedModel, SEOMixin):
         return False
 
     @property
+    def is_low_stock(self) -> bool:
+        """Whether all available purchasable variants have 5 or fewer units left."""
+        if not self.is_in_stock:
+            return False
+        has_counted_stock = False
+        for v in self.purchasable_variants:
+            stock = getattr(v, "stock", None)
+            if stock is not None and stock.available > 0:
+                has_counted_stock = True
+                if stock.available > 5:
+                    return False
+        return has_counted_stock
+
+    @property
     def primary_image(self) -> ProductImage | None:
         """The card image: the flagged primary, else the first by position.
 

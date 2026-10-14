@@ -53,6 +53,10 @@ Phase 27: quieter metadata, larger visual presence, subtle interactions.
                 <span class="rounded-full bg-slate-800/90 px-2.5 py-0.5 text-xs font-semibold text-white shadow-soft backdrop-blur">
                     Sold out
                 </span>
+            {% elif product.is_low_stock %}
+                <span class="rounded-full bg-amber-600/90 px-2.5 py-0.5 text-xs font-semibold text-white shadow-soft backdrop-blur">
+                    Low stock
+                </span>
             {% endif %}
         </div>
 

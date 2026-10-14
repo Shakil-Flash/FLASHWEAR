@@ -12,6 +12,7 @@ from __future__ import annotations
 from datetime import timedelta
 from decimal import Decimal
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
@@ -71,11 +72,26 @@ def _parse_quantity(request) -> int | None:
 def _cart_payload(cart) -> dict:
     """JSON body used by HTMX cart responses."""
     totals = get_cart_totals(cart)
+    free_threshold = getattr(settings, "CHECKOUT_SHIPPING_FREE_OVER", Decimal("100.00"))
+    currency_symbol = getattr(settings, "CATALOG_CURRENCY_SYMBOL", "£")
+    subtotal = totals["subtotal"]
+    free_remaining = max(Decimal("0.00"), free_threshold - subtotal)
+    free_qualified = subtotal >= free_threshold
+    free_pct = (
+        min(100, int((subtotal / free_threshold) * 100))
+        if free_threshold > Decimal("0.00")
+        else 100
+    )
     return {
         "item_count": totals["item_count"],
         "total_quantity": totals["total_quantity"],
         "subtotal": str(totals["subtotal"]),
         "currency": totals["currency"],
+        "currency_symbol": currency_symbol,
+        "free_threshold": str(free_threshold),
+        "free_remaining": str(free_remaining),
+        "free_qualified": free_qualified,
+        "free_pct": free_pct,
     }
 
 
@@ -107,7 +123,7 @@ def cart_detail(request):
     totals = get_cart_totals(cart, items=items)
     subtotal = totals["subtotal"]
 
-    free_threshold = Decimal("100.00")
+    free_threshold = getattr(settings, "CHECKOUT_SHIPPING_FREE_OVER", Decimal("100.00"))
     free_remaining = max(Decimal("0.00"), free_threshold - subtotal)
     free_qualified = subtotal >= free_threshold
     free_pct = (
@@ -781,6 +797,8 @@ def cart_mini(request):
     from decimal import Decimal
 
     cart = get_cart_for_request(request)
+    free_threshold = getattr(settings, "CHECKOUT_SHIPPING_FREE_OVER", Decimal("100.00"))
+    currency_symbol = getattr(settings, "CATALOG_CURRENCY_SYMBOL", "£")
     if cart is None or cart.is_empty():
         return JsonResponse(
             {
@@ -790,17 +808,18 @@ def cart_mini(request):
                     "item_count": 0,
                     "total_quantity": 0,
                     "subtotal": "0.00",
-                    "currency": "USD",
+                    "currency": getattr(settings, "CATALOG_CURRENCY_CODE", "USD"),
+                    "currency_symbol": currency_symbol,
                 },
-                "free_shipping_threshold": "100.00",
-                "amount_for_free_shipping": "100.00",
+                "currency_symbol": currency_symbol,
+                "free_shipping_threshold": str(free_threshold),
+                "amount_for_free_shipping": str(free_threshold),
             }
         )
 
     items = list(cart.get_items())
     totals = get_cart_totals(cart, items=items)
     subtotal = totals["subtotal"]
-    free_threshold = Decimal("100.00")
     needed_for_free = max(Decimal("0.00"), free_threshold - subtotal)
 
     items_data = []
@@ -832,7 +851,9 @@ def cart_mini(request):
                 "total_quantity": totals["total_quantity"],
                 "subtotal": str(subtotal),
                 "currency": totals["currency"],
+                "currency_symbol": currency_symbol,
             },
+            "currency_symbol": currency_symbol,
             "free_shipping_threshold": str(free_threshold),
             "amount_for_free_shipping": str(needed_for_free),
         }

@@ -23,6 +23,12 @@ else
     echo "==> Skipping automatic database migrations (AUTO_MIGRATE=${AUTO_MIGRATE:-false})."
 fi
 
+# Reconcile catalog media files with database records
+if [ "$IS_WEB" = "1" ]; then
+    echo "==> Reconciling catalog media files with database..."
+    python manage.py reconcile_catalog_images || true
+fi
+
 # Seeding demo data: NEVER run automatically in production.
 # Only run if explicitly requested (SEED_DEMO_DATA=true) or in development when not opted out.
 if [ "$SEED_DEMO_DATA" = "true" ] || [ "$SEED_DEMO_DATA" = "1" ] || ( [ "$DJANGO_SETTINGS_MODULE" = "config.settings.development" ] && [ "$SEED_DEMO_DATA" != "false" ] && [ "$SEED_DEMO_DATA" != "0" ] ); then

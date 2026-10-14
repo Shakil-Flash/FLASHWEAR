@@ -243,6 +243,7 @@ def product_list(request):
         "search_landing_recommendations": search_landing_recommendations,
         "filter_colors": filter_colors,
         "filter_sizes": filter_sizes,
+        "currency_symbol": getattr(settings, "CATALOG_CURRENCY_SYMBOL", "£"),
         **listing_metadata(
             page_title,
             page_desc,
@@ -480,7 +481,8 @@ def product_detail(request, slug: str):
         "related_products": related_products,
         "you_may_also_like": related_products,
         "more_like_this": [],
-        "recently_viewed": [],
+        "recently_viewed": merchandising.get_recently_viewed(request, exclude_pk=product.pk, limit=4),
+        "free_shipping_threshold": getattr(settings, "CHECKOUT_SHIPPING_FREE_OVER", Decimal("100.00")),
         "signals": signals,
         "in_wishlist": in_wishlist,
         "wishlist_item": wishlist_item,
