@@ -1,0 +1,96 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-100 dark:bg-slate-950">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Staff Portal Sign In · FLASHWEAR</title>
+    <script src="{% static 'js/theme-init.js' %}"></script>
+    <link rel="stylesheet" href="{% static 'css/app.css' %}" />
+</head>
+<body class="h-full flex items-center justify-center p-4 bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
+    <div class="w-full max-w-md">
+        {# Brand Header #}
+        <div class="text-center mb-8">
+            <span class="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500 text-lg font-black text-slate-950 shadow-md">
+                FW
+            </span>
+            <h1 class="mt-4 text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+                FLASHWEAR Staff Portal
+            </h1>
+            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                Authorized employee operations & management
+            </p>
+        </div>
+
+        {# Login Card #}
+        <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 p-8">
+            {% if messages %}
+                <div class="mb-6 space-y-2">
+                    {% for message in messages %}
+                        <div class="rounded-lg p-3 text-sm {% if message.tags == 'error' %}bg-rose-50 text-rose-800 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-900{% else %}bg-amber-50 text-amber-800 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-900{% endif %}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            {% if form.non_field_errors %}
+                <div class="mb-6 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 p-3 text-sm text-rose-800 dark:text-rose-300">
+                    {% for error in form.non_field_errors %}
+                        <p>{{ error }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <form method="post" action="{% url 'staff:login' %}" class="space-y-5" novalidate>
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ next }}" />
+
+                <div>
+                    <label for="{{ form.email.id_for_label }}" class="block text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1.5">
+                        {{ form.email.label }}
+                    </label>
+                    {{ form.email }}
+                    {% if form.email.errors %}
+                        <p class="mt-1 text-xs text-rose-600 dark:text-rose-400">{{ form.email.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <div>
+                    <label for="{{ form.password.id_for_label }}" class="block text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1.5">
+                        {{ form.password.label }}
+                    </label>
+                    {{ form.password }}
+                    {% if form.password.errors %}
+                        <p class="mt-1 text-xs text-rose-600 dark:text-rose-400">{{ form.password.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <div class="flex items-center justify-between">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        {{ form.remember_me }}
+                        <span class="text-xs text-slate-600 dark:text-slate-400">{{ form.remember_me.label }}</span>
+                    </label>
+                </div>
+
+                <button type="submit" class="w-full flex justify-center items-center py-2.5 px-4 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm shadow transition focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2">
+                    Sign In to Portal
+                </button>
+            </form>
+
+            <div class="mt-6 pt-6 border-t border-slate-100 dark:border-slate-800 text-center text-xs text-slate-500">
+                <p>Not an employee or looking for your order?</p>
+                <a href="{% url 'core:home' %}" class="mt-1 inline-block text-amber-500 hover:text-amber-400 font-semibold transition">
+                    Return to FLASHWEAR Storefront &rarr;
+                </a>
+            </div>
+        </div>
+
+        <p class="mt-6 text-center text-xs text-slate-400">
+            Protected internal area &bull; All activity is audited
+        </p>
+    </div>
+</body>
+</html>

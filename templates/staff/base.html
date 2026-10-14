@@ -1,0 +1,258 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-100 dark:bg-slate-950">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="referrer" content="no-referrer" />
+    <meta name="description" content="FLASHWEAR Staff Portal — Authorized operational access only." />
+    <title>{% block title %}Staff Portal{% endblock %} · FLASHWEAR</title>
+
+    <script src="{% static 'js/theme-init.js' %}"></script>
+    <link rel="stylesheet" href="{% static 'css/app.css' %}" />
+    <script src="{% static 'vendor/alpine.min.js' %}" defer></script>
+</head>
+<body class="h-full bg-slate-100 text-slate-900 antialiased selection:bg-amber-500 selection:text-slate-950 dark:bg-slate-950 dark:text-slate-100"
+      x-data="{
+          mobileNav: false,
+          userMenuOpen: false,
+          theme: localStorage.getItem('theme') || 'auto',
+          themeOpen: false,
+          setTheme(val) {
+              this.theme = val;
+              try { localStorage.setItem('theme', val); } catch (e) {}
+              this.applyTheme();
+              this.themeOpen = false;
+          },
+          applyTheme() {
+              const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+              if (this.theme === 'dark' || (this.theme === 'auto' && prefersDark)) {
+                  document.documentElement.classList.add('dark');
+              } else {
+                  document.documentElement.classList.remove('dark');
+              }
+          },
+          init() {
+              this.applyTheme();
+              window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+                  if (this.theme === 'auto') this.applyTheme();
+              });
+          }
+      }"
+      @keydown.escape="mobileNav = false; userMenuOpen = false; themeOpen = false">
+
+    {# Accessible skip to content #}
+    <a href="#staff-main" class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-amber-500 focus:px-4 focus:py-2 focus:text-slate-950 focus:font-bold focus:outline-none focus:ring-2 focus:ring-amber-500">
+        Skip to main content
+    </a>
+
+    {# ---------------------------------------------------------------------------------- #}
+    {# Mobile Navigation Drawer                                                           #}
+    {# ---------------------------------------------------------------------------------- #}
+    <div x-show="mobileNav" x-cloak class="relative z-50 lg:hidden" role="dialog" aria-modal="true" aria-label="Mobile Navigation Drawer">
+        <div x-show="mobileNav"
+             x-transition:enter="transition-opacity ease-linear duration-200"
+             x-transition:enter-start="opacity-0"
+             x-transition:enter-end="opacity-100"
+             x-transition:leave="transition-opacity ease-linear duration-200"
+             x-transition:leave-start="opacity-100"
+             x-transition:leave-end="opacity-0"
+             class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm"
+             @click="mobileNav = false" aria-hidden="true">
+        </div>
+
+        <div class="fixed inset-0 flex">
+            <div x-show="mobileNav"
+                 x-transition:enter="transition ease-in-out duration-200 transform"
+                 x-transition:enter-start="-translate-x-full"
+                 x-transition:enter-end="translate-x-0"
+                 x-transition:leave="transition ease-in-out duration-200 transform"
+                 x-transition:leave-start="translate-x-0"
+                 x-transition:leave-end="-translate-x-full"
+                 class="relative mr-16 flex w-full max-w-xs flex-1 flex-col bg-slate-900 border-r border-slate-800 shadow-2xl">
+
+                <div class="absolute right-0 top-0 -mr-12 pt-4">
+                    <button type="button" @click="mobileNav = false" class="flex h-10 w-10 items-center justify-center rounded-full text-slate-300 hover:text-white focus:outline-none focus:ring-2 focus:ring-amber-500">
+                        <span class="sr-only">Close navigation</span>
+                        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="flex h-16 shrink-0 items-center gap-3 border-b border-slate-800 px-6">
+                    <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500 text-sm font-black text-slate-950 shadow" aria-hidden="true">FW</span>
+                    <div>
+                        <p class="text-sm font-bold text-white tracking-tight">Staff Portal</p>
+                        <p class="text-xs text-slate-400">FLASHWEAR Operations</p>
+                    </div>
+                </div>
+
+                <nav class="flex-1 overflow-y-auto px-4 py-4 space-y-6">
+                    {% for group in nav %}
+                        <div>
+                            <p class="px-2 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                                {{ group.label }}
+                            </p>
+                            <ul class="space-y-1">
+                                {% for item in group.items %}
+                                    <li>
+                                        <a href="{{ item.url }}" class="flex items-center justify-between rounded-lg px-2.5 py-2 text-sm font-medium transition {% if item.is_active %}bg-amber-500 text-slate-950 font-semibold shadow-sm{% else %}text-slate-300 hover:bg-slate-800 hover:text-white{% endif %}">
+                                            <span>{{ item.label }}</span>
+                                            {% if item.is_active %}
+                                                <span class="h-1.5 w-1.5 rounded-full bg-slate-950" aria-hidden="true"></span>
+                                            {% endif %}
+                                        </a>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endfor %}
+                </nav>
+
+                <div class="border-t border-slate-800 px-6 py-4 text-xs text-slate-400">
+                    <p class="font-medium text-slate-300 truncate">{{ request.user.email }}</p>
+                    <a href="{% url 'staff:logout' %}" class="mt-2 inline-block text-amber-400 hover:underline font-semibold">Sign Out</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# ---------------------------------------------------------------------------------- #}
+    {# Desktop Static Sidebar                                                             #}
+    {# ---------------------------------------------------------------------------------- #}
+    <div class="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col lg:border-r lg:border-slate-200 dark:lg:border-slate-800 lg:bg-white dark:lg:bg-slate-900">
+        <div class="flex h-16 shrink-0 items-center gap-3 border-b border-slate-200 dark:border-slate-800 px-6">
+            <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500 text-sm font-black text-slate-950 shadow" aria-hidden="true">FW</span>
+            <div>
+                <a href="{% url 'staff:dashboard' %}" class="text-sm font-bold tracking-tight text-slate-900 dark:text-white hover:text-amber-500 transition">
+                    Staff Portal
+                </a>
+                <p class="text-xs text-slate-500 dark:text-slate-400">FLASHWEAR</p>
+            </div>
+        </div>
+
+        <nav class="flex-1 overflow-y-auto px-4 py-4 space-y-6" aria-label="Staff Navigation">
+            {% for group in nav %}
+                <div>
+                    <p class="px-2 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                        {{ group.label }}
+                    </p>
+                    <ul class="space-y-1">
+                        {% for item in group.items %}
+                            <li>
+                                <a href="{{ item.url }}" class="group flex items-center justify-between rounded-lg px-2.5 py-2 text-sm font-medium transition {% if item.is_active %}bg-amber-500 text-slate-950 font-semibold shadow-sm{% else %}text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white{% endif %}" {% if item.is_active %}aria-current="page"{% endif %}>
+                                    <span>{{ item.label }}</span>
+                                    {% if item.is_active %}
+                                        <span class="h-1.5 w-1.5 rounded-full bg-slate-950" aria-hidden="true"></span>
+                                    {% endif %}
+                                </a>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            {% endfor %}
+        </nav>
+
+        {# User footer & Theme Switcher #}
+        <div class="border-t border-slate-200 dark:border-slate-800 p-4">
+            <div class="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                <span class="font-semibold uppercase tracking-wider text-[10px]">Theme</span>
+                <div class="flex items-center gap-1 rounded-lg bg-slate-100 dark:bg-slate-800 p-0.5 border border-slate-200 dark:border-slate-700">
+                    <button type="button" @click="setTheme('light')" class="rounded px-2 py-0.5 text-xs font-medium transition" :class="theme === 'light' ? 'bg-amber-500 text-slate-950 font-bold' : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'">
+                        Light
+                    </button>
+                    <button type="button" @click="setTheme('dark')" class="rounded px-2 py-0.5 text-xs font-medium transition" :class="theme === 'dark' ? 'bg-amber-500 text-slate-950 font-bold' : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'">
+                        Dark
+                    </button>
+                    <button type="button" @click="setTheme('auto')" class="rounded px-2 py-0.5 text-xs font-medium transition" :class="theme === 'auto' ? 'bg-amber-500 text-slate-950 font-bold' : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'">
+                        Auto
+                    </button>
+                </div>
+            </div>
+            <div class="mt-3 flex items-center justify-between border-t border-slate-200 dark:border-slate-800 pt-3">
+                <div class="truncate">
+                    <p class="text-xs font-medium text-slate-900 dark:text-white truncate">{{ request.user.get_short_name }}</p>
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400 truncate">{{ request.user.email }}</p>
+                </div>
+                <a href="{% url 'staff:logout' %}" class="rounded p-1.5 text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 transition" title="Sign out" aria-label="Sign out">
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    {# ---------------------------------------------------------------------------------- #}
+    {# Main Content Wrapper                                                               #}
+    {# ---------------------------------------------------------------------------------- #}
+    <div class="lg:pl-64 flex flex-col min-h-screen">
+        {# Top Header #}
+        <header class="sticky top-0 z-40 flex h-16 shrink-0 items-center justify-between border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center gap-4">
+                {# Mobile menu button #}
+                <button type="button" @click="mobileNav = true" class="lg:hidden -m-2.5 p-2.5 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white">
+                    <span class="sr-only">Open navigation menu</span>
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                </button>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-semibold px-2 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 border border-amber-200 dark:border-amber-700/50">
+                        Staff Portal
+                    </span>
+                    {% block breadcrumb %}{% endblock %}
+                </div>
+            </div>
+
+            <div class="flex items-center gap-3">
+                <a href="{% url 'core:home' %}" class="hidden sm:inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 font-medium transition" target="_blank" rel="noopener">
+                    <span>Storefront</span>
+                    <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                </a>
+                <div class="relative" x-data="{ open: false }">
+                    <button type="button" @click="open = !open" class="flex items-center gap-2 rounded-full bg-slate-100 dark:bg-slate-800 p-1 pr-3 text-xs font-medium text-slate-700 dark:text-slate-200 hover:ring-2 hover:ring-amber-500 transition">
+                        <span class="inline-flex h-7 w-7 items-center justify-center rounded-full bg-amber-500 text-xs font-bold text-slate-950">
+                            {{ request.user.first_name|default:request.user.email|slice:":1"|upper }}
+                        </span>
+                        <span class="hidden sm:inline truncate max-w-[120px]">{{ request.user.get_short_name }}</span>
+                    </button>
+
+                    <div x-show="open" @click.away="open = false" x-cloak class="absolute right-0 mt-2 w-48 rounded-lg bg-white dark:bg-slate-900 shadow-lg border border-slate-200 dark:border-slate-800 py-1 text-xs text-slate-700 dark:text-slate-300 z-50">
+                        <div class="px-3 py-2 border-b border-slate-100 dark:border-slate-800">
+                            <p class="font-bold text-slate-900 dark:text-white truncate">{{ request.user.get_full_name|default:request.user.email }}</p>
+                            <p class="text-slate-400 truncate">{{ request.user.email }}</p>
+                        </div>
+                        <a href="{% url 'staff:dashboard' %}" class="block px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 transition">Dashboard</a>
+                        <a href="{% url 'staff:logout' %}" class="block px-3 py-2 text-rose-600 dark:text-rose-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition">Sign Out</a>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        {# Messages #}
+        {% if messages %}
+            <div class="px-4 sm:px-6 lg:px-8 pt-4">
+                {% for message in messages %}
+                    <div class="mb-3 rounded-lg p-3 text-sm flex items-center justify-between {% if message.tags == 'error' %}bg-rose-50 text-rose-800 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-900{% elif message.tags == 'success' %}bg-emerald-50 text-emerald-800 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900{% else %}bg-amber-50 text-amber-800 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-900{% endif %}">
+                        <span>{{ message }}</span>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        {# Main Content #}
+        <main id="staff-main" class="flex-1 px-4 sm:px-6 lg:px-8 py-6">
+            {% block content %}{% endblock %}
+        </main>
+
+        <footer class="border-t border-slate-200 dark:border-slate-800 py-4 px-4 sm:px-6 lg:px-8 text-center text-xs text-slate-400">
+            FLASHWEAR Dedicated Staff Portal &bull; Role-Based Access Control Foundation
+        </footer>
+    </div>
+</body>
+</html>

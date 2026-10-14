@@ -1,0 +1,74 @@
+{% extends "staff/base.html" %}
+
+{% block title %}Staff Audit Trail{% endblock %}
+
+{% block breadcrumb %}
+    <span class="text-slate-400">/</span>
+    <span class="text-xs font-medium text-slate-700 dark:text-slate-200">Audit Trail</span>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+                Staff Audit Trail
+            </h1>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                Append-only log of privileged employee operations, role modifications, and account state changes.
+            </p>
+        </div>
+    </div>
+
+    <div class="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-xs">
+                <thead>
+                    <tr class="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 text-slate-500 uppercase tracking-wider font-semibold">
+                        <th class="py-3 px-4">Timestamp</th>
+                        <th class="py-3 px-4">Action</th>
+                        <th class="py-3 px-4">Actor</th>
+                        <th class="py-3 px-4">Affected Resource</th>
+                        <th class="py-3 px-4">Reason / Notes</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                    {% for evt in page_obj %}
+                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition">
+                            <td class="py-3 px-4 text-slate-500 whitespace-nowrap">{{ evt.created_at|date:"Y-m-d H:i:s" }}</td>
+                            <td class="py-3 px-4">
+                                <code class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 font-mono text-[11px] font-semibold text-slate-800 dark:text-slate-200">
+                                    {{ evt.action }}
+                                </code>
+                            </td>
+                            <td class="py-3 px-4 text-slate-700 dark:text-slate-300 font-medium">{{ evt.actor_label }}</td>
+                            <td class="py-3 px-4 text-slate-600 dark:text-slate-400 font-mono text-[11px]">{{ evt.object_repr|default:evt.object_id }}</td>
+                            <td class="py-3 px-4 text-slate-600 dark:text-slate-300">{{ evt.reason|default:"-" }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="5" class="py-12 text-center text-slate-400 italic">
+                                No staff audit events recorded yet.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if page_obj.has_other_pages %}
+            <div class="p-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500">
+                <div>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</div>
+                <div class="flex gap-2">
+                    {% if page_obj.has_previous %}
+                        <a href="?page={{ page_obj.previous_page_number }}" class="px-3 py-1 rounded border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200">Previous</a>
+                    {% endif %}
+                    {% if page_obj.has_next %}
+                        <a href="?page={{ page_obj.next_page_number }}" class="px-3 py-1 rounded border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200">Next</a>
+                    {% endif %}
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

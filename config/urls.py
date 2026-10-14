@@ -54,6 +54,8 @@ urlpatterns = [
     # Phase 32: Community, Social Proof & Shoppable UGC (/creators/, /inspiration/)
     path("creators/", include("apps.creator.urls")),
     path("inspiration/", include("apps.creator.inspiration_urls")),
+    # Phase 57: Dedicated Staff Portal & RBAC Foundation (/staff/)
+    path("staff/", include("apps.staff.urls")),
 ]
 
 # Serve user-uploaded media files in development and container deployments without S3.

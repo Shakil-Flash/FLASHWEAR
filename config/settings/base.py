@@ -126,6 +126,8 @@ LOCAL_APPS = [
     "apps.backoffice",
     # Phase 56: Business Automation & Intelligent Operations
     "apps.automation",
+    # Phase 57: Dedicated Staff Portal Foundation & Role-Based Access Control
+    "apps.staff",
 ]
 
 

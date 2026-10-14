@@ -1,0 +1,158 @@
+{% extends "staff/base.html" %}
+
+{% block title %}{{ member.email }} · Staff Details{% endblock %}
+
+{% block breadcrumb %}
+    <span class="text-slate-400">/</span>
+    <a href="{% url 'staff:account_list' %}" class="text-xs font-medium text-slate-500 hover:text-slate-800 dark:hover:text-slate-200">Staff Accounts</a>
+    <span class="text-slate-400">/</span>
+    <span class="text-xs font-medium text-slate-700 dark:text-slate-200">{{ member.email }}</span>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    {# Header #}
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+            <div class="flex items-center gap-3">
+                <h1 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+                    {{ member.get_full_name|default:member.email }}
+                </h1>
+                {% if member.is_active %}
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">
+                        <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span> Active
+                    </span>
+                {% else %}
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300">
+                        <span class="h-1.5 w-1.5 rounded-full bg-rose-500"></span> Inactive
+                    </span>
+                {% endif %}
+            </div>
+            <p class="text-xs font-mono text-slate-400 mt-1">{{ member.email }}</p>
+        </div>
+
+        <div class="flex items-center gap-3">
+            {% if can_edit_roles %}
+                <a href="{% url 'staff:account_roles' member.pk %}" class="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow transition">
+                    Modify Roles
+                </a>
+            {% endif %}
+
+            {% if not is_self %}
+                <form method="post" action="{% url 'staff:account_toggle_active' member.pk %}" onsubmit="return confirm('Are you sure you want to {% if member.is_active %}deactivate{% else %}activate{% endif %} this staff account?');">
+                    {% csrf_token %}
+                    {% if member.is_active %}
+                        <button type="submit" class="px-3.5 py-2 rounded-lg border border-rose-300 dark:border-rose-800 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-xs font-semibold transition">
+                            Deactivate Account
+                        </button>
+                    {% else %}
+                        <button type="submit" class="px-3.5 py-2 rounded-lg border border-emerald-300 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-xs font-semibold transition">
+                            Activate Account
+                        </button>
+                    {% endif %}
+                </form>
+            {% endif %}
+        </div>
+    </div>
+
+    {# Account Meta Grid #}
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="md:col-span-1 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-4">
+            <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400">Account Overview</h2>
+            <div class="space-y-3 text-xs">
+                <div>
+                    <span class="text-slate-500">Full Name:</span>
+                    <p class="font-semibold text-slate-900 dark:text-white">{{ member.get_full_name|default:"Not specified" }}</p>
+                </div>
+                <div>
+                    <span class="text-slate-500">Date Joined:</span>
+                    <p class="font-semibold text-slate-900 dark:text-white">{{ member.date_joined|date:"Y-m-d H:i" }}</p>
+                </div>
+                <div>
+                    <span class="text-slate-500">Last Login:</span>
+                    <p class="font-semibold text-slate-900 dark:text-white">
+                        {% if member.last_login %}{{ member.last_login|date:"Y-m-d H:i" }}{% else %}Never{% endif %}
+                    </p>
+                </div>
+                <div>
+                    <span class="text-slate-500">Superuser / Root Status:</span>
+                    <p class="font-semibold {% if member.is_superuser %}text-amber-500{% else %}text-slate-400{% endif %}">
+                        {% if member.is_superuser %}Superuser (Root){% else %}Standard Staff (No superuser access){% endif %}
+                    </p>
+                </div>
+                <div>
+                    <span class="text-slate-500">Django Admin Access (is_staff):</span>
+                    <p class="font-semibold {% if member.is_staff %}text-amber-500{% else %}text-emerald-600 dark:text-emerald-400{% endif %}">
+                        {% if member.is_staff %}Enabled (Can access /admin/){% else %}Disabled (Portal Only - Safe){% endif %}
+                    </p>
+                </div>
+            </div>
+
+            <div class="pt-4 border-t border-slate-100 dark:border-slate-800">
+                <span class="text-slate-500 text-xs">Assigned Roles:</span>
+                <div class="mt-2 flex flex-wrap gap-1.5">
+                    {% for r in role_labels %}
+                        <span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold bg-amber-500 text-slate-950">
+                            {{ r }}
+                        </span>
+                    {% empty %}
+                        <span class="text-xs text-slate-400 italic">No roles currently assigned</span>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        {# Effective Capabilities Matrix #}
+        <div class="md:col-span-2 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
+            <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">Effective Operational Capabilities</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                {% for cap in capabilities %}
+                    <div class="flex items-center gap-2 p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
+                        <span class="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 text-xs font-bold">
+                            &check;
+                        </span>
+                        <code class="font-mono text-slate-700 dark:text-slate-200">{{ cap }}</code>
+                    </div>
+                {% empty %}
+                    <div class="col-span-2 py-6 text-center text-slate-400 italic">
+                        No capabilities granted.
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    {# Audit Trail #}
+    <div class="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
+        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">Recent Audit Activity</h2>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-xs">
+                <thead>
+                    <tr class="border-b border-slate-200 dark:border-slate-800 text-slate-400 font-semibold uppercase text-[10px]">
+                        <th class="py-2.5 px-3">Date</th>
+                        <th class="py-2.5 px-3">Action</th>
+                        <th class="py-2.5 px-3">Actor</th>
+                        <th class="py-2.5 px-3">Reason / Details</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                    {% for evt in audit_events %}
+                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                            <td class="py-2.5 px-3 text-slate-500 whitespace-nowrap">{{ evt.created_at|date:"Y-m-d H:i" }}</td>
+                            <td class="py-2.5 px-3 font-mono text-[11px] font-semibold text-slate-800 dark:text-slate-200">{{ evt.action }}</td>
+                            <td class="py-2.5 px-3 text-slate-600 dark:text-slate-400">{{ evt.actor_label }}</td>
+                            <td class="py-2.5 px-3 text-slate-600 dark:text-slate-300">{{ evt.reason|default:evt.object_repr }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="4" class="py-6 text-center text-slate-400 italic">
+                                No audit events recorded for this account yet.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

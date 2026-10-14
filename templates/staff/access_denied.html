@@ -1,0 +1,66 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-100 dark:bg-slate-950">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Access Denied · FLASHWEAR Staff Portal</title>
+    <script src="{% static 'js/theme-init.js' %}"></script>
+    <link rel="stylesheet" href="{% static 'css/app.css' %}" />
+</head>
+<body class="h-full flex items-center justify-center p-4 bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
+    <div class="w-full max-w-lg text-center">
+        <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-rose-100 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-900/60 text-rose-600 dark:text-rose-400 mb-6 shadow-sm">
+            <svg class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+        </div>
+
+        <h1 class="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+            Access Restricted
+        </h1>
+        <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
+            {{ message|default:"You do not have the required permissions to view or perform operations on this page." }}
+        </p>
+
+        <div class="mt-6 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 text-left shadow-sm">
+            <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Security & Role Context</h2>
+            <div class="space-y-2 text-xs">
+                <div class="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800">
+                    <span class="text-slate-500">Account:</span>
+                    <span class="font-medium text-slate-900 dark:text-slate-200">{{ request.user.email|default:"Not signed in" }}</span>
+                </div>
+                <div class="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800">
+                    <span class="text-slate-500">Assigned Roles:</span>
+                    <span class="font-medium text-slate-900 dark:text-slate-200">
+                        {% if user_roles %}
+                            {{ user_roles|join:", " }}
+                        {% else %}
+                            <span class="text-amber-500">None (Customer or Unassigned)</span>
+                        {% endif %}
+                    </span>
+                </div>
+                {% if required_capability %}
+                    <div class="flex justify-between py-1">
+                        <span class="text-slate-500">Required Permission:</span>
+                        <code class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-rose-500 font-mono">{{ required_capability }}</code>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <a href="{% url 'staff:dashboard' %}" class="w-full sm:w-auto px-5 py-2.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm shadow transition focus:outline-none focus:ring-2 focus:ring-amber-500">
+                Staff Dashboard
+            </a>
+            <a href="{% url 'staff:logout' %}" class="w-full sm:w-auto px-5 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold text-sm transition">
+                Sign in with another account
+            </a>
+            <a href="{% url 'core:home' %}" class="w-full sm:w-auto px-4 py-2.5 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white text-sm font-medium transition">
+                Return to Storefront
+            </a>
+        </div>
+    </div>
+</body>
+</html>
