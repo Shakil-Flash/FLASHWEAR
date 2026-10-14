@@ -1,256 +1,513 @@
 {% extends "staff/base.html" %}
 
-{% block title %}Dashboard{% endblock %}
+{% block title %}Operations Dashboard{% endblock %}
 
 {% block breadcrumb %}
     <span class="text-slate-400">/</span>
-    <span class="text-xs font-medium text-slate-700 dark:text-slate-200">Dashboard</span>
+    <span class="text-xs font-medium text-slate-700 dark:text-slate-200">Daily Operations Center</span>
 {% endblock %}
 
 {% block content %}
 <div class="space-y-8">
-    {# Welcome Banner #}
-    <div class="rounded-2xl bg-gradient-to-r from-slate-900 to-slate-800 text-white p-6 sm:p-8 shadow-xl border border-slate-700/50">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    {# Welcome Banner & Date Range Filter #}
+    <div class="rounded-2xl bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white p-6 sm:p-8 shadow-xl border border-slate-700/60">
+        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
             <div>
                 <div class="flex items-center gap-2 mb-2">
-                    <span class="inline-block h-2 w-2 rounded-full bg-emerald-400"></span>
-                    <span class="text-xs font-semibold text-emerald-300 uppercase tracking-wider">Active Staff Session</span>
+                    <span class="inline-block h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span class="text-xs font-bold uppercase tracking-wider text-emerald-300">Live Operations Center</span>
+                    <span class="text-xs text-slate-400">•</span>
+                    <span class="text-xs text-slate-300 font-medium">{{ current_time|date:"l, F j, Y" }}</span>
+                    <span class="text-xs text-slate-400">•</span>
+                    <span class="text-xs text-slate-400">Refreshed {{ current_time|date:"H:i e" }}</span>
                 </div>
                 <h1 class="text-2xl sm:text-3xl font-black tracking-tight text-white">
                     Welcome back, {{ request.user.get_short_name|default:request.user.email }}
                 </h1>
-                <p class="mt-1 text-sm text-slate-300">
-                    Your assigned operational roles:
+                <div class="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-slate-300">
+                    <span class="text-slate-400 font-medium">Assigned Profiles:</span>
                     {% for label in role_labels %}
-                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-amber-500 text-slate-950 ml-1">
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-amber-500 text-slate-950">
                             {{ label }}
                         </span>
                     {% empty %}
                         <span class="text-slate-400 italic">No roles assigned</span>
                     {% endfor %}
-                </p>
+                </div>
             </div>
-            <div>
-                <a href="{% url 'staff:account_list' %}" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-xs font-semibold text-white transition">
-                    <span>Manage Staff</span>
+
+            {# Date Range Filters & Refresh Controls #}
+            <div class="flex flex-wrap items-center gap-2">
+                <div class="inline-flex rounded-lg bg-slate-800/80 p-1 border border-slate-700" role="group" aria-label="Date Range Filters">
+                    <a href="?range=today" class="px-3 py-1.5 rounded-md text-xs font-semibold transition {% if active_range == 'today' %}bg-amber-500 text-slate-950 shadow{% else %}text-slate-300 hover:text-white{% endif %}">
+                        Today
+                    </a>
+                    <a href="?range=7d" class="px-3 py-1.5 rounded-md text-xs font-semibold transition {% if active_range == '7d' %}bg-amber-500 text-slate-950 shadow{% else %}text-slate-300 hover:text-white{% endif %}">
+                        7 Days
+                    </a>
+                    <a href="?range=30d" class="px-3 py-1.5 rounded-md text-xs font-semibold transition {% if active_range == '30d' %}bg-amber-500 text-slate-950 shadow{% else %}text-slate-300 hover:text-white{% endif %}">
+                        30 Days
+                    </a>
+                    <a href="?range=all" class="px-3 py-1.5 rounded-md text-xs font-semibold transition {% if active_range == 'all' %}bg-amber-500 text-slate-950 shadow{% else %}text-slate-300 hover:text-white{% endif %}">
+                        All Time
+                    </a>
+                </div>
+
+                <a href="{{ request.path }}?range={{ active_range }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-xs font-semibold text-white transition border border-slate-600/50" title="Refresh operational data">
                     <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                     </svg>
+                    <span>Refresh</span>
                 </a>
             </div>
         </div>
     </div>
 
-    {# Operational Metric Cards #}
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-        {% if summary.products %}
-            <div class="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 shadow-sm hover:border-amber-500/50 transition">
-                <div class="flex items-center justify-between">
-                    <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Catalogue & Products</span>
-                    <span class="p-2 rounded-lg bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400">
-                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+    {# Urgent Operational Alerts #}
+    {% if urgent_alerts %}
+        <div class="space-y-3">
+            <h2 class="text-xs font-bold uppercase tracking-wider text-rose-500 dark:text-rose-400 flex items-center gap-1.5">
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <span>Urgent Operational Attention Required ({{ urgent_alerts|length }})</span>
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {% for alert in urgent_alerts %}
+                    <div class="rounded-xl border p-4 shadow-sm flex items-start justify-between gap-3 {% if alert.severity == 'critical' %}bg-rose-50/50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-900/60{% else %}bg-amber-50/50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/60{% endif %}">
+                        <div class="space-y-1">
+                            <div class="flex items-center gap-2">
+                                <span class="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wide {% if alert.severity == 'critical' %}bg-rose-600 text-white{% else %}bg-amber-600 text-white{% endif %}">
+                                    {{ alert.severity }}
+                                </span>
+                                <h3 class="text-sm font-bold text-slate-900 dark:text-white">{{ alert.title }}</h3>
+                            </div>
+                            <p class="text-xs text-slate-600 dark:text-slate-300">{{ alert.message }}</p>
+                            <p class="text-[11px] text-slate-400">{{ alert.timestamp|timesince }} ago</p>
+                        </div>
+                        <a href="{{ alert.url }}" class="shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold text-white transition {% if alert.severity == 'critical' %}bg-rose-600 hover:bg-rose-500{% else %}bg-amber-600 hover:bg-amber-500{% endif %}">
+                            Resolve &rarr;
+                        </a>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
+
+    {# Compact Business Status Cards #}
+    <div>
+        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Live Operational Status Summary</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {# Products Card #}
+            {% if summary.products %}
+                <div class="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 shadow-sm hover:border-amber-500/50 transition">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Catalogue & Items</span>
+                        <span class="p-2 rounded-lg bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400">
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                            </svg>
+                        </span>
+                    </div>
+                    <div class="mt-3">
+                        <span class="text-3xl font-black text-slate-900 dark:text-white">{{ summary.products.published }}</span>
+                        <span class="text-xs text-slate-500 ml-1">active products</span>
+                    </div>
+                    <div class="mt-3 flex items-center justify-between text-xs text-slate-500 border-t border-slate-100 dark:border-slate-800 pt-2.5">
+                        <div><strong class="text-amber-500 font-bold">{{ summary.products.draft }}</strong> drafts</div>
+                        <div><strong class="text-slate-400 font-bold">{{ summary.products.total }}</strong> total</div>
+                    </div>
+                    <div class="mt-3 pt-2 flex items-center justify-between text-xs">
+                        <a href="{% url 'staff:products' %}?status=draft" class="font-bold text-amber-500 hover:text-amber-400">
+                            Review Drafts &rarr;
+                        </a>
+                        <a href="{% url 'staff:products' %}" class="text-slate-400 hover:text-slate-300">
+                            All Items
+                        </a>
+                    </div>
+                </div>
+            {% endif %}
+
+            {# Inventory Card #}
+            {% if summary.inventory %}
+                <div class="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 shadow-sm hover:border-amber-500/50 transition">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Inventory Health</span>
+                        <span class="p-2 rounded-lg bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400">
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                            </svg>
+                        </span>
+                    </div>
+                    <div class="mt-3 flex items-baseline gap-2">
+                        <span class="text-3xl font-black {% if summary.inventory.stock_risks > 0 %}text-amber-500{% else %}text-emerald-500{% endif %}">
+                            {{ summary.inventory.stock_risks }}
+                        </span>
+                        <span class="text-xs text-slate-500">at risk items</span>
+                    </div>
+                    <div class="mt-3 flex items-center justify-between text-xs text-slate-500 border-t border-slate-100 dark:border-slate-800 pt-2.5">
+                        <div><strong class="text-rose-500 font-bold">{{ summary.inventory.out_of_stock }}</strong> stockouts</div>
+                        <div><strong class="text-amber-500 font-bold">{{ summary.inventory.low_stock }}</strong> low stock</div>
+                    </div>
+                    <div class="mt-3 pt-2 flex items-center justify-between text-xs">
+                        <a href="{% url 'staff:inventory' %}?status=low_stock" class="font-bold text-amber-500 hover:text-amber-400">
+                            Low Stock Queue &rarr;
+                        </a>
+                        <a href="{% url 'staff:inventory' %}?status=out_of_stock" class="text-rose-400 hover:text-rose-300">
+                            Stockouts
+                        </a>
+                    </div>
+                </div>
+            {% endif %}
+
+            {# Orders Card #}
+            {% if summary.orders %}
+                <div class="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 shadow-sm hover:border-amber-500/50 transition">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Order Processing</span>
+                        <span class="p-2 rounded-lg bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400">
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                            </svg>
+                        </span>
+                    </div>
+                    <div class="mt-3">
+                        <span class="text-3xl font-black text-slate-900 dark:text-white">{{ summary.orders.actionable_queue }}</span>
+                        <span class="text-xs text-slate-500 ml-1">in queue</span>
+                    </div>
+                    <div class="mt-3 flex items-center justify-between text-xs text-slate-500 border-t border-slate-100 dark:border-slate-800 pt-2.5">
+                        <div><strong class="text-emerald-500 font-bold">{{ summary.orders.awaiting_processing }}</strong> paid/ready</div>
+                        <div><strong class="text-purple-400 font-bold">{{ summary.orders.processing }}</strong> packing</div>
+                    </div>
+                    <div class="mt-3 pt-2 flex items-center justify-between text-xs">
+                        <a href="{% url 'staff:orders' %}?status=processing" class="font-bold text-amber-500 hover:text-amber-400">
+                            Fulfillment Queue &rarr;
+                        </a>
+                        <a href="{% url 'staff:orders' %}" class="text-slate-400 hover:text-slate-300">
+                            All Orders
+                        </a>
+                    </div>
+                </div>
+            {% endif %}
+
+            {# Returns Card #}
+            {% if summary.returns %}
+                <div class="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 shadow-sm hover:border-amber-500/50 transition">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Returns & Exchanges</span>
+                        <span class="p-2 rounded-lg bg-orange-50 dark:bg-orange-950/50 text-orange-600 dark:text-orange-400">
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                        </span>
+                    </div>
+                    <div class="mt-3">
+                        <span class="text-3xl font-black text-slate-900 dark:text-white">{{ summary.returns.total_pending }}</span>
+                        <span class="text-xs text-slate-500 ml-1">pending returns</span>
+                    </div>
+                    <div class="mt-3 flex items-center justify-between text-xs text-slate-500 border-t border-slate-100 dark:border-slate-800 pt-2.5">
+                        <div><strong class="text-amber-500 font-bold">{{ summary.returns.pending_review }}</strong> to review</div>
+                        <div><strong class="text-slate-400 font-bold">{{ summary.returns.in_inspection }}</strong> inspection</div>
+                    </div>
+                    <div class="mt-3 pt-2">
+                        <a href="{% url 'staff:orders' %}?type=returns" class="text-xs font-bold text-amber-500 hover:text-amber-400">
+                            Inspect Returns &rarr;
+                        </a>
+                    </div>
+                </div>
+            {% endif %}
+
+            {# Deliveries Card #}
+            {% if summary.deliveries %}
+                <div class="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 shadow-sm hover:border-amber-500/50 transition">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Shipping & Deliveries</span>
+                        <span class="p-2 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400">
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" />
+                            </svg>
+                        </span>
+                    </div>
+                    <div class="mt-3">
+                        <span class="text-3xl font-black text-slate-900 dark:text-white">{{ summary.deliveries.in_transit }}</span>
+                        <span class="text-xs text-slate-500 ml-1">in transit</span>
+                    </div>
+                    <div class="mt-3 flex items-center justify-between text-xs text-slate-500 border-t border-slate-100 dark:border-slate-800 pt-2.5">
+                        <div><strong class="text-amber-500 font-bold">{{ summary.deliveries.awaiting_dispatch }}</strong> dispatch</div>
+                        <div><strong class="{% if summary.deliveries.exceptions > 0 %}text-rose-500{% else %}text-slate-400{% endif %} font-bold">{{ summary.deliveries.exceptions }}</strong> exceptions</div>
+                    </div>
+                    <div class="mt-3 pt-2 flex items-center justify-between text-xs">
+                        <a href="{% url 'staff:deliveries' %}?status=exceptions" class="font-bold {% if summary.deliveries.exceptions > 0 %}text-rose-500 hover:text-rose-400{% else %}text-amber-500 hover:text-amber-400{% endif %}">
+                            Exceptions Queue &rarr;
+                        </a>
+                        <a href="{% url 'staff:deliveries' %}" class="text-slate-400 hover:text-slate-300">
+                            Track All
+                        </a>
+                    </div>
+                </div>
+            {% endif %}
+
+            {# Support Card #}
+            {% if summary.support %}
+                <div class="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 shadow-sm hover:border-amber-500/50 transition">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Customer Support Desk</span>
+                        <span class="p-2 rounded-lg bg-teal-50 dark:bg-teal-950/50 text-teal-600 dark:text-teal-400">
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z" />
+                            </svg>
+                        </span>
+                    </div>
+                    <div class="mt-3">
+                        <span class="text-3xl font-black text-slate-900 dark:text-white">{{ summary.support.active_tickets }}</span>
+                        <span class="text-xs text-slate-500 ml-1">active tickets</span>
+                    </div>
+                    <div class="mt-3 flex items-center justify-between text-xs text-slate-500 border-t border-slate-100 dark:border-slate-800 pt-2.5">
+                        <div><strong class="{% if summary.support.urgent > 0 %}text-rose-500{% else %}text-slate-400{% endif %} font-bold">{{ summary.support.urgent }}</strong> urgent</div>
+                        <div><strong class="text-amber-500 font-bold">{{ summary.support.unassigned }}</strong> unassigned</div>
+                    </div>
+                    <div class="mt-3 pt-2 flex items-center justify-between text-xs">
+                        <a href="{% url 'staff:support' %}?status=urgent" class="font-bold text-amber-500 hover:text-amber-400">
+                            Urgent Desk &rarr;
+                        </a>
+                        <a href="{% url 'staff:support' %}" class="text-slate-400 hover:text-slate-300">
+                            All Tickets
+                        </a>
+                    </div>
+                </div>
+            {% endif %}
+
+            {# Staff Management Card (Owner / Ops Manager only) #}
+            {% if summary.staff %}
+                <div class="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 shadow-sm hover:border-amber-500/50 transition">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Staff Accounts & RBAC</span>
+                        <span class="p-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400">
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                            </svg>
+                        </span>
+                    </div>
+                    <div class="mt-3">
+                        <span class="text-3xl font-black text-slate-900 dark:text-white">{{ summary.staff.active_count }}</span>
+                        <span class="text-xs text-slate-500 ml-1">active employees</span>
+                    </div>
+                    <div class="mt-3 flex items-center justify-between text-xs text-slate-500 border-t border-slate-100 dark:border-slate-800 pt-2.5">
+                        <div><strong class="text-slate-400 font-bold">{{ summary.staff.inactive_count }}</strong> deactivated</div>
+                        <div><strong class="text-slate-400 font-bold">{{ summary.staff.total }}</strong> total</div>
+                    </div>
+                    <div class="mt-3 pt-2 flex items-center justify-between text-xs">
+                        <a href="{% url 'staff:account_list' %}" class="font-bold text-amber-500 hover:text-amber-400">
+                            Manage Staff &rarr;
+                        </a>
+                        <a href="{% url 'staff:audit_logs' %}" class="text-slate-400 hover:text-slate-300">
+                            Audit Logs
+                        </a>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {# My Work & Team Queues Section #}
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {# Column 1: Assigned to Me #}
+        <div class="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-2">
+                    <span class="p-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                         </svg>
                     </span>
+                    <h2 class="text-base font-bold text-slate-900 dark:text-white">My Assigned Work</h2>
                 </div>
-                <div class="mt-4">
-                    <span class="text-3xl font-black text-slate-900 dark:text-white">{{ summary.products.total }}</span>
-                    <span class="text-xs text-slate-500 ml-1">total items</span>
-                </div>
-                <div class="mt-3 flex items-center gap-4 text-xs text-slate-500 border-t border-slate-100 dark:border-slate-800 pt-3">
-                    <div><strong class="text-emerald-600 dark:text-emerald-400">{{ summary.products.published }}</strong> published</div>
-                    <div><strong class="text-slate-400">{{ summary.products.draft }}</strong> drafts</div>
-                </div>
-                <div class="mt-4">
-                    <a href="{% url 'staff:products' %}" class="text-xs font-bold text-amber-500 hover:text-amber-400 inline-flex items-center gap-1">
-                        View Products &rarr;
-                    </a>
-                </div>
+                <span class="px-2 py-0.5 rounded text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                    {{ my_work|length }} active
+                </span>
             </div>
-        {% endif %}
 
-        {% if summary.inventory %}
-            <div class="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 shadow-sm hover:border-amber-500/50 transition">
-                <div class="flex items-center justify-between">
-                    <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Inventory Health</span>
-                    <span class="p-2 rounded-lg bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400">
-                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
-                        </svg>
-                    </span>
+            {% if my_work %}
+                <div class="divide-y divide-slate-100 dark:divide-slate-800">
+                    {% for item in my_work %}
+                        <div class="py-3 flex items-center justify-between gap-3">
+                            <div class="space-y-0.5 min-w-0">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-xs font-bold text-slate-900 dark:text-white truncate">{{ item.title }}</span>
+                                    {% if item.is_urgent %}
+                                        <span class="px-1.5 py-0.2 rounded text-[10px] font-black uppercase bg-rose-500 text-white">Urgent</span>
+                                    {% endif %}
+                                </div>
+                                <p class="text-xs text-slate-500 truncate">{{ item.subtitle }}</p>
+                                <p class="text-[11px] text-slate-400">{{ item.timestamp|timesince }} ago</p>
+                            </div>
+                            <a href="{{ item.url }}" class="shrink-0 px-2.5 py-1 rounded bg-slate-100 hover:bg-amber-500 hover:text-slate-950 dark:bg-slate-800 dark:hover:bg-amber-500 text-xs font-semibold text-slate-700 dark:text-slate-200 transition">
+                                Open &rarr;
+                            </a>
+                        </div>
+                    {% endfor %}
                 </div>
-                <div class="mt-4 flex items-baseline gap-2">
-                    <span class="text-3xl font-black {% if summary.inventory.low_stock > 0 %}text-amber-500{% else %}text-emerald-500{% endif %}">
-                        {{ summary.inventory.low_stock }}
-                    </span>
-                    <span class="text-xs text-slate-500">low stock alert(s)</span>
+            {% else %}
+                <div class="py-8 text-center text-slate-400">
+                    <svg class="h-8 w-8 mx-auto mb-2 text-slate-300 dark:text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    <p class="text-xs font-semibold">You're all caught up!</p>
+                    <p class="text-[11px] text-slate-500 mt-0.5">No pending items are currently assigned directly to you.</p>
                 </div>
-                <div class="mt-3 flex items-center gap-4 text-xs text-slate-500 border-t border-slate-100 dark:border-slate-800 pt-3">
-                    <div><strong class="text-rose-500">{{ summary.inventory.out_of_stock }}</strong> out of stock</div>
-                </div>
-                <div class="mt-4">
-                    <a href="{% url 'staff:inventory' %}" class="text-xs font-bold text-amber-500 hover:text-amber-400 inline-flex items-center gap-1">
-                        Stock Overview &rarr;
-                    </a>
-                </div>
-            </div>
-        {% endif %}
+            {% endif %}
+        </div>
 
-        {% if summary.orders %}
-            <div class="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 shadow-sm hover:border-amber-500/50 transition">
-                <div class="flex items-center justify-between">
-                    <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Order Fulfillment</span>
-                    <span class="p-2 rounded-lg bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400">
-                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                        </svg>
-                    </span>
-                </div>
-                <div class="mt-4">
-                    <span class="text-3xl font-black text-slate-900 dark:text-white">{{ summary.orders.processing }}</span>
-                    <span class="text-xs text-slate-500 ml-1">in processing</span>
-                </div>
-                <div class="mt-3 flex items-center gap-4 text-xs text-slate-500 border-t border-slate-100 dark:border-slate-800 pt-3">
-                    <div><strong class="text-amber-500">{{ summary.orders.pending }}</strong> pending payment</div>
-                </div>
-                <div class="mt-4">
-                    <a href="{% url 'staff:orders' %}" class="text-xs font-bold text-amber-500 hover:text-amber-400 inline-flex items-center gap-1">
-                        Manage Orders &rarr;
-                    </a>
-                </div>
-            </div>
-        {% endif %}
-
-        {% if summary.deliveries %}
-            <div class="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 shadow-sm hover:border-amber-500/50 transition">
-                <div class="flex items-center justify-between">
-                    <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Delivery Status</span>
-                    <span class="p-2 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400">
-                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" />
-                        </svg>
-                    </span>
-                </div>
-                <div class="mt-4">
-                    <span class="text-3xl font-black text-slate-900 dark:text-white">{{ summary.deliveries.in_transit }}</span>
-                    <span class="text-xs text-slate-500 ml-1">in transit</span>
-                </div>
-                <div class="mt-3 flex items-center gap-4 text-xs text-slate-500 border-t border-slate-100 dark:border-slate-800 pt-3">
-                    <div><strong class="{% if summary.deliveries.exceptions > 0 %}text-rose-500{% else %}text-slate-400{% endif %}">{{ summary.deliveries.exceptions }}</strong> exceptions/failed</div>
-                </div>
-                <div class="mt-4">
-                    <a href="{% url 'staff:deliveries' %}" class="text-xs font-bold text-amber-500 hover:text-amber-400 inline-flex items-center gap-1">
-                        Track Deliveries &rarr;
-                    </a>
-                </div>
-            </div>
-        {% endif %}
-
-        {% if summary.support %}
-            <div class="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 shadow-sm hover:border-amber-500/50 transition">
-                <div class="flex items-center justify-between">
-                    <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Customer Support</span>
-                    <span class="p-2 rounded-lg bg-teal-50 dark:bg-teal-950/50 text-teal-600 dark:text-teal-400">
-                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z" />
-                        </svg>
-                    </span>
-                </div>
-                <div class="mt-4">
-                    <span class="text-3xl font-black text-slate-900 dark:text-white">{{ summary.support.open }}</span>
-                    <span class="text-xs text-slate-500 ml-1">open ticket(s)</span>
-                </div>
-                <div class="mt-3 flex items-center gap-4 text-xs text-slate-500 border-t border-slate-100 dark:border-slate-800 pt-3">
-                    <div>Awaiting response or in progress</div>
-                </div>
-                <div class="mt-4">
-                    <a href="{% url 'staff:support' %}" class="text-xs font-bold text-amber-500 hover:text-amber-400 inline-flex items-center gap-1">
-                        Open Support Queue &rarr;
-                    </a>
-                </div>
-            </div>
-        {% endif %}
-
-        {% if summary.staff %}
-            <div class="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 shadow-sm hover:border-amber-500/50 transition">
-                <div class="flex items-center justify-between">
-                    <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Staff & Roles</span>
-                    <span class="p-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400">
-                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        {# Column 2: Team Queues / Unassigned Work #}
+        <div class="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-2">
+                    <span class="p-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                         </svg>
                     </span>
+                    <h2 class="text-base font-bold text-slate-900 dark:text-white">Team Queues & Unassigned</h2>
                 </div>
-                <div class="mt-4">
-                    <span class="text-3xl font-black text-slate-900 dark:text-white">{{ summary.staff.active_count }}</span>
-                    <span class="text-xs text-slate-500 ml-1">active staff member(s)</span>
-                </div>
-                <div class="mt-3 flex items-center gap-4 text-xs text-slate-500 border-t border-slate-100 dark:border-slate-800 pt-3">
-                    <div>Role-based access control enabled</div>
-                </div>
-                <div class="mt-4">
-                    <a href="{% url 'staff:account_list' %}" class="text-xs font-bold text-amber-500 hover:text-amber-400 inline-flex items-center gap-1">
-                        Manage Employees &rarr;
-                    </a>
-                </div>
+                <span class="px-2 py-0.5 rounded text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                    {{ team_queues|length }} available
+                </span>
             </div>
-        {% endif %}
+
+            {% if team_queues %}
+                <div class="divide-y divide-slate-100 dark:divide-slate-800">
+                    {% for item in team_queues %}
+                        <div class="py-3 flex items-center justify-between gap-3">
+                            <div class="space-y-0.5 min-w-0">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-xs font-bold text-slate-900 dark:text-white truncate">{{ item.title }}</span>
+                                    {% if item.is_urgent %}
+                                        <span class="px-1.5 py-0.2 rounded text-[10px] font-black uppercase bg-rose-500 text-white">Urgent</span>
+                                    {% endif %}
+                                </div>
+                                <p class="text-xs text-slate-500 truncate">{{ item.subtitle }}</p>
+                                <p class="text-[11px] text-slate-400">{{ item.timestamp|timesince }} ago</p>
+                            </div>
+                            <a href="{{ item.url }}" class="shrink-0 px-2.5 py-1 rounded bg-slate-100 hover:bg-blue-600 hover:text-white dark:bg-slate-800 dark:hover:bg-blue-600 text-xs font-semibold text-slate-700 dark:text-slate-200 transition">
+                                Claim &rarr;
+                            </a>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="py-8 text-center text-slate-400">
+                    <svg class="h-8 w-8 mx-auto mb-2 text-slate-300 dark:text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <p class="text-xs font-semibold">Team queues are clear!</p>
+                    <p class="text-[11px] text-slate-500 mt-0.5">No unassigned items are waiting in your department queues.</p>
+                </div>
+            {% endif %}
+        </div>
     </div>
 
-    {# Quick Operational Shortcuts #}
-    <div class="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
-        <h2 class="text-sm font-bold uppercase tracking-wider text-slate-400 mb-4">Quick Navigation</h2>
-        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-            <a href="{% url 'staff:products' %}" class="flex flex-col items-center justify-center p-4 rounded-xl border border-slate-100 dark:border-slate-800 hover:border-amber-500/50 hover:bg-slate-50 dark:hover:bg-slate-800/50 text-center transition group">
-                <span class="text-slate-600 dark:text-slate-300 group-hover:text-amber-500 transition">
-                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                    </svg>
-                </span>
-                <span class="mt-2 text-xs font-bold text-slate-800 dark:text-slate-200">Products</span>
-            </a>
-            <a href="{% url 'staff:inventory' %}" class="flex flex-col items-center justify-center p-4 rounded-xl border border-slate-100 dark:border-slate-800 hover:border-amber-500/50 hover:bg-slate-50 dark:hover:bg-slate-800/50 text-center transition group">
-                <span class="text-slate-600 dark:text-slate-300 group-hover:text-amber-500 transition">
-                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
-                    </svg>
-                </span>
-                <span class="mt-2 text-xs font-bold text-slate-800 dark:text-slate-200">Inventory</span>
-            </a>
-            <a href="{% url 'staff:orders' %}" class="flex flex-col items-center justify-center p-4 rounded-xl border border-slate-100 dark:border-slate-800 hover:border-amber-500/50 hover:bg-slate-50 dark:hover:bg-slate-800/50 text-center transition group">
-                <span class="text-slate-600 dark:text-slate-300 group-hover:text-amber-500 transition">
-                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                    </svg>
-                </span>
-                <span class="mt-2 text-xs font-bold text-slate-800 dark:text-slate-200">Orders</span>
-            </a>
-            <a href="{% url 'staff:deliveries' %}" class="flex flex-col items-center justify-center p-4 rounded-xl border border-slate-100 dark:border-slate-800 hover:border-amber-500/50 hover:bg-slate-50 dark:hover:bg-slate-800/50 text-center transition group">
-                <span class="text-slate-600 dark:text-slate-300 group-hover:text-amber-500 transition">
-                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" />
-                    </svg>
-                </span>
-                <span class="mt-2 text-xs font-bold text-slate-800 dark:text-slate-200">Deliveries</span>
-            </a>
-            <a href="{% url 'staff:support' %}" class="flex flex-col items-center justify-center p-4 rounded-xl border border-slate-100 dark:border-slate-800 hover:border-amber-500/50 hover:bg-slate-50 dark:hover:bg-slate-800/50 text-center transition group">
-                <span class="text-slate-600 dark:text-slate-300 group-hover:text-amber-500 transition">
-                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z" />
-                    </svg>
-                </span>
-                <span class="mt-2 text-xs font-bold text-slate-800 dark:text-slate-200">Support Desk</span>
-            </a>
-            <a href="{% url 'staff:reports' %}" class="flex flex-col items-center justify-center p-4 rounded-xl border border-slate-100 dark:border-slate-800 hover:border-amber-500/50 hover:bg-slate-50 dark:hover:bg-slate-800/50 text-center transition group">
-                <span class="text-slate-600 dark:text-slate-300 group-hover:text-amber-500 transition">
-                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                    </svg>
-                </span>
-                <span class="mt-2 text-xs font-bold text-slate-800 dark:text-slate-200">Reports</span>
-            </a>
+    {# Permitted Quick Actions #}
+    {% if quick_actions %}
+        <div class="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
+            <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">Quick Operational Actions</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                {% for action in quick_actions %}
+                    <a href="{{ action.url }}" class="p-4 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-amber-500/60 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition group flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-slate-700 dark:text-slate-300 group-hover:text-amber-500 transition">
+                                    {% if action.icon == 'document-search' %}
+                                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                                    {% elif action.icon == 'shopping-bag' %}
+                                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>
+                                    {% elif action.icon == 'arrow-path' %}
+                                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                                    {% elif action.icon == 'exclamation-triangle' %}
+                                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                                    {% elif action.icon == 'truck' %}
+                                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" /></svg>
+                                    {% elif action.icon == 'chat-bubble-left-right' %}
+                                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+                                    {% elif action.icon == 'user-plus' %}
+                                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" /></svg>
+                                    {% else %}
+                                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+                                    {% endif %}
+                                </span>
+                            </div>
+                            <h3 class="text-xs font-bold text-slate-900 dark:text-white group-hover:text-amber-500 transition">{{ action.label }}</h3>
+                            <p class="text-[11px] text-slate-500 mt-1 leading-relaxed">{{ action.description }}</p>
+                        </div>
+                        <div class="mt-3 pt-2 text-[11px] font-bold text-amber-500 flex items-center gap-1">
+                            <span>Execute</span> &rarr;
+                        </div>
+                    </a>
+                {% endfor %}
+            </div>
         </div>
+    {% endif %}
+
+    {# Recent Activity Feed (Filtered by user scope) #}
+    <div class="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
+        <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-2">
+                <span class="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </span>
+                <h2 class="text-base font-bold text-slate-900 dark:text-white">Recent Operations & Audit Activity</h2>
+            </div>
+            {% if summary.staff %}
+                <a href="{% url 'staff:audit_logs' %}" class="text-xs font-bold text-amber-500 hover:text-amber-400">
+                    Full Audit Log &rarr;
+                </a>
+            {% endif %}
+        </div>
+
+        {% if recent_activity %}
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                    <thead>
+                        <tr class="border-b border-slate-100 dark:border-slate-800 text-slate-400 font-bold uppercase tracking-wider">
+                            <th class="py-2.5 pr-4">Domain</th>
+                            <th class="py-2.5 px-4">Action</th>
+                            <th class="py-2.5 px-4">Target Resource</th>
+                            <th class="py-2.5 px-4">Staff Member</th>
+                            <th class="py-2.5 pl-4 text-right">Time</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                        {% for ev in recent_activity %}
+                            <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition">
+                                <td class="py-3 pr-4">
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                                        {{ ev.domain }}
+                                    </span>
+                                </td>
+                                <td class="py-3 px-4 font-semibold text-slate-800 dark:text-slate-200">
+                                    <span class="{% if ev.is_warning %}text-rose-500 font-bold{% endif %}">{{ ev.action }}</span>
+                                </td>
+                                <td class="py-3 px-4 text-slate-600 dark:text-slate-300 font-mono text-[11px] truncate max-w-xs">
+                                    {{ ev.object_repr }}
+                                </td>
+                                <td class="py-3 px-4 text-slate-500">
+                                    {{ ev.actor_email }}
+                                </td>
+                                <td class="py-3 pl-4 text-right text-slate-400 font-medium">
+                                    {{ ev.created_at|timesince }} ago
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="py-8 text-center text-slate-400">
+                <p class="text-xs font-semibold">No recent operations activity in your scope.</p>
+                <p class="text-[11px] text-slate-500 mt-0.5">Recorded events matching your permitted modules will appear here in real time.</p>
+            </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

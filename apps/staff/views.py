@@ -4,15 +4,17 @@ from __future__ import annotations
 
 import logging
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import login as auth_login
 from django.contrib.auth import logout as auth_logout
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
-from django.db.models import Q
+from django.db.models import F, Q
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
@@ -29,6 +31,12 @@ from apps.staff.constants import (
     STAFF_MANAGE,
     SUPPORT_VIEW,
     StaffRole,
+)
+from apps.staff.dashboard_services import (
+    get_daily_operations_summary,
+    get_my_work_and_team_queues,
+    get_quick_actions,
+    get_recent_activity_feed,
 )
 from apps.staff.forms import (
     StaffAccountCreateForm,
@@ -128,11 +136,18 @@ def access_denied_view(request: HttpRequest) -> HttpResponse:
 
 @staff_login_required
 def dashboard_view(request: HttpRequest) -> HttpResponse:
-    """Staff Portal main landing page."""
+    """Staff Portal main daily operations dashboard."""
     user = request.user
     user_roles = get_user_roles(user)
     role_labels = [dict(StaffRole.choices).get(r, r) for r in user_roles]
-    summary = get_staff_dashboard_summary(user)
+    range_key = request.GET.get("range", "today").strip().lower()
+    if range_key not in ["today", "7d", "30d", "all"]:
+        range_key = "today"
+
+    summary = get_daily_operations_summary(user, range_key=range_key)
+    queues = get_my_work_and_team_queues(user)
+    recent_activity = get_recent_activity_feed(user, limit=10)
+    quick_actions = get_quick_actions(user)
     nav = get_staff_navigation(user, active_key="dashboard")
 
     return render(
@@ -144,6 +159,13 @@ def dashboard_view(request: HttpRequest) -> HttpResponse:
             "user_roles": user_roles,
             "role_labels": role_labels,
             "summary": summary,
+            "my_work": queues["my_work"],
+            "team_queues": queues["team_queues"],
+            "urgent_alerts": queues["urgent_alerts"],
+            "recent_activity": recent_activity,
+            "quick_actions": quick_actions,
+            "active_range": range_key,
+            "current_time": timezone.now(),
         },
     )
 
@@ -370,14 +392,18 @@ def audit_logs_view(request: HttpRequest) -> HttpResponse:
 
 @staff_permission_required(PRODUCTS_VIEW)
 def products_view(request: HttpRequest) -> HttpResponse:
-    """Products & Catalog module landing for staff."""
+    """Products & Catalog module landing for staff with status filter support."""
     from apps.catalog.models import Product
 
-    products = (
-        Product.objects.select_related("category")
-        .prefetch_related("variants")
-        .order_by("-updated_at")[:25]
-    )
+    status_filter = request.GET.get("status", "").strip().lower()
+    products_qs = Product.objects.select_related("category").prefetch_related("variants")
+
+    if status_filter == "draft":
+        products_qs = products_qs.filter(status=Product.Status.DRAFT)
+    elif status_filter == "active":
+        products_qs = products_qs.filter(status=Product.Status.ACTIVE)
+
+    products = products_qs.order_by("-updated_at")[:25]
     nav = get_staff_navigation(request.user, active_key="products")
     return render(
         request,
@@ -388,6 +414,7 @@ def products_view(request: HttpRequest) -> HttpResponse:
             "title": "Products & Catalogue",
             "module": "products",
             "items": products,
+            "filter_status": status_filter,
             "can_manage": has_staff_capability(request.user, "staff.products.manage"),
         },
     )
@@ -395,10 +422,22 @@ def products_view(request: HttpRequest) -> HttpResponse:
 
 @staff_permission_required(INVENTORY_VIEW)
 def inventory_view(request: HttpRequest) -> HttpResponse:
-    """Inventory module landing for staff."""
+    """Inventory module landing for staff with low/out of stock filter support."""
     from apps.inventory.models import Stock
 
-    stocks = Stock.objects.select_related("variant__product").order_by("on_hand")[:25]
+    status_filter = request.GET.get("status", "").strip().lower()
+    threshold = getattr(settings, "BACKOFFICE_LOW_STOCK_THRESHOLD", 5)
+    stocks_qs = Stock.objects.select_related("variant__product")
+
+    if status_filter == "out_of_stock":
+        stocks_qs = stocks_qs.filter(on_hand__lte=0)
+    elif status_filter == "low_stock":
+        stocks_qs = stocks_qs.filter(
+            Q(on_hand__gt=0, on_hand__lte=F("low_stock_threshold"))
+            | (Q(low_stock_threshold__isnull=True) & Q(on_hand__gt=0, on_hand__lte=threshold))
+        )
+
+    stocks = stocks_qs.order_by("on_hand")[:25]
     nav = get_staff_navigation(request.user, active_key="inventory")
     return render(
         request,
@@ -409,6 +448,7 @@ def inventory_view(request: HttpRequest) -> HttpResponse:
             "title": "Inventory & Stock Levels",
             "module": "inventory",
             "items": stocks,
+            "filter_status": status_filter,
             "can_manage": has_staff_capability(request.user, "staff.inventory.manage"),
         },
     )
@@ -416,10 +456,36 @@ def inventory_view(request: HttpRequest) -> HttpResponse:
 
 @staff_permission_required(ORDERS_VIEW)
 def orders_view(request: HttpRequest) -> HttpResponse:
-    """Orders module landing for staff."""
-    from apps.orders.models import Order
+    """Orders module landing for staff with queue/returns filter support."""
+    from apps.orders.models import Order, ReturnRequest
 
-    orders = Order.objects.order_by("-created_at")[:25]
+    view_type = request.GET.get("type", "").strip().lower()
+    status_filter = request.GET.get("status", "").strip().lower()
+
+    if view_type == "returns":
+        returns = ReturnRequest.objects.select_related("order").order_by("-created_at")[:25]
+        nav = get_staff_navigation(request.user, active_key="orders")
+        return render(
+            request,
+            "staff/module_placeholder.html",
+            {
+                "nav": nav,
+                "active_key": "orders",
+                "title": "Customer Return Requests",
+                "module": "returns",
+                "items": returns,
+                "filter_status": status_filter,
+                "can_manage": has_staff_capability(request.user, "staff.orders.manage"),
+            },
+        )
+
+    orders_qs = Order.objects.all()
+    if status_filter == "processing":
+        orders_qs = orders_qs.filter(status__in=[Order.Status.PAID, Order.Status.PROCESSING])
+    elif status_filter == "pending":
+        orders_qs = orders_qs.filter(status=Order.Status.PENDING_PAYMENT)
+
+    orders = orders_qs.order_by("-created_at")[:25]
     nav = get_staff_navigation(request.user, active_key="orders")
     return render(
         request,
@@ -430,6 +496,7 @@ def orders_view(request: HttpRequest) -> HttpResponse:
             "title": "Order Processing & Fulfillment",
             "module": "orders",
             "items": orders,
+            "filter_status": status_filter,
             "can_manage": has_staff_capability(request.user, "staff.orders.manage"),
         },
     )
@@ -437,10 +504,45 @@ def orders_view(request: HttpRequest) -> HttpResponse:
 
 @staff_permission_required(DELIVERIES_VIEW)
 def deliveries_view(request: HttpRequest) -> HttpResponse:
-    """Deliveries & Shipments module landing for staff."""
+    """Deliveries & Shipments module landing with exception and search filter support."""
     from apps.orders.models import Shipment
 
-    shipments = Shipment.objects.select_related("order").order_by("-updated_at")[:25]
+    status_filter = request.GET.get("status", "").strip().lower()
+    search_q = request.GET.get("q", "").strip()
+    shipments_qs = Shipment.objects.select_related("order")
+
+    if search_q:
+        shipments_qs = shipments_qs.filter(
+            Q(reference__icontains=search_q) | Q(order__number__icontains=search_q)
+        )
+
+    if status_filter == "exceptions":
+        shipments_qs = shipments_qs.filter(
+            status__in=[
+                Shipment.Status.ATTEMPT_FAILED,
+                Shipment.Status.EXCEPTION,
+                Shipment.Status.RETURNED_TO_SENDER,
+            ]
+        )
+    elif status_filter == "in_transit":
+        shipments_qs = shipments_qs.filter(
+            status__in=[
+                Shipment.Status.SHIPPED,
+                Shipment.Status.IN_TRANSIT,
+                Shipment.Status.OUT_FOR_DELIVERY,
+            ]
+        )
+    elif status_filter == "awaiting_dispatch":
+        shipments_qs = shipments_qs.filter(
+            status__in=[
+                Shipment.Status.PENDING,
+                Shipment.Status.PICKING,
+                Shipment.Status.PACKED,
+                Shipment.Status.PROCESSING,
+            ]
+        )
+
+    shipments = shipments_qs.order_by("-updated_at")[:25]
     nav = get_staff_navigation(request.user, active_key="deliveries")
     return render(
         request,
@@ -451,6 +553,7 @@ def deliveries_view(request: HttpRequest) -> HttpResponse:
             "title": "Delivery & Shipment Tracking",
             "module": "deliveries",
             "items": shipments,
+            "filter_status": status_filter,
             "can_manage": has_staff_capability(request.user, "staff.deliveries.manage"),
         },
     )
@@ -458,10 +561,31 @@ def deliveries_view(request: HttpRequest) -> HttpResponse:
 
 @staff_permission_required(SUPPORT_VIEW)
 def support_view(request: HttpRequest) -> HttpResponse:
-    """Support Tickets module landing for staff."""
+    """Support Tickets module landing with urgent/unassigned filter support."""
     from apps.support.models import SupportTicket
 
-    tickets = SupportTicket.objects.order_by("-updated_at")[:25]
+    status_filter = request.GET.get("status", "").strip().lower()
+    tickets_qs = SupportTicket.objects.select_related("customer")
+
+    if status_filter == "urgent":
+        tickets_qs = tickets_qs.filter(
+            Q(priority=SupportTicket.Priority.URGENT) | Q(status=SupportTicket.Status.ESCALATED)
+        )
+    elif status_filter == "open":
+        tickets_qs = tickets_qs.filter(
+            status__in=[
+                SupportTicket.Status.OPEN,
+                SupportTicket.Status.IN_PROGRESS,
+                SupportTicket.Status.ESCALATED,
+            ]
+        )
+    elif status_filter == "unassigned":
+        tickets_qs = tickets_qs.filter(
+            assigned_to__isnull=True,
+            status__in=[SupportTicket.Status.OPEN, SupportTicket.Status.ESCALATED],
+        )
+
+    tickets = tickets_qs.order_by("-updated_at")[:25]
     nav = get_staff_navigation(request.user, active_key="support")
     return render(
         request,
@@ -472,6 +596,7 @@ def support_view(request: HttpRequest) -> HttpResponse:
             "title": "Customer Support Tickets",
             "module": "support",
             "items": tickets,
+            "filter_status": status_filter,
             "can_manage": has_staff_capability(request.user, "staff.support.manage"),
         },
     )

@@ -24,6 +24,12 @@
                         Read-Only View
                     </span>
                 {% endif %}
+                {% if filter_status %}
+                    <span class="text-xs font-bold px-2 py-0.5 rounded bg-amber-500 text-slate-950 flex items-center gap-1">
+                        <span>Filter: {{ filter_status }}</span>
+                        <a href="?" class="text-slate-950 hover:text-white font-bold ml-1">&times;</a>
+                    </span>
+                {% endif %}
             </div>
             <h1 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
                 {{ title }}
