@@ -350,3 +350,18 @@ def get_staff_dashboard_summary(user: Any) -> dict[str, Any]:
         }
 
     return summary
+
+
+def get_eligible_delivery_staff():
+    """Return active staff users eligible for delivery assignment."""
+    group_name = ROLE_PRIMARY_GROUP[StaffRole.DELIVERY_STAFF]
+    return (
+        User.objects.filter(is_active=True)
+        .filter(
+            Q(groups__name=group_name)
+            | Q(groups__name="Delivery Staff")
+            | Q(is_superuser=True)
+        )
+        .distinct()
+        .order_by("first_name", "last_name", "email")
+    )

@@ -1,0 +1,368 @@
+{% extends "staff/base.html" %}
+{% load static %}
+
+{% block title %}Delivery & Shipment Operations &bull; FLASHWEAR{% endblock %}
+
+{% block breadcrumb %}
+    <span class="text-slate-400">/</span>
+    <span class="text-xs font-medium text-slate-700 dark:text-slate-300">Deliveries</span>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    {# Page Header #}
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+            <h1 class="text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
+                <span class="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-blue-500/10 text-blue-600 dark:bg-blue-400/10 dark:text-blue-400">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" />
+                    </svg>
+                </span>
+                Delivery &amp; Shipment Operations
+            </h1>
+            <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                {% if pure_worker %}
+                    Your assigned delivery queue, in-transit parcels, failed attempts, and proof-of-delivery handovers.
+                {% else %}
+                    Live courier tracking, driver assignments, delivery attempts, and verified proof-of-delivery handovers.
+                {% endif %}
+            </p>
+        </div>
+        <div class="flex items-center gap-2">
+            <a href="{% url 'staff:deliveries' %}" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition">
+                <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                <span>Reset Filters</span>
+            </a>
+        </div>
+    </div>
+
+    {# Metric Counter Tabs #}
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        <a href="{% url 'staff:deliveries' %}?status=all"
+           class="rounded-xl border p-3.5 transition flex flex-col justify-between {% if current_filters.status == 'all' %}bg-blue-500/10 border-blue-500 text-blue-900 dark:text-blue-200{% else %}bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-700{% endif %}">
+            <span class="text-xs font-semibold uppercase tracking-wider">All Shipments</span>
+            <span class="text-2xl font-black text-slate-900 dark:text-white mt-1">{{ counts.all_count }}</span>
+        </a>
+
+        <a href="{% url 'staff:deliveries' %}?status=ready"
+           class="rounded-xl border p-3.5 transition flex flex-col justify-between {% if current_filters.status == 'ready' %}bg-amber-500/10 border-amber-500 text-amber-900 dark:text-amber-200{% else %}bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-700{% endif %}">
+            <span class="text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5">
+                <span class="h-2 w-2 rounded-full bg-amber-500"></span>
+                Ready / Packing
+            </span>
+            <span class="text-2xl font-black text-slate-900 dark:text-white mt-1">{{ counts.ready_count }}</span>
+        </a>
+
+        <a href="{% url 'staff:deliveries' %}?status=out_for_delivery"
+           class="rounded-xl border p-3.5 transition flex flex-col justify-between {% if current_filters.status == 'out_for_delivery' %}bg-indigo-500/10 border-indigo-500 text-indigo-900 dark:text-indigo-200{% else %}bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-700{% endif %}">
+            <span class="text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5">
+                <span class="h-2 w-2 rounded-full bg-indigo-500"></span>
+                Out for Delivery
+            </span>
+            <span class="text-2xl font-black text-slate-900 dark:text-white mt-1">{{ counts.out_for_delivery_count }}</span>
+        </a>
+
+        <a href="{% url 'staff:deliveries' %}?status=exceptions"
+           class="rounded-xl border p-3.5 transition flex flex-col justify-between {% if current_filters.status == 'exceptions' %}bg-rose-500/10 border-rose-500 text-rose-900 dark:text-rose-200{% else %}bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-700{% endif %}">
+            <span class="text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5 text-rose-600 dark:text-rose-400">
+                <span class="h-2 w-2 rounded-full bg-rose-500 animate-pulse"></span>
+                Exceptions / Failed
+            </span>
+            <span class="text-2xl font-black text-rose-600 dark:text-rose-400 mt-1">{{ counts.exceptions_count }}</span>
+        </a>
+
+        <a href="{% url 'staff:deliveries' %}?status=delivered"
+           class="rounded-xl border p-3.5 transition flex flex-col justify-between {% if current_filters.status == 'delivered' %}bg-emerald-500/10 border-emerald-500 text-emerald-900 dark:text-emerald-200{% else %}bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-700{% endif %}">
+            <span class="text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5">
+                <span class="h-2 w-2 rounded-full bg-emerald-500"></span>
+                Delivered
+            </span>
+            <span class="text-2xl font-black text-slate-900 dark:text-white mt-1">{{ counts.delivered_count }}</span>
+        </a>
+    </div>
+
+    {# Search and Filter Controls #}
+    <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm">
+        <form method="get" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
+            {# Text Search #}
+            <div class="lg:col-span-2">
+                <label for="id_q" class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Search</label>
+                <div class="relative">
+                    <input type="text"
+                           name="q"
+                           id="id_q"
+                           value="{{ current_filters.q }}"
+                           placeholder="Ref #, Tracking #, Order #, Customer, Postcode..."
+                           class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 px-3.5 py-2 pl-9 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                    <svg class="h-4 w-4 absolute left-3 top-2.5 text-slate-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                </div>
+            </div>
+
+            {# Status Filter Dropdown #}
+            <div>
+                <label for="id_status" class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Status</label>
+                <select name="status"
+                        id="id_status"
+                        class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 px-3 py-2 text-xs text-slate-900 dark:text-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                    <option value="all" {% if current_filters.status == 'all' %}selected{% endif %}>All Statuses</option>
+                    <option value="ready" {% if current_filters.status == 'ready' %}selected{% endif %}>Ready for Fulfillment</option>
+                    <option value="shipped" {% if current_filters.status == 'shipped' %}selected{% endif %}>Dispatched</option>
+                    <option value="in_transit" {% if current_filters.status == 'in_transit' %}selected{% endif %}>In Transit</option>
+                    <option value="out_for_delivery" {% if current_filters.status == 'out_for_delivery' %}selected{% endif %}>Out for Delivery</option>
+                    <option value="delivered" {% if current_filters.status == 'delivered' %}selected{% endif %}>Delivered</option>
+                    <option value="attempt_failed" {% if current_filters.status == 'attempt_failed' %}selected{% endif %}>Delivery Attempt Failed</option>
+                    <option value="exception" {% if current_filters.status == 'exception' %}selected{% endif %}>Delivery Exception</option>
+                    <option value="exceptions" {% if current_filters.status == 'exceptions' %}selected{% endif %}>All Exceptions &amp; Flags</option>
+                    <option value="returned_to_sender" {% if current_filters.status == 'returned_to_sender' %}selected{% endif %}>Returned to Sender</option>
+                </select>
+            </div>
+
+            {# Assigned Worker Filter (Managers Only) #}
+            {% if is_manager %}
+            <div>
+                <label for="id_assigned_to" class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Assigned Worker</label>
+                <select name="assigned_to"
+                        id="id_assigned_to"
+                        class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 px-3 py-2 text-xs text-slate-900 dark:text-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                    <option value="" {% if not current_filters.assigned_to %}selected{% endif %}>All Delivery Staff</option>
+                    <option value="me" {% if current_filters.assigned_to == 'me' %}selected{% endif %}>Assigned to Me</option>
+                    <option value="unassigned" {% if current_filters.assigned_to == 'unassigned' %}selected{% endif %}>Unassigned Only</option>
+                    {% for worker in eligible_staff %}
+                        <option value="{{ worker.pk }}" {% if current_filters.assigned_to == worker.pk|stringformat:"s" %}selected{% endif %}>
+                            {{ worker.get_full_name|default:worker.email }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% else %}
+            <div>
+                <label for="id_sort" class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Sorting</label>
+                <select name="sort"
+                        id="id_sort"
+                        class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 px-3 py-2 text-xs text-slate-900 dark:text-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                    <option value="-created_at" {% if current_filters.sort == '-created_at' %}selected{% endif %}>Newest First</option>
+                    <option value="created_at" {% if current_filters.sort == 'created_at' %}selected{% endif %}>Oldest First</option>
+                    <option value="reference" {% if current_filters.sort == 'reference' %}selected{% endif %}>Reference #</option>
+                    <option value="status" {% if current_filters.sort == 'status' %}selected{% endif %}>Status</option>
+                </select>
+            </div>
+            {% endif %}
+
+            {# Date Range Dropdown #}
+            <div>
+                <label for="id_date_range" class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Time Period</label>
+                <select name="date_range"
+                        id="id_date_range"
+                        class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 px-3 py-2 text-xs text-slate-900 dark:text-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                    <option value="all" {% if current_filters.date_range == 'all' %}selected{% endif %}>All Time</option>
+                    <option value="today" {% if current_filters.date_range == 'today' %}selected{% endif %}>Today</option>
+                    <option value="7d" {% if current_filters.date_range == '7d' %}selected{% endif %}>Past 7 Days</option>
+                    <option value="30d" {% if current_filters.date_range == '30d' %}selected{% endif %}>Past 30 Days</option>
+                </select>
+            </div>
+
+            {# Action Buttons #}
+            <div class="flex items-end gap-2">
+                <button type="submit"
+                        class="flex-1 rounded-lg bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-100 dark:text-slate-900 text-white py-2 px-3 text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm">
+                    <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                    </svg>
+                    <span>Filter</span>
+                </button>
+            </div>
+        </form>
+    </div>
+
+    {# Shipments Table #}
+    <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-slate-200 dark:divide-slate-800 text-left text-sm">
+                <thead class="bg-slate-50 dark:bg-slate-800/60 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    <tr>
+                        <th scope="col" class="py-3 px-4">Shipment Reference</th>
+                        <th scope="col" class="py-3 px-4">Order #</th>
+                        <th scope="col" class="py-3 px-4">Destination &amp; Customer</th>
+                        <th scope="col" class="py-3 px-4">Assigned Driver</th>
+                        <th scope="col" class="py-3 px-4">Status &amp; Verification</th>
+                        <th scope="col" class="py-3 px-4">Carrier / Service</th>
+                        <th scope="col" class="py-3 px-4 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200 dark:divide-slate-800">
+                    {% for shipment in shipments %}
+                        <tr class="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition">
+                            {# Reference & Tracking #}
+                            <td class="whitespace-nowrap py-3.5 px-4 text-xs font-mono">
+                                <a href="{% url 'staff:delivery_detail' pk=shipment.pk %}" class="font-bold text-blue-600 dark:text-blue-400 hover:underline">
+                                    {{ shipment.reference|default:shipment.pk }}
+                                </a>
+                                {% if shipment.tracking_number %}
+                                    <div class="text-[11px] text-slate-400 dark:text-slate-500 flex items-center gap-1 mt-0.5">
+                                        <span>Trk: {{ shipment.tracking_number }}</span>
+                                    </div>
+                                {% endif %}
+                            </td>
+
+                            {# Order #}
+                            <td class="whitespace-nowrap py-3.5 px-4 text-xs">
+                                <a href="{% url 'staff:order_detail' pk=shipment.order.pk %}" class="font-bold text-slate-900 dark:text-white hover:underline">
+                                    {{ shipment.order.number }}
+                                </a>
+                                <div class="text-[11px] text-slate-400 dark:text-slate-500">{{ shipment.created_at|date:"M d, Y" }}</div>
+                            </td>
+
+                            {# Destination & Customer #}
+                            <td class="py-3.5 px-4 text-xs">
+                                <div class="font-bold text-slate-900 dark:text-white">
+                                    {% if shipment.order.shipping_address and shipment.order.shipping_address.full_name %}
+                                        {{ shipment.order.shipping_address.full_name }}
+                                    {% elif shipment.order.user %}
+                                        {{ shipment.order.user.get_full_name|default:shipment.order.user.email }}
+                                    {% else %}
+                                        Guest Customer
+                                    {% endif %}
+                                </div>
+                                <div class="text-[11px] text-slate-500 dark:text-slate-400 truncate max-w-[200px]">
+                                    {% if shipment.order.shipping_address %}
+                                        {{ shipment.order.shipping_address.city }}{% if shipment.order.shipping_address.postal_code %}, {{ shipment.order.shipping_address.postal_code }}{% endif %}
+                                    {% else %}
+                                        Address pending
+                                    {% endif %}
+                                </div>
+                            </td>
+
+                            {# Assigned Staff #}
+                            <td class="whitespace-nowrap py-3.5 px-4 text-xs">
+                                {% if shipment.assigned_to %}
+                                    <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-500/10 text-blue-700 dark:text-blue-300">
+                                        <span class="h-1.5 w-1.5 rounded-full bg-blue-500"></span>
+                                        {{ shipment.assigned_to.get_full_name|default:shipment.assigned_to.email }}
+                                    </div>
+                                {% else %}
+                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-500/10 text-amber-700 dark:text-amber-400">
+                                        <span class="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
+                                        Unassigned
+                                    </span>
+                                {% endif %}
+                            </td>
+
+                            {# Status Badge #}
+                            <td class="whitespace-nowrap py-3.5 px-4 text-xs">
+                                <div class="flex flex-col gap-1 items-start">
+                                    {% if shipment.status == 'delivered' %}
+                                        <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 text-[11px] font-bold">
+                                            <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                                            Delivered
+                                        </span>
+                                    {% elif shipment.status == 'out_for_delivery' %}
+                                        <span class="inline-flex items-center gap-1.5 rounded-full bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 px-2 py-0.5 text-[11px] font-bold">
+                                            <span class="h-1.5 w-1.5 rounded-full bg-indigo-500"></span>
+                                            Out for Delivery
+                                        </span>
+                                    {% elif shipment.status == 'in_transit' %}
+                                        <span class="inline-flex items-center gap-1.5 rounded-full bg-blue-500/10 text-blue-700 dark:text-blue-300 px-2 py-0.5 text-[11px] font-bold">
+                                            <span class="h-1.5 w-1.5 rounded-full bg-blue-500"></span>
+                                            In Transit
+                                        </span>
+                                    {% elif shipment.status == 'shipped' %}
+                                        <span class="inline-flex items-center gap-1.5 rounded-full bg-sky-500/10 text-sky-700 dark:text-sky-300 px-2 py-0.5 text-[11px] font-bold">
+                                            <span class="h-1.5 w-1.5 rounded-full bg-sky-500"></span>
+                                            Dispatched
+                                        </span>
+                                    {% elif shipment.status == 'attempt_failed' or shipment.status == 'exception' %}
+                                        <span class="inline-flex items-center gap-1.5 rounded-full bg-rose-500/10 text-rose-700 dark:text-rose-300 px-2 py-0.5 text-[11px] font-bold">
+                                            <span class="h-1.5 w-1.5 rounded-full bg-rose-500 animate-pulse"></span>
+                                            {{ shipment.get_status_display }}
+                                        </span>
+                                    {% else %}
+                                        <span class="inline-flex items-center gap-1.5 rounded-full bg-slate-500/10 text-slate-700 dark:text-slate-300 px-2 py-0.5 text-[11px] font-bold">
+                                            {{ shipment.get_status_display }}
+                                        </span>
+                                    {% endif %}
+
+                                    {# Review flag or attempts #}
+                                    {% if shipment.requires_manager_review %}
+                                        <span class="inline-flex items-center gap-1 text-[10px] font-bold text-rose-600 dark:text-rose-400">
+                                            <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                            </svg>
+                                            Needs Manager Review
+                                        </span>
+                                    {% elif shipment.delivery_attempts_count > 0 %}
+                                        <span class="text-[10px] text-slate-400">
+                                            Attempts: {{ shipment.delivery_attempts_count }}
+                                        </span>
+                                    {% endif %}
+                                </div>
+                            </td>
+
+                            {# Carrier / Service #}
+                            <td class="whitespace-nowrap py-3.5 px-4 text-xs text-slate-600 dark:text-slate-300">
+                                <div class="font-medium">{{ shipment.carrier|default:"Standard Delivery" }}</div>
+                                <div class="text-[11px] text-slate-400">{{ shipment.carrier_service|default:shipment.method }}</div>
+                            </td>
+
+                            {# Action Link #}
+                            <td class="whitespace-nowrap py-3.5 px-4 text-right">
+                                <a href="{% url 'staff:delivery_detail' pk=shipment.pk %}"
+                                   class="inline-flex items-center gap-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-900 transition">
+                                    <span>Inspect</span>
+                                    <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                                    </svg>
+                                </a>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="7" class="py-12 text-center text-slate-500 dark:text-slate-400">
+                                <div class="flex flex-col items-center justify-center">
+                                    <svg class="h-10 w-10 text-slate-300 dark:text-slate-600 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                                    </svg>
+                                    <p class="font-bold text-slate-700 dark:text-slate-300">No shipments found</p>
+                                    <p class="text-xs text-slate-400 mt-1">Try adjusting your search criteria, filters, or date range.</p>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {# Pagination #}
+        {% if page_obj.has_other_pages %}
+            <div class="border-t border-slate-200 dark:border-slate-800 px-4 py-3 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                <div>
+                    Showing <span class="font-bold text-slate-900 dark:text-white">{{ page_obj.start_index }}</span> to <span class="font-bold text-slate-900 dark:text-white">{{ page_obj.end_index }}</span> of <span class="font-bold text-slate-900 dark:text-white">{{ paginator.count }}</span> shipments
+                </div>
+                <div class="flex items-center gap-1">
+                    {% if page_obj.has_previous %}
+                        <a href="?page={{ page_obj.previous_page_number }}&q={{ current_filters.q }}&status={{ current_filters.status }}&assigned_to={{ current_filters.assigned_to }}&date_range={{ current_filters.date_range }}"
+                           class="px-2.5 py-1 rounded border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition">
+                            Previous
+                        </a>
+                    {% endif %}
+
+                    <span class="px-3 py-1 font-semibold text-slate-900 dark:text-white">
+                        Page {{ page_obj.number }} of {{ paginator.num_pages }}
+                    </span>
+
+                    {% if page_obj.has_next %}
+                        <a href="?page={{ page_obj.next_page_number }}&q={{ current_filters.q }}&status={{ current_filters.status }}&assigned_to={{ current_filters.assigned_to }}&date_range={{ current_filters.date_range }}"
+                           class="px-2.5 py-1 rounded border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition">
+                            Next
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -279,15 +279,17 @@ class ShipmentAdmin(admin.ModelAdmin):
         "reference",
         "order",
         "status",
+        "assigned_to",
         "method",
         "carrier",
         "tracking_number",
+        "delivery_attempts_count",
         "estimated_delivery",
         "created_at",
     )
-    list_filter = ("status", "method", "carrier")
-    search_fields = ("reference", "order__number", "tracking_number", "carrier")
-    list_select_related = ("order",)
+    list_filter = ("status", "method", "carrier", "requires_manager_review")
+    search_fields = ("reference", "order__number", "tracking_number", "carrier", "assigned_to__email")
+    list_select_related = ("order", "assigned_to")
     inlines = (ShipmentItemInline, ShipmentEventInline)
     readonly_fields = (
         "reference",
@@ -300,17 +302,27 @@ class ShipmentAdmin(admin.ModelAdmin):
         "packed_by",
         "shipped_at",
         "dispatched_by",
+        "assigned_at",
+        "assigned_by",
         "delivered_at",
+        "pod_verified_at",
         "created_at",
         "updated_at",
     )
     fields = (
         *readonly_fields,
+        "assigned_to",
         "carrier",
         "carrier_service",
         "tracking_number",
         "tracking_url",
         "estimated_delivery",
+        "delivery_attempts_count",
+        "next_attempt_date",
+        "requires_manager_review",
+        "pod_type",
+        "pod_recipient_name",
+        "pod_notes",
         "package_weight_kg",
         "package_dimensions",
         "internal_notes",

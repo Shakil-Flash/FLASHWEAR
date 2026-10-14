@@ -426,6 +426,7 @@ class Shipment(TimestampedModel):
             Status.IN_TRANSIT,
         ),
         Status.ATTEMPT_FAILED: (
+            Status.ATTEMPT_FAILED,
             Status.OUT_FOR_DELIVERY,
             Status.IN_TRANSIT,
             Status.DELIVERED,
@@ -433,6 +434,7 @@ class Shipment(TimestampedModel):
             Status.EXCEPTION,
         ),
         Status.EXCEPTION: (
+            Status.EXCEPTION,
             Status.IN_TRANSIT,
             Status.OUT_FOR_DELIVERY,
             Status.DELIVERED,
@@ -509,6 +511,46 @@ class Shipment(TimestampedModel):
     internal_notes = models.TextField(_("internal notes"), blank=True)
     customer_notes = models.TextField(_("customer notes"), blank=True)
 
+    # Delivery Staff Assignment (Phase 61)
+    assigned_to = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="assigned_shipments",
+        verbose_name=_("assigned delivery staff"),
+    )
+    assigned_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name=_("assigned by"),
+    )
+    assigned_at = models.DateTimeField(_("assigned at"), null=True, blank=True)
+
+    # Delivery Attempts & Review (Phase 61)
+    delivery_attempts_count = models.PositiveIntegerField(
+        _("delivery attempts count"), default=0
+    )
+    next_attempt_date = models.DateField(_("next attempt date"), null=True, blank=True)
+    requires_manager_review = models.BooleanField(
+        _("requires manager review"), default=False
+    )
+
+    # Proof of Delivery (Phase 61)
+    pod_type = models.CharField(_("proof of delivery type"), max_length=32, blank=True)
+    pod_recipient_name = models.CharField(_("proof recipient name"), max_length=128, blank=True)
+    pod_notes = models.TextField(_("proof of delivery notes"), blank=True)
+    pod_otp_hash = models.CharField(_("OTP hash"), max_length=128, blank=True)
+    pod_otp_created_at = models.DateTimeField(_("OTP created at"), null=True, blank=True)
+    pod_otp_expires_at = models.DateTimeField(_("OTP expires at"), null=True, blank=True)
+    pod_otp_attempts = models.PositiveSmallIntegerField(
+        _("OTP attempts count"), default=0
+    )
+    pod_verified_at = models.DateTimeField(_("proof verified at"), null=True, blank=True)
+
     class Meta:
         verbose_name = _("shipment")
         verbose_name_plural = _("shipments")
@@ -518,6 +560,7 @@ class Shipment(TimestampedModel):
             models.Index(fields=["status", "-created_at"], name="orders_shipment_status_idx"),
             models.Index(fields=["tracking_number"], name="orders_shipment_tracking_idx"),
             models.Index(fields=["reference"], name="orders_shipment_ref_idx"),
+            models.Index(fields=["assigned_to", "status"], name="orders_shipment_assign_idx"),
         ]
 
     def __str__(self) -> str:
@@ -553,6 +596,22 @@ class Shipment(TimestampedModel):
     @property
     def is_in_terminal_state(self) -> bool:
         return self.status in (self.Status.DELIVERED, self.Status.CANCELLED, self.Status.RETURNED_TO_SENDER)
+
+    @property
+    def is_assigned(self) -> bool:
+        return self.assigned_to_id is not None
+
+    @property
+    def can_be_assigned(self) -> bool:
+        return self.status not in (
+            self.Status.DELIVERED,
+            self.Status.CANCELLED,
+            self.Status.RETURNED_TO_SENDER,
+        )
+
+    @property
+    def has_proof_of_delivery(self) -> bool:
+        return self.pod_verified_at is not None
 
     @property
     def is_exception_state(self) -> bool:

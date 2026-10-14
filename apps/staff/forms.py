@@ -284,3 +284,217 @@ class OrderDispatchForm(forms.Form):
             }
         ),
     )
+
+
+class ShipmentAssignmentForm(forms.Form):
+    """Assign or reassign an active shipment to an eligible delivery worker."""
+
+    assigned_to = forms.ModelChoiceField(
+        label=_("Delivery Staff Member"),
+        queryset=User.objects.none(),
+        empty_label=_("-- Select Delivery Worker --"),
+        required=True,
+        widget=forms.Select(attrs={"class": MD_INPUT_CLASSES}),
+    )
+    assignment_note = forms.CharField(
+        label=_("Assignment Note (Optional)"),
+        required=False,
+        max_length=255,
+        widget=forms.TextInput(
+            attrs={
+                "class": MD_INPUT_CLASSES,
+                "placeholder": "e.g. Route 4, priority morning delivery...",
+            }
+        ),
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from apps.staff.services import get_eligible_delivery_staff
+
+        self.fields["assigned_to"].queryset = get_eligible_delivery_staff()
+
+
+class ShipmentStatusUpdateForm(forms.Form):
+    """Operational checkpoint or transit status update form."""
+
+    target_status = forms.ChoiceField(
+        label=_("Update Status To"),
+        choices=[],
+        required=True,
+        widget=forms.Select(attrs={"class": MD_INPUT_CLASSES}),
+    )
+    location = forms.CharField(
+        label=_("Current Location / Checkpoint"),
+        required=False,
+        max_length=128,
+        widget=forms.TextInput(
+            attrs={
+                "class": MD_INPUT_CLASSES,
+                "placeholder": "e.g. Central Logistics Hub, Delivery Van 4B",
+            }
+        ),
+    )
+    note = forms.CharField(
+        label=_("Status Note"),
+        required=False,
+        max_length=255,
+        widget=forms.TextInput(
+            attrs={
+                "class": MD_INPUT_CLASSES,
+                "placeholder": "e.g. Departed distribution facility, in transit...",
+            }
+        ),
+    )
+
+    def __init__(self, *args, shipment=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        from apps.orders.models import Shipment
+
+        if shipment:
+            allowed = Shipment.ALLOWED_TRANSITIONS.get(shipment.status, ())
+            choices = []
+            for status_val in allowed:
+                # Exclude internal picking/packed transitions from delivery transit flow
+                if status_val not in (Shipment.Status.CANCELLED,):
+                    choices.append(
+                        (
+                            status_val,
+                            dict(Shipment.Status.choices).get(status_val, status_val),
+                        )
+                    )
+            self.fields["target_status"].choices = choices
+
+
+class DeliveryAttemptForm(forms.Form):
+    """Record a failed delivery attempt or exception with standardized reasons."""
+
+    REASON_CHOICES = [
+        ("recipient_unavailable", _("Recipient Unavailable / Not at Home")),
+        ("address_incomplete", _("Address Incomplete or Incorrect")),
+        ("recipient_declined", _("Recipient Declined Delivery")),
+        (
+            "operational_issue",
+            _("Operational Issue / Access Blocked / Severe Weather"),
+        ),
+    ]
+
+    failure_reason = forms.ChoiceField(
+        label=_("Failure Reason"),
+        choices=REASON_CHOICES,
+        required=True,
+        widget=forms.Select(attrs={"class": MD_INPUT_CLASSES}),
+    )
+    location = forms.CharField(
+        label=_("Attempt Location"),
+        required=False,
+        max_length=128,
+        widget=forms.TextInput(
+            attrs={
+                "class": MD_INPUT_CLASSES,
+                "placeholder": "e.g. Customer Doorstep, Building Intercom",
+            }
+        ),
+    )
+    next_attempt_date = forms.DateField(
+        label=_("Next Scheduled Attempt"),
+        required=False,
+        widget=forms.DateInput(
+            attrs={
+                "class": MD_INPUT_CLASSES,
+                "type": "date",
+            }
+        ),
+    )
+    requires_manager_review = forms.BooleanField(
+        label=_("Flag for Manager Review"),
+        required=False,
+        widget=forms.CheckboxInput(attrs={"class": CHECKBOX_CLASSES}),
+    )
+    note = forms.CharField(
+        label=_("Driver Operational Notes"),
+        required=False,
+        widget=forms.Textarea(
+            attrs={
+                "class": MD_INPUT_CLASSES,
+                "rows": 2,
+                "placeholder": "Left calling card #1042 behind mailbox; neighbor unavailable...",
+            }
+        ),
+    )
+
+
+class ProofOfDeliveryForm(forms.Form):
+    """Secure proof of delivery verification via customer OTP or recipient sign-off."""
+
+    POD_TYPE_CHOICES = [
+        ("otp", _("Customer Confirmation Code (OTP)")),
+        ("recipient_signoff", _("Recipient Name & Direct Handover Sign-off")),
+    ]
+
+    pod_type = forms.ChoiceField(
+        label=_("Verification Method"),
+        choices=POD_TYPE_CHOICES,
+        required=True,
+        widget=forms.Select(attrs={"class": MD_INPUT_CLASSES, "x-model": "podType"}),
+    )
+    otp_code = forms.CharField(
+        label=_("6-Digit OTP Code"),
+        required=False,
+        max_length=12,
+        widget=forms.TextInput(
+            attrs={
+                "class": MD_INPUT_CLASSES,
+                "placeholder": "123456",
+                "maxlength": "6",
+                "pattern": "[0-9]{6}",
+            }
+        ),
+    )
+    recipient_name = forms.CharField(
+        label=_("Recipient Full Name / Relationship"),
+        required=False,
+        max_length=128,
+        widget=forms.TextInput(
+            attrs={
+                "class": MD_INPUT_CLASSES,
+                "placeholder": "e.g. Jane Doe (Resident / Concierge)",
+            }
+        ),
+    )
+    notes = forms.CharField(
+        label=_("Delivery Handover Notes"),
+        required=False,
+        widget=forms.Textarea(
+            attrs={
+                "class": MD_INPUT_CLASSES,
+                "rows": 2,
+                "placeholder": "Package handed over in good condition...",
+            }
+        ),
+    )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        pod_type = cleaned_data.get("pod_type")
+        otp_code = (cleaned_data.get("otp_code") or "").strip()
+        recipient_name = (cleaned_data.get("recipient_name") or "").strip()
+
+        if pod_type == "otp":
+            if not otp_code:
+                self.add_error("otp_code", _("The 6-digit confirmation code is required."))
+            elif not otp_code.isdigit() or len(otp_code) != 6:
+                self.add_error("otp_code", _("The confirmation code must be exactly 6 digits."))
+        elif pod_type == "recipient_signoff":
+            if not recipient_name:
+                self.add_error(
+                    "recipient_name",
+                    _("Recipient name is required for manual sign-off."),
+                )
+            elif len(recipient_name) < 2:
+                self.add_error(
+                    "recipient_name",
+                    _("Recipient name must be at least 2 characters."),
+                )
+
+        return cleaned_data

@@ -398,12 +398,19 @@ def get_my_work_and_team_queues(user: Any) -> dict[str, Any]:
         # Shipments assigned to or handled by current user
         my_shipments = (
             Shipment.objects.filter(
-                Q(picked_by=user) | Q(packed_by=user) | Q(dispatched_by=user),
+                Q(picked_by=user)
+                | Q(packed_by=user)
+                | Q(dispatched_by=user)
+                | Q(assigned_to=user),
                 status__in=[
                     Shipment.Status.PENDING,
                     Shipment.Status.PICKING,
                     Shipment.Status.PACKED,
                     Shipment.Status.PROCESSING,
+                    Shipment.Status.SHIPPED,
+                    Shipment.Status.IN_TRANSIT,
+                    Shipment.Status.OUT_FOR_DELIVERY,
+                    Shipment.Status.ATTEMPT_FAILED,
                 ],
             )
             .select_related("order")
@@ -424,11 +431,15 @@ def get_my_work_and_team_queues(user: Any) -> dict[str, Any]:
                 }
             )
 
-        # Unassigned Shipments Awaiting Picking
+        # Unassigned Shipments Awaiting Picking or Driver Assignment
         unassigned_shipments = (
             Shipment.objects.filter(
-                picked_by__isnull=True,
-                status=Shipment.Status.PENDING,
+                Q(picked_by__isnull=True) | Q(assigned_to__isnull=True),
+                status__in=[
+                    Shipment.Status.PENDING,
+                    Shipment.Status.PACKED,
+                    Shipment.Status.SHIPPED,
+                ],
             )
             .select_related("order")
             .order_by("created_at")[:8]
@@ -438,7 +449,7 @@ def get_my_work_and_team_queues(user: Any) -> dict[str, Any]:
                 {
                     "type": "unassigned_shipment",
                     "title": f"Shipment #{s.reference} (Order #{s.order.number})",
-                    "subtitle": "Awaiting Warehouse Picking",
+                    "subtitle": "Awaiting Picking / Driver Assignment",
                     "status": s.get_status_display(),
                     "priority": "normal",
                     "is_urgent": False,
@@ -450,11 +461,14 @@ def get_my_work_and_team_queues(user: Any) -> dict[str, Any]:
         # Delivery Exceptions
         exceptions = (
             Shipment.objects.filter(
-                status__in=[
-                    Shipment.Status.ATTEMPT_FAILED,
-                    Shipment.Status.EXCEPTION,
-                    Shipment.Status.RETURNED_TO_SENDER,
-                ]
+                Q(
+                    status__in=[
+                        Shipment.Status.ATTEMPT_FAILED,
+                        Shipment.Status.EXCEPTION,
+                        Shipment.Status.RETURNED_TO_SENDER,
+                    ]
+                )
+                | Q(requires_manager_review=True)
             )
             .select_related("order")
             .order_by("-updated_at")[:5]

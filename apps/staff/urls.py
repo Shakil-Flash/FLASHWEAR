@@ -53,6 +53,32 @@ urlpatterns = [
         name="order_dispatch_action",
     ),
     path("deliveries/", views.deliveries_view, name="deliveries"),
+    path("deliveries/<int:pk>/", views.delivery_detail_view, name="delivery_detail"),
+    path(
+        "deliveries/<int:pk>/assign/",
+        views.delivery_assign_action_view,
+        name="delivery_assign_action",
+    ),
+    path(
+        "deliveries/<int:pk>/status/",
+        views.delivery_status_action_view,
+        name="delivery_status_action",
+    ),
+    path(
+        "deliveries/<int:pk>/attempt/",
+        views.delivery_attempt_action_view,
+        name="delivery_attempt_action",
+    ),
+    path(
+        "deliveries/<int:pk>/pod/",
+        views.delivery_pod_action_view,
+        name="delivery_pod_action",
+    ),
+    path(
+        "deliveries/<int:pk>/otp/generate/",
+        views.delivery_otp_generate_action_view,
+        name="delivery_otp_generate_action",
+    ),
     path("support/", views.support_view, name="support"),
     path("reports/", views.reports_view, name="reports"),
 ]

@@ -8,7 +8,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import login as auth_login
 from django.contrib.auth import logout as auth_logout
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.db.models import F, Q
 from django.http import HttpRequest, HttpResponse
@@ -21,6 +21,7 @@ from django.views.decorators.http import require_POST
 
 from apps.backoffice.models import AuditEvent
 from apps.staff.constants import (
+    DELIVERIES_MANAGE,
     DELIVERIES_VIEW,
     INVENTORY_VIEW,
     ORDERS_MANAGE,
@@ -39,9 +40,23 @@ from apps.staff.dashboard_services import (
     get_quick_actions,
     get_recent_activity_feed,
 )
+from apps.staff.delivery_services import (
+    assign_shipment_action,
+    generate_delivery_otp_action,
+    get_filtered_shipments,
+    get_shipment_details,
+    is_delivery_manager,
+    record_delivery_attempt_action,
+    record_proof_of_delivery_action,
+    update_delivery_status_action,
+)
 from apps.staff.forms import (
+    DeliveryAttemptForm,
     OrderDispatchForm,
     OrderPackForm,
+    ProofOfDeliveryForm,
+    ShipmentAssignmentForm,
+    ShipmentStatusUpdateForm,
     StaffAccountCreateForm,
     StaffAccountRoleForm,
     StaffLoginForm,
@@ -656,59 +671,227 @@ def order_dispatch_action_view(request: HttpRequest, pk: int) -> HttpResponse:
 
 @staff_permission_required(DELIVERIES_VIEW)
 def deliveries_view(request: HttpRequest) -> HttpResponse:
-    """Deliveries & Shipments module landing with exception and search filter support."""
-    from apps.orders.models import Shipment
-
-    status_filter = request.GET.get("status", "").strip().lower()
-    search_q = request.GET.get("q", "").strip()
-    shipments_qs = Shipment.objects.select_related("order")
-
-    if search_q:
-        shipments_qs = shipments_qs.filter(
-            Q(reference__icontains=search_q) | Q(order__number__icontains=search_q)
-        )
-
-    if status_filter == "exceptions":
-        shipments_qs = shipments_qs.filter(
-            status__in=[
-                Shipment.Status.ATTEMPT_FAILED,
-                Shipment.Status.EXCEPTION,
-                Shipment.Status.RETURNED_TO_SENDER,
-            ]
-        )
-    elif status_filter == "in_transit":
-        shipments_qs = shipments_qs.filter(
-            status__in=[
-                Shipment.Status.SHIPPED,
-                Shipment.Status.IN_TRANSIT,
-                Shipment.Status.OUT_FOR_DELIVERY,
-            ]
-        )
-    elif status_filter == "awaiting_dispatch":
-        shipments_qs = shipments_qs.filter(
-            status__in=[
-                Shipment.Status.PENDING,
-                Shipment.Status.PICKING,
-                Shipment.Status.PACKED,
-                Shipment.Status.PROCESSING,
-            ]
-        )
-
-    shipments = shipments_qs.order_by("-updated_at")[:25]
+    """Deliveries & Shipments operations workspace."""
+    workspace_data = get_filtered_shipments(request.user, request.GET)
     nav = get_staff_navigation(request.user, active_key="deliveries")
+
     return render(
         request,
-        "staff/module_placeholder.html",
+        "staff/deliveries/list.html",
         {
             "nav": nav,
             "active_key": "deliveries",
-            "title": "Delivery & Shipment Tracking",
-            "module": "deliveries",
-            "items": shipments,
-            "filter_status": status_filter,
-            "can_manage": has_staff_capability(request.user, "staff.deliveries.manage"),
+            "title": _("Delivery & Shipment Operations"),
+            "shipments": workspace_data["shipments"],
+            "page_obj": workspace_data["page_obj"],
+            "counts": workspace_data["counts"],
+            "pure_worker": workspace_data["pure_worker"],
+            "is_manager": workspace_data["is_manager"],
+            "eligible_staff": workspace_data["eligible_staff"],
+            "current_filters": workspace_data["current_filters"],
+            "can_manage": has_staff_capability(request.user, DELIVERIES_MANAGE),
         },
     )
+
+
+@staff_permission_required(DELIVERIES_VIEW)
+def delivery_detail_view(request: HttpRequest, pk: int) -> HttpResponse:
+    """Delivery details inspector with address snapshot, items, timeline, and actions."""
+    try:
+        details = get_shipment_details(pk, request.user)
+    except ValidationError:
+        messages.error(request, _("Shipment #%(pk)s was not found.") % {"pk": pk})
+        return redirect("staff:deliveries")
+    except PermissionDenied as exc:
+        return render_access_denied(request, required_capability=DELIVERIES_VIEW, message=str(exc))
+
+    shipment = details["shipment"]
+    nav = get_staff_navigation(request.user, active_key="deliveries")
+
+    context = {
+        "nav": nav,
+        "active_key": "deliveries",
+        "title": _("Shipment %(ref)s") % {"ref": shipment.reference or f"#{shipment.pk}"},
+        **details,
+        "assignment_form": ShipmentAssignmentForm(),
+        "status_form": ShipmentStatusUpdateForm(shipment=shipment),
+        "attempt_form": DeliveryAttemptForm(),
+        "pod_form": ProofOfDeliveryForm(),
+    }
+    return render(request, "staff/deliveries/detail.html", context)
+
+
+@require_POST
+@staff_permission_required(DELIVERIES_MANAGE)
+def delivery_assign_action_view(request: HttpRequest, pk: int) -> HttpResponse:
+    """Assign or reassign an active shipment to an eligible delivery worker."""
+    if not is_delivery_manager(request.user):
+        return render_access_denied(
+            request,
+            required_capability=DELIVERIES_MANAGE,
+            message=_("Only delivery operations managers can assign shipments."),
+        )
+
+    staff_id_str = request.POST.get("assigned_to", "").strip()
+    note = request.POST.get("assignment_note", "").strip()
+
+    if not staff_id_str.isdigit():
+        messages.error(request, _("Please select a valid delivery staff worker."))
+        return redirect("staff:delivery_detail", pk=pk)
+
+    try:
+        shipment = assign_shipment_action(
+            pk,
+            staff_user_id=int(staff_id_str),
+            manager=request.user,
+            assignment_note=note,
+        )
+        assigned_name = shipment.assigned_to.get_full_name() or shipment.assigned_to.email
+        messages.success(
+            request,
+            _("Shipment %(ref)s assigned to %(worker)s successfully.")
+            % {
+                "ref": shipment.reference or f"#{shipment.pk}",
+                "worker": assigned_name,
+            },
+        )
+    except PermissionDenied as exc:
+        return render_access_denied(
+            request, required_capability=DELIVERIES_MANAGE, message=str(exc)
+        )
+    except ValidationError as exc:
+        messages.error(request, str(exc))
+
+    return redirect("staff:delivery_detail", pk=pk)
+
+
+@require_POST
+@staff_permission_required(DELIVERIES_MANAGE)
+def delivery_status_action_view(request: HttpRequest, pk: int) -> HttpResponse:
+    """Advance shipment delivery status."""
+    target_status = request.POST.get("target_status", "").strip()
+    location = request.POST.get("location", "").strip()
+    note = request.POST.get("note", "").strip()
+
+    try:
+        shipment = update_delivery_status_action(
+            pk,
+            target_status=target_status,
+            location=location,
+            note=note,
+            actor=request.user,
+        )
+        messages.success(
+            request,
+            _("Shipment %(ref)s status updated to '%(status)s'.")
+            % {
+                "ref": shipment.reference or f"#{shipment.pk}",
+                "status": shipment.get_status_display(),
+            },
+        )
+    except PermissionDenied as exc:
+        return render_access_denied(
+            request, required_capability=DELIVERIES_MANAGE, message=str(exc)
+        )
+    except ValidationError as exc:
+        messages.error(request, str(exc))
+
+    return redirect("staff:delivery_detail", pk=pk)
+
+
+@require_POST
+@staff_permission_required(DELIVERIES_MANAGE)
+def delivery_attempt_action_view(request: HttpRequest, pk: int) -> HttpResponse:
+    """Record an unsuccessful delivery attempt or operational exception."""
+    form = DeliveryAttemptForm(request.POST)
+    if not form.is_valid():
+        for err_list in form.errors.values():
+            for err in err_list:
+                messages.error(request, err)
+        return redirect("staff:delivery_detail", pk=pk)
+
+    try:
+        shipment = record_delivery_attempt_action(
+            pk,
+            failure_reason=form.cleaned_data["failure_reason"],
+            location=form.cleaned_data.get("location", ""),
+            note=form.cleaned_data.get("note", ""),
+            next_attempt_date=form.cleaned_data.get("next_attempt_date"),
+            requires_manager_review=form.cleaned_data.get("requires_manager_review", False),
+            actor=request.user,
+        )
+        messages.warning(
+            request,
+            _("Delivery attempt #%(count)d recorded for Shipment %(ref)s.")
+            % {
+                "count": shipment.delivery_attempts_count,
+                "ref": shipment.reference or f"#{shipment.pk}",
+            },
+        )
+    except PermissionDenied as exc:
+        return render_access_denied(
+            request, required_capability=DELIVERIES_MANAGE, message=str(exc)
+        )
+    except ValidationError as exc:
+        messages.error(request, str(exc))
+
+    return redirect("staff:delivery_detail", pk=pk)
+
+
+@require_POST
+@staff_permission_required(DELIVERIES_MANAGE)
+def delivery_pod_action_view(request: HttpRequest, pk: int) -> HttpResponse:
+    """Verify proof of delivery and record parcel completion."""
+    form = ProofOfDeliveryForm(request.POST)
+    if not form.is_valid():
+        for err_list in form.errors.values():
+            for err in err_list:
+                messages.error(request, err)
+        return redirect("staff:delivery_detail", pk=pk)
+
+    try:
+        shipment = record_proof_of_delivery_action(
+            pk,
+            pod_type=form.cleaned_data["pod_type"],
+            otp_code=form.cleaned_data.get("otp_code", ""),
+            recipient_name=form.cleaned_data.get("recipient_name", ""),
+            notes=form.cleaned_data.get("notes", ""),
+            actor=request.user,
+        )
+        messages.success(
+            request,
+            _("Shipment %(ref)s confirmed DELIVERED. Customer and order status synchronized.")
+            % {"ref": shipment.reference or f"#{shipment.pk}"},
+        )
+    except PermissionDenied as exc:
+        return render_access_denied(
+            request, required_capability=DELIVERIES_MANAGE, message=str(exc)
+        )
+    except ValidationError as exc:
+        messages.error(request, str(exc))
+
+    return redirect("staff:delivery_detail", pk=pk)
+
+
+@require_POST
+@staff_permission_required(DELIVERIES_MANAGE)
+def delivery_otp_generate_action_view(request: HttpRequest, pk: int) -> HttpResponse:
+    """Generate or refresh customer OTP verification code."""
+    try:
+        shipment, raw_otp = generate_delivery_otp_action(pk, actor=request.user)
+        messages.info(
+            request,
+            _("Generated delivery confirmation code for %(ref)s: %(otp)s (Valid for 48 hours).")
+            % {"ref": shipment.reference or f"#{shipment.pk}", "otp": raw_otp},
+        )
+    except PermissionDenied as exc:
+        return render_access_denied(
+            request, required_capability=DELIVERIES_MANAGE, message=str(exc)
+        )
+    except ValidationError as exc:
+        messages.error(request, str(exc))
+
+    return redirect("staff:delivery_detail", pk=pk)
 
 
 @staff_permission_required(SUPPORT_VIEW)
