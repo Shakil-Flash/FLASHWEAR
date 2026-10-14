@@ -23,6 +23,7 @@ from apps.backoffice.models import AuditEvent
 from apps.staff.constants import (
     DELIVERIES_VIEW,
     INVENTORY_VIEW,
+    ORDERS_MANAGE,
     ORDERS_VIEW,
     PORTAL_ACCESS,
     PRODUCTS_VIEW,
@@ -39,11 +40,21 @@ from apps.staff.dashboard_services import (
     get_recent_activity_feed,
 )
 from apps.staff.forms import (
+    OrderDispatchForm,
+    OrderPackForm,
     StaffAccountCreateForm,
     StaffAccountRoleForm,
     StaffLoginForm,
 )
 from apps.staff.navigation import get_staff_navigation
+from apps.staff.order_services import (
+    dispatch_order_action,
+    get_filtered_orders,
+    get_order_details,
+    mark_packed_action,
+    process_order_action,
+    start_picking_action,
+)
 from apps.staff.permissions import (
     get_user_capabilities,
     get_user_roles,
@@ -456,8 +467,8 @@ def inventory_view(request: HttpRequest) -> HttpResponse:
 
 @staff_permission_required(ORDERS_VIEW)
 def orders_view(request: HttpRequest) -> HttpResponse:
-    """Orders module landing for staff with queue/returns filter support."""
-    from apps.orders.models import Order, ReturnRequest
+    """Orders workspace for staff with searchable queues, pagination, and returns filter support."""
+    from apps.orders.models import ReturnRequest
 
     view_type = request.GET.get("type", "").strip().lower()
     status_filter = request.GET.get("status", "").strip().lower()
@@ -475,31 +486,172 @@ def orders_view(request: HttpRequest) -> HttpResponse:
                 "module": "returns",
                 "items": returns,
                 "filter_status": status_filter,
-                "can_manage": has_staff_capability(request.user, "staff.orders.manage"),
+                "can_manage": has_staff_capability(request.user, ORDERS_MANAGE),
             },
         )
 
-    orders_qs = Order.objects.all()
-    if status_filter == "processing":
-        orders_qs = orders_qs.filter(status__in=[Order.Status.PAID, Order.Status.PROCESSING])
-    elif status_filter == "pending":
-        orders_qs = orders_qs.filter(status=Order.Status.PENDING_PAYMENT)
-
-    orders = orders_qs.order_by("-created_at")[:25]
+    order_data = get_filtered_orders(request.user, request.GET)
     nav = get_staff_navigation(request.user, active_key="orders")
+    can_manage = has_staff_capability(request.user, ORDERS_MANAGE)
+
     return render(
         request,
-        "staff/module_placeholder.html",
+        "staff/orders/list.html",
         {
             "nav": nav,
             "active_key": "orders",
-            "title": "Order Processing & Fulfillment",
-            "module": "orders",
-            "items": orders,
-            "filter_status": status_filter,
-            "can_manage": has_staff_capability(request.user, "staff.orders.manage"),
+            "can_manage": can_manage,
+            **order_data,
         },
     )
+
+
+@staff_permission_required(ORDERS_VIEW)
+def order_detail_view(request: HttpRequest, pk: int) -> HttpResponse:
+    """Order inspection workspace displaying lines, address, timeline, and actions."""
+    try:
+        details = get_order_details(order_id=pk, user=request.user)
+    except ValidationError as exc:
+        messages.error(request, exc.messages[0] if hasattr(exc, "messages") else str(exc))
+        return redirect("staff:orders")
+
+    nav = get_staff_navigation(request.user, active_key="orders")
+    pack_form = OrderPackForm()
+    dispatch_form = OrderDispatchForm()
+
+    return render(
+        request,
+        "staff/orders/detail.html",
+        {
+            "nav": nav,
+            "active_key": "orders",
+            "pack_form": pack_form,
+            "dispatch_form": dispatch_form,
+            **details,
+        },
+    )
+
+
+@staff_permission_required(ORDERS_VIEW)
+def order_packing_slip_view(request: HttpRequest, pk: int) -> HttpResponse:
+    """Print-friendly packing slip using verified order data and customer address."""
+    try:
+        details = get_order_details(order_id=pk, user=request.user)
+    except ValidationError as exc:
+        messages.error(request, exc.messages[0] if hasattr(exc, "messages") else str(exc))
+        return redirect("staff:orders")
+
+    return render(
+        request,
+        "staff/orders/packing_slip.html",
+        details,
+    )
+
+
+@require_POST
+@staff_permission_required(ORDERS_MANAGE)
+def order_process_action_view(request: HttpRequest, pk: int) -> HttpResponse:
+    """Mark an eligible PAID order as PROCESSING and open fulfillment package."""
+    try:
+        shipment = process_order_action(order_id=pk, actor=request.user)
+        messages.success(
+            request,
+            _("Order %(number)s marked as Processing. Fulfillment package %(ref)s opened.")
+            % {"number": shipment.order.number, "ref": shipment.reference},
+        )
+    except ValidationError as exc:
+        messages.error(request, exc.messages[0] if hasattr(exc, "messages") else str(exc))
+
+    return redirect("staff:order_detail", pk=pk)
+
+
+@require_POST
+@staff_permission_required(ORDERS_MANAGE)
+def order_start_picking_action_view(request: HttpRequest, pk: int) -> HttpResponse:
+    """Advance shipment to PICKING state, attributing actor and timestamp."""
+    shipment_id = request.POST.get("shipment_id")
+    shipment_id_int = int(shipment_id) if shipment_id and shipment_id.isdigit() else None
+    note = request.POST.get("note", "").strip()
+
+    try:
+        shipment = start_picking_action(
+            order_id=pk,
+            shipment_id=shipment_id_int,
+            actor=request.user,
+            note=note,
+        )
+        messages.success(
+            request,
+            _("Warehouse picking started for shipment %(ref)s.") % {"ref": shipment.reference},
+        )
+    except ValidationError as exc:
+        messages.error(request, exc.messages[0] if hasattr(exc, "messages") else str(exc))
+
+    return redirect("staff:order_detail", pk=pk)
+
+
+@require_POST
+@staff_permission_required(ORDERS_MANAGE)
+def order_mark_packed_action_view(request: HttpRequest, pk: int) -> HttpResponse:
+    """Record package packing completion with dimensions and staff checklist."""
+    shipment_id = request.POST.get("shipment_id")
+    shipment_id_int = int(shipment_id) if shipment_id and shipment_id.isdigit() else None
+
+    form = OrderPackForm(request.POST)
+    if form.is_valid():
+        try:
+            shipment = mark_packed_action(
+                order_id=pk,
+                shipment_id=shipment_id_int,
+                actor=request.user,
+                package_weight_kg=form.cleaned_data.get("package_weight_kg"),
+                package_dimensions=form.cleaned_data.get("package_dimensions") or "",
+                internal_notes=form.cleaned_data.get("internal_notes") or "",
+            )
+            messages.success(
+                request,
+                _("Package %(ref)s verified, quality checked, and marked as Packed.")
+                % {"ref": shipment.reference},
+            )
+        except ValidationError as exc:
+            messages.error(request, exc.messages[0] if hasattr(exc, "messages") else str(exc))
+    else:
+        messages.error(request, _("Invalid packing details provided."))
+
+    return redirect("staff:order_detail", pk=pk)
+
+
+@require_POST
+@staff_permission_required(ORDERS_MANAGE)
+def order_dispatch_action_view(request: HttpRequest, pk: int) -> HttpResponse:
+    """Hand the packed order to courier, advancing shipment and order to SHIPPED."""
+    shipment_id = request.POST.get("shipment_id")
+    shipment_id_int = int(shipment_id) if shipment_id and shipment_id.isdigit() else None
+
+    form = OrderDispatchForm(request.POST)
+    if form.is_valid():
+        try:
+            shipment = dispatch_order_action(
+                order_id=pk,
+                shipment_id=shipment_id_int,
+                actor=request.user,
+                carrier=form.cleaned_data.get("carrier") or "",
+                carrier_service=form.cleaned_data.get("carrier_service") or "",
+                tracking_number=form.cleaned_data.get("tracking_number") or "",
+                tracking_url=form.cleaned_data.get("tracking_url") or "",
+                internal_notes=form.cleaned_data.get("internal_notes") or "",
+            )
+            messages.success(
+                request,
+                _("Shipment %(ref)s dispatched to carrier %(carrier)s.")
+                % {"ref": shipment.reference, "carrier": shipment.carrier or "courier"},
+            )
+        except ValidationError as exc:
+            messages.error(request, exc.messages[0] if hasattr(exc, "messages") else str(exc))
+    else:
+        messages.error(request, _("Invalid courier dispatch details provided."))
+
+    return redirect("staff:order_detail", pk=pk)
 
 
 @staff_permission_required(DELIVERIES_VIEW)

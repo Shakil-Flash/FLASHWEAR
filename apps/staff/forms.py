@@ -184,3 +184,103 @@ class StaffAccountRoleForm(forms.Form):
         if StaffRole.OWNER in roles and self.actor and not is_owner_or_superuser(self.actor):
             raise ValidationError(_("Only an Owner can assign the Owner role."))
         return roles
+
+
+class OrderPackForm(forms.Form):
+    """Warehouse packing form to record package specifications and internal notes."""
+
+    package_weight_kg = forms.DecimalField(
+        label=_("Package Weight (kg)"),
+        required=False,
+        min_value=0,
+        max_digits=6,
+        decimal_places=2,
+        widget=forms.NumberInput(
+            attrs={
+                "class": MD_INPUT_CLASSES,
+                "placeholder": "e.g. 0.85",
+                "step": "0.01",
+            }
+        ),
+    )
+    package_dimensions = forms.CharField(
+        label=_("Package Dimensions"),
+        required=False,
+        max_length=64,
+        widget=forms.TextInput(
+            attrs={
+                "class": MD_INPUT_CLASSES,
+                "placeholder": "e.g. 35 x 25 x 10 cm",
+            }
+        ),
+    )
+    internal_notes = forms.CharField(
+        label=_("Packing Notes / Staff Checklist"),
+        required=False,
+        widget=forms.Textarea(
+            attrs={
+                "class": MD_INPUT_CLASSES,
+                "rows": 2,
+                "placeholder": "Quality checked, branded tissue wrapped...",
+            }
+        ),
+    )
+
+
+class OrderDispatchForm(forms.Form):
+    """Courier handoff and dispatch form with carrier details and tracking identifiers."""
+
+    carrier = forms.CharField(
+        label=_("Courier / Carrier"),
+        required=False,
+        max_length=64,
+        widget=forms.TextInput(
+            attrs={
+                "class": MD_INPUT_CLASSES,
+                "placeholder": "e.g. DHL Express, FedEx, Royal Mail, UPS",
+            }
+        ),
+    )
+    carrier_service = forms.CharField(
+        label=_("Carrier Service Level"),
+        required=False,
+        max_length=64,
+        widget=forms.TextInput(
+            attrs={
+                "class": MD_INPUT_CLASSES,
+                "placeholder": "e.g. Next Day Tracked, International Standard",
+            }
+        ),
+    )
+    tracking_number = forms.CharField(
+        label=_("Tracking Number / Consignment #"),
+        required=False,
+        max_length=64,
+        widget=forms.TextInput(
+            attrs={
+                "class": MD_INPUT_CLASSES,
+                "placeholder": "e.g. GB123456789HR",
+            }
+        ),
+    )
+    tracking_url = forms.URLField(
+        label=_("External Tracking URL (Optional)"),
+        required=False,
+        widget=forms.URLInput(
+            attrs={
+                "class": MD_INPUT_CLASSES,
+                "placeholder": "https://carrier.com/track/...",
+            }
+        ),
+    )
+    internal_notes = forms.CharField(
+        label=_("Dispatch Notes"),
+        required=False,
+        widget=forms.Textarea(
+            attrs={
+                "class": MD_INPUT_CLASSES,
+                "rows": 2,
+                "placeholder": "Manifested with evening carrier collection...",
+            }
+        ),
+    )

@@ -1,0 +1,582 @@
+{% extends "staff/base.html" %}
+{% load static %}
+
+{% block title %}Order #{{ order.number }}{% endblock %}
+
+{% block breadcrumb %}
+    <span class="text-slate-400">/</span>
+    <a href="{% url 'staff:orders' %}" class="text-xs font-medium text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200">Orders</a>
+    <span class="text-slate-400">/</span>
+    <span class="text-xs font-semibold text-slate-900 dark:text-white">{{ order.number }}</span>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-6" x-data="{ packModalOpen: false, dispatchModalOpen: false }">
+    {# Top Navigation & Action Header #}
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+            <div class="flex items-center gap-3">
+                <a href="{% url 'staff:orders' %}" class="inline-flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition">
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                    </svg>
+                    <span>Back to Orders Queue</span>
+                </a>
+            </div>
+            <div class="flex items-center gap-3 mt-2 flex-wrap">
+                <h1 class="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+                    Order {{ order.number }}
+                </h1>
+                {# Status Badges #}
+                {% if order.status == 'paid' %}
+                    <span class="inline-flex items-center rounded-md bg-emerald-50 px-2.5 py-0.5 text-xs font-bold text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                        Paid &bull; Ready to Process
+                    </span>
+                {% elif order.status == 'processing' %}
+                    <span class="inline-flex items-center rounded-md bg-blue-50 px-2.5 py-0.5 text-xs font-bold text-blue-800 dark:bg-blue-950/50 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                        Processing / In Fulfillment
+                    </span>
+                {% elif order.status == 'shipped' %}
+                    <span class="inline-flex items-center rounded-md bg-indigo-50 px-2.5 py-0.5 text-xs font-medium text-indigo-800 dark:bg-indigo-950/50 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                        Dispatched
+                    </span>
+                {% elif order.status == 'delivered' %}
+                    <span class="inline-flex items-center rounded-md bg-teal-50 px-2.5 py-0.5 text-xs font-medium text-teal-800 dark:bg-teal-950/50 dark:text-teal-300 border border-teal-200 dark:border-teal-800">
+                        Delivered
+                    </span>
+                {% elif order.status == 'pending_payment' %}
+                    <span class="inline-flex items-center rounded-md bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                        Pending Payment
+                    </span>
+                {% elif order.status == 'cancelled' %}
+                    <span class="inline-flex items-center rounded-md bg-rose-50 px-2.5 py-0.5 text-xs font-medium text-rose-800 dark:bg-rose-950/50 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
+                        Cancelled
+                    </span>
+                {% else %}
+                    <span class="inline-flex items-center rounded-md bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-800 dark:bg-slate-800 dark:text-slate-300">
+                        {{ order.get_status_display }}
+                    </span>
+                {% endif %}
+
+                {% if is_payment_verified %}
+                    <span class="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/50">
+                        <svg class="h-3 w-3 text-emerald-500" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                        </svg>
+                        Payment Verified
+                    </span>
+                {% endif %}
+            </div>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                Placed on {{ order.created_at|date:"F d, Y \a\\t H:i" }} UTC &bull; ID: #{{ order.pk }}
+            </p>
+        </div>
+
+        {# Action Buttons #}
+        <div class="flex items-center gap-2 flex-wrap">
+            {% if can_print_slip %}
+                <a href="{% url 'staff:order_packing_slip' pk=order.pk %}"
+                   target="_blank"
+                   rel="noopener"
+                   class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition shadow-sm">
+                    <svg class="h-4 w-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                    </svg>
+                    <span>Print Packing Slip</span>
+                </a>
+            {% endif %}
+
+            {% if can_manage %}
+                {% if can_process %}
+                    <form method="post" action="{% url 'staff:order_process_action' pk=order.pk %}" class="inline">
+                        {% csrf_token %}
+                        <button type="submit"
+                                class="inline-flex items-center gap-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 px-4 py-2 text-xs font-black text-slate-950 shadow-sm transition">
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span>Mark Processing</span>
+                        </button>
+                    </form>
+                {% elif can_pick %}
+                    <form method="post" action="{% url 'staff:order_start_picking_action' pk=order.pk %}" class="inline">
+                        {% csrf_token %}
+                        <button type="submit"
+                                class="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 px-4 py-2 text-xs font-bold text-white shadow-sm transition">
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                            </svg>
+                            <span>Start Picking</span>
+                        </button>
+                    </form>
+                {% elif can_pack %}
+                    <button type="button"
+                            @click="packModalOpen = true"
+                            class="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 px-4 py-2 text-xs font-bold text-white shadow-sm transition">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                        </svg>
+                        <span>Record Packing</span>
+                    </button>
+                {% elif can_dispatch %}
+                    <button type="button"
+                            @click="dispatchModalOpen = true"
+                            class="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 px-4 py-2 text-xs font-bold text-white shadow-sm transition">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                        </svg>
+                        <span>Dispatch Shipment</span>
+                    </button>
+                {% endif %}
+            {% endif %}
+        </div>
+    </div>
+
+    {# Alerts for Ineligible States #}
+    {% if order.status == 'pending_payment' %}
+        <div class="rounded-xl border border-amber-300 bg-amber-50 dark:border-amber-900/60 dark:bg-amber-950/40 p-4 text-amber-900 dark:text-amber-200 text-sm flex items-start gap-3">
+            <svg class="h-5 w-5 text-amber-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <div>
+                <p class="font-bold">Awaiting Customer Payment Verification</p>
+                <p class="text-xs text-amber-800 dark:text-amber-300 mt-0.5">
+                    This order is pending payment. In compliance with security safeguards, staff cannot mark an unpaid order as paid directly. The system will automatically unlock fulfillment upon authorized webhook confirmation from the payment gateway.
+                </p>
+            </div>
+        </div>
+    {% elif order.status == 'cancelled' %}
+        <div class="rounded-xl border border-rose-300 bg-rose-50 dark:border-rose-900/60 dark:bg-rose-950/40 p-4 text-rose-900 dark:text-rose-200 text-sm flex items-start gap-3">
+            <svg class="h-5 w-5 text-rose-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+            </svg>
+            <div>
+                <p class="font-bold">Order Cancelled</p>
+                <p class="text-xs text-rose-800 dark:text-rose-300 mt-0.5">
+                    This order was cancelled and inventory holds were safely released. No further fulfillment operations can be executed.
+                </p>
+            </div>
+        </div>
+    {% endif %}
+
+    {# Main Grid Content #}
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {# Left Column: Purchased Items, Shipments, Timeline (2 cols) #}
+        <div class="lg:col-span-2 space-y-6">
+            {# Purchased Items Card #}
+            <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+                <div class="border-b border-slate-200 dark:border-slate-800 px-6 py-4 flex items-center justify-between">
+                    <h2 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                        <svg class="h-5 w-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                        </svg>
+                        <span>Purchased Items ({{ items|length }})</span>
+                    </h2>
+                    <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                        {{ fulfillment_summary.fulfilled_quantity }} of {{ fulfillment_summary.total_ordered }} units fulfilled
+                    </span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm text-slate-600 dark:text-slate-300">
+                        <thead class="border-b border-slate-100 dark:divide-slate-800 bg-slate-50/50 dark:bg-slate-800/40 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                            <tr>
+                                <th scope="col" class="py-3 pl-6 pr-3">Item / SKU</th>
+                                <th scope="col" class="px-3 py-3">Variant / Options</th>
+                                <th scope="col" class="px-3 py-3 text-right">Price</th>
+                                <th scope="col" class="px-3 py-3 text-center">Qty</th>
+                                <th scope="col" class="py-3 pl-3 pr-6 text-right">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 dark:divide-slate-800/60">
+                            {% for item in items %}
+                                <tr>
+                                    <td class="py-4 pl-6 pr-3">
+                                        <div class="font-bold text-slate-900 dark:text-white">{{ item.product_name }}</div>
+                                        <div class="text-xs font-mono text-slate-500 dark:text-slate-400">{{ item.sku }}</div>
+                                    </td>
+                                    <td class="px-3 py-4 text-xs">
+                                        {% if item.option_label %}
+                                            <span class="inline-flex items-center rounded bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-xs text-slate-800 dark:text-slate-200">
+                                                {{ item.option_label }}
+                                            </span>
+                                        {% else %}
+                                            <span class="text-slate-400">&mdash;</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="px-3 py-4 text-xs text-right font-medium">
+                                        {{ item.unit_price }} {{ order.currency }}
+                                    </td>
+                                    <td class="px-3 py-4 text-xs text-center font-bold text-slate-900 dark:text-white">
+                                        {{ item.quantity }}
+                                    </td>
+                                    <td class="py-4 pl-3 pr-6 text-xs text-right font-bold text-slate-900 dark:text-white">
+                                        {{ item.line_total }} {{ order.currency }}
+                                    </td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="5" class="py-6 text-center text-slate-400 text-xs">No items recorded on this order.</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {# Shipments & Warehouse Packages Card #}
+            <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+                <div class="border-b border-slate-200 dark:border-slate-800 px-6 py-4 flex items-center justify-between">
+                    <h2 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                        <svg class="h-5 w-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                        </svg>
+                        <span>Shipment Packages ({{ shipments|length }})</span>
+                    </h2>
+                </div>
+                <div class="p-6 space-y-4">
+                    {% for shipment in shipments %}
+                        <div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 p-4 space-y-3">
+                            <div class="flex items-center justify-between flex-wrap gap-2">
+                                <div class="flex items-center gap-2">
+                                    <span class="font-bold text-sm text-slate-900 dark:text-white">{{ shipment.reference }}</span>
+                                    <span class="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-bold {% if shipment.status == 'shipped' or shipment.status == 'in_transit' %}bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300{% elif shipment.status == 'packed' %}bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300{% elif shipment.status == 'picking' %}bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300{% else %}bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300{% endif %}">
+                                        {{ shipment.get_status_display }}
+                                    </span>
+                                </div>
+                                <div class="text-xs text-slate-500 dark:text-slate-400">
+                                    Method: <span class="font-semibold">{{ shipment.method|default:order.shipping_code }}</span>
+                                </div>
+                            </div>
+
+                            {# Tracking and Carrier Details #}
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs pt-2 border-t border-slate-200/60 dark:border-slate-700/60">
+                                <div>
+                                    <span class="text-slate-400">Carrier:</span>
+                                    <span class="font-medium text-slate-800 dark:text-slate-200 ml-1">{{ shipment.carrier|default:"Standard Delivery" }}</span>
+                                </div>
+                                <div>
+                                    <span class="text-slate-400">Tracking:</span>
+                                    {% if shipment.tracking_number %}
+                                        {% if shipment.safe_tracking_url %}
+                                            <a href="{{ shipment.safe_tracking_url }}" target="_blank" rel="noopener" class="font-mono text-amber-600 dark:text-amber-400 hover:underline ml-1">
+                                                {{ shipment.tracking_number }} &nearr;
+                                            </a>
+                                        {% else %}
+                                            <span class="font-mono text-slate-800 dark:text-slate-200 ml-1">{{ shipment.tracking_number }}</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-slate-400 ml-1">Not assigned</span>
+                                    {% endif %}
+                                </div>
+                                <div>
+                                    <span class="text-slate-400">Weight:</span>
+                                    <span class="font-medium text-slate-800 dark:text-slate-200 ml-1">
+                                        {% if shipment.package_weight_kg %}{{ shipment.package_weight_kg }} kg{% else %}&mdash;{% endif %}
+                                    </span>
+                                </div>
+                            </div>
+
+                            {# Staff Attributions #}
+                            <div class="flex items-center gap-4 text-[11px] text-slate-400 pt-1">
+                                {% if shipment.picked_by %}
+                                    <span>Picked by: <strong class="text-slate-600 dark:text-slate-300">{{ shipment.picked_by.get_full_name|default:shipment.picked_by.email }}</strong></span>
+                                {% endif %}
+                                {% if shipment.packed_by %}
+                                    <span>Packed by: <strong class="text-slate-600 dark:text-slate-300">{{ shipment.packed_by.get_full_name|default:shipment.packed_by.email }}</strong></span>
+                                {% endif %}
+                                {% if shipment.dispatched_by %}
+                                    <span>Dispatched by: <strong class="text-slate-600 dark:text-slate-300">{{ shipment.dispatched_by.get_full_name|default:shipment.dispatched_by.email }}</strong></span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% empty %}
+                        <div class="text-center py-6 text-slate-400 text-xs">
+                            No fulfillment package opened yet.
+                            {% if order.status == 'paid' and can_manage %}
+                                <div class="mt-2">
+                                    <form method="post" action="{% url 'staff:order_process_action' pk=order.pk %}" class="inline">
+                                        {% csrf_token %}
+                                        <button type="submit" class="text-amber-600 dark:text-amber-400 hover:underline font-bold">
+                                            Click here to mark processing and open package
+                                        </button>
+                                    </form>
+                                </div>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            {# Processing History & Audit Trail Timeline Card #}
+            <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+                <div class="border-b border-slate-200 dark:border-slate-800 px-6 py-4 flex items-center justify-between">
+                    <h2 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                        <svg class="h-5 w-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span>Audit Timeline & History</span>
+                    </h2>
+                    <span class="text-xs text-slate-400">{{ timeline_events|length }} logged events</span>
+                </div>
+                <div class="p-6">
+                    <div class="relative pl-6 space-y-6 before:absolute before:bottom-0 before:top-2 before:left-2 before:w-0.5 before:bg-slate-200 dark:before:bg-slate-800">
+                        {% for ev in timeline_events %}
+                            <div class="relative text-xs">
+                                {# Circle icon #}
+                                <div class="absolute -left-6 top-0.5 h-3.5 w-3.5 rounded-full border-2 border-white dark:border-slate-900 {% if ev.category == 'shipment' %}bg-indigo-500{% else %}bg-amber-500{% endif %}"></div>
+                                <div class="flex items-center justify-between">
+                                    <span class="font-bold text-slate-900 dark:text-white text-sm">
+                                        {{ ev.note }}
+                                    </span>
+                                    <span class="text-[11px] text-slate-400">
+                                        {{ ev.timestamp|date:"M d, Y H:i" }} UTC
+                                    </span>
+                                </div>
+                                <div class="text-slate-500 dark:text-slate-400 mt-0.5 flex items-center gap-2">
+                                    <span>Actor: <strong class="text-slate-700 dark:text-slate-300">{{ ev.actor }}</strong></span>
+                                    {% if ev.shipment_ref %}
+                                        <span>&bull;</span>
+                                        <span>Pkg: {{ ev.shipment_ref }}</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        {% empty %}
+                            <p class="text-slate-400 text-xs">No audit events recorded for this order.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {# Right Column: Payment & Customer Details (1 col) #}
+        <div class="space-y-6">
+            {# Payment & Financial Summary Card #}
+            <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm p-6 space-y-4">
+                <h2 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <svg class="h-5 w-5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                    <span>Payment & Totals</span>
+                </h2>
+
+                <div class="space-y-2 text-xs">
+                    <div class="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800">
+                        <span class="text-slate-500 dark:text-slate-400">Items Subtotal:</span>
+                        <span class="font-medium text-slate-900 dark:text-white">{{ order.subtotal }} {{ order.currency }}</span>
+                    </div>
+                    <div class="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800">
+                        <span class="text-slate-500 dark:text-slate-400">Shipping ({{ order.shipping_name|default:order.shipping_code }}):</span>
+                        <span class="font-medium text-slate-900 dark:text-white">{{ order.shipping_amount }} {{ order.currency }}</span>
+                    </div>
+                    {% if order.discount_amount and order.discount_amount > 0 %}
+                        <div class="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800 text-emerald-600 dark:text-emerald-400">
+                            <span>Discounts {% if order.promotion_code %}({{ order.promotion_code }}){% endif %}:</span>
+                            <span class="font-medium">-{{ order.discount_amount }} {{ order.currency }}</span>
+                        </div>
+                    {% endif %}
+                    <div class="flex justify-between py-1.5 border-t border-slate-200 dark:border-slate-700 text-sm font-black text-slate-900 dark:text-white">
+                        <span>Total:</span>
+                        <span>{{ order.total }} {{ order.currency }}</span>
+                    </div>
+                </div>
+
+                {# Gateway Verification Details #}
+                <div class="rounded-xl bg-slate-50 dark:bg-slate-800/50 p-3 text-xs space-y-1.5 border border-slate-200 dark:border-slate-800">
+                    <div class="flex justify-between">
+                        <span class="text-slate-400">Payment Status:</span>
+                        <span class="font-bold {% if is_payment_verified %}text-emerald-600 dark:text-emerald-400{% else %}text-amber-600 dark:text-amber-400{% endif %}">
+                            {% if order.payment %}{{ order.payment.get_status_display }}{% else %}{{ order.get_status_display }}{% endif %}
+                        </span>
+                    </div>
+                    {% if order.payment %}
+                        <div class="flex justify-between">
+                            <span class="text-slate-400">Provider:</span>
+                            <span class="text-slate-700 dark:text-slate-300 font-mono">{{ order.payment.provider }}</span>
+                        </div>
+                        {% if order.payment.paid_at %}
+                            <div class="flex justify-between">
+                                <span class="text-slate-400">Paid At:</span>
+                                <span class="text-slate-700 dark:text-slate-300">{{ order.payment.paid_at|date:"M d, H:i" }} UTC</span>
+                            </div>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+
+            {# Customer & Shipping Address Card #}
+            <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm p-6 space-y-4">
+                <h2 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <svg class="h-5 w-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    <span>Delivery Address Snapshot</span>
+                </h2>
+
+                <div class="text-xs space-y-1 text-slate-600 dark:text-slate-300">
+                    <p class="font-bold text-slate-900 dark:text-white text-sm">
+                        {% if order.shipping_address and order.shipping_address.full_name %}
+                            {{ order.shipping_address.full_name }}
+                        {% elif order.user %}
+                            {{ order.user.get_full_name|default:order.user.email }}
+                        {% else %}
+                            Guest Customer
+                        {% endif %}
+                    </p>
+                    <p>{{ order.shipping_address.line1 }}</p>
+                    {% if order.shipping_address.line2 %}
+                        <p>{{ order.shipping_address.line2 }}</p>
+                    {% endif %}
+                    <p>
+                        {{ order.shipping_address.city }}{% if order.shipping_address.region %}, {{ order.shipping_address.region }}{% endif %}
+                        {{ order.shipping_address.postal_code }}
+                    </p>
+                    <p class="font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                        {{ order.shipping_address.country }}
+                    </p>
+
+                    {% if order.shipping_address.phone %}
+                        <div class="pt-2 text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                            </svg>
+                            <span>{{ order.shipping_address.phone }}</span>
+                        </div>
+                    {% endif %}
+
+                    <div class="pt-1 text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                        <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
+                        </svg>
+                        <span class="truncate">{% if order.user %}{{ order.user.email }}{% else %}Guest{% endif %}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# ---------------------------------------------------------------------------------- #}
+    {# Modal: Record Packing                                                              #}
+    {# ---------------------------------------------------------------------------------- #}
+    <div x-show="packModalOpen"
+         x-cloak
+         class="fixed inset-0 z-50 overflow-y-auto"
+         role="dialog"
+         aria-modal="true"
+         aria-labelledby="pack-modal-title">
+        <div class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm transition-opacity" @click="packModalOpen = false"></div>
+        <div class="flex min-h-screen items-center justify-center p-4">
+            <div class="relative w-full max-w-md rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 shadow-2xl">
+                <h3 id="pack-modal-title" class="text-lg font-bold text-slate-900 dark:text-white">
+                    Record Package Packing
+                </h3>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                    Confirm that all items have been verified, folded, quality inspected, and sealed.
+                </p>
+
+                <form method="post" action="{% url 'staff:order_mark_packed_action' pk=order.pk %}" class="mt-4 space-y-4">
+                    {% csrf_token %}
+                    <div>
+                        <label for="id_package_weight_kg" class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                            Package Weight (kg)
+                        </label>
+                        <input type="number" step="0.01" min="0" name="package_weight_kg" id="id_package_weight_kg" placeholder="e.g. 0.85"
+                               class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2 text-sm text-slate-900 dark:text-white focus:border-amber-500 focus:ring-1 focus:ring-amber-500" />
+                    </div>
+
+                    <div>
+                        <label for="id_package_dimensions" class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                            Dimensions (Optional)
+                        </label>
+                        <input type="text" name="package_dimensions" id="id_package_dimensions" placeholder="e.g. 35 x 25 x 10 cm"
+                               class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2 text-sm text-slate-900 dark:text-white focus:border-amber-500 focus:ring-1 focus:ring-amber-500" />
+                    </div>
+
+                    <div>
+                        <label for="id_internal_notes" class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                            Staff Notes / Checklist
+                        </label>
+                        <textarea name="internal_notes" id="id_internal_notes" rows="2" placeholder="Quality checked, branded tag attached..."
+                                  class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2 text-sm text-slate-900 dark:text-white focus:border-amber-500 focus:ring-1 focus:ring-amber-500"></textarea>
+                    </div>
+
+                    <div class="flex items-center justify-end gap-2 pt-2">
+                        <button type="button" @click="packModalOpen = false" class="rounded-lg border border-slate-300 dark:border-slate-700 px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+                            Cancel
+                        </button>
+                        <button type="submit" class="rounded-lg bg-emerald-600 hover:bg-emerald-500 px-4 py-2 text-xs font-bold text-white transition shadow-sm">
+                            Seal & Mark Packed
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    {# ---------------------------------------------------------------------------------- #}
+    {# Modal: Dispatch Shipment                                                           #}
+    {# ---------------------------------------------------------------------------------- #}
+    <div x-show="dispatchModalOpen"
+         x-cloak
+         class="fixed inset-0 z-50 overflow-y-auto"
+         role="dialog"
+         aria-modal="true"
+         aria-labelledby="dispatch-modal-title">
+        <div class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm transition-opacity" @click="dispatchModalOpen = false"></div>
+        <div class="flex min-h-screen items-center justify-center p-4">
+            <div class="relative w-full max-w-md rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 shadow-2xl">
+                <h3 id="dispatch-modal-title" class="text-lg font-bold text-slate-900 dark:text-white">
+                    Dispatch Shipment to Courier
+                </h3>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                    Record carrier collection details and tracking number. This moves the order to DISPATCHED and emits transactional customer notification.
+                </p>
+
+                <form method="post" action="{% url 'staff:order_dispatch_action' pk=order.pk %}" class="mt-4 space-y-4">
+                    {% csrf_token %}
+                    <div>
+                        <label for="id_carrier" class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                            Courier / Carrier Name
+                        </label>
+                        <input type="text" name="carrier" id="id_carrier" placeholder="e.g. DHL Express, FedEx, Royal Mail, UPS"
+                               class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2 text-sm text-slate-900 dark:text-white focus:border-amber-500 focus:ring-1 focus:ring-amber-500" />
+                    </div>
+
+                    <div>
+                        <label for="id_carrier_service" class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                            Service Level (Optional)
+                        </label>
+                        <input type="text" name="carrier_service" id="id_carrier_service" placeholder="e.g. Next Day Tracked"
+                               class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2 text-sm text-slate-900 dark:text-white focus:border-amber-500 focus:ring-1 focus:ring-amber-500" />
+                    </div>
+
+                    <div>
+                        <label for="id_tracking_number" class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                            Tracking Number / Consignment ID
+                        </label>
+                        <input type="text" name="tracking_number" id="id_tracking_number" placeholder="e.g. GB9876543210"
+                               class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2 text-sm text-slate-900 dark:text-white focus:border-amber-500 focus:ring-1 focus:ring-amber-500" />
+                    </div>
+
+                    <div>
+                        <label for="id_tracking_url" class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                            Direct Tracking URL (Optional)
+                        </label>
+                        <input type="url" name="tracking_url" id="id_tracking_url" placeholder="https://..."
+                               class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2 text-sm text-slate-900 dark:text-white focus:border-amber-500 focus:ring-1 focus:ring-amber-500" />
+                    </div>
+
+                    <div class="flex items-center justify-end gap-2 pt-2">
+                        <button type="button" @click="dispatchModalOpen = false" class="rounded-lg border border-slate-300 dark:border-slate-700 px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+                            Cancel
+                        </button>
+                        <button type="submit" class="rounded-lg bg-indigo-600 hover:bg-indigo-500 px-4 py-2 text-xs font-bold text-white transition shadow-sm">
+                            Confirm Dispatch
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

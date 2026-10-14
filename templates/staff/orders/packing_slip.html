@@ -1,0 +1,214 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Packing Slip &bull; {{ order.number }} &bull; FLASHWEAR</title>
+    <link rel="stylesheet" href="{% static 'css/app.css' %}" />
+    <style>
+        @media print {
+            body {
+                background: #ffffff !important;
+                color: #000000 !important;
+                font-size: 12pt;
+            }
+            .no-print {
+                display: none !important;
+            }
+            .print-border {
+                border-color: #000000 !important;
+            }
+            .page-break {
+                page-break-after: always;
+            }
+        }
+        @page {
+            margin: 1.5cm;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-900 min-h-screen py-8">
+
+    {# Top Screen-Only Bar #}
+    <div class="no-print max-w-4xl mx-auto px-4 mb-6 flex items-center justify-between">
+        <a href="{% url 'staff:order_detail' pk=order.pk %}" class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-slate-900 transition">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            <span>Back to Order {{ order.number }}</span>
+        </a>
+        <button type="button"
+                onclick="window.print()"
+                class="inline-flex items-center gap-2 rounded-lg bg-slate-950 px-4 py-2 text-sm font-bold text-white hover:bg-slate-800 shadow-md transition">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+            </svg>
+            <span>Print Packing Slip</span>
+        </button>
+    </div>
+
+    {# Printable Packing Slip Document #}
+    <div class="max-w-4xl mx-auto bg-white p-8 sm:p-12 rounded-2xl shadow-lg border border-slate-200 print:shadow-none print:border-none print:p-0 print:max-w-none">
+        {# Header #}
+        <div class="flex items-start justify-between border-b-2 border-slate-900 pb-6">
+            <div>
+                <div class="flex items-center gap-3">
+                    <span class="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-black text-white font-black text-base">FW</span>
+                    <h1 class="text-2xl font-black tracking-tight text-slate-950">FLASHWEAR</h1>
+                </div>
+                <p class="text-xs text-slate-500 mt-1 uppercase tracking-wider font-semibold">Warehouse Fulfillment & Packing Slip</p>
+            </div>
+            <div class="text-right">
+                <h2 class="text-xl font-mono font-black text-slate-900">{{ order.number }}</h2>
+                <p class="text-xs text-slate-500 mt-1">Date: {{ order.created_at|date:"F d, Y" }}</p>
+                {% if active_shipment %}
+                    <p class="text-xs text-slate-600 font-mono mt-0.5">Pkg: {{ active_shipment.reference }}</p>
+                {% endif %}
+            </div>
+        </div>
+
+        {# Order & Shipping Metadata #}
+        <div class="grid grid-cols-2 gap-8 py-6 border-b border-slate-200 text-sm">
+            <div>
+                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Ship To / Deliver To</h3>
+                <p class="font-bold text-slate-950 text-base">
+                    {% if order.shipping_address and order.shipping_address.full_name %}
+                        {{ order.shipping_address.full_name }}
+                    {% elif order.user %}
+                        {{ order.user.get_full_name|default:order.user.email }}
+                    {% else %}
+                        Guest Customer
+                    {% endif %}
+                </p>
+                <p class="text-slate-700 mt-0.5">{{ order.shipping_address.line1 }}</p>
+                {% if order.shipping_address.line2 %}
+                    <p class="text-slate-700">{{ order.shipping_address.line2 }}</p>
+                {% endif %}
+                <p class="text-slate-700">
+                    {{ order.shipping_address.city }}{% if order.shipping_address.region %}, {{ order.shipping_address.region }}{% endif %}
+                    {{ order.shipping_address.postal_code }}
+                </p>
+                <p class="text-slate-700 font-bold uppercase tracking-wider mt-1">{{ order.shipping_address.country }}</p>
+                {% if order.shipping_address.phone %}
+                    <p class="text-slate-500 text-xs mt-1">Tel: {{ order.shipping_address.phone }}</p>
+                {% endif %}
+            </div>
+
+            <div>
+                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Fulfillment Details</h3>
+                <dl class="space-y-1.5 text-xs">
+                    <div class="flex justify-between">
+                        <dt class="text-slate-500">Shipping Service:</dt>
+                        <dd class="font-semibold text-slate-900">{{ order.shipping_name|default:order.shipping_code }}</dd>
+                    </div>
+                    {% if active_shipment %}
+                        {% if active_shipment.carrier %}
+                            <div class="flex justify-between">
+                                <dt class="text-slate-500">Assigned Carrier:</dt>
+                                <dd class="font-semibold text-slate-900">{{ active_shipment.carrier }}</dd>
+                            </div>
+                        {% endif %}
+                        {% if active_shipment.tracking_number %}
+                            <div class="flex justify-between">
+                                <dt class="text-slate-500">Tracking Number:</dt>
+                                <dd class="font-mono font-semibold text-slate-900">{{ active_shipment.tracking_number }}</dd>
+                            </div>
+                        {% endif %}
+                    {% endif %}
+                    <div class="flex justify-between">
+                        <dt class="text-slate-500">Total Items:</dt>
+                        <dd class="font-bold text-slate-900">{{ items|length }} lines ({{ fulfillment_summary.total_ordered }} units)</dd>
+                    </div>
+                </dl>
+            </div>
+        </div>
+
+        {# Line Items Table #}
+        <div class="py-6">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Package Contents & Verification</h3>
+            <table class="w-full text-left text-sm border-collapse">
+                <thead>
+                    <tr class="border-b-2 border-slate-900 text-xs font-bold uppercase tracking-wider text-slate-900">
+                        <th class="py-2.5 pr-2 w-10 text-center">Check</th>
+                        <th class="py-2.5 px-3">SKU</th>
+                        <th class="py-2.5 px-3">Item Description</th>
+                        <th class="py-2.5 px-3">Options</th>
+                        <th class="py-2.5 pl-3 pr-2 text-right">Qty</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200">
+                    {% for item in items %}
+                        <tr class="text-slate-800">
+                            <td class="py-3 pr-2 text-center">
+                                <div class="inline-block h-4 w-4 border-2 border-slate-400 rounded"></div>
+                            </td>
+                            <td class="py-3 px-3 font-mono text-xs font-bold text-slate-950">{{ item.sku }}</td>
+                            <td class="py-3 px-3">
+                                <span class="font-bold text-slate-900">{{ item.product_name }}</span>
+                            </td>
+                            <td class="py-3 px-3 text-xs">
+                                {{ item.option_label|default:"Standard" }}
+                            </td>
+                            <td class="py-3 pl-3 pr-2 text-right font-black text-slate-950 text-base">
+                                {{ item.quantity }}
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="5" class="py-6 text-center text-slate-400">No items on this packing slip.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {# Special Notes #}
+        {% if active_shipment %}
+            {% if active_shipment.customer_notes or active_shipment.internal_notes %}
+                <div class="border-t border-slate-200 pt-4 pb-2 text-xs">
+                    <h4 class="font-bold uppercase tracking-wider text-slate-400 mb-1">Fulfillment Notes</h4>
+                    {% if active_shipment.customer_notes %}
+                        <p class="text-slate-700">Customer Note: {{ active_shipment.customer_notes }}</p>
+                    {% endif %}
+                    {% if active_shipment.internal_notes %}
+                        <p class="text-slate-700">Internal Checklist: {{ active_shipment.internal_notes }}</p>
+                    {% endif %}
+                </div>
+            {% endif %}
+        {% endif %}
+
+        {# Quality Assurance Sign-Off Block #}
+        <div class="border-t-2 border-slate-900 pt-8 mt-6">
+            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">Warehouse Quality Assurance & Verification</h4>
+            <div class="grid grid-cols-2 gap-8 text-xs">
+                <div>
+                    <div class="border-b border-slate-400 pb-1 mb-1 font-mono text-slate-800">
+                        {% if active_shipment and active_shipment.picked_by %}
+                            {{ active_shipment.picked_by.get_full_name|default:active_shipment.picked_by.email }}
+                        {% else %}
+                            ____________________
+                        {% endif %}
+                    </div>
+                    <span class="text-slate-400">Picked by Staff Member / Date: {% if active_shipment and active_shipment.picked_at %}{{ active_shipment.picked_at|date:"M d, Y" }}{% else %}____/____/________{% endif %}</span>
+                </div>
+                <div>
+                    <div class="border-b border-slate-400 pb-1 mb-1 font-mono text-slate-800">
+                        {% if active_shipment and active_shipment.packed_by %}
+                            {{ active_shipment.packed_by.get_full_name|default:active_shipment.packed_by.email }}
+                        {% else %}
+                            ____________________
+                        {% endif %}
+                    </div>
+                    <span class="text-slate-400">Quality Checked &amp; Packed by / Date: {% if active_shipment and active_shipment.packed_at %}{{ active_shipment.packed_at|date:"M d, Y" }}{% else %}____/____/________{% endif %}</span>
+                </div>
+            </div>
+        </div>
+
+        {# Footer Message #}
+        <div class="text-center text-[10px] text-slate-400 border-t border-slate-100 pt-6 mt-8">
+            Thank you for shopping with FLASHWEAR. Returns or exchanges: https://flashwear.com/support/
+        </div>
+    </div>
+</body>
+</html>
