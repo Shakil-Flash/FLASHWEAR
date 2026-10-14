@@ -30,6 +30,8 @@ from apps.staff.constants import (
     PRODUCTS_VIEW,
     STAFF_MANAGE,
     SUPPORT_VIEW,
+    TASKS_MANAGE,
+    TASKS_VIEW,
 )
 from apps.staff.permissions import (
     get_user_capabilities,
@@ -305,6 +307,12 @@ def get_daily_operations_summary(
             "inactive_count": inactive_staff,
         }
 
+    # 7. Staff Tasks
+    if TASKS_VIEW in caps:
+        from apps.staff.task_services import get_staff_task_metrics
+
+        summary["tasks"] = get_staff_task_metrics(user)
+
     return summary
 
 
@@ -398,10 +406,7 @@ def get_my_work_and_team_queues(user: Any) -> dict[str, Any]:
         # Shipments assigned to or handled by current user
         my_shipments = (
             Shipment.objects.filter(
-                Q(picked_by=user)
-                | Q(packed_by=user)
-                | Q(dispatched_by=user)
-                | Q(assigned_to=user),
+                Q(picked_by=user) | Q(packed_by=user) | Q(dispatched_by=user) | Q(assigned_to=user),
                 status__in=[
                     Shipment.Status.PENDING,
                     Shipment.Status.PICKING,
@@ -506,6 +511,115 @@ def get_my_work_and_team_queues(user: Any) -> dict[str, Any]:
                     "message": f"Zero units on hand for '{product_name}'. Reorder required.",
                     "timestamp": stock.updated_at,
                     "url": f"{reverse('staff:inventory')}?status=out_of_stock",
+                }
+            )
+
+        # Low stock warnings
+        stock_threshold = getattr(settings, "BACKOFFICE_LOW_STOCK_THRESHOLD", 5)
+        low_stock = (
+            Stock.objects.filter(
+                Q(on_hand__gt=0, on_hand__lte=F("low_stock_threshold"))
+                | (
+                    Q(low_stock_threshold__isnull=True)
+                    & Q(on_hand__gt=0, on_hand__lte=stock_threshold)
+                )
+            )
+            .select_related("variant__product")
+            .order_by("on_hand")[:4]
+        )
+        for stock in low_stock:
+            sku = stock.variant.sku if stock.variant else "Unknown"
+            product_name = (
+                stock.variant.product.name if stock.variant and stock.variant.product else sku
+            )
+            urgent_alerts.append(
+                {
+                    "severity": "warning",
+                    "title": f"Low Stock: {sku} ({stock.on_hand} left)",
+                    "message": (
+                        f"'{product_name}' is at or below reorder threshold. "
+                        "Replenishment recommended."
+                    ),
+                    "timestamp": stock.updated_at,
+                    "url": f"{reverse('staff:inventory')}?status=low_stock",
+                }
+            )
+
+    # 4. Staff Tasks & Operations
+    if TASKS_VIEW in caps:
+        from apps.staff.models import StaffTask, StaffTaskPriority, StaffTaskStatus
+
+        active_statuses = [
+            StaffTaskStatus.OPEN,
+            StaffTaskStatus.IN_PROGRESS,
+            StaffTaskStatus.BLOCKED,
+        ]
+
+        # My Assigned Active Tasks
+        my_tasks = (
+            StaffTask.objects.filter(assignee=user, status__in=active_statuses)
+            .select_related("creator")
+            .order_by("-priority", "due_date")[:8]
+        )
+        for t in my_tasks:
+            due_str = f" • Due: {t.due_date.strftime('%b %d')}" if t.due_date else ""
+            prio_name = t.get_priority_display()
+            stat_name = t.get_status_display()
+            my_work.append(
+                {
+                    "type": "staff_task",
+                    "title": f"Task #{t.pk}: {t.title}",
+                    "subtitle": f"Priority: {prio_name} • Status: {stat_name}{due_str}",
+                    "status": stat_name,
+                    "priority": t.priority,
+                    "is_urgent": t.priority in [StaffTaskPriority.HIGH, StaffTaskPriority.URGENT]
+                    or t.is_overdue,
+                    "timestamp": t.due_date or t.updated_at,
+                    "url": f"/staff/tasks/{t.pk}/",
+                }
+            )
+
+        # Unassigned Team Tasks (for managers)
+        if TASKS_MANAGE in caps or user.is_superuser:
+            unassigned_tasks = (
+                StaffTask.objects.filter(assignee__isnull=True, status__in=active_statuses)
+                .select_related("creator")
+                .order_by("-priority", "created_at")[:6]
+            )
+            for t in unassigned_tasks:
+                creator_str = t.creator.email if t.creator else "System"
+                prio_name = t.get_priority_display()
+                team_queues.append(
+                    {
+                        "type": "unassigned_task",
+                        "title": f"Task #{t.pk}: {t.title}",
+                        "subtitle": f"Priority: {prio_name} • Creator: {creator_str}",
+                        "status": t.get_status_display(),
+                        "priority": t.priority,
+                        "is_urgent": t.priority
+                        in [StaffTaskPriority.HIGH, StaffTaskPriority.URGENT],
+                        "timestamp": t.created_at,
+                        "url": f"/staff/tasks/{t.pk}/",
+                    }
+                )
+
+        # Overdue Task Alerts for assignee
+        now = timezone.now()
+        overdue_tasks = StaffTask.objects.filter(
+            assignee=user,
+            due_date__lt=now,
+            status__in=active_statuses,
+        ).order_by("due_date")[:5]
+        for t in overdue_tasks:
+            due_fmt = t.due_date.strftime("%b %d, %Y %H:%M")
+            prio_name = t.get_priority_display()
+            urgent_alerts.append(
+                {
+                    "severity": "critical",
+                    "title": f"Overdue Task #{t.pk}: {t.title}",
+                    "message": f"Was due on {due_fmt}. Priority: {prio_name}.",
+                    "timestamp": t.due_date,
+                    "url": f"/staff/tasks/{t.pk}/",
                 }
             )
 
@@ -628,6 +742,16 @@ def get_quick_actions(user: Any) -> list[dict[str, Any]]:
                 "badge": None,
             }
         )
+        actions.append(
+            {
+                "key": "inventory_ledger",
+                "label": _("Stock Movement Ledger"),
+                "description": _("Audit chronological stock movements and adjustments"),
+                "url": reverse("staff:inventory_ledger"),
+                "icon": "clipboard-document-list",
+                "badge": None,
+            }
+        )
 
     if DELIVERIES_VIEW in caps:
         actions.append(
@@ -671,6 +795,29 @@ def get_quick_actions(user: Any) -> list[dict[str, Any]]:
                 "description": _("Inspect immutable audit events and access logs"),
                 "url": reverse("staff:audit_logs"),
                 "icon": "shield-check",
+                "badge": None,
+            }
+        )
+
+    if TASKS_VIEW in caps:
+        if TASKS_MANAGE in caps or user.is_superuser:
+            actions.append(
+                {
+                    "key": "create_task",
+                    "label": _("Create Staff Task"),
+                    "description": _("Create and assign a new operational task"),
+                    "url": reverse("staff:task_create"),
+                    "icon": "clipboard-plus",
+                    "badge": None,
+                }
+            )
+        actions.append(
+            {
+                "key": "my_tasks",
+                "label": _("My Assigned Tasks"),
+                "description": _("View and update your active work tasks"),
+                "url": f"{reverse('staff:task_list')}?scope=my",
+                "icon": "clipboard-list",
                 "badge": None,
             }
         )

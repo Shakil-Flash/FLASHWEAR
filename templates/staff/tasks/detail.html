@@ -1,0 +1,368 @@
+{% extends "staff/base.html" %}
+{% load static %}
+
+{% block title %}Task #{{ task.pk }}: {{ task.title }} &bull; FLASHWEAR{% endblock %}
+
+{% block breadcrumb %}
+    <span class="text-slate-400">/</span>
+    <a href="{% url 'staff:task_list' %}" class="text-xs font-medium text-slate-500 hover:text-slate-800 dark:hover:text-slate-200">Staff Tasks</a>
+    <span class="text-slate-400">/</span>
+    <span class="text-xs font-medium text-slate-700 dark:text-slate-300">Task #{{ task.pk }}</span>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-6 max-w-6xl mx-auto">
+    {# Workspace Header #}
+    <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div class="space-y-2">
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="text-xs font-bold text-slate-400 dark:text-slate-500">TASK #{{ task.pk }}</span>
+
+                    {# Status Badge #}
+                    {% if task.status == 'open' %}
+                        <span class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300">
+                            <span class="h-2 w-2 rounded-full bg-blue-500"></span>
+                            Open
+                        </span>
+                    {% elif task.status == 'in_progress' %}
+                        <span class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
+                            <span class="h-2 w-2 rounded-full bg-amber-500 animate-pulse"></span>
+                            In Progress
+                        </span>
+                    {% elif task.status == 'blocked' %}
+                        <span class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300">
+                            <span class="h-2 w-2 rounded-full bg-rose-500"></span>
+                            Blocked
+                        </span>
+                    {% elif task.status == 'completed' %}
+                        <span class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">
+                            <span class="h-2 w-2 rounded-full bg-emerald-500"></span>
+                            Completed
+                        </span>
+                    {% else %}
+                        <span class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300">
+                            {{ task.get_status_display }}
+                        </span>
+                    {% endif %}
+
+                    {# Priority Badge #}
+                    {% if task.priority == 'urgent' %}
+                        <span class="inline-flex items-center rounded px-2 py-0.5 text-xs font-black uppercase bg-rose-500 text-white shadow-sm animate-pulse">
+                            Urgent Priority
+                        </span>
+                    {% elif task.priority == 'high' %}
+                        <span class="inline-flex items-center rounded px-2 py-0.5 text-xs font-bold bg-amber-500/20 text-amber-800 dark:text-amber-300">
+                            High Priority
+                        </span>
+                    {% elif task.priority == 'low' %}
+                        <span class="inline-flex items-center rounded px-2 py-0.5 text-xs font-medium text-slate-400">
+                            Low Priority
+                        </span>
+                    {% else %}
+                        <span class="inline-flex items-center rounded px-2 py-0.5 text-xs font-medium text-slate-600 dark:text-slate-300">
+                            Normal Priority
+                        </span>
+                    {% endif %}
+
+                    {% if task.is_overdue %}
+                        <span class="inline-flex items-center rounded px-2 py-0.5 text-xs font-bold bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300">
+                            &bull; Overdue
+                        </span>
+                    {% elif task.is_due_soon %}
+                        <span class="inline-flex items-center rounded px-2 py-0.5 text-xs font-bold bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
+                            &bull; Due Soon
+                        </span>
+                    {% endif %}
+                </div>
+
+                <h1 class="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+                    {{ task.title }}
+                </h1>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <a href="{% url 'staff:task_list' %}" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition">
+                    &larr; Tasks
+                </a>
+            </div>
+        </div>
+
+        {# Quick Metadata Grid #}
+        <div class="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-4 border-t border-slate-100 dark:border-slate-800 pt-4 text-xs">
+            <div>
+                <span class="text-slate-400 dark:text-slate-500 uppercase tracking-wider text-[10px] font-bold block">Assignee</span>
+                <p class="font-medium text-slate-800 dark:text-slate-200 mt-0.5">
+                    {% if task.assignee %}
+                        {{ task.assignee.get_full_name|default:task.assignee.email }}
+                    {% else %}
+                        <span class="italic text-slate-400">Unassigned (Pool)</span>
+                    {% endif %}
+                </p>
+            </div>
+
+            <div>
+                <span class="text-slate-400 dark:text-slate-500 uppercase tracking-wider text-[10px] font-bold block">Created By</span>
+                <p class="font-medium text-slate-800 dark:text-slate-200 mt-0.5">
+                    {{ task.creator.get_full_name|default:task.creator.email|default:"System" }}
+                </p>
+            </div>
+
+            <div>
+                <span class="text-slate-400 dark:text-slate-500 uppercase tracking-wider text-[10px] font-bold block">Target Due Date</span>
+                <p class="font-medium text-slate-800 dark:text-slate-200 mt-0.5">
+                    {% if task.due_date %}
+                        {{ task.due_date|date:"M d, Y H:i" }}
+                    {% else %}
+                        <span class="text-slate-400">No deadline set</span>
+                    {% endif %}
+                </p>
+            </div>
+
+            <div>
+                <span class="text-slate-400 dark:text-slate-500 uppercase tracking-wider text-[10px] font-bold block">Progress ({{ task.progress_percent }}%)</span>
+                <div class="mt-1 h-2 w-full rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                    <div class="h-full rounded-full {% if task.status == 'completed' %}bg-emerald-500{% elif task.status == 'blocked' %}bg-rose-500{% else %}bg-amber-500{% endif %}" style="width: {{ task.progress_percent }}%"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# Main Grid: Content & Actions #}
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {# Left Column: Details & Collaboration #}
+        <div class="lg:col-span-2 space-y-6">
+            {# Description #}
+            <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm">
+                <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3">
+                    Operational Scope &amp; Instructions
+                </h2>
+                {% if task.description %}
+                    <div class="prose prose-sm dark:prose-invert max-w-none text-slate-800 dark:text-slate-200 leading-relaxed whitespace-pre-wrap">
+                        {{ task.description }}
+                    </div>
+                {% else %}
+                    <p class="text-xs text-slate-400 italic">No operational description provided.</p>
+                {% endif %}
+            </div>
+
+            {# Linked Business Object Card #}
+            {% if task.related_object_label %}
+                <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                                </svg>
+                                Linked Business Entity
+                            </span>
+                            <h3 class="text-sm font-bold text-slate-900 dark:text-white mt-1">
+                                {{ task.related_object_label }}
+                            </h3>
+                        </div>
+
+                        {% if linked_object_url %}
+                            <a href="{{ linked_object_url }}" class="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 px-3.5 py-2 text-xs font-bold text-white transition">
+                                <span>Open Workspace</span>
+                                <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                </svg>
+                            </a>
+                        {% else %}
+                            <span class="text-[11px] text-slate-400 italic">
+                                Access restricted to your role
+                            </span>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endif %}
+
+            {# Operational Comments & Notes #}
+            <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm space-y-4">
+                <h2 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <svg class="h-4 w-4 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                    </svg>
+                    Operational Notes &amp; Collaboration ({{ comments|length }})
+                </h2>
+
+                {# Comment List #}
+                <div class="space-y-3">
+                    {% for c in comments %}
+                        <div class="rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 p-3.5">
+                            <div class="flex items-center justify-between text-xs mb-1">
+                                <span class="font-bold text-slate-900 dark:text-white">
+                                    {{ c.author.get_full_name|default:c.author.email|default:"Staff Colleague" }}
+                                </span>
+                                <span class="text-[11px] text-slate-400">
+                                    {{ c.created_at|date:"M d, Y H:i" }}
+                                </span>
+                            </div>
+                            <p class="text-xs text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">
+                                {{ c.comment }}
+                            </p>
+                        </div>
+                    {% empty %}
+                        <p class="text-xs text-slate-400 italic py-2">No operational notes posted yet.</p>
+                    {% endfor %}
+                </div>
+
+                {# Add Comment Form #}
+                {% if can_comment %}
+                    <form method="post" action="{% url 'staff:task_comment_action' pk=task.pk %}" class="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-3">
+                        {% csrf_token %}
+                        <div>
+                            <label for="{{ comment_form.comment.id_for_label }}" class="sr-only">Add comment</label>
+                            {{ comment_form.comment }}
+                        </div>
+                        <div class="flex justify-end">
+                            <button type="submit" class="rounded-lg bg-amber-500 hover:bg-amber-400 px-4 py-2 text-xs font-bold text-slate-950 transition">
+                                Post Note
+                            </button>
+                        </div>
+                    </form>
+                {% endif %}
+            </div>
+
+            {# Task Activity History (Audit Trail) #}
+            <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm space-y-4">
+                <h2 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <svg class="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Activity Timeline &amp; Audit Log
+                </h2>
+
+                <div class="relative pl-6 space-y-4 before:absolute before:bottom-0 before:left-2 before:top-2 before:w-0.5 before:bg-slate-200 dark:before:bg-slate-800">
+                    {% for act in activities %}
+                        <div class="relative text-xs">
+                            <span class="absolute -left-6 top-1.5 h-2 w-2 rounded-full bg-amber-500 ring-4 ring-white dark:ring-slate-900"></span>
+                            <div class="flex items-baseline justify-between gap-2">
+                                <span class="font-semibold text-slate-900 dark:text-white">
+                                    {{ act.actor.get_full_name|default:act.actor.email|default:"System" }}
+                                </span>
+                                <span class="text-[10px] text-slate-400">
+                                    {{ act.created_at|date:"M d, H:i" }}
+                                </span>
+                            </div>
+                            <p class="text-slate-600 dark:text-slate-300 mt-0.5">
+                                {{ act.details|default:act.action }}
+                            </p>
+                        </div>
+                    {% empty %}
+                        <p class="text-xs text-slate-400 italic">No activity recorded yet.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        {# Right Column: Operational Controls & Assignment #}
+        <div class="space-y-6">
+            {# Lifecycle Status Transition #}
+            <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm space-y-4">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                    <svg class="h-4 w-4 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Update Task Status
+                </h3>
+
+                <form method="post" action="{% url 'staff:task_status_action' pk=task.pk %}" class="space-y-3">
+                    {% csrf_token %}
+                    <div>
+                        <label for="{{ status_form.status.id_for_label }}" class="sr-only">Status</label>
+                        {{ status_form.status }}
+                    </div>
+                    <button type="submit" class="w-full rounded-lg bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 py-2 text-xs font-bold text-white transition">
+                        Update Status
+                    </button>
+                </form>
+            </div>
+
+            {# Progress Percentage #}
+            {% if can_progress %}
+                <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm space-y-4">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                        <svg class="h-4 w-4 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                        Update Progress (%)
+                    </h3>
+
+                    <form method="post" action="{% url 'staff:task_progress_action' pk=task.pk %}" class="space-y-3">
+                        {% csrf_token %}
+                        <div>
+                            <label for="{{ progress_form.progress_percent.id_for_label }}" class="sr-only">Progress Percent</label>
+                            {{ progress_form.progress_percent }}
+                        </div>
+                        <button type="submit" class="w-full rounded-lg bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 py-2 text-xs font-bold text-white transition">
+                            Save Progress
+                        </button>
+                    </form>
+                </div>
+            {% endif %}
+
+            {# Reassignment (Managers) #}
+            {% if can_assign %}
+                <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm space-y-4">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                        <svg class="h-4 w-4 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                        </svg>
+                        Reassign Task
+                    </h3>
+
+                    <form method="post" action="{% url 'staff:task_assign_action' pk=task.pk %}" class="space-y-3">
+                        {% csrf_token %}
+                        <div>
+                            <label for="{{ assign_form.assignee.id_for_label }}" class="sr-only">Assignee</label>
+                            {{ assign_form.assignee }}
+                        </div>
+                        <button type="submit" class="w-full rounded-lg bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 py-2 text-xs font-bold text-white transition">
+                            Save Assignment
+                        </button>
+                    </form>
+                </div>
+            {% endif %}
+
+            {# Edit Task Details (Managers / Creator) #}
+            {% if can_edit %}
+                <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm space-y-4" x-data="{ editing: false }">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                            Edit Task Details
+                        </h3>
+                        <button type="button" @click="editing = !editing" class="text-xs font-semibold text-amber-600 dark:text-amber-400 hover:underline">
+                            <span x-text="editing ? 'Close' : 'Modify'"></span>
+                        </button>
+                    </div>
+
+                    <form x-show="editing" x-cloak method="post" action="{% url 'staff:task_edit' pk=task.pk %}" class="space-y-3 pt-2">
+                        {% csrf_token %}
+                        <div>
+                            <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Title</label>
+                            {{ update_form.title }}
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Description</label>
+                            {{ update_form.description }}
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Priority</label>
+                            {{ update_form.priority }}
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Due Date</label>
+                            {{ update_form.due_date }}
+                        </div>
+                        <button type="submit" class="w-full rounded-lg bg-amber-500 hover:bg-amber-400 py-2 text-xs font-bold text-slate-950 transition">
+                            Save Changes
+                        </button>
+                    </form>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

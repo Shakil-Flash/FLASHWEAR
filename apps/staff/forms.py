@@ -498,3 +498,370 @@ class ProofOfDeliveryForm(forms.Form):
                 )
 
         return cleaned_data
+
+
+# =============================================================================
+# Phase 62: Inventory & Stock Operations Forms
+# =============================================================================
+
+
+class StockAdjustmentForm(forms.Form):
+    """Form to safely record stock adjustments (discrepancy, damage, loss)."""
+
+    ADJUSTMENT_TYPE_CHOICES = [
+        ("correction_add", _("Stock Discrepancy (Add units)")),
+        ("correction_sub", _("Stock Discrepancy (Deduct units)")),
+        ("damaged", _("Damaged / Unsellable Stock (Deduct)")),
+        ("loss", _("Stock Loss / Shrinkage (Deduct)")),
+    ]
+
+    adjustment_type = forms.ChoiceField(
+        label=_("Adjustment Type"),
+        choices=ADJUSTMENT_TYPE_CHOICES,
+        required=True,
+        widget=forms.Select(attrs={"class": MD_INPUT_CLASSES}),
+    )
+    quantity = forms.IntegerField(
+        label=_("Quantity"),
+        min_value=1,
+        required=True,
+        widget=forms.NumberInput(
+            attrs={
+                "class": MD_INPUT_CLASSES,
+                "min": "1",
+                "placeholder": "e.g. 5",
+            }
+        ),
+    )
+    reason = forms.CharField(
+        label=_("Reason for Adjustment"),
+        required=True,
+        min_length=3,
+        max_length=255,
+        widget=forms.TextInput(
+            attrs={
+                "class": MD_INPUT_CLASSES,
+                "placeholder": "e.g. Cycle count variance, water damage in aisle B",
+            }
+        ),
+    )
+    reference = forms.CharField(
+        label=_("Reference / Document #"),
+        required=False,
+        max_length=64,
+        widget=forms.TextInput(
+            attrs={
+                "class": MD_INPUT_CLASSES,
+                "placeholder": "e.g. AUDIT-2026-Q4",
+            }
+        ),
+    )
+    note = forms.CharField(
+        label=_("Internal Notes"),
+        required=False,
+        widget=forms.Textarea(
+            attrs={
+                "class": MD_INPUT_CLASSES,
+                "rows": 2,
+                "placeholder": "Additional operational context...",
+            }
+        ),
+    )
+    idempotency_token = forms.CharField(
+        required=False,
+        widget=forms.HiddenInput(),
+    )
+
+
+class StockReceiveForm(forms.Form):
+    """Form to receive new stock shipments into on-hand inventory."""
+
+    quantity = forms.IntegerField(
+        label=_("Received Quantity"),
+        min_value=1,
+        required=True,
+        widget=forms.NumberInput(
+            attrs={
+                "class": MD_INPUT_CLASSES,
+                "min": "1",
+                "placeholder": "e.g. 50",
+            }
+        ),
+    )
+    supplier_reference = forms.CharField(
+        label=_("Supplier / Shipment Reference"),
+        required=False,
+        max_length=64,
+        widget=forms.TextInput(
+            attrs={
+                "class": MD_INPUT_CLASSES,
+                "placeholder": "e.g. PO-88321 or BOL-994",
+            }
+        ),
+    )
+    reason = forms.CharField(
+        label=_("Receipt Description"),
+        required=False,
+        max_length=255,
+        initial="Stock receipt from supplier",
+        widget=forms.TextInput(
+            attrs={
+                "class": MD_INPUT_CLASSES,
+                "placeholder": "Stock receipt from supplier",
+            }
+        ),
+    )
+    note = forms.CharField(
+        label=_("Receiving Notes"),
+        required=False,
+        widget=forms.Textarea(
+            attrs={
+                "class": MD_INPUT_CLASSES,
+                "rows": 2,
+                "placeholder": "Inspected batch #, pallet notes...",
+            }
+        ),
+    )
+    idempotency_token = forms.CharField(
+        required=False,
+        widget=forms.HiddenInput(),
+    )
+
+
+class StockThresholdForm(forms.Form):
+    """Form to update variant-specific low stock reorder threshold."""
+
+    low_stock_threshold = forms.IntegerField(
+        label=_("Reorder Threshold"),
+        required=False,
+        min_value=0,
+        max_value=9999,
+        help_text=_("Leave blank to inherit product-level or global threshold."),
+        widget=forms.NumberInput(
+            attrs={
+                "class": MD_INPUT_CLASSES,
+                "min": "0",
+                "max": "9999",
+                "placeholder": "e.g. 10 (or blank to inherit)",
+            }
+        ),
+    )
+
+
+class StockReversalForm(forms.Form):
+    """Form for authorized managers to record a compensating reversal of a previous movement."""
+
+    movement_id = forms.IntegerField(
+        widget=forms.HiddenInput(),
+        required=True,
+    )
+    reason = forms.CharField(
+        label=_("Reason for Reversal"),
+        required=True,
+        min_length=3,
+        max_length=255,
+        widget=forms.Textarea(
+            attrs={
+                "class": MD_INPUT_CLASSES,
+                "rows": 2,
+                "placeholder": "e.g. Reversing duplicate receipt from earlier today...",
+            }
+        ),
+    )
+
+
+# --------------------------------------------------------------------------------------
+# Staff Task & Collaboration Forms (Phase 63)
+# --------------------------------------------------------------------------------------
+
+
+class StaffTaskCreateForm(forms.Form):
+    """Form to create a new staff task."""
+
+    title = forms.CharField(
+        label=_("Task Title"),
+        max_length=255,
+        required=True,
+        widget=forms.TextInput(
+            attrs={
+                "class": MD_INPUT_CLASSES,
+                "placeholder": "e.g. Investigate delivery exception for order #10024",
+            }
+        ),
+    )
+    description = forms.CharField(
+        label=_("Description"),
+        required=False,
+        widget=forms.Textarea(
+            attrs={
+                "class": MD_INPUT_CLASSES,
+                "rows": 4,
+                "placeholder": "Operational details, instructions, or investigation context...",
+            }
+        ),
+    )
+    priority = forms.ChoiceField(
+        label=_("Priority"),
+        required=True,
+        widget=forms.Select(attrs={"class": MD_INPUT_CLASSES}),
+    )
+    assignee = forms.ModelChoiceField(
+        label=_("Assignee"),
+        queryset=User.objects.none(),
+        required=False,
+        empty_label=_("-- Unassigned (Open Pool) --"),
+        widget=forms.Select(attrs={"class": MD_INPUT_CLASSES}),
+    )
+    due_date = forms.DateTimeField(
+        label=_("Due Date & Time"),
+        required=False,
+        widget=forms.DateTimeInput(
+            attrs={
+                "class": MD_INPUT_CLASSES,
+                "type": "datetime-local",
+            }
+        ),
+    )
+    related_object_type = forms.ChoiceField(
+        label=_("Linked Business Object Type"),
+        required=False,
+        widget=forms.Select(attrs={"class": MD_INPUT_CLASSES}),
+    )
+    related_object_id = forms.IntegerField(
+        label=_("Linked Object ID / Number"),
+        required=False,
+        min_value=1,
+        widget=forms.NumberInput(
+            attrs={
+                "class": MD_INPUT_CLASSES,
+                "placeholder": "e.g. Order ID, Shipment ID, Variant ID",
+            }
+        ),
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from apps.staff.models import StaffTaskPriority, StaffTaskRelatedType
+        from apps.staff.task_services import get_eligible_assignees
+
+        self.fields["priority"].choices = StaffTaskPriority.choices
+        self.fields["priority"].initial = StaffTaskPriority.NORMAL
+        self.fields["related_object_type"].choices = StaffTaskRelatedType.choices
+        self.fields["assignee"].queryset = get_eligible_assignees()
+        self.fields["assignee"].label_from_instance = lambda u: (
+            f"{u.get_full_name()} ({u.email})" if u.get_full_name() else u.email
+        )
+
+
+class StaffTaskUpdateForm(forms.Form):
+    """Form to edit general task fields."""
+
+    title = forms.CharField(
+        label=_("Task Title"),
+        max_length=255,
+        required=True,
+        widget=forms.TextInput(attrs={"class": MD_INPUT_CLASSES}),
+    )
+    description = forms.CharField(
+        label=_("Description"),
+        required=False,
+        widget=forms.Textarea(attrs={"class": MD_INPUT_CLASSES, "rows": 4}),
+    )
+    priority = forms.ChoiceField(
+        label=_("Priority"),
+        required=True,
+        widget=forms.Select(attrs={"class": MD_INPUT_CLASSES}),
+    )
+    due_date = forms.DateTimeField(
+        label=_("Due Date & Time"),
+        required=False,
+        widget=forms.DateTimeInput(
+            attrs={
+                "class": MD_INPUT_CLASSES,
+                "type": "datetime-local",
+            }
+        ),
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from apps.staff.models import StaffTaskPriority
+
+        self.fields["priority"].choices = StaffTaskPriority.choices
+
+
+class StaffTaskAssignForm(forms.Form):
+    """Form to reassign or unassign a staff task."""
+
+    assignee = forms.ModelChoiceField(
+        label=_("Assign To"),
+        queryset=User.objects.none(),
+        required=False,
+        empty_label=_("-- Unassign (Move to Open Pool) --"),
+        widget=forms.Select(attrs={"class": MD_INPUT_CLASSES}),
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from apps.staff.task_services import get_eligible_assignees
+
+        self.fields["assignee"].queryset = get_eligible_assignees()
+        self.fields["assignee"].label_from_instance = lambda u: (
+            f"{u.get_full_name()} ({u.email})" if u.get_full_name() else u.email
+        )
+
+
+class StaffTaskStatusForm(forms.Form):
+    """Form to update task status."""
+
+    status = forms.ChoiceField(
+        label=_("Status"),
+        required=True,
+        widget=forms.Select(attrs={"class": MD_INPUT_CLASSES}),
+    )
+
+    def __init__(self, *args, allowed_choices=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        from apps.staff.models import StaffTaskStatus
+
+        if allowed_choices is not None:
+            self.fields["status"].choices = allowed_choices
+        else:
+            self.fields["status"].choices = StaffTaskStatus.choices
+
+
+class StaffTaskProgressForm(forms.Form):
+    """Form to update task progress percentage."""
+
+    progress_percent = forms.IntegerField(
+        label=_("Progress Percentage"),
+        required=True,
+        min_value=0,
+        max_value=100,
+        widget=forms.NumberInput(
+            attrs={
+                "class": MD_INPUT_CLASSES,
+                "min": "0",
+                "max": "100",
+                "step": "5",
+            }
+        ),
+    )
+
+
+class StaffTaskCommentForm(forms.Form):
+    """Form to post an operational note or progress update to a task."""
+
+    comment = forms.CharField(
+        label=_("Add Operational Note / Comment"),
+        required=True,
+        widget=forms.Textarea(
+            attrs={
+                "class": MD_INPUT_CLASSES,
+                "rows": 3,
+                "placeholder": (
+                    "Document actions taken, findings, blockers, or handoff notes..."
+                ),
+            }
+        ),
+    )

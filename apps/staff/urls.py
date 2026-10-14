@@ -24,7 +24,34 @@ urlpatterns = [
     path("audit/", views.audit_logs_view, name="audit_logs"),
     # Operational Modules (Connecting to Existing Data)
     path("products/", views.products_view, name="products"),
+    # Inventory & Stock Operations (Phase 62)
     path("inventory/", views.inventory_view, name="inventory"),
+    path(
+        "inventory/<int:variant_id>/",
+        views.inventory_variant_detail_view,
+        name="inventory_variant_detail",
+    ),
+    path(
+        "inventory/<int:variant_id>/adjust/",
+        views.inventory_adjust_action_view,
+        name="inventory_adjust_action",
+    ),
+    path(
+        "inventory/<int:variant_id>/receive/",
+        views.inventory_receive_action_view,
+        name="inventory_receive_action",
+    ),
+    path(
+        "inventory/<int:variant_id>/threshold/",
+        views.inventory_threshold_action_view,
+        name="inventory_threshold_action",
+    ),
+    path("inventory/movements/", views.inventory_ledger_view, name="inventory_ledger"),
+    path(
+        "inventory/movements/<int:movement_id>/reverse/",
+        views.inventory_reverse_action_view,
+        name="inventory_reverse_action",
+    ),
     path("orders/", views.orders_view, name="orders"),
     path("orders/<int:pk>/", views.order_detail_view, name="order_detail"),
     path(
@@ -81,4 +108,25 @@ urlpatterns = [
     ),
     path("support/", views.support_view, name="support"),
     path("reports/", views.reports_view, name="reports"),
+    # Staff Tasks & Collaboration (Phase 63)
+    path("tasks/", views.task_list_view, name="task_list"),
+    path("tasks/create/", views.task_create_view, name="task_create"),
+    path("tasks/<int:pk>/", views.task_detail_view, name="task_detail"),
+    path("tasks/<int:pk>/edit/", views.task_edit_view, name="task_edit"),
+    path("tasks/<int:pk>/assign/", views.task_assign_action_view, name="task_assign_action"),
+    path("tasks/<int:pk>/status/", views.task_status_action_view, name="task_status_action"),
+    path("tasks/<int:pk>/progress/", views.task_progress_action_view, name="task_progress_action"),
+    path("tasks/<int:pk>/comment/", views.task_comment_action_view, name="task_comment_action"),
+    # Staff Notifications (Phase 63)
+    path("notifications/", views.notification_list_view, name="notification_list"),
+    path(
+        "notifications/<int:pk>/read/",
+        views.notification_read_action_view,
+        name="notification_read_action",
+    ),
+    path(
+        "notifications/mark-all-read/",
+        views.notification_mark_all_read_action_view,
+        name="notification_mark_all_read_action",
+    ),
 ]

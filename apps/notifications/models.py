@@ -106,6 +106,7 @@ class NotificationCategory(models.TextChoices):
     QUESTS = "quests", _("Quests & badges")
     RECOMMENDATIONS = "recommendations", _("Recommendations")
     WISHLIST = "wishlist", _("Wishlist & stock alerts")
+    STAFF = "staff", _("Staff & Operations")
 
 
 class NotificationType(models.TextChoices):
@@ -184,6 +185,13 @@ class NotificationType(models.TextChoices):
     RESTOCK_VIEWED = "restock_viewed", _("Viewed item restocked")
     # Operational & Intelligent Automation (Phase 56)
     OPERATIONAL_ALERT = "operational_alert", _("Operational alert")
+    # Staff Tasks & Operations (Phase 63)
+    STAFF_TASK_ASSIGNED = "staff_task_assigned", _("Task assigned")
+    STAFF_TASK_REASSIGNED = "staff_task_reassigned", _("Task reassigned")
+    STAFF_TASK_STATUS = "staff_task_status", _("Task status updated")
+    STAFF_TASK_DEADLINE = "staff_task_deadline", _("Task deadline reminder")
+    STAFF_TASK_COMMENT = "staff_task_comment", _("New comment on task")
+    STAFF_OPERATIONAL_ALERT = "staff_operational_alert", _("Operational alert")
 
 
 class NotificationQuerySet(models.QuerySet):

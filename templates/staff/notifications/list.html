@@ -1,0 +1,169 @@
+{% extends "staff/base.html" %}
+{% load static %}
+
+{% block title %}Staff Notifications &bull; FLASHWEAR{% endblock %}
+
+{% block breadcrumb %}
+    <span class="text-slate-400">/</span>
+    <span class="text-xs font-medium text-slate-700 dark:text-slate-300">Staff Notifications</span>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-6 max-w-4xl mx-auto">
+    {# Page Header #}
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
+                <span class="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600 dark:bg-amber-400/10 dark:text-amber-400">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                    </svg>
+                </span>
+                Staff Notification Center
+            </h1>
+            <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                Real-time updates on assigned tasks, status handoffs, deadline reminders, and operational alerts.
+            </p>
+        </div>
+
+        {% if unread_count > 0 %}
+            <form method="post" action="{% url 'staff:notification_mark_all_read_action' %}">
+                {% csrf_token %}
+                <button type="submit" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition focus:outline-none focus:ring-2 focus:ring-amber-500">
+                    <svg class="h-4 w-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span>Mark All as Read ({{ unread_count }})</span>
+                </button>
+            </form>
+        {% endif %}
+    </div>
+
+    {# Filter Tabs #}
+    <div class="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
+        <a href="{% url 'staff:notification_list' %}?filter=all"
+           class="rounded-lg px-3.5 py-1.5 text-xs font-semibold transition {% if filter_type != 'unread' %}bg-amber-500 text-slate-950 shadow-sm{% else %}text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800{% endif %}">
+            All Notifications
+        </a>
+        <a href="{% url 'staff:notification_list' %}?filter=unread"
+           class="inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-semibold transition {% if filter_type == 'unread' %}bg-amber-500 text-slate-950 shadow-sm{% else %}text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800{% endif %}">
+            <span>Unread</span>
+            {% if unread_count > 0 %}
+                <span class="rounded-full bg-rose-500 px-1.5 py-0.2 text-[10px] font-black text-white">
+                    {{ unread_count }}
+                </span>
+            {% endif %}
+        </a>
+    </div>
+
+    {# Notification Cards #}
+    <div class="space-y-3">
+        {% for notif in notifications %}
+            <div class="rounded-2xl border transition p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 {% if not notif.read_at %}border-amber-500/40 bg-amber-500/5 dark:bg-amber-500/10 shadow-sm{% else %}border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900{% endif %}">
+                <div class="flex items-start gap-3.5 flex-1">
+                    {# Notification Icon #}
+                    <div class="h-9 w-9 shrink-0 rounded-xl flex items-center justify-center {% if not notif.read_at %}bg-amber-500 text-slate-950{% else %}bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400{% endif %}">
+                        {% if "deadline" in notif.notification_type %}
+                            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        {% elif "comment" in notif.notification_type %}
+                            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                            </svg>
+                        {% elif "status" in notif.notification_type %}
+                            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        {% else %}
+                            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                            </svg>
+                        {% endif %}
+                    </div>
+
+                    <div class="space-y-1">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <h3 class="text-sm font-bold text-slate-900 dark:text-white">
+                                {{ notif.title }}
+                            </h3>
+                            {% if not notif.read_at %}
+                                <span class="h-2 w-2 rounded-full bg-amber-500 animate-pulse" title="Unread"></span>
+                            {% endif %}
+                            <span class="text-[11px] text-slate-400">
+                                &bull; {{ notif.created_at|timesince }} ago
+                            </span>
+                        </div>
+                        <p class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                            {{ notif.body }}
+                        </p>
+                    </div>
+                </div>
+
+                {# Actions #}
+                <div class="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                    {% if not notif.read_at %}
+                        <form method="post" action="{% url 'staff:notification_read_action' pk=notif.pk %}">
+                            {% csrf_token %}
+                            <button type="submit" class="inline-flex items-center gap-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition">
+                                <svg class="h-3.5 w-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                </svg>
+                                <span>Mark read</span>
+                            </button>
+                        </form>
+                    {% endif %}
+
+                    {% if notif.action_url %}
+                        <form method="post" action="{% url 'staff:notification_read_action' pk=notif.pk %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="next" value="{{ notif.action_url }}" />
+                            <button type="submit" class="inline-flex items-center gap-1 rounded-lg bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 px-3.5 py-1.5 text-xs font-bold text-white transition">
+                                <span>View</span>
+                                <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                                </svg>
+                            </button>
+                        </form>
+                    {% endif %}
+                </div>
+            </div>
+        {% empty %}
+            <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-12 text-center shadow-sm">
+                <div class="h-12 w-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 mx-auto mb-3">
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                    </svg>
+                </div>
+                <h3 class="text-sm font-bold text-slate-900 dark:text-white">
+                    {% if filter_type == 'unread' %}No Unread Notifications{% else %}No Notifications{% endif %}
+                </h3>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                    You're all caught up! When tasks are assigned or operational milestones trigger alerts, they'll appear here.
+                </p>
+            </div>
+        {% endfor %}
+    </div>
+
+    {# Pagination #}
+    {% if page_obj.has_other_pages %}
+        <div class="flex items-center justify-between border-t border-slate-200 dark:border-slate-800 pt-4">
+            <span class="text-xs text-slate-500">
+                Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+            </span>
+            <div class="flex items-center gap-2">
+                {% if page_obj.has_previous %}
+                    <a href="?page={{ page_obj.previous_page_number }}&amp;filter={{ filter_type }}" class="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700">
+                        Previous
+                    </a>
+                {% endif %}
+                {% if page_obj.has_next %}
+                    <a href="?page={{ page_obj.next_page_number }}&amp;filter={{ filter_type }}" class="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700">
+                        Next
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

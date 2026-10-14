@@ -1,0 +1,388 @@
+{% extends "staff/base.html" %}
+{% load static %}
+
+{% block title %}Staff Tasks &amp; Operational Workspaces &bull; FLASHWEAR{% endblock %}
+
+{% block breadcrumb %}
+    <span class="text-slate-400">/</span>
+    <span class="text-xs font-medium text-slate-700 dark:text-slate-300">Staff Tasks</span>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    {# Page Header #}
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+            <h1 class="text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
+                <span class="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600 dark:bg-amber-400/10 dark:text-amber-400">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                    </svg>
+                </span>
+                Staff Tasks &amp; Collaboration
+            </h1>
+            <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                Collaborative operational work management, team assignments, task lifecycles, and milestone tracking.
+            </p>
+        </div>
+        <div class="flex items-center gap-2">
+            {% if can_manage %}
+                <a href="{% url 'staff:task_create' %}" class="inline-flex items-center gap-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 px-4 py-2 text-xs font-bold text-slate-950 transition shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500/50">
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                    <span>Create Task</span>
+                </a>
+            {% endif %}
+            <a href="{% url 'staff:task_list' %}" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition">
+                <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                <span>Reset</span>
+            </a>
+        </div>
+    </div>
+
+    {# Metric Counter Tabs #}
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        <a href="{% url 'staff:task_list' %}?scope=my"
+           class="rounded-xl border p-3.5 transition flex flex-col justify-between {% if scope == 'my' %}bg-amber-500/10 border-amber-500 text-amber-900 dark:text-amber-200{% else %}bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-700{% endif %}">
+            <span class="text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5">
+                <span class="h-2 w-2 rounded-full bg-amber-500"></span>
+                My Open Tasks
+            </span>
+            <span class="text-2xl font-black text-slate-900 dark:text-white mt-1">{{ metrics.my_open_tasks }}</span>
+        </a>
+
+        <a href="{% url 'staff:task_list' %}?due=due_soon"
+           class="rounded-xl border p-3.5 transition flex flex-col justify-between {% if due_filter == 'due_soon' %}bg-blue-500/10 border-blue-500 text-blue-900 dark:text-blue-200{% else %}bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-700{% endif %}">
+            <span class="text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5">
+                <span class="h-2 w-2 rounded-full bg-blue-500"></span>
+                Due Soon (24h)
+            </span>
+            <span class="text-2xl font-black text-slate-900 dark:text-white mt-1">{{ metrics.tasks_due_soon }}</span>
+        </a>
+
+        <a href="{% url 'staff:task_list' %}?due=overdue"
+           class="rounded-xl border p-3.5 transition flex flex-col justify-between {% if due_filter == 'overdue' %}bg-rose-500/10 border-rose-500 text-rose-900 dark:text-rose-200{% else %}bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-700{% endif %}">
+            <span class="text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5">
+                <span class="h-2 w-2 rounded-full bg-rose-500"></span>
+                Overdue Tasks
+            </span>
+            <span class="text-2xl font-black text-rose-600 dark:text-rose-400 mt-1">{{ metrics.overdue_tasks }}</span>
+        </a>
+
+        {% if can_manage %}
+            <a href="{% url 'staff:task_list' %}?scope=unassigned"
+               class="rounded-xl border p-3.5 transition flex flex-col justify-between {% if scope == 'unassigned' %}bg-purple-500/10 border-purple-500 text-purple-900 dark:text-purple-200{% else %}bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-700{% endif %}">
+                <span class="text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5">
+                    <span class="h-2 w-2 rounded-full bg-purple-500"></span>
+                    Unassigned Pool
+                </span>
+                <span class="text-2xl font-black text-slate-900 dark:text-white mt-1">{{ metrics.unassigned_tasks }}</span>
+            </a>
+
+            <a href="{% url 'staff:task_list' %}?scope=all"
+               class="rounded-xl border p-3.5 transition flex flex-col justify-between {% if scope == 'all' and not due_filter %}bg-emerald-500/10 border-emerald-500 text-emerald-900 dark:text-emerald-200{% else %}bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-700{% endif %}">
+                <span class="text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5">
+                    <span class="h-2 w-2 rounded-full bg-emerald-500"></span>
+                    All Team Tasks
+                </span>
+                <span class="text-2xl font-black text-slate-900 dark:text-white mt-1">{{ metrics.all_open_tasks }}</span>
+            </a>
+        {% else %}
+            <a href="{% url 'staff:task_list' %}?scope=created"
+               class="rounded-xl border p-3.5 transition flex flex-col justify-between {% if scope == 'created' %}bg-indigo-500/10 border-indigo-500 text-indigo-900 dark:text-indigo-200{% else %}bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-700{% endif %}">
+                <span class="text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5">
+                    <span class="h-2 w-2 rounded-full bg-indigo-500"></span>
+                    Created by Me
+                </span>
+                <span class="text-xs text-slate-500 dark:text-slate-400 mt-2">View tasks you initiated</span>
+            </a>
+        {% endif %}
+    </div>
+
+    {# Filter & Search Bar #}
+    <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm">
+        <form method="get" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+            <div>
+                <label for="scope-filter" class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">Scope</label>
+                <select id="scope-filter" name="scope" class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-white focus:border-amber-500 focus:ring-1 focus:ring-amber-500">
+                    <option value="all" {% if scope == "all" %}selected{% endif %}>All Tasks</option>
+                    <option value="my" {% if scope == "my" %}selected{% endif %}>Assigned to Me</option>
+                    <option value="created" {% if scope == "created" %}selected{% endif %}>Created by Me</option>
+                    {% if can_manage %}
+                        <option value="unassigned" {% if scope == "unassigned" %}selected{% endif %}>Unassigned Only</option>
+                    {% endif %}
+                </select>
+            </div>
+
+            <div>
+                <label for="status-filter" class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">Status</label>
+                <select id="status-filter" name="status" class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-white focus:border-amber-500 focus:ring-1 focus:ring-amber-500">
+                    <option value="">All Statuses</option>
+                    {% for key, val in statuses %}
+                        <option value="{{ key }}" {% if status_filter == key %}selected{% endif %}>{{ val }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div>
+                <label for="priority-filter" class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">Priority</label>
+                <select id="priority-filter" name="priority" class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-white focus:border-amber-500 focus:ring-1 focus:ring-amber-500">
+                    <option value="">All Priorities</option>
+                    {% for key, val in priorities %}
+                        <option value="{{ key }}" {% if priority_filter == key %}selected{% endif %}>{{ val }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            {% if can_manage %}
+                <div>
+                    <label for="assignee-filter" class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">Assignee</label>
+                    <select id="assignee-filter" name="assignee" class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-white focus:border-amber-500 focus:ring-1 focus:ring-amber-500">
+                        <option value="">All Staff</option>
+                        {% for u in eligible_assignees %}
+                            <option value="{{ u.pk }}" {% if assignee_filter == u.pk|stringformat:"i" %}selected{% endif %}>
+                                {{ u.get_full_name|default:u.email }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            {% else %}
+                <div>
+                    <label for="due-filter" class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">Deadlines</label>
+                    <select id="due-filter" name="due" class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-white focus:border-amber-500 focus:ring-1 focus:ring-amber-500">
+                        <option value="">Any Due Date</option>
+                        <option value="due_soon" {% if due_filter == "due_soon" %}selected{% endif %}>Due in 24h</option>
+                        <option value="overdue" {% if due_filter == "overdue" %}selected{% endif %}>Overdue</option>
+                    </select>
+                </div>
+            {% endif %}
+
+            <div class="lg:col-span-2 flex items-end gap-2">
+                <div class="flex-1">
+                    <label for="search-input" class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">Search</label>
+                    <input id="search-input" type="text" name="q" value="{{ search_query }}" placeholder="Title, description, object..." class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:border-amber-500 focus:ring-1 focus:ring-amber-500" />
+                </div>
+                <button type="submit" class="rounded-lg bg-slate-900 hover:bg-slate-800 dark:bg-slate-700 dark:hover:bg-slate-600 px-4 py-2 text-xs font-bold text-white transition focus:outline-none focus:ring-2 focus:ring-amber-500">
+                    Filter
+                </button>
+            </div>
+        </form>
+    </div>
+
+    {# Tasks Table #}
+    <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-xs">
+                <thead>
+                    <tr class="border-b border-slate-200 dark:border-slate-800 bg-slate-50/75 dark:bg-slate-800/50 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                        <th class="py-3 px-4">Task # &amp; Title</th>
+                        <th class="py-3 px-4">Status</th>
+                        <th class="py-3 px-4">Priority</th>
+                        <th class="py-3 px-4">Assignee</th>
+                        <th class="py-3 px-4">Progress</th>
+                        <th class="py-3 px-4">Due Date</th>
+                        <th class="py-3 px-4">Linked Record</th>
+                        <th class="py-3 px-4 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-800/60 text-slate-700 dark:text-slate-200">
+                    {% for task in tasks %}
+                        <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition">
+                            {# Title #}
+                            <td class="py-3 px-4">
+                                <a href="{% url 'staff:task_detail' pk=task.pk %}" class="font-bold text-slate-900 dark:text-white hover:text-amber-500 dark:hover:text-amber-400 transition block">
+                                    #{{ task.pk }} &bull; {{ task.title }}
+                                </a>
+                                {% if task.description %}
+                                    <p class="text-[11px] text-slate-400 dark:text-slate-500 truncate max-w-xs mt-0.5">
+                                        {{ task.description|truncatechars:65 }}
+                                    </p>
+                                {% endif %}
+                            </td>
+
+                            {# Status Badge #}
+                            <td class="py-3 px-4 whitespace-nowrap">
+                                {% if task.status == 'open' %}
+                                    <span class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300">
+                                        <span class="h-1.5 w-1.5 rounded-full bg-blue-500"></span>
+                                        Open
+                                    </span>
+                                {% elif task.status == 'in_progress' %}
+                                    <span class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
+                                        <span class="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                                        In Progress
+                                    </span>
+                                {% elif task.status == 'blocked' %}
+                                    <span class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300">
+                                        <span class="h-1.5 w-1.5 rounded-full bg-rose-500"></span>
+                                        Blocked
+                                    </span>
+                                {% elif task.status == 'completed' %}
+                                    <span class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">
+                                        <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                                        Completed
+                                    </span>
+                                {% else %}
+                                    <span class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300">
+                                        {{ task.get_status_display }}
+                                    </span>
+                                {% endif %}
+                            </td>
+
+                            {# Priority #}
+                            <td class="py-3 px-4 whitespace-nowrap">
+                                {% if task.priority == 'urgent' %}
+                                    <span class="inline-flex items-center rounded px-2 py-0.5 text-[11px] font-black uppercase bg-rose-500 text-white shadow-sm">
+                                        Urgent
+                                    </span>
+                                {% elif task.priority == 'high' %}
+                                    <span class="inline-flex items-center rounded px-2 py-0.5 text-[11px] font-bold bg-amber-500/20 text-amber-700 dark:text-amber-300">
+                                        High
+                                    </span>
+                                {% elif task.priority == 'low' %}
+                                    <span class="inline-flex items-center rounded px-2 py-0.5 text-[11px] font-medium text-slate-400">
+                                        Low
+                                    </span>
+                                {% else %}
+                                    <span class="inline-flex items-center rounded px-2 py-0.5 text-[11px] font-medium text-slate-600 dark:text-slate-300">
+                                        Normal
+                                    </span>
+                                {% endif %}
+                            </td>
+
+                            {# Assignee #}
+                            <td class="py-3 px-4 whitespace-nowrap">
+                                {% if task.assignee %}
+                                    <div class="flex items-center gap-2">
+                                        <span class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-200 dark:bg-slate-700 text-[10px] font-bold text-slate-800 dark:text-slate-200">
+                                            {{ task.assignee.first_name|default:task.assignee.email|slice:":1"|upper }}
+                                        </span>
+                                        <span class="font-medium text-slate-800 dark:text-slate-200">
+                                            {{ task.assignee.get_full_name|default:task.assignee.email }}
+                                        </span>
+                                    </div>
+                                {% else %}
+                                    <span class="inline-flex items-center rounded bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-[11px] text-slate-500 italic">
+                                        Unassigned
+                                    </span>
+                                {% endif %}
+                            </td>
+
+                            {# Progress Bar #}
+                            <td class="py-3 px-4 whitespace-nowrap">
+                                <div class="w-24">
+                                    <div class="flex items-center justify-between text-[10px] text-slate-500 mb-1">
+                                        <span>{{ task.progress_percent }}%</span>
+                                    </div>
+                                    <div class="h-1.5 w-full rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                                        <div class="h-full rounded-full {% if task.status == 'completed' %}bg-emerald-500{% elif task.status == 'blocked' %}bg-rose-500{% else %}bg-amber-500{% endif %}" style="width: {{ task.progress_percent }}%"></div>
+                                    </div>
+                                </div>
+                            </td>
+
+                            {# Due Date #}
+                            <td class="py-3 px-4 whitespace-nowrap">
+                                {% if task.due_date %}
+                                    <div class="flex flex-col">
+                                        <span class="text-xs font-medium text-slate-800 dark:text-slate-200">
+                                            {{ task.due_date|date:"M d, Y" }}
+                                        </span>
+                                        {% if task.is_overdue %}
+                                            <span class="text-[10px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider">
+                                                Overdue
+                                            </span>
+                                        {% elif task.is_due_soon %}
+                                            <span class="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">
+                                                Due Soon
+                                            </span>
+                                        {% endif %}
+                                    </div>
+                                {% else %}
+                                    <span class="text-slate-400">&mdash;</span>
+                                {% endif %}
+                            </td>
+
+                            {# Linked Record #}
+                            <td class="py-3 px-4 whitespace-nowrap">
+                                {% if task.related_object_label %}
+                                    <span class="inline-flex items-center gap-1 rounded bg-slate-100 dark:bg-slate-800 px-2 py-1 text-[11px] font-medium text-slate-700 dark:text-slate-300">
+                                        <svg class="h-3 w-3 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                                        </svg>
+                                        {{ task.related_object_label }}
+                                    </span>
+                                {% else %}
+                                    <span class="text-slate-400">&mdash;</span>
+                                {% endif %}
+                            </td>
+
+                            {# Actions #}
+                            <td class="py-3 px-4 whitespace-nowrap text-right">
+                                <a href="{% url 'staff:task_detail' pk=task.pk %}" class="inline-flex items-center gap-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition">
+                                    <span>Workspace</span>
+                                    <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                                    </svg>
+                                </a>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="8" class="py-12 text-center">
+                                <div class="max-w-sm mx-auto flex flex-col items-center">
+                                    <div class="h-12 w-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 mb-3">
+                                        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                                        </svg>
+                                    </div>
+                                    <h3 class="text-sm font-bold text-slate-900 dark:text-white">No Staff Tasks Found</h3>
+                                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                                        No tasks match the active filters or scope criteria.
+                                    </p>
+                                    {% if can_manage %}
+                                        <a href="{% url 'staff:task_create' %}" class="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-amber-500 px-3.5 py-2 text-xs font-bold text-slate-950 hover:bg-amber-400 transition">
+                                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                                            </svg>
+                                            <span>Create First Task</span>
+                                        </a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {# Pagination #}
+        {% if page_obj.has_other_pages %}
+            <div class="flex items-center justify-between border-t border-slate-200 dark:border-slate-800 px-4 py-3 sm:px-6">
+                <div class="text-xs text-slate-500">
+                    Showing <span class="font-medium">{{ page_obj.start_index }}</span> to <span class="font-medium">{{ page_obj.end_index }}</span> of <span class="font-medium">{{ page_obj.paginator.count }}</span> tasks
+                </div>
+                <div class="flex items-center gap-2">
+                    {% if page_obj.has_previous %}
+                        <a href="?page={{ page_obj.previous_page_number }}&amp;scope={{ scope }}&amp;status={{ status_filter }}&amp;priority={{ priority_filter }}&amp;assignee={{ assignee_filter }}&amp;due={{ due_filter }}&amp;q={{ search_query }}"
+                           class="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700">
+                            Previous
+                        </a>
+                    {% endif %}
+                    <span class="text-xs font-medium text-slate-600 dark:text-slate-400">
+                        Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                    </span>
+                    {% if page_obj.has_next %}
+                        <a href="?page={{ page_obj.next_page_number }}&amp;scope={{ scope }}&amp;status={{ status_filter }}&amp;priority={{ priority_filter }}&amp;assignee={{ assignee_filter }}&amp;due={{ due_filter }}&amp;q={{ search_query }}"
+                           class="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700">
+                            Next
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

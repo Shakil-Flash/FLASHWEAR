@@ -3,14 +3,14 @@
 from __future__ import annotations
 
 import logging
+import uuid
 
-from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import login as auth_login
 from django.contrib.auth import logout as auth_logout
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
-from django.db.models import F, Q
+from django.db.models import Q
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -23,7 +23,9 @@ from apps.backoffice.models import AuditEvent
 from apps.staff.constants import (
     DELIVERIES_MANAGE,
     DELIVERIES_VIEW,
+    INVENTORY_MANAGE,
     INVENTORY_VIEW,
+    NOTIFICATIONS_VIEW,
     ORDERS_MANAGE,
     ORDERS_VIEW,
     PORTAL_ACCESS,
@@ -32,6 +34,8 @@ from apps.staff.constants import (
     ROLE_PRIMARY_GROUP,
     STAFF_MANAGE,
     SUPPORT_VIEW,
+    TASKS_MANAGE,
+    TASKS_VIEW,
     StaffRole,
 )
 from apps.staff.dashboard_services import (
@@ -60,6 +64,26 @@ from apps.staff.forms import (
     StaffAccountCreateForm,
     StaffAccountRoleForm,
     StaffLoginForm,
+    StaffTaskAssignForm,
+    StaffTaskCommentForm,
+    StaffTaskCreateForm,
+    StaffTaskProgressForm,
+    StaffTaskStatusForm,
+    StaffTaskUpdateForm,
+    StockAdjustmentForm,
+    StockReceiveForm,
+    StockReversalForm,
+    StockThresholdForm,
+)
+from apps.staff.inventory_services import (
+    can_manage_inventory,
+    get_filtered_inventory,
+    get_stock_ledger_history,
+    get_variant_stock_details,
+    is_inventory_manager,
+    record_compensating_reversal,
+    record_stock_adjustment,
+    update_reorder_threshold,
 )
 from apps.staff.navigation import get_staff_navigation
 from apps.staff.order_services import (
@@ -446,38 +470,243 @@ def products_view(request: HttpRequest) -> HttpResponse:
     )
 
 
+# --------------------------------------------------------------------------------------
+# Phase 62: Inventory & Stock Operations Views
+# --------------------------------------------------------------------------------------
+
+
 @staff_permission_required(INVENTORY_VIEW)
 def inventory_view(request: HttpRequest) -> HttpResponse:
-    """Inventory module landing for staff with low/out of stock filter support."""
-    from apps.inventory.models import Stock
-
-    status_filter = request.GET.get("status", "").strip().lower()
-    threshold = getattr(settings, "BACKOFFICE_LOW_STOCK_THRESHOLD", 5)
-    stocks_qs = Stock.objects.select_related("variant__product")
-
-    if status_filter == "out_of_stock":
-        stocks_qs = stocks_qs.filter(on_hand__lte=0)
-    elif status_filter == "low_stock":
-        stocks_qs = stocks_qs.filter(
-            Q(on_hand__gt=0, on_hand__lte=F("low_stock_threshold"))
-            | (Q(low_stock_threshold__isnull=True) & Q(on_hand__gt=0, on_hand__lte=threshold))
-        )
-
-    stocks = stocks_qs.order_by("on_hand")[:25]
+    """Searchable, paginated inventory workspace with stock statuses and multi-attribute filters."""
+    context_data = get_filtered_inventory(request.GET)
     nav = get_staff_navigation(request.user, active_key="inventory")
-    return render(
-        request,
-        "staff/module_placeholder.html",
+    context_data.update(
         {
             "nav": nav,
             "active_key": "inventory",
-            "title": "Inventory & Stock Levels",
-            "module": "inventory",
-            "items": stocks,
-            "filter_status": status_filter,
-            "can_manage": has_staff_capability(request.user, "staff.inventory.manage"),
-        },
+            "can_manage": can_manage_inventory(request.user),
+            "is_manager": is_inventory_manager(request.user),
+        }
     )
+    return render(request, "staff/inventory/workspace.html", context_data)
+
+
+@staff_permission_required(INVENTORY_VIEW)
+def inventory_variant_detail_view(request: HttpRequest, variant_id: int) -> HttpResponse:
+    """Detailed inspection of a variant's stock, reservations, and ledger history."""
+    try:
+        context_data = get_variant_stock_details(variant_id, user=request.user)
+    except ValidationError as exc:
+        messages.error(request, str(exc))
+        return redirect("staff:inventory")
+
+    nav = get_staff_navigation(request.user, active_key="inventory")
+    adjust_token = uuid.uuid4().hex
+    receive_token = uuid.uuid4().hex
+    stock = context_data["stock"]
+
+    context_data.update(
+        {
+            "nav": nav,
+            "active_key": "inventory",
+            "adjust_form": StockAdjustmentForm(initial={"idempotency_token": adjust_token}),
+            "receive_form": StockReceiveForm(initial={"idempotency_token": receive_token}),
+            "threshold_form": StockThresholdForm(
+                initial={"low_stock_threshold": stock.low_stock_threshold}
+            ),
+            "reversal_form": StockReversalForm() if context_data["is_manager"] else None,
+        }
+    )
+    return render(request, "staff/inventory/detail.html", context_data)
+
+
+@require_POST
+@staff_permission_required(INVENTORY_MANAGE)
+def inventory_adjust_action_view(request: HttpRequest, variant_id: int) -> HttpResponse:
+    """Process manual stock adjustment (discrepancy, damage, loss)."""
+    form = StockAdjustmentForm(request.POST)
+    if not form.is_valid():
+        first_err = next(iter(form.errors.values()))[0]
+        messages.error(request, _("Invalid adjustment data: %(err)s") % {"err": first_err})
+        return redirect("staff:inventory_variant_detail", variant_id=variant_id)
+
+    cd = form.cleaned_data
+    try:
+        stock, _movement = record_stock_adjustment(
+            variant_id,
+            adjustment_type=cd["adjustment_type"],
+            quantity=cd["quantity"],
+            reason=cd["reason"],
+            actor=request.user,
+            reference=cd.get("reference", ""),
+            note=cd.get("note", ""),
+            idempotency_token=cd.get("idempotency_token", ""),
+        )
+        messages.success(
+            request,
+            _(
+                "Stock adjustment applied successfully for %(sku)s. "
+                "On-hand: %(on_hand)d, Available: %(avail)d."
+            )
+            % {
+                "sku": stock.variant.sku,
+                "on_hand": stock.on_hand,
+                "avail": stock.available,
+            },
+        )
+    except PermissionDenied as exc:
+        return render_access_denied(request, required_capability=INVENTORY_MANAGE, message=str(exc))
+    except ValidationError as exc:
+        messages.error(request, str(exc))
+
+    return redirect("staff:inventory_variant_detail", variant_id=variant_id)
+
+
+@require_POST
+@staff_permission_required(INVENTORY_MANAGE)
+def inventory_receive_action_view(request: HttpRequest, variant_id: int) -> HttpResponse:
+    """Receive stock shipment for a variant."""
+    form = StockReceiveForm(request.POST)
+    if not form.is_valid():
+        first_err = next(iter(form.errors.values()))[0]
+        messages.error(request, _("Invalid receipt data: %(err)s") % {"err": first_err})
+        return redirect("staff:inventory_variant_detail", variant_id=variant_id)
+
+    cd = form.cleaned_data
+    try:
+        stock, _movement = record_stock_adjustment(
+            variant_id,
+            adjustment_type="received",
+            quantity=cd["quantity"],
+            reason=cd.get("reason", "") or "Stock receipt",
+            actor=request.user,
+            reference=cd.get("supplier_reference", ""),
+            note=cd.get("note", ""),
+            idempotency_token=cd.get("idempotency_token", ""),
+        )
+        messages.success(
+            request,
+            _("Received %(qty)d units for %(sku)s. On-hand: %(on_hand)d, Available: %(avail)d.")
+            % {
+                "qty": cd["quantity"],
+                "sku": stock.variant.sku,
+                "on_hand": stock.on_hand,
+                "avail": stock.available,
+            },
+        )
+    except PermissionDenied as exc:
+        return render_access_denied(request, required_capability=INVENTORY_MANAGE, message=str(exc))
+    except ValidationError as exc:
+        messages.error(request, str(exc))
+
+    return redirect("staff:inventory_variant_detail", variant_id=variant_id)
+
+
+@require_POST
+@staff_permission_required(INVENTORY_MANAGE)
+def inventory_threshold_action_view(request: HttpRequest, variant_id: int) -> HttpResponse:
+    """Update variant reorder threshold."""
+    form = StockThresholdForm(request.POST)
+    if not form.is_valid():
+        first_err = next(iter(form.errors.values()))[0]
+        messages.error(request, _("Invalid threshold value: %(err)s") % {"err": first_err})
+        return redirect("staff:inventory_variant_detail", variant_id=variant_id)
+
+    try:
+        stock = update_reorder_threshold(
+            variant_id,
+            threshold=form.cleaned_data.get("low_stock_threshold"),
+            actor=request.user,
+        )
+        if stock.low_stock_threshold is not None:
+            messages.success(
+                request,
+                _("Reorder threshold for %(sku)s updated to %(thresh)d.")
+                % {"sku": stock.variant.sku, "thresh": stock.low_stock_threshold},
+            )
+        else:
+            messages.success(
+                request,
+                _(
+                    "Variant-specific threshold cleared for %(sku)s. "
+                    "Inheriting product/global threshold."
+                )
+                % {"sku": stock.variant.sku},
+            )
+    except PermissionDenied as exc:
+        return render_access_denied(request, required_capability=INVENTORY_MANAGE, message=str(exc))
+    except ValidationError as exc:
+        messages.error(request, str(exc))
+
+    return redirect("staff:inventory_variant_detail", variant_id=variant_id)
+
+
+@staff_permission_required(INVENTORY_VIEW)
+def inventory_ledger_view(request: HttpRequest) -> HttpResponse:
+    """Searchable, paginated audit ledger of all stock movements."""
+    context_data = get_stock_ledger_history(request.GET)
+    nav = get_staff_navigation(request.user, active_key="inventory")
+    is_mgr = is_inventory_manager(request.user)
+    context_data.update(
+        {
+            "nav": nav,
+            "active_key": "inventory",
+            "can_manage": can_manage_inventory(request.user),
+            "is_manager": is_mgr,
+            "reversal_form": StockReversalForm() if is_mgr else None,
+        }
+    )
+    return render(request, "staff/inventory/ledger.html", context_data)
+
+
+@require_POST
+@staff_permission_required(INVENTORY_MANAGE)
+def inventory_reverse_action_view(request: HttpRequest, movement_id: int) -> HttpResponse:
+    """Authorize and execute a compensating reversal for an erroneous movement."""
+    if not is_inventory_manager(request.user):
+        return render_access_denied(
+            request,
+            required_capability=INVENTORY_MANAGE,
+            message=_(
+                "Only inventory managers or administrators can authorize compensating reversals."
+            ),
+        )
+
+    form = StockReversalForm(request.POST)
+    if not form.is_valid():
+        first_err = next(iter(form.errors.values()))[0]
+        messages.error(request, _("Invalid reversal form: %(err)s") % {"err": first_err})
+        return redirect("staff:inventory_ledger")
+
+    try:
+        stock, reversal_movement = record_compensating_reversal(
+            movement_id,
+            reason=form.cleaned_data["reason"],
+            actor=request.user,
+        )
+        messages.success(
+            request,
+            _(
+                "Movement #%(orig_id)d reversed successfully with "
+                "compensating movement #%(rev_id)d. "
+                "New on-hand for %(sku)s is %(on_hand)d."
+            )
+            % {
+                "orig_id": movement_id,
+                "rev_id": reversal_movement.pk,
+                "sku": stock.variant.sku,
+                "on_hand": stock.on_hand,
+            },
+        )
+    except PermissionDenied as exc:
+        return render_access_denied(request, required_capability=INVENTORY_MANAGE, message=str(exc))
+    except ValidationError as exc:
+        messages.error(request, str(exc))
+
+    next_url = request.POST.get("next")
+    if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+        return redirect(next_url)
+    return redirect("staff:inventory_ledger")
 
 
 @staff_permission_required(ORDERS_VIEW)
@@ -954,3 +1183,421 @@ def reports_view(request: HttpRequest) -> HttpResponse:
             "can_manage": False,
         },
     )
+
+
+# --------------------------------------------------------------------------------------
+# Staff Task Management & Collaboration (Phase 63)
+# --------------------------------------------------------------------------------------
+
+
+@staff_permission_required(TASKS_VIEW)
+def task_list_view(request: HttpRequest) -> HttpResponse:
+    """List staff tasks with scope filters, priority filters, search, and metrics."""
+    from apps.staff.models import StaffTaskPriority, StaffTaskStatus
+    from apps.staff.task_services import (
+        get_eligible_assignees,
+        get_filtered_tasks,
+        get_staff_task_metrics,
+    )
+
+    user = request.user
+    scope = request.GET.get("scope", "all").strip().lower()
+    status_filter = request.GET.get("status", "").strip().lower()
+    priority_filter = request.GET.get("priority", "").strip().lower()
+    assignee_id = request.GET.get("assignee", "").strip()
+    due_filter = request.GET.get("due", "").strip().lower()
+    query = request.GET.get("q", "").strip()
+
+    assignee_int = None
+    if assignee_id.isdigit():
+        assignee_int = int(assignee_id)
+
+    tasks_qs = get_filtered_tasks(
+        user=user,
+        status=status_filter or None,
+        priority=priority_filter or None,
+        assignee_id=assignee_int,
+        scope=scope,
+        search_query=query or None,
+        due_filter=due_filter or None,
+    )
+
+    paginator = Paginator(tasks_qs, 15)
+    page_number = request.GET.get("page", 1)
+    page_obj = paginator.get_page(page_number)
+
+    metrics = get_staff_task_metrics(user)
+    eligible_assignees = get_eligible_assignees()
+    can_manage = user.is_superuser or has_staff_capability(user, TASKS_MANAGE)
+    nav = get_staff_navigation(user, active_key="tasks")
+
+    return render(
+        request,
+        "staff/tasks/list.html",
+        {
+            "nav": nav,
+            "active_key": "tasks",
+            "page_obj": page_obj,
+            "tasks": page_obj.object_list,
+            "metrics": metrics,
+            "scope": scope,
+            "status_filter": status_filter,
+            "priority_filter": priority_filter,
+            "assignee_filter": assignee_id,
+            "due_filter": due_filter,
+            "search_query": query,
+            "can_manage": can_manage,
+            "statuses": StaffTaskStatus.choices,
+            "priorities": StaffTaskPriority.choices,
+            "eligible_assignees": eligible_assignees,
+        },
+    )
+
+
+@staff_permission_required(TASKS_MANAGE)
+def task_create_view(request: HttpRequest) -> HttpResponse:
+    """Create a new staff task and assign it to an active employee."""
+    from apps.staff.models import StaffTaskPriority, StaffTaskRelatedType
+    from apps.staff.task_services import create_staff_task
+
+    initial_data = {}
+    rel_type = request.GET.get("related_type", "").strip()
+    rel_id = request.GET.get("related_id", "").strip()
+    if rel_type in dict(StaffTaskRelatedType.choices):
+        initial_data["related_object_type"] = rel_type
+    if rel_id.isdigit():
+        initial_data["related_object_id"] = int(rel_id)
+
+    if request.method == "POST":
+        form = StaffTaskCreateForm(request.POST)
+        if form.is_valid():
+            try:
+                task = create_staff_task(
+                    creator=request.user,
+                    title=form.cleaned_data["title"],
+                    description=form.cleaned_data.get("description", ""),
+                    priority=form.cleaned_data.get("priority", StaffTaskPriority.NORMAL),
+                    assignee=form.cleaned_data.get("assignee"),
+                    due_date=form.cleaned_data.get("due_date"),
+                    related_object_type=form.cleaned_data.get("related_object_type", ""),
+                    related_object_id=form.cleaned_data.get("related_object_id"),
+                )
+                messages.success(request, _("Task #%(id)d successfully created.") % {"id": task.pk})
+                return redirect("staff:task_detail", pk=task.pk)
+            except ValidationError as exc:
+                for field, errors in exc.message_dict.items():
+                    for err in errors:
+                        form.add_error(field if field in form.fields else None, err)
+            except PermissionDenied as exc:
+                messages.error(request, str(exc))
+    else:
+        form = StaffTaskCreateForm(initial=initial_data)
+
+    nav = get_staff_navigation(request.user, active_key="tasks")
+    return render(
+        request,
+        "staff/tasks/create.html",
+        {
+            "nav": nav,
+            "active_key": "tasks",
+            "form": form,
+        },
+    )
+
+
+@staff_permission_required(TASKS_VIEW)
+def task_detail_view(request: HttpRequest, pk: int) -> HttpResponse:
+    """View task workspace, history, linked business object, and post comments."""
+    from apps.staff.models import StaffTask, StaffTaskStatus
+    from apps.staff.task_services import (
+        can_user_assign_task,
+        can_user_comment,
+        can_user_edit_task,
+        can_user_update_progress,
+        can_user_view_task,
+        get_linked_object_staff_url,
+    )
+
+    task = get_object_or_404(
+        StaffTask.objects.select_related("creator", "assignee", "completed_by"),
+        pk=pk,
+    )
+
+    if not can_user_view_task(request.user, task):
+        return render_access_denied(
+            request,
+            required_capability=TASKS_VIEW,
+            message=_("You are not authorized to view Task #%(id)d.") % {"id": pk},
+        )
+
+    # Allowed status choices based on current lifecycle state
+    allowed_status_keys = task.VALID_TRANSITIONS.get(task.status, set()) | {task.status}
+    allowed_status_choices = [
+        choice for choice in StaffTaskStatus.choices if choice[0] in allowed_status_keys
+    ]
+
+    status_form = StaffTaskStatusForm(
+        initial={"status": task.status},
+        allowed_choices=allowed_status_choices,
+    )
+    assign_form = StaffTaskAssignForm(initial={"assignee": task.assignee})
+    progress_form = StaffTaskProgressForm(initial={"progress_percent": task.progress_percent})
+    comment_form = StaffTaskCommentForm()
+    update_form = StaffTaskUpdateForm(
+        initial={
+            "title": task.title,
+            "description": task.description,
+            "priority": task.priority,
+            "due_date": task.due_date,
+        }
+    )
+
+    can_edit = can_user_edit_task(request.user, task)
+    can_assign = can_user_assign_task(request.user)
+    can_progress = can_user_update_progress(request.user, task)
+    can_comment = can_user_comment(request.user, task)
+    linked_object_url = get_linked_object_staff_url(task, request.user)
+
+    comments = task.comments.select_related("author").order_by("created_at")
+    activities = task.activities.select_related("actor").order_by("-created_at")
+
+    nav = get_staff_navigation(request.user, active_key="tasks")
+
+    return render(
+        request,
+        "staff/tasks/detail.html",
+        {
+            "nav": nav,
+            "active_key": "tasks",
+            "task": task,
+            "status_form": status_form,
+            "assign_form": assign_form,
+            "progress_form": progress_form,
+            "comment_form": comment_form,
+            "update_form": update_form,
+            "can_edit": can_edit,
+            "can_assign": can_assign,
+            "can_progress": can_progress,
+            "can_comment": can_comment,
+            "linked_object_url": linked_object_url,
+            "comments": comments,
+            "activities": activities,
+        },
+    )
+
+
+@require_POST
+@staff_permission_required(TASKS_MANAGE)
+def task_edit_view(request: HttpRequest, pk: int) -> HttpResponse:
+    """Edit core task fields (title, description, priority, due date)."""
+    from apps.staff.models import StaffTask
+    from apps.staff.task_services import update_task_fields
+
+    task = get_object_or_404(StaffTask, pk=pk)
+    form = StaffTaskUpdateForm(request.POST)
+    if form.is_valid():
+        try:
+            update_task_fields(
+                task=task,
+                actor=request.user,
+                title=form.cleaned_data["title"],
+                description=form.cleaned_data.get("description", ""),
+                priority=form.cleaned_data["priority"],
+                due_date=form.cleaned_data.get("due_date"),
+                due_date_cleared=(
+                    form.cleaned_data.get("due_date") is None and "due_date" in request.POST
+                ),
+            )
+            messages.success(request, _("Task #%(id)d details updated.") % {"id": pk})
+        except PermissionDenied as exc:
+            messages.error(request, str(exc))
+    else:
+        for errs in form.errors.values():
+            for e in errs:
+                messages.error(request, e)
+
+    return redirect("staff:task_detail", pk=pk)
+
+
+@require_POST
+@staff_permission_required(TASKS_MANAGE)
+def task_assign_action_view(request: HttpRequest, pk: int) -> HttpResponse:
+    """Assign or reassign task to an active employee."""
+    from apps.staff.models import StaffTask
+    from apps.staff.task_services import reassign_staff_task
+
+    task = get_object_or_404(StaffTask, pk=pk)
+    form = StaffTaskAssignForm(request.POST)
+    if form.is_valid():
+        try:
+            reassign_staff_task(
+                task=task,
+                new_assignee=form.cleaned_data["assignee"],
+                actor=request.user,
+            )
+            messages.success(request, _("Task #%(id)d assignment updated.") % {"id": pk})
+        except (PermissionDenied, ValidationError) as exc:
+            messages.error(request, str(exc))
+    else:
+        for errs in form.errors.values():
+            for e in errs:
+                messages.error(request, e)
+
+    return redirect("staff:task_detail", pk=pk)
+
+
+@require_POST
+@staff_permission_required(TASKS_VIEW)
+def task_status_action_view(request: HttpRequest, pk: int) -> HttpResponse:
+    """Update task lifecycle status."""
+    from apps.staff.models import StaffTask
+    from apps.staff.task_services import update_task_status
+
+    task = get_object_or_404(StaffTask, pk=pk)
+    new_status = request.POST.get("status", "").strip().lower()
+
+    try:
+        update_task_status(
+            task=task,
+            new_status=new_status,
+            actor=request.user,
+        )
+        messages.success(
+            request,
+            _("Task #%(id)d status updated to %(status)s.")
+            % {"id": pk, "status": task.get_status_display()},
+        )
+    except PermissionDenied as exc:
+        messages.error(request, str(exc))
+
+    return redirect("staff:task_detail", pk=pk)
+
+
+@require_POST
+@staff_permission_required(TASKS_VIEW)
+def task_progress_action_view(request: HttpRequest, pk: int) -> HttpResponse:
+    """Update task progress percentage."""
+    from apps.staff.models import StaffTask
+    from apps.staff.task_services import update_task_progress
+
+    task = get_object_or_404(StaffTask, pk=pk)
+    form = StaffTaskProgressForm(request.POST)
+    if form.is_valid():
+        try:
+            update_task_progress(
+                task=task,
+                progress_percent=form.cleaned_data["progress_percent"],
+                actor=request.user,
+            )
+            messages.success(
+                request,
+                _("Task #%(id)d progress updated to %(pct)d%%.")
+                % {"id": pk, "pct": task.progress_percent},
+            )
+        except (PermissionDenied, ValidationError) as exc:
+            messages.error(request, str(exc))
+    else:
+        for errs in form.errors.values():
+            for e in errs:
+                messages.error(request, e)
+
+    return redirect("staff:task_detail", pk=pk)
+
+
+@require_POST
+@staff_permission_required(TASKS_VIEW)
+def task_comment_action_view(request: HttpRequest, pk: int) -> HttpResponse:
+    """Post an operational note or comment on a task."""
+    from apps.staff.models import StaffTask
+    from apps.staff.task_services import add_task_comment
+
+    task = get_object_or_404(StaffTask, pk=pk)
+    form = StaffTaskCommentForm(request.POST)
+    if form.is_valid():
+        try:
+            add_task_comment(
+                task=task,
+                author=request.user,
+                comment_text=form.cleaned_data["comment"],
+            )
+            messages.success(request, _("Operational note added to Task #%(id)d.") % {"id": pk})
+        except (PermissionDenied, ValidationError) as exc:
+            messages.error(request, str(exc))
+    else:
+        for errs in form.errors.values():
+            for e in errs:
+                messages.error(request, e)
+
+    return redirect("staff:task_detail", pk=pk)
+
+
+# --------------------------------------------------------------------------------------
+# Staff In-App Notification Center (Phase 63)
+# --------------------------------------------------------------------------------------
+
+
+@staff_permission_required(NOTIFICATIONS_VIEW)
+def notification_list_view(request: HttpRequest) -> HttpResponse:
+    """Staff in-app notification center with read states, filters, and direct action links."""
+    from apps.staff.notification_services import (
+        get_staff_notifications,
+        get_staff_unread_count,
+    )
+
+    filter_type = request.GET.get("filter", "all").strip().lower()
+    unread_only = filter_type == "unread"
+
+    notifications_qs = get_staff_notifications(request.user, unread_only=unread_only)
+
+    paginator = Paginator(notifications_qs, 20)
+    page_number = request.GET.get("page", 1)
+    page_obj = paginator.get_page(page_number)
+
+    unread_count = get_staff_unread_count(request.user)
+    nav = get_staff_navigation(request.user, active_key="notifications")
+
+    return render(
+        request,
+        "staff/notifications/list.html",
+        {
+            "nav": nav,
+            "active_key": "notifications",
+            "page_obj": page_obj,
+            "notifications": page_obj.object_list,
+            "unread_count": unread_count,
+            "filter_type": filter_type,
+        },
+    )
+
+
+@require_POST
+@staff_permission_required(NOTIFICATIONS_VIEW)
+def notification_read_action_view(request: HttpRequest, pk: int) -> HttpResponse:
+    """Mark a staff notification as read (with IDOR protection) and navigate to URL."""
+    from apps.staff.notification_services import mark_staff_notification_read
+
+    notification = mark_staff_notification_read(request.user, pk)
+    if not notification:
+        messages.error(request, _("Notification not found or access denied."))
+        return redirect("staff:notification_list")
+
+    redirect_url = request.POST.get("next") or (
+        notification.action_url if notification.action_url else reverse("staff:notification_list")
+    )
+    if not url_has_allowed_host_and_scheme(
+        redirect_url, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+    ):
+        redirect_url = reverse("staff:notification_list")
+
+    return redirect(redirect_url)
+
+
+@require_POST
+@staff_permission_required(NOTIFICATIONS_VIEW)
+def notification_mark_all_read_action_view(request: HttpRequest) -> HttpResponse:
+    """Mark all unread staff notifications as read for current user."""
+    from apps.staff.notification_services import mark_all_staff_notifications_read
+
+    count = mark_all_staff_notifications_read(request.user)
+    messages.success(request, _("Marked %(count)d notifications as read.") % {"count": count})
+    return redirect("staff:notification_list")

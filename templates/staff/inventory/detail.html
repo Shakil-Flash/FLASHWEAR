@@ -1,0 +1,565 @@
+{% extends "staff/base.html" %}
+{% load static %}
+
+{% block title %}{{ variant.sku }} - Stock Inspection & Adjustments{% endblock %}
+
+{% block breadcrumb %}
+    <span class="text-slate-400">/</span>
+    <a href="{% url 'staff:inventory' %}" class="text-slate-500 hover:text-slate-700 dark:hover:text-slate-300">Inventory</a>
+    <span class="text-slate-400">/</span>
+    <span class="text-xs font-medium text-slate-700 dark:text-slate-300">{{ variant.sku }}</span>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-6" x-data="{ adjustConfirmOpen: false, selectedType: 'correction_add', adjustQty: 1, reverseModalOpen: false, reverseMovementId: null }">
+    {# Variant Header #}
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-slate-200 dark:border-slate-800 pb-5">
+        <div class="flex items-start gap-4">
+            <div class="h-16 w-16 flex-shrink-0 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center overflow-hidden">
+                {% if variant.product.images.first %}
+                    <img src="{{ variant.product.images.first.image.url }}" alt="{{ variant.product.name }}" class="h-full w-full object-cover">
+                {% else %}
+                    <svg class="h-8 w-8 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                    </svg>
+                {% endif %}
+            </div>
+            <div>
+                <div class="flex items-center gap-2 flex-wrap">
+                    <h1 class="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+                        {{ variant.product.name }}
+                    </h1>
+                    {% if variant.is_active %}
+                        <span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                            Active
+                        </span>
+                    {% else %}
+                        <span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-slate-500/10 text-slate-500 border border-slate-500/20">
+                            Archived / Inactive
+                        </span>
+                    {% endif %}
+                </div>
+
+                <div class="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400 mt-1 flex-wrap">
+                    <span class="font-mono font-bold text-slate-900 dark:text-slate-200">SKU: {{ variant.sku }}</span>
+                    {% if variant.barcode %}
+                        <span>•</span>
+                        <span class="font-mono">Barcode: {{ variant.barcode }}</span>
+                    {% endif %}
+                    <span>•</span>
+                    <span>Category: {{ variant.product.category.name|default:"Uncategorized" }}</span>
+                    {% if variant.product.brand %}
+                        <span>•</span>
+                        <span>Brand: {{ variant.product.brand.name }}</span>
+                    {% endif %}
+                </div>
+
+                <div class="flex items-center gap-2 mt-2">
+                    {% if variant.color %}
+                        <span class="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                            {% if variant.color.hex_code %}
+                                <span class="h-2.5 w-2.5 rounded-full border border-slate-300 dark:border-slate-600" style="background-color: {{ variant.color.hex_code }};"></span>
+                            {% endif %}
+                            Color: {{ variant.color.name }}
+                        </span>
+                    {% endif %}
+                    {% if variant.size %}
+                        <span class="inline-flex items-center rounded px-2.5 py-0.5 text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700">
+                            Size: {{ variant.size.name }}
+                        </span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+            <a href="{% url 'staff:inventory' %}" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition">
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                <span>Back to Workspace</span>
+            </a>
+            <a href="{% url 'staff:inventory_ledger' %}?q={{ variant.sku }}" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition">
+                <svg class="h-4 w-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                <span>Full Variant Ledger</span>
+            </a>
+        </div>
+    </div>
+
+    {# Main Grid #}
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {# Left 2 Columns: Stock Overview, Holds & Movements #}
+        <div class="lg:col-span-2 space-y-6">
+            {# Metric Breakdown Cards #}
+            <div class="grid grid-cols-3 gap-4">
+                {# On Hand #}
+                <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Total On Hand</span>
+                        <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                            </svg>
+                        </span>
+                    </div>
+                    <div class="text-3xl font-black text-slate-900 dark:text-white mt-2 font-mono">{{ stock.on_hand }}</div>
+                    <p class="text-[11px] text-slate-400 mt-1">Physical units in warehouse</p>
+                </div>
+
+                {# Reserved #}
+                <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Active Holds</span>
+                        <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 dark:bg-blue-400/10 dark:text-blue-400">
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                            </svg>
+                        </span>
+                    </div>
+                    <div class="text-3xl font-black text-blue-600 dark:text-blue-400 mt-2 font-mono">{{ stock.reserved }}</div>
+                    <p class="text-[11px] text-slate-400 mt-1">Checkouts & pending orders</p>
+                </div>
+
+                {# Available #}
+                <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Available to Sell</span>
+                        <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg {% if stock.available <= 0 %}bg-rose-500/10 text-rose-600 dark:bg-rose-400/10 dark:text-rose-400{% else %}bg-emerald-500/10 text-emerald-600 dark:bg-emerald-400/10 dark:text-emerald-400{% endif %}">
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                            </svg>
+                        </span>
+                    </div>
+                    <div class="text-3xl font-black {% if stock.available <= 0 %}text-rose-600 dark:text-rose-400{% elif is_low_stock %}text-amber-600 dark:text-amber-400{% else %}text-emerald-600 dark:text-emerald-400{% endif %} mt-2 font-mono">
+                        {{ stock.available }}
+                    </div>
+                    <p class="text-[11px] text-slate-400 mt-1">on_hand &minus; reserved</p>
+                </div>
+            </div>
+
+            {# Replenishment & Threshold Status Card #}
+            <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div class="flex items-center gap-3">
+                    <div class="h-10 w-10 rounded-xl {% if stock.on_hand <= 0 %}bg-rose-500/10 text-rose-600{% elif is_low_stock %}bg-amber-500/10 text-amber-600{% else %}bg-emerald-500/10 text-emerald-600{% endif %} flex items-center justify-center">
+                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="text-sm font-bold text-slate-900 dark:text-white">
+                            Status:
+                            {% if stock.on_hand <= 0 %}
+                                <span class="text-rose-600 dark:text-rose-400">Out of Stock</span>
+                            {% elif is_low_stock %}
+                                <span class="text-amber-600 dark:text-amber-400">Low Stock Warning</span>
+                            {% else %}
+                                <span class="text-emerald-600 dark:text-emerald-400">Inventory Level Healthy</span>
+                            {% endif %}
+                        </div>
+                        <div class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                            Reorder threshold: <span class="font-bold text-slate-900 dark:text-white font-mono">{{ effective_threshold }}</span> units
+                            {% if stock.low_stock_threshold is not None %}
+                                <span class="text-[10px] bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded font-medium text-slate-600 dark:text-slate-300 ml-1">Variant specific</span>
+                            {% else %}
+                                <span class="text-[10px] bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded font-medium text-slate-600 dark:text-slate-300 ml-1">Inherited default</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                {% if suggested_replenishment > 0 %}
+                    <div class="rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 px-4 py-2 text-xs text-amber-900 dark:text-amber-200">
+                        <div class="font-bold flex items-center gap-1.5">
+                            <svg class="h-4 w-4 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                            Replenishment Suggested
+                        </div>
+                        <div class="text-[11px] mt-0.5 text-amber-700 dark:text-amber-300">
+                            Reorder at least <span class="font-bold font-mono">+{{ suggested_replenishment }}</span> units to restore healthy stock.
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+
+            {# Active Reservations Section #}
+            <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+                <div class="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                    <div>
+                        <h2 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                            <span>Active Checkout Holds & Reservations</span>
+                            <span class="rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 text-xs px-2 py-0.5 font-bold">
+                                {{ active_reservations|length }}
+                            </span>
+                        </h2>
+                        <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                            Temporary stock holds preventing overselling during checkout and order placement.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs text-slate-600 dark:text-slate-300">
+                        <thead class="bg-slate-50 dark:bg-slate-800/70 border-b border-slate-200 dark:border-slate-800 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                            <tr>
+                                <th scope="col" class="py-2.5 pl-6 pr-3">Reservation ID</th>
+                                <th scope="col" class="py-2.5 px-3">Type / Context</th>
+                                <th scope="col" class="py-2.5 px-3 text-right">Units Held</th>
+                                <th scope="col" class="py-2.5 px-3">Expires At</th>
+                                <th scope="col" class="py-2.5 pl-3 pr-6">Created</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
+                            {% for res in active_reservations %}
+                                <tr>
+                                    <td class="py-2.5 pl-6 pr-3 font-mono text-[11px] font-bold text-slate-900 dark:text-white">
+                                        #{{ res.pk }}
+                                    </td>
+                                    <td class="py-2.5 px-3">
+                                        {% if res.order %}
+                                            <a href="{% url 'staff:order_detail' res.order.pk %}" class="text-blue-600 dark:text-blue-400 hover:underline font-mono">
+                                                Order {{ res.order.order_number }}
+                                            </a>
+                                        {% elif res.cart %}
+                                            <span class="text-slate-600 dark:text-slate-400 font-mono text-[11px]">Cart #{{ res.cart.pk }}</span>
+                                        {% else %}
+                                            <span class="text-slate-400 text-[11px]">Checkout Hold</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="py-2.5 px-3 text-right font-mono font-bold text-blue-600 dark:text-blue-400">
+                                        {{ res.quantity }}
+                                    </td>
+                                    <td class="py-2.5 px-3 text-[11px] text-slate-600 dark:text-slate-400">
+                                        {{ res.expires_at|date:"M d, H:i" }}
+                                        <span class="text-[10px] text-slate-400">({{ res.expires_at|timeuntil }} remaining)</span>
+                                    </td>
+                                    <td class="py-2.5 pl-3 pr-6 text-[11px] text-slate-400">
+                                        {{ res.created_at|date:"M d, H:i" }}
+                                    </td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="5" class="py-6 text-center text-xs text-slate-400">
+                                        No active holds on this variant. All on-hand stock is available for purchase.
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {# Recent Stock Movement Ledger Section #}
+            <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+                <div class="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                    <div>
+                        <h2 class="text-sm font-bold text-slate-900 dark:text-white">Recent Stock Movements</h2>
+                        <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                            Append-only audit ledger showing additions, deductions, reservations, and reversals.
+                        </p>
+                    </div>
+                    <a href="{% url 'staff:inventory_ledger' %}?q={{ variant.sku }}" class="text-xs font-semibold text-amber-500 hover:text-amber-600">
+                        View All Movements &rarr;
+                    </a>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs text-slate-600 dark:text-slate-300">
+                        <thead class="bg-slate-50 dark:bg-slate-800/70 border-b border-slate-200 dark:border-slate-800 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                            <tr>
+                                <th scope="col" class="py-2.5 pl-6 pr-3">Timestamp</th>
+                                <th scope="col" class="py-2.5 px-3">Movement Kind</th>
+                                <th scope="col" class="py-2.5 px-3 text-right">Delta</th>
+                                <th scope="col" class="py-2.5 px-3">Reference / Note</th>
+                                <th scope="col" class="py-2.5 px-3">Actor</th>
+                                {% if is_manager %}
+                                    <th scope="col" class="py-2.5 pl-3 pr-6 text-right">Action</th>
+                                {% endif %}
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
+                            {% for m in recent_movements %}
+                                <tr>
+                                    <td class="py-2.5 pl-6 pr-3 text-[11px] text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                                        {{ m.created_at|date:"M d, Y H:i" }}
+                                    </td>
+                                    <td class="py-2.5 px-3">
+                                        {% if m.kind == 'received' %}
+                                            <span class="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                                                Received
+                                            </span>
+                                        {% elif m.kind == 'adjustment' %}
+                                            <span class="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+                                                Adjustment
+                                            </span>
+                                        {% elif m.kind == 'damaged' %}
+                                            <span class="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                                                Damaged
+                                            </span>
+                                        {% elif m.kind == 'loss' %}
+                                            <span class="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-bold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
+                                                Loss / Shrink
+                                            </span>
+                                        {% elif m.kind == 'reversal' %}
+                                            <span class="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-bold bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
+                                                Reversal
+                                            </span>
+                                        {% elif m.kind == 'reserved' %}
+                                            <span class="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                                                Reserved
+                                            </span>
+                                        {% elif m.kind == 'released' %}
+                                            <span class="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-semibold bg-teal-500/10 text-teal-600 dark:text-teal-400">
+                                                Released
+                                            </span>
+                                        {% elif m.kind == 'consumed' %}
+                                            <span class="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-semibold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
+                                                Fulfilled
+                                            </span>
+                                        {% else %}
+                                            <span class="inline-flex items-center rounded px-2 py-0.5 text-[10px] font-semibold bg-slate-100 text-slate-600">
+                                                {{ m.get_kind_display }}
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="py-2.5 px-3 text-right font-mono font-bold text-xs whitespace-nowrap">
+                                        {% if m.on_hand_delta > 0 %}
+                                            <span class="text-emerald-600 dark:text-emerald-400">+{{ m.on_hand_delta }}</span>
+                                        {% elif m.on_hand_delta < 0 %}
+                                            <span class="text-rose-600 dark:text-rose-400">{{ m.on_hand_delta }}</span>
+                                        {% else %}
+                                            <span class="text-slate-400">0</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="py-2.5 px-3 max-w-[200px]">
+                                        {% if m.reference %}
+                                            <div class="font-mono text-[10px] font-semibold text-slate-700 dark:text-slate-300 truncate" title="{{ m.reference }}">
+                                                Ref: {{ m.reference }}
+                                            </div>
+                                        {% endif %}
+                                        <div class="text-[11px] text-slate-500 dark:text-slate-400 truncate" title="{{ m.note }}">
+                                            {{ m.note|default:"—" }}
+                                        </div>
+                                    </td>
+                                    <td class="py-2.5 px-3 text-[11px] text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                                        {{ m.user.email|default:"System" }}
+                                    </td>
+                                    {% if is_manager %}
+                                        <td class="py-2.5 pl-3 pr-6 text-right whitespace-nowrap">
+                                            {% if m.kind in "received,adjustment,damaged,loss" and not m.reference|slice:":9" == "reversal:" %}
+                                                <button type="button"
+                                                        @click="reverseModalOpen = true; reverseMovementId = {{ m.pk }};"
+                                                        class="text-[10px] font-bold text-rose-600 hover:text-rose-700 dark:text-rose-400 underline">
+                                                    Reverse
+                                                </button>
+                                            {% else %}
+                                                <span class="text-slate-400 text-[10px]">—</span>
+                                            {% endif %}
+                                        </td>
+                                    {% endif %}
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="6" class="py-6 text-center text-xs text-slate-400">
+                                        No stock movements logged for this variant.
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        {# Right Column: Stock Management Action Panels #}
+        <div class="space-y-6">
+            {% if can_manage %}
+                {# Panel 1: Receive Stock #}
+                <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm">
+                    <h3 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                        <span class="h-6 w-6 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                            </svg>
+                        </span>
+                        Receive New Stock
+                    </h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                        Log received supplier shipments or stock deliveries directly into on-hand inventory.
+                    </p>
+
+                    <form method="post" action="{% url 'staff:inventory_receive_action' variant.pk %}" class="mt-4 space-y-3">
+                        {% csrf_token %}
+                        {{ receive_form.idempotency_token }}
+
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Quantity Received *</label>
+                            {{ receive_form.quantity }}
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Supplier / PO Reference</label>
+                            {{ receive_form.supplier_reference }}
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Receipt Note</label>
+                            {{ receive_form.reason }}
+                        </div>
+
+                        <button type="submit" class="w-full inline-flex items-center justify-center gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 px-4 py-2 text-xs font-bold text-white shadow-sm transition">
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                            </svg>
+                            Confirm Stock Receipt
+                        </button>
+                    </form>
+                </div>
+
+                {# Panel 2: Safe Stock Adjustments #}
+                <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm">
+                    <h3 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                        <span class="h-6 w-6 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+                            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                            </svg>
+                        </span>
+                        Manual Stock Adjustment
+                    </h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                        Record discrepancy corrections, damaged items, or shrinkage loss with mandatory reason.
+                    </p>
+
+                    <form method="post" action="{% url 'staff:inventory_adjust_action' variant.pk %}" class="mt-4 space-y-3">
+                        {% csrf_token %}
+                        {{ adjust_form.idempotency_token }}
+
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Adjustment Type *</label>
+                            {{ adjust_form.adjustment_type }}
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Quantity *</label>
+                            {{ adjust_form.quantity }}
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Reason for Adjustment *</label>
+                            {{ adjust_form.reason }}
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Reference / Document #</label>
+                            {{ adjust_form.reference }}
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Internal Notes</label>
+                            {{ adjust_form.note }}
+                        </div>
+
+                        <button type="submit" class="w-full inline-flex items-center justify-center gap-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 px-4 py-2 text-xs font-bold text-white shadow-sm transition">
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            Apply Stock Adjustment
+                        </button>
+                    </form>
+                </div>
+
+                {# Panel 3: Low-Stock Reorder Threshold #}
+                <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm">
+                    <h3 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                        <span class="h-6 w-6 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                            </svg>
+                        </span>
+                        Configure Reorder Threshold
+                    </h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                        Override product or system defaults for when this specific variant triggers low stock warnings.
+                    </p>
+
+                    <form method="post" action="{% url 'staff:inventory_threshold_action' variant.pk %}" class="mt-4 space-y-3">
+                        {% csrf_token %}
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Variant Reorder Point</label>
+                            {{ threshold_form.low_stock_threshold }}
+                            <p class="text-[11px] text-slate-400 mt-1">
+                                Currently resolving to <span class="font-bold text-slate-900 dark:text-white font-mono">{{ effective_threshold }}</span> units.
+                            </p>
+                        </div>
+
+                        <button type="submit" class="w-full inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 shadow-sm transition">
+                            Save Threshold
+                        </button>
+                    </form>
+                </div>
+            {% else %}
+                {# Read-only staff notice #}
+                <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 p-5">
+                    <div class="flex items-center gap-3">
+                        <div class="h-8 w-8 rounded-lg bg-amber-500/10 text-amber-600 flex items-center justify-center">
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <h4 class="text-xs font-bold text-slate-900 dark:text-white">Read-Only Inventory Access</h4>
+                            <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                                Your assigned staff role allows viewing stock counts and ledger history, but not performing adjustments or receiving.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {# Reversal Modal (For Managers) #}
+    {% if is_manager %}
+    <div x-show="reverseModalOpen"
+         x-cloak
+         class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+        <div class="w-full max-w-md rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 shadow-xl"
+             @click.away="reverseModalOpen = false">
+            <h3 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <span class="h-7 w-7 rounded-lg bg-rose-500/10 text-rose-600 flex items-center justify-center">
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                </span>
+                Compensating Reversal
+            </h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-2">
+                This will create a compensating movement that safely reverses the selected transaction. Historical entries are never deleted.
+            </p>
+
+            <form method="post" :action="'/staff/inventory/movements/' + reverseMovementId + '/reverse/'" class="mt-4 space-y-3">
+                {% csrf_token %}
+                <input type="hidden" name="movement_id" :value="reverseMovementId">
+                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Reason for Reversal *</label>
+                    <textarea name="reason" rows="2" required placeholder="e.g. Correcting mistaken entry from morning cycle count..." class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2 text-xs text-slate-900 dark:text-white focus:border-amber-500 focus:ring-1 focus:ring-amber-500"></textarea>
+                </div>
+
+                <div class="flex items-center justify-end gap-2 pt-2">
+                    <button type="button" @click="reverseModalOpen = false" class="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800">
+                        Cancel
+                    </button>
+                    <button type="submit" class="rounded-lg bg-rose-600 hover:bg-rose-700 px-4 py-1.5 text-xs font-bold text-white shadow-sm transition">
+                        Execute Compensating Reversal
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

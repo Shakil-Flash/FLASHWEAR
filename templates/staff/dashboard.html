@@ -306,6 +306,36 @@
                     </div>
                 </div>
             {% endif %}
+
+            {# Staff Tasks Card #}
+            {% if summary.tasks %}
+                <div class="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 shadow-sm hover:border-amber-500/50 transition">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Staff Tasks</span>
+                        <span class="p-2 rounded-lg bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400">
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                            </svg>
+                        </span>
+                    </div>
+                    <div class="mt-3">
+                        <span class="text-3xl font-black text-slate-900 dark:text-white">{{ summary.tasks.my_open_tasks }}</span>
+                        <span class="text-xs text-slate-500 ml-1">my open tasks</span>
+                    </div>
+                    <div class="mt-3 flex items-center justify-between text-xs text-slate-500 border-t border-slate-100 dark:border-slate-800 pt-2.5">
+                        <div><strong class="{% if summary.tasks.overdue_tasks > 0 %}text-rose-500{% else %}text-slate-400{% endif %} font-bold">{{ summary.tasks.overdue_tasks }}</strong> overdue</div>
+                        <div><strong class="text-amber-500 font-bold">{{ summary.tasks.tasks_due_soon }}</strong> due soon</div>
+                    </div>
+                    <div class="mt-3 pt-2 flex items-center justify-between text-xs">
+                        <a href="{% url 'staff:task_list' %}?scope=my" class="font-bold text-amber-500 hover:text-amber-400">
+                            My Tasks &rarr;
+                        </a>
+                        <a href="{% url 'staff:task_list' %}" class="text-slate-400 hover:text-slate-300">
+                            All Workspaces
+                        </a>
+                    </div>
+                </div>
+            {% endif %}
         </div>
     </div>
 

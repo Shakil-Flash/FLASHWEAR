@@ -70,6 +70,9 @@ SUPPORT_VIEW = "staff.support.view"
 SUPPORT_MANAGE = "staff.support.manage"
 REPORTS_VIEW = "staff.reports.view"
 STAFF_MANAGE = "staff.accounts.manage"
+TASKS_VIEW = "staff.tasks.view"
+TASKS_MANAGE = "staff.tasks.manage"
+NOTIFICATIONS_VIEW = "staff.notifications.view"
 
 ALL_CAPABILITIES: tuple[str, ...] = (
     PORTAL_ACCESS,
@@ -85,6 +88,9 @@ ALL_CAPABILITIES: tuple[str, ...] = (
     SUPPORT_MANAGE,
     REPORTS_VIEW,
     STAFF_MANAGE,
+    TASKS_VIEW,
+    TASKS_MANAGE,
+    NOTIFICATIONS_VIEW,
 )
 
 # --------------------------------------------------------------------------------------
@@ -108,6 +114,9 @@ ROLE_CAPABILITIES: dict[str, frozenset[str]] = {
             SUPPORT_MANAGE,
             REPORTS_VIEW,
             STAFF_MANAGE,
+            TASKS_VIEW,
+            TASKS_MANAGE,
+            NOTIFICATIONS_VIEW,
         }
     ),
     StaffRole.PRODUCT_MANAGER: frozenset(
@@ -117,6 +126,9 @@ ROLE_CAPABILITIES: dict[str, frozenset[str]] = {
             PRODUCTS_MANAGE,
             INVENTORY_VIEW,
             REPORTS_VIEW,
+            TASKS_VIEW,
+            TASKS_MANAGE,
+            NOTIFICATIONS_VIEW,
         }
     ),
     StaffRole.INVENTORY_STAFF: frozenset(
@@ -126,6 +138,9 @@ ROLE_CAPABILITIES: dict[str, frozenset[str]] = {
             INVENTORY_MANAGE,
             PRODUCTS_VIEW,
             DELIVERIES_VIEW,
+            TASKS_VIEW,
+            TASKS_MANAGE,
+            NOTIFICATIONS_VIEW,
         }
     ),
     StaffRole.ORDER_STAFF: frozenset(
@@ -135,6 +150,9 @@ ROLE_CAPABILITIES: dict[str, frozenset[str]] = {
             ORDERS_MANAGE,
             INVENTORY_VIEW,
             DELIVERIES_VIEW,
+            TASKS_VIEW,
+            TASKS_MANAGE,
+            NOTIFICATIONS_VIEW,
         }
     ),
     StaffRole.DELIVERY_STAFF: frozenset(
@@ -143,6 +161,8 @@ ROLE_CAPABILITIES: dict[str, frozenset[str]] = {
             DELIVERIES_VIEW,
             DELIVERIES_MANAGE,
             ORDERS_VIEW,
+            TASKS_VIEW,
+            NOTIFICATIONS_VIEW,
         }
     ),
     StaffRole.SUPPORT_STAFF: frozenset(
@@ -152,6 +172,9 @@ ROLE_CAPABILITIES: dict[str, frozenset[str]] = {
             SUPPORT_MANAGE,
             ORDERS_VIEW,
             DELIVERIES_VIEW,
+            TASKS_VIEW,
+            TASKS_MANAGE,
+            NOTIFICATIONS_VIEW,
         }
     ),
     StaffRole.READ_ONLY: frozenset(
@@ -163,6 +186,8 @@ ROLE_CAPABILITIES: dict[str, frozenset[str]] = {
             DELIVERIES_VIEW,
             SUPPORT_VIEW,
             REPORTS_VIEW,
+            TASKS_VIEW,
+            NOTIFICATIONS_VIEW,
         }
     ),
 }

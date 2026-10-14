@@ -9,12 +9,14 @@ from django.urls import reverse
 from apps.staff.constants import (
     DELIVERIES_VIEW,
     INVENTORY_VIEW,
+    NOTIFICATIONS_VIEW,
     ORDERS_VIEW,
     PORTAL_ACCESS,
     PRODUCTS_VIEW,
     REPORTS_VIEW,
     STAFF_MANAGE,
     SUPPORT_VIEW,
+    TASKS_VIEW,
 )
 from apps.staff.permissions import get_user_capabilities
 
@@ -29,6 +31,20 @@ STAFF_NAVIGATION_SCHEMA: tuple[tuple[str, tuple[dict[str, Any], ...]], ...] = (
                 "url_name": "staff:dashboard",
                 "capability": PORTAL_ACCESS,
                 "icon": "home",
+            },
+            {
+                "key": "tasks",
+                "label": "Staff Tasks",
+                "url_name": "staff:task_list",
+                "capability": TASKS_VIEW,
+                "icon": "clipboard-list",
+            },
+            {
+                "key": "notifications",
+                "label": "Notifications",
+                "url_name": "staff:notification_list",
+                "capability": NOTIFICATIONS_VIEW,
+                "icon": "bell",
             },
         ),
     ),

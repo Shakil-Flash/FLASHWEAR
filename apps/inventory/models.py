@@ -98,6 +98,31 @@ class Stock(TimestampedModel):
             return self.variant.product.low_stock_threshold
         return getattr(settings, "BACKOFFICE_LOW_STOCK_THRESHOLD", 5)
 
+    @property
+    def status(self) -> str:
+        """Categorize current stock state: out_of_stock, low_stock, or in_stock."""
+        if self.on_hand <= 0:
+            return "out_of_stock"
+        if self.available <= self.effective_threshold:
+            return "low_stock"
+        return "in_stock"
+
+    @property
+    def is_low_stock(self) -> bool:
+        return self.status in ("low_stock", "out_of_stock")
+
+    @property
+    def suggested_replenishment(self) -> int:
+        """Calculate suggested replenishment units based on threshold and current available units.
+
+        Target stock is set to 2x effective threshold plus buffer, minus available.
+        """
+        threshold = self.effective_threshold
+        target_stock = max(threshold * 2, threshold + 10)
+        if self.available < threshold:
+            return max(0, target_stock - self.available)
+        return 0
+
     @classmethod
     def get_for_variant(cls, variant) -> Stock:
         """The variant's stock row, created on first use with zero counters."""
@@ -111,6 +136,9 @@ class InventoryMovement(models.Model):
     class Kind(models.TextChoices):
         RECEIVED = "received", _("Received")
         ADJUSTMENT = "adjustment", _("Adjustment")
+        DAMAGED = "damaged", _("Damaged / Unsellable")
+        LOSS = "loss", _("Stock Loss / Shrinkage")
+        REVERSAL = "reversal", _("Compensating Reversal")
         RESERVED = "reserved", _("Reserved")
         RELEASED = "released", _("Released")
         EXPIRED = "expired", _("Hold expired")

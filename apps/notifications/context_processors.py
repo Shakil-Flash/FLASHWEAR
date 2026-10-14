@@ -34,11 +34,21 @@ def unread_count(request) -> dict:
         from apps.notifications.services.in_app import unread_count as count_unread
 
         count = count_unread(user)
+        staff_count = 0
+        try:
+            from apps.staff.notification_services import get_staff_unread_count
+            staff_count = get_staff_unread_count(user)
+        except Exception:
+            pass
+
         try:
             request._fw_unread_count = count
         except AttributeError:  # pragma: no cover - synthesised requests
             pass
-        return {"notifications_unread": count}
+        return {
+            "notifications_unread": count,
+            "staff_notifications_unread": staff_count,
+        }
     except Exception:  # pragma: no cover - defensive by contract
         logger.exception("Could not count unread notifications for badge")
-        return {"notifications_unread": 0}
+        return {"notifications_unread": 0, "staff_notifications_unread": 0}
