@@ -39,7 +39,7 @@
             {% endif %}
 
             {% if not is_self %}
-                <form method="post" action="{% url 'staff:account_toggle_active' member.pk %}" onsubmit="return confirm('Are you sure you want to {% if member.is_active %}deactivate{% else %}activate{% endif %} this staff account?');">
+                <form method="post" action="{% url 'staff:account_toggle_active' member.pk %}" data-confirm="Are you sure you want to {% if member.is_active %}deactivate{% else %}activate{% endif %} this staff account?">
                     {% csrf_token %}
                     {% if member.is_active %}
                         <button type="submit" class="px-3.5 py-2 rounded-lg border border-rose-300 dark:border-rose-800 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-xs font-semibold transition">

@@ -292,11 +292,10 @@
 
                     {% if not shipment.is_dispatched and shipment.status != "cancelled" %}
                         {# 6. Cancel Fulfillment #}
-                        <form method="post" action="{% url 'backoffice:shipment_action' shipment.reference|default:shipment.pk %}" class="border-t border-slate-100 pt-3">
+                        <form method="post" action="{% url 'backoffice:shipment_action' shipment.reference|default:shipment.pk %}" class="border-t border-slate-100 pt-3" data-confirm="Are you sure you want to cancel this package fulfillment?">
                             {% csrf_token %}
                             <input type="hidden" name="action" value="cancel" />
-                            <button type="submit" class="w-full rounded-xl border border-red-200 bg-red-50/50 px-4 py-2 text-xs font-semibold text-red-700 hover:bg-red-100"
-                                    onclick="return confirm('Are you sure you want to cancel this package fulfillment?');">
+                            <button type="submit" class="w-full rounded-xl border border-red-200 bg-red-50/50 px-4 py-2 text-xs font-semibold text-red-700 hover:bg-red-100">
                                 Cancel Package
                             </button>
                         </form>

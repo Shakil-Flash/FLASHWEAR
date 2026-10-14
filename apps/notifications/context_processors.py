@@ -35,11 +35,17 @@ def unread_count(request) -> dict:
 
         count = count_unread(user)
         staff_count = 0
-        try:
-            from apps.staff.notification_services import get_staff_unread_count
-            staff_count = get_staff_unread_count(user)
-        except Exception:
-            pass
+        path = getattr(request, "path", "") or ""
+        if getattr(user, "is_staff", False) and (
+            path.startswith("/staff/")
+            or (match is not None and "staff" in getattr(match, "app_names", ()))
+        ):
+            try:
+                from apps.staff.notification_services import get_staff_unread_count
+
+                staff_count = get_staff_unread_count(user)
+            except Exception:
+                pass
 
         try:
             request._fw_unread_count = count

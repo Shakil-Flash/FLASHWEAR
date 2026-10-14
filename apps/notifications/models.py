@@ -564,3 +564,15 @@ class DeliveryWebhookEvent(models.Model):
 
     def __str__(self) -> str:
         return f"{self.provider}:{self.event_id} ({self.event_type})"
+
+    @property
+    def received_at(self):
+        """Timestamp alias for processed_at for template and reporting compatibility."""
+        return self.processed_at
+
+    @property
+    def status(self) -> str:
+        """Normalized status string from payload or event_type."""
+        if isinstance(self.payload, dict) and "status" in self.payload:
+            return str(self.payload["status"])
+        return self.event_type

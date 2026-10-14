@@ -115,7 +115,10 @@ def notification_delivery_events(notification_id: int) -> QuerySet:
     """Linked delivery webhook events for audit and diagnostic inspection."""
     from apps.notifications.models import DeliveryWebhookEvent
 
-    return DeliveryWebhookEvent.objects.filter(notification_id=notification_id).order_by("-received_at")
+    return (
+        DeliveryWebhookEvent.objects.filter(notification_id=notification_id)
+        .order_by("-processed_at")
+    )
 
 
 def notification_metrics() -> dict:

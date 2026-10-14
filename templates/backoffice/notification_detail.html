@@ -20,7 +20,7 @@
         </div>
         <div class="flex items-center gap-3">
             {% if can_retry and row.status == "failed" %}
-                <form method="post" action="{% url 'backoffice:notification_retry' row.pk %}" onsubmit="return confirm('Retry delivery for this notification? Promotional checks and channel availability will be verified.');">
+                <form method="post" action="{% url 'backoffice:notification_retry' row.pk %}" data-confirm="Retry delivery for this notification? Promotional checks and channel availability will be verified.">
                     {% csrf_token %}
                     <button type="submit" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700">
                         Retry delivery

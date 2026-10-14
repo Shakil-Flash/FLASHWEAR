@@ -44,6 +44,8 @@ __all__ = [
     "ensure_unsubscribe_token",
     "find_unsubscribe_token",
     "get_preference",
+    "marketing_push_subscribed",
+    "marketing_sms_subscribed",
     "marketing_subscribed",
     "preference_rows",
     "set_preferences",
@@ -89,6 +91,16 @@ def marketing_subscribed(user, channel: str = Channel.EMAIL) -> bool:
     if channel == Channel.IN_APP:
         return pref.in_app_enabled
     return False
+
+
+def marketing_sms_subscribed(user) -> bool:
+    """Convenience helper: check if user opted into SMS marketing."""
+    return marketing_subscribed(user, channel=Channel.SMS)
+
+
+def marketing_push_subscribed(user) -> bool:
+    """Convenience helper: check if user opted into push marketing."""
+    return marketing_subscribed(user, channel=Channel.PUSH)
 
 
 def get_preference(user, category: str) -> NotificationPreference:
