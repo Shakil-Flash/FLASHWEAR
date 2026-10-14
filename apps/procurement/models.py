@@ -12,7 +12,7 @@ Models:
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from django.conf import settings
 from django.core.validators import MaxValueValidator, MinValueValidator

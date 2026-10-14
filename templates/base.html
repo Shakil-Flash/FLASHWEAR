@@ -1,13 +1,15 @@
 {% load i18n static %}
 {% get_current_language as CURRENT_LANGUAGE %}
 <!DOCTYPE html>
-<html lang="{{ CURRENT_LANGUAGE|default:'en' }}" class="h-full bg-slate-50 antialiased">
+<html lang="{{ CURRENT_LANGUAGE|default:'en' }}" class="h-full bg-slate-50 dark:bg-slate-950 antialiased">
 
 <head>
     <meta charset="utf-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover" />
     <meta name="theme-color" content="#0f172a" />
+    <!-- Instant theme resolution to eliminate any flash of unstyled theme -->
+    <script src="{% static 'js/theme-init.js' %}"></script>
     <meta name="description" content="{% block meta_description %}{{ seo_description|default:'FLASHWEAR is a fashion-tech commerce platform.' }}{% endblock meta_description %}" />
     <meta name="robots" content="{% block meta_robots %}{{ seo_robots|default:'index, follow' }}{% endblock meta_robots %}" />
     <!-- Canonical and social tags. Written with an explicit conditional rather than a
@@ -54,7 +56,7 @@
     {% block head_scripts %}{% endblock head_scripts %}
 </head>
 
-<body class="flex min-h-full flex-col overflow-x-hidden text-slate-900 selection:bg-flash-500/20 selection:text-flash-900">
+<body class="flex min-h-full flex-col overflow-x-hidden bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 selection:bg-flash-500/20 selection:text-flash-900">
     <a href="#content" class="skip-link">Skip to content</a>
 
     <!-- Announcement bar -->

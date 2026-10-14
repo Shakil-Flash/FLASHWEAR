@@ -57,6 +57,7 @@ services:
       - staticfiles:/app/staticfiles
       - media:/app/media
       - logs:/app/logs
+      - backups:/app/backups
     depends_on:
       db:
         condition: service_healthy
@@ -134,3 +135,4 @@ volumes:
   staticfiles:
   media:
   logs:
+  backups:

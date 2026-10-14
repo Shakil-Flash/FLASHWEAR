@@ -49,7 +49,11 @@ def _get_webhook_secret(provider: str) -> str:
         getattr(settings, "SHIPPING_WEBHOOK_SECRET", "")
         or getattr(settings, "CARRIER_WEBHOOK_SECRET", "")
     )
-    return generic or settings.SECRET_KEY
+    if generic:
+        return generic
+    if getattr(settings, "DEBUG", False):
+        return getattr(settings, "SECRET_KEY", "")
+    return ""
 
 
 def verify_webhook_signature(
@@ -64,7 +68,10 @@ def verify_webhook_signature(
     Checks ``HTTP_X_SIGNATURE``, ``HTTP_X_WEBHOOK_SIGNATURE``, or ``HTTP_X_CARRIER_SIGNATURE``.
     Supports either a raw hex signature or ``t=<timestamp>,v1=<signature>`` format.
     """
-    key = (secret or _get_webhook_secret(provider)).encode("utf-8")
+    secret_str = secret or _get_webhook_secret(provider)
+    if not secret_str:
+        raise WebhookAuthenticationError("Carrier webhook verification secret is not configured.")
+    key = secret_str.encode("utf-8")
     sig_header = (
         request.headers.get("X-Signature")
         or request.headers.get("X-Webhook-Signature")

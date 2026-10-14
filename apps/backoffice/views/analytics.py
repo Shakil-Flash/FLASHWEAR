@@ -326,7 +326,6 @@ def export_analytics_csv(request):
         m = data["merchandising"]
         exec_kpis = data.get("executive", {})
         curr = exec_kpis.get("current", {})
-        deltas = exec_kpis.get("deltas", {})
 
         _safe_write_row(writer, ["Metric", "Value"])
         _safe_write_row(writer, ["Report", "FLASHWEAR Business Analytics Summary"])
@@ -350,7 +349,6 @@ def export_analytics_csv(request):
         _safe_write_row(writer, ["Products with Zero Sales", m["zero_sales_count"]])
 
         # Cost and Profit metrics
-        cost_status = curr.get("cost_status", "unavailable")
         gp = curr.get("estimated_gross_profit")
         gp_str = f"{gp:.2f}" if gp is not None else "Unavailable (Incomplete Cost Data)"
         gm_pct = curr.get("gross_margin_pct")

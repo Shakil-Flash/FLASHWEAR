@@ -1439,7 +1439,7 @@ def cash_account_adjust(request: HttpRequest, pk: int) -> HttpResponse:
 
     try:
         amount = Decimal(amount_raw)
-        adj = adjust_cash_account_balance(
+        adjust_cash_account_balance(
             account,
             amount=amount,
             adjustment_type=adjustment_type,

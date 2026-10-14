@@ -1,6 +1,6 @@
 {% load i18n static flashwear %}
 
-<footer class="border-t border-slate-200 bg-white">
+<footer class="border-t border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950">
     <div class="mx-auto max-w-7xl px-4 pt-16 pb-8 sm:px-6 lg:px-8">
         {# Brand story — not just a logo repeat #}
         <div class="grid gap-10 lg:grid-cols-5">
@@ -11,51 +11,51 @@
                             <path fill-rule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zm-1.5 6.75a.75.75 0 000 1.5h3a.75.75 0 000-1.5h-3zm0 3a.75.75 0 000 1.5h3a.75.75 0 000-1.5h-3z" clip-rule="evenodd" />
                         </svg>
                     </span>
-                    <p class="text-lg font-semibold tracking-tight text-slate-950">{{ site_name|default:'FLASHWEAR' }}</p>
+                    <p class="text-lg font-semibold tracking-tight text-slate-950 dark:text-white">{{ site_name|default:'FLASHWEAR' }}</p>
                 </div>
-                <p class="max-w-md text-sm leading-relaxed text-slate-500">
+                <p class="max-w-md text-sm leading-relaxed text-slate-500 dark:text-slate-400">
                     {% translate "Real garments crafted with authentic materials, designed around personal style." %}
                 </p>
-                <p class="text-xs text-slate-400">
-                    {% translate "Questions?" %} <a href="mailto:{{ support_email|default:'support@flashwear.local' }}" class="text-slate-600 underline underline-offset-4 hover:text-slate-900">{{ support_email|default:'support@flashwear.local' }}</a>
+                <p class="text-xs text-slate-400 dark:text-slate-500">
+                    {% translate "Questions?" %} <a href="mailto:{{ support_email|default:'support@flashwear.local' }}" class="text-slate-600 dark:text-slate-300 underline underline-offset-4 hover:text-slate-900 dark:hover:text-white">{{ support_email|default:'support@flashwear.local' }}</a>
                 </p>
             </div>
 
             <div>
-                <h3 class="editorial-label">{% translate "Shop" %}</h3>
-                <ul class="mt-4 space-y-2.5 text-sm text-slate-500">
-                    <li><a href="{% url 'catalog:product-list' %}" class="transition hover:text-slate-900">{% translate "All products" %}</a></li>
-                    <li><a href="{% url 'catalog:category-list' %}" class="transition hover:text-slate-900">{% translate "Categories" %}</a></li>
-                    <li><a href="{% url 'catalog:collection-list' %}" class="transition hover:text-slate-900">{% translate "Collections" %}</a></li>
-                    <li><a href="{% url 'loop:resale-list' %}" class="transition hover:text-slate-900">{% translate "FLASH Loop" %}</a></li>
-                    <li><a href="{% url 'catalog:visual-search' %}" class="transition hover:text-slate-900">{% translate "Visual Discovery" %}</a></li>
+                <h3 class="editorial-label text-slate-700 dark:text-slate-300">{% translate "Shop" %}</h3>
+                <ul class="mt-4 space-y-2.5 text-sm text-slate-500 dark:text-slate-400">
+                    <li><a href="{% url 'catalog:product-list' %}" class="transition hover:text-slate-900 dark:hover:text-white">{% translate "All products" %}</a></li>
+                    <li><a href="{% url 'catalog:category-list' %}" class="transition hover:text-slate-900 dark:hover:text-white">{% translate "Categories" %}</a></li>
+                    <li><a href="{% url 'catalog:collection-list' %}" class="transition hover:text-slate-900 dark:hover:text-white">{% translate "Collections" %}</a></li>
+                    <li><a href="{% url 'loop:resale-list' %}" class="transition hover:text-slate-900 dark:hover:text-white">{% translate "FLASH Loop" %}</a></li>
+                    <li><a href="{% url 'catalog:visual-search' %}" class="transition hover:text-slate-900 dark:hover:text-white">{% translate "Visual Discovery" %}</a></li>
                 </ul>
             </div>
 
             <div>
-                <h3 class="editorial-label">{% translate "Style" %}</h3>
-                <ul class="mt-4 space-y-2.5 text-sm text-slate-500">
-                    <li><a href="{% url 'account:studio' %}" class="transition hover:text-slate-900">{% translate "Style Studio" %}</a></li>
-                    <li><a href="{% url 'account:outfits' %}" class="transition hover:text-slate-900">{% translate "My Outfits" %}</a></li>
-                    <li><a href="{% url 'account:closet' %}" class="transition hover:text-slate-900">{% translate "FLASH Closet" %}</a></li>
-                    <li><a href="{% url 'shop:wishlist' %}" class="transition hover:text-slate-900">{% translate "Wishlist" %}</a></li>
+                <h3 class="editorial-label text-slate-700 dark:text-slate-300">{% translate "Style" %}</h3>
+                <ul class="mt-4 space-y-2.5 text-sm text-slate-500 dark:text-slate-400">
+                    <li><a href="{% url 'account:studio' %}" class="transition hover:text-slate-900 dark:hover:text-white">{% translate "Style Studio" %}</a></li>
+                    <li><a href="{% url 'account:outfits' %}" class="transition hover:text-slate-900 dark:hover:text-white">{% translate "My Outfits" %}</a></li>
+                    <li><a href="{% url 'account:closet' %}" class="transition hover:text-slate-900 dark:hover:text-white">{% translate "FLASH Closet" %}</a></li>
+                    <li><a href="{% url 'shop:wishlist' %}" class="transition hover:text-slate-900 dark:hover:text-white">{% translate "Wishlist" %}</a></li>
                 </ul>
             </div>
 
             <div>
-                <h3 class="editorial-label">{% translate "Account" %}</h3>
-                <ul class="mt-4 space-y-2.5 text-sm text-slate-500">
-                    <li><a href="{% url 'account:dashboard' %}" class="transition hover:text-slate-900">{% translate "My Account" %}</a></li>
-                    <li><a href="{% url 'account:orders' %}" class="transition hover:text-slate-900">{% translate "Orders" %}</a></li>
-                    <li><a href="{% url 'account:returns' %}" class="transition hover:text-slate-900">{% translate "Returns" %}</a></li>
-                    <li><a href="{% url 'support:home' %}" class="transition hover:text-slate-900">{% translate "Support" %}</a></li>
-                    <li><a href="{% url 'account:loyalty' %}" class="transition hover:text-slate-900">{% translate "FLASH Points" %}</a></li>
+                <h3 class="editorial-label text-slate-700 dark:text-slate-300">{% translate "Account" %}</h3>
+                <ul class="mt-4 space-y-2.5 text-sm text-slate-500 dark:text-slate-400">
+                    <li><a href="{% url 'account:dashboard' %}" class="transition hover:text-slate-900 dark:hover:text-white">{% translate "My Account" %}</a></li>
+                    <li><a href="{% url 'account:orders' %}" class="transition hover:text-slate-900 dark:hover:text-white">{% translate "Orders" %}</a></li>
+                    <li><a href="{% url 'account:returns' %}" class="transition hover:text-slate-900 dark:hover:text-white">{% translate "Returns" %}</a></li>
+                    <li><a href="{% url 'support:home' %}" class="transition hover:text-slate-900 dark:hover:text-white">{% translate "Support" %}</a></li>
+                    <li><a href="{% url 'account:loyalty' %}" class="transition hover:text-slate-900 dark:hover:text-white">{% translate "FLASH Points" %}</a></li>
                 </ul>
             </div>
         </div>
 
-        <div class="mt-12 border-t border-slate-100 pt-6 flex flex-col items-center justify-between gap-4 sm:flex-row">
-            <p class="text-xs text-slate-400">
+        <div class="mt-12 border-t border-slate-100 dark:border-slate-800 pt-6 flex flex-col items-center justify-between gap-4 sm:flex-row">
+            <p class="text-xs text-slate-400 dark:text-slate-500">
                 &copy; {% now "Y" %} {{ site_name|default:'FLASHWEAR' }} &middot; {% translate "Platform under development" %}
             </p>
             <div class="flex items-center gap-4">

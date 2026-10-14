@@ -557,9 +557,6 @@ CATALOG_IMAGE_ALLOWED_FORMATS = tuple(
     for item in env.list("CATALOG_IMAGE_ALLOWED_FORMATS", default=["JPEG", "PNG", "WEBP"])
 )
 
-# Forward-compatibility: assume https for forms.URLField
-FORMS_URLFIELD_ASSUME_HTTPS = True
-
 # Server-rendered storefront grid size, and the API defaults. The API caps ``?page_size`` at
 # ``CATALOG_API_MAX_PAGE_SIZE`` so a client cannot ask for the whole catalog in one response.
 CATALOG_PRODUCTS_PER_PAGE = env.int("CATALOG_PRODUCTS_PER_PAGE", default=12)
@@ -869,6 +866,10 @@ INVENTORY_RESERVATION_MINUTES = env.int("INVENTORY_RESERVATION_MINUTES", default
 PAYMENT_PROVIDER = env("PAYMENT_PROVIDER", default="")
 PAYMENT_SECRET_KEY = env("PAYMENT_SECRET_KEY", default="")
 PAYMENT_WEBHOOK_SECRET = env("PAYMENT_WEBHOOK_SECRET", default="")
+
+# Carrier & shipping fulfillment webhook verification secrets
+CARRIER_WEBHOOK_SECRET = env("CARRIER_WEBHOOK_SECRET", default="")
+SHIPPING_WEBHOOK_SECRET = env("SHIPPING_WEBHOOK_SECRET", default="")
 
 # Signed webhooks carry a timestamp; deliveries outside this window are rejected as
 # replays. Generous because a provider retry may sit in a queue for a while.

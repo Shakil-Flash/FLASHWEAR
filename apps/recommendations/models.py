@@ -103,7 +103,7 @@ class RecommendationSignal(models.Model):
                 name="unique_signal_per_user_type_ref",
             ),
             models.CheckConstraint(
-                check=models.Q(strength__gt=0),
+                condition=models.Q(strength__gt=0),
                 name="signal_strength_positive",
             ),
         ]

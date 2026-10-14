@@ -109,8 +109,13 @@ fi
 # ------------------------------------------------------------------------------
 # 7. Health & Readiness Verification
 # ------------------------------------------------------------------------------
-echo "==> [Step 7/7] Probing application health..."
-HEALTH_URL="${HEALTH_URL:-http://localhost:8000/health/ready/}"
+if [ -z "${HEALTH_URL:-}" ]; then
+    if [ -f "docker-compose.prod.yml" ] && command -v docker >/dev/null 2>&1; then
+        HEALTH_URL="http://localhost/health/ready/"
+    else
+        HEALTH_URL="http://localhost:8000/health/ready/"
+    fi
+fi
 if command -v curl >/dev/null 2>&1; then
     # Retry health probe up to 10 times (30 seconds)
     READY=0

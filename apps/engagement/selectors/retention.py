@@ -294,9 +294,8 @@ def get_cohort_retention_matrix(max_cohorts: int = 6) -> list[dict[str, Any]]:
             # Target month
             target_year = c_year + (c_month - 1 + m_offset) // 12
             target_month = (c_month - 1 + m_offset) % 12 + 1
-            target_key = f"{target_year:04d}-{target_month:02d}"
 
-            # Check which cohort users placed an order in target_key
+            # Check which cohort users placed an order in target month
             month_orders = all_orders.filter(
                 user_id__in=cohort_users,
                 created_at__year=target_year,

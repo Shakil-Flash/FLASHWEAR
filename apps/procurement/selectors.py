@@ -1291,7 +1291,6 @@ def generate_cash_flow_forecast(
 
     # Group future scheduled cash movements by date
     scheduled_confirmed_inflows: dict[datetime.date, Decimal] = {}
-    scheduled_projected_inflows: dict[datetime.date, Decimal] = {}
     scheduled_ap_outflows: dict[datetime.date, Decimal] = {}
     scheduled_opex_outflows: dict[datetime.date, Decimal] = {}
     scheduled_po_outflows: dict[datetime.date, Decimal] = {}

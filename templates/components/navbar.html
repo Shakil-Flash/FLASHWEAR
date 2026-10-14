@@ -9,6 +9,28 @@
     loadingSuggestions: false,
     selectedIndex: -1,
     searchError: false,
+    theme: localStorage.getItem('theme') || 'auto',
+    themeOpen: false,
+    setTheme(val) {
+        this.theme = val;
+        try { localStorage.setItem('theme', val); } catch (e) {}
+        this.applyTheme();
+        this.themeOpen = false;
+    },
+    applyTheme() {
+        var d = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (this.theme === 'dark' || (this.theme === 'auto' && d)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    },
+    init() {
+        this.applyTheme();
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+            if (this.theme === 'auto') this.applyTheme();
+        });
+    },
     fetchSuggestions() {
         if (this.searchQuery.trim().length < 2) {
             this.suggestions = [];
@@ -48,7 +70,7 @@
             window.location.href = this.suggestions[this.selectedIndex].url;
         }
     }
-}" @keydown.window.escape="searchOpen = false" @keydown.window.cmd.k.prevent="searchOpen = true; $nextTick(() => $refs.searchInput?.focus())" @keydown.window.ctrl.k.prevent="searchOpen = true; $nextTick(() => $refs.searchInput?.focus())" class="sticky top-0 z-50 border-b border-slate-200/70 bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/80">
+}" @keydown.window.escape="searchOpen = false; themeOpen = false" @keydown.window.cmd.k.prevent="searchOpen = true; $nextTick(() => $refs.searchInput?.focus())" @keydown.window.ctrl.k.prevent="searchOpen = true; $nextTick(() => $refs.searchInput?.focus())" class="sticky top-0 z-50 border-b border-slate-200/70 bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/80 dark:border-slate-800/80 dark:bg-slate-950/90 dark:supports-[backdrop-filter]:bg-slate-950/80">
     <nav class="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8" aria-label="Primary navigation">
         <div class="flex items-center gap-8">
             <a href="{% url 'core:home' %}" class="flex items-center gap-2">
@@ -59,40 +81,40 @@
                     </svg>
                 </span>
                 <div class="flex flex-col">
-                    <span class="text-lg font-semibold tracking-tight text-slate-950">{{ site_name|default:'FLASHWEAR' }}</span>
-                    <span class="hidden text-xs font-medium uppercase tracking-[0.18em] text-slate-500 sm:block">{{ site_tagline|default:'Fashion Beyond Ordinary' }}</span>
+                    <span class="text-lg font-semibold tracking-tight text-slate-950 dark:text-white">{{ site_name|default:'FLASHWEAR' }}</span>
+                    <span class="hidden text-xs font-medium uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400 sm:block">{{ site_tagline|default:'Fashion Beyond Ordinary' }}</span>
                 </div>
             </a>
 
             <div class="hidden items-center gap-6 lg:flex">
-                <a href="{% url 'core:home' %}" class="text-sm font-medium text-slate-700 transition hover:text-slate-950 {% active_url request 'core:home' %}">{% translate "Home" %}</a>
-                <a href="{% url 'catalog:product-list' %}" class="text-sm font-medium text-slate-700 transition hover:text-slate-950 {% active_url request 'catalog:product-list' %}">{% translate "Shop" %}</a>
-                <a href="{% url 'catalog:collection-list' %}" class="text-sm font-medium text-slate-700 transition hover:text-slate-950 {% active_url request 'catalog:collection-list' %}">{% translate "Collections" %}</a>
-                <a href="{% url 'inspiration:list' %}" class="text-sm font-medium text-slate-700 transition hover:text-slate-950">{% translate "Inspiration" %}</a>
-                <a href="{% url 'account:studio' %}" class="text-sm font-medium text-slate-700 transition hover:text-slate-950">{% translate "Styling" %}</a>
+                <a href="{% url 'core:home' %}" class="text-sm font-medium text-slate-700 transition hover:text-slate-950 dark:text-slate-300 dark:hover:text-white {% active_url request 'core:home' %}">{% translate "Home" %}</a>
+                <a href="{% url 'catalog:product-list' %}" class="text-sm font-medium text-slate-700 transition hover:text-slate-950 dark:text-slate-300 dark:hover:text-white {% active_url request 'catalog:product-list' %}">{% translate "Shop" %}</a>
+                <a href="{% url 'catalog:collection-list' %}" class="text-sm font-medium text-slate-700 transition hover:text-slate-950 dark:text-slate-300 dark:hover:text-white {% active_url request 'catalog:collection-list' %}">{% translate "Collections" %}</a>
+                <a href="{% url 'inspiration:list' %}" class="text-sm font-medium text-slate-700 transition hover:text-slate-950 dark:text-slate-300 dark:hover:text-white">{% translate "Inspiration" %}</a>
+                <a href="{% url 'account:studio' %}" class="text-sm font-medium text-slate-700 transition hover:text-slate-950 dark:text-slate-300 dark:hover:text-white">{% translate "Styling" %}</a>
 
                 <!-- Discover Dropdown -->
                 <div class="relative" @click.away="discoverOpen = false">
-                    <button type="button" @click="discoverOpen = !discoverOpen" class="inline-flex items-center gap-1 text-sm font-medium text-slate-700 transition hover:text-slate-950">
+                    <button type="button" @click="discoverOpen = !discoverOpen" class="inline-flex items-center gap-1 text-sm font-medium text-slate-700 transition hover:text-slate-950 dark:text-slate-300 dark:hover:text-white">
                         <span>{% translate "Discover" %}</span>
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-4 w-4 text-slate-400 transition" :class="discoverOpen ? 'rotate-180' : ''">
                             <path fill-rule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd" />
                         </svg>
                     </button>
-                    <div x-show="discoverOpen" x-transition.opacity.duration.150ms x-cloak class="absolute left-0 mt-3 w-56 origin-top-left rounded-2xl border border-slate-200 bg-white p-2 shadow-elevated">
-                        <a href="{% url 'catalog:discovery-hub' %}" class="block rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:text-slate-950">
+                    <div x-show="discoverOpen" x-transition.opacity.duration.150ms x-cloak class="absolute left-0 mt-3 w-56 origin-top-left rounded-2xl border border-slate-200 bg-white p-2 shadow-elevated dark:border-slate-800 dark:bg-slate-900">
+                        <a href="{% url 'catalog:discovery-hub' %}" class="block rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white">
                             {% translate "Mood & Occasion" %}
                         </a>
-                        <a href="{% url 'catalog:category-list' %}" class="block rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:text-slate-950">
+                        <a href="{% url 'catalog:category-list' %}" class="block rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white">
                             {% translate "Categories" %}
                         </a>
-                        <a href="{% url 'creator:creator_list' %}" class="block rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:text-slate-950">
+                        <a href="{% url 'creator:creator_list' %}" class="block rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white">
                             {% translate "Creators" %}
                         </a>
-                        <a href="{% url 'loop:resale-list' %}" class="block rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:text-slate-950">
+                        <a href="{% url 'loop:resale-list' %}" class="block rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white">
                             {% translate "Loop Resale" %}
                         </a>
-                        <a href="{% url 'catalog:visual-search' %}" class="block rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:text-slate-950">
+                        <a href="{% url 'catalog:visual-search' %}" class="block rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white">
                             {% translate "Search by Image" %}
                         </a>
                     </div>
@@ -104,17 +126,17 @@
             <!-- Search Trigger -->
             <button type="button"
                     @click="searchOpen = true; $nextTick(() => $refs.searchInput?.focus())"
-                    class="group inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-soft transition hover:border-slate-300 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-flash-500/20"
+                    class="group inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-soft transition hover:border-slate-300 hover:text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-slate-700 dark:hover:text-white focus:outline-none focus:ring-2 focus:ring-flash-500/20"
                     aria-label="Search catalogue">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-4 w-4 text-slate-500 transition group-hover:text-slate-700">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-4 w-4 text-slate-500 transition group-hover:text-slate-700 dark:group-hover:text-slate-200">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
                 </svg>
                 <span class="hidden xl:inline text-xs font-semibold">{% translate "Search" %}</span>
-                <kbd class="hidden xl:inline-block rounded bg-slate-100 px-1 py-0.5 text-[10px] font-semibold text-slate-400">⌘K</kbd>
+                <kbd class="hidden xl:inline-block rounded bg-slate-100 dark:bg-slate-800 px-1 py-0.5 text-[10px] font-semibold text-slate-400">⌘K</kbd>
             </button>
 
             <!-- Wishlist -->
-            <a href="{% url 'shop:wishlist' %}" class="group relative inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-soft transition hover:border-slate-300 hover:text-slate-900" aria-label="Wishlist, {{ wishlist_count }} item{{ wishlist_count|pluralize }}">
+            <a href="{% url 'shop:wishlist' %}" class="group relative inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-soft transition hover:border-slate-300 hover:text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-slate-700 dark:hover:text-white" aria-label="Wishlist, {{ wishlist_count }} item{{ wishlist_count|pluralize }}">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-4 w-4 text-slate-500 transition group-hover:text-rose-600">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
                 </svg>
@@ -126,9 +148,9 @@
             <!-- Bag -->
             <a href="{% url 'shop:cart' %}"
                @click.prevent="$dispatch('toggle-mini-cart')"
-               class="group relative inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-soft transition hover:border-slate-300 hover:text-slate-900"
+               class="group relative inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-soft transition hover:border-slate-300 hover:text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-slate-700 dark:hover:text-white"
                aria-label="Bag, {{ cart_count }} item{{ cart_count|pluralize }}">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-4 w-4 text-slate-500 transition group-hover:text-slate-900">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-4 w-4 text-slate-500 transition group-hover:text-slate-900 dark:group-hover:text-white">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007z" />
                 </svg>
                 {% if cart_count %}
@@ -138,8 +160,8 @@
 
             <!-- Notifications (if authenticated) -->
             {% if user.is_authenticated %}
-            <a href="{% url 'notifications:center' %}" class="group relative inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-soft transition hover:border-slate-300 hover:text-slate-900" aria-label="Notifications{% if notifications_unread %}, {{ notifications_unread }} unread{% endif %}">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-4 w-4 text-slate-500 transition group-hover:text-slate-900">
+            <a href="{% url 'notifications:center' %}" class="group relative inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-soft transition hover:border-slate-300 hover:text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-slate-700 dark:hover:text-white" aria-label="Notifications{% if notifications_unread %}, {{ notifications_unread }} unread{% endif %}">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-4 w-4 text-slate-500 transition group-hover:text-slate-900 dark:group-hover:text-white">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
                 </svg>
                 {% if notifications_unread %}
@@ -148,13 +170,48 @@
             </a>
             {% endif %}
 
+            <!-- Theme Switcher (Desktop) -->
+            <div class="relative hidden sm:block" @click.outside="themeOpen = false">
+                <button type="button" @click="themeOpen = !themeOpen" class="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-soft transition hover:border-slate-300 hover:text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-slate-700 dark:hover:text-white focus:outline-none focus:ring-2 focus:ring-flash-500/20" aria-label="Toggle theme" :title="'Theme: ' + theme">
+                    <template x-if="theme === 'light'">
+                        <svg class="h-4 w-4 text-amber-500" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
+                        </svg>
+                    </template>
+                    <template x-if="theme === 'dark'">
+                        <svg class="h-4 w-4 text-flash-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
+                        </svg>
+                    </template>
+                    <template x-if="theme === 'auto'">
+                        <svg class="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25m18 0A2.25 2.25 0 0018.75 3H5.25A2.25 2.25 0 003 5.25m18 0H3" />
+                        </svg>
+                    </template>
+                </button>
+                <div x-show="themeOpen" x-cloak x-transition class="absolute right-0 mt-2 w-32 rounded-2xl border border-slate-200 bg-white py-1.5 shadow-lg dark:border-slate-800 dark:bg-slate-900 z-50">
+                    <button type="button" @click="setTheme('light')" class="flex w-full items-center gap-2 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800" :class="theme === 'light' ? 'text-amber-600 font-bold dark:text-amber-400' : ''">
+                        <svg class="h-3.5 w-3.5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" /></svg>
+                        <span>Light</span>
+                    </button>
+                    <button type="button" @click="setTheme('dark')" class="flex w-full items-center gap-2 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800" :class="theme === 'dark' ? 'text-flash-600 font-bold dark:text-flash-400' : ''">
+                        <svg class="h-3.5 w-3.5 text-flash-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" /></svg>
+                        <span>Dark</span>
+                    </button>
+                    <button type="button" @click="setTheme('auto')" class="flex w-full items-center gap-2 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800" :class="theme === 'auto' ? 'text-slate-900 font-bold dark:text-white' : ''">
+                        <svg class="h-3.5 w-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25m18 0A2.25 2.25 0 0018.75 3H5.25A2.25 2.25 0 003 5.25m18 0H3" /></svg>
+                        <span>Auto</span>
+                    </button>
+                </div>
+            </div>
+
             <!-- Language Switcher (Desktop) -->
             <div class="hidden sm:flex items-center">
                 <form action="{% url 'set_language' %}" method="post" class="inline-flex items-center">
                     {% csrf_token %}
                     <input name="next" type="hidden" value="{{ request.path }}">
                     <label for="header-lang-select" class="sr-only">{% translate "Language" %}</label>
-                    <select id="header-lang-select" name="language" @change="$el.form.submit()" class="cursor-pointer rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 shadow-soft transition hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-flash-500/20">
+                    <select id="header-lang-select" name="language" @change="$el.form.submit()" class="cursor-pointer rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 shadow-soft transition hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-slate-700 focus:outline-none focus:ring-2 focus:ring-flash-500/20">
                         {% get_current_language as CURRENT_LANG %}
                         {% get_available_languages as AVAIL_LANGS %}
                         {% get_language_info_list for AVAIL_LANGS as languages %}
@@ -170,22 +227,22 @@
             <!-- Account Controls -->
             <div class="hidden items-center gap-2 sm:flex">
                 {% if user.is_authenticated %}
-                    <a href="{% url 'account:dashboard' %}" class="inline-flex items-center rounded-full px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 hover:text-slate-950">
+                    <a href="{% url 'account:dashboard' %}" class="inline-flex items-center rounded-full px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white">
                         {% translate "My account" %}
                     </a>
                     {% if user.is_staff %}
-                    <a href="{% url 'admin:index' %}" class="inline-flex items-center rounded-full px-2.5 py-1.5 text-xs font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-slate-950">
+                    <a href="{% url 'admin:index' %}" class="inline-flex items-center rounded-full px-2.5 py-1.5 text-xs font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white">
                         {% translate "Admin" %}
                     </a>
                     {% endif %}
                     <form method="post" action="{% url 'accounts:logout' %}">
                         {% csrf_token %}
-                        <button type="submit" class="inline-flex items-center rounded-full px-2.5 py-1.5 text-xs font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-950">
+                        <button type="submit" class="inline-flex items-center rounded-full px-2.5 py-1.5 text-xs font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white">
                             {% translate "Sign out" %}
                         </button>
                     </form>
                 {% else %}
-                    <a href="{% url 'accounts:login' %}" class="inline-flex items-center rounded-full px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 hover:text-slate-950">
+                    <a href="{% url 'accounts:login' %}" class="inline-flex items-center rounded-full px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white">
                         {% translate "Sign in" %}
                     </a>
                     <a href="{% url 'account:register' %}" class="inline-flex items-center justify-center rounded-full bg-flash-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-soft transition hover:bg-flash-700">
@@ -195,7 +252,7 @@
             </div>
 
             <!-- Mobile menu button -->
-            <button type="button" @click="open = !open" class="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white p-2 text-slate-700 shadow-soft transition hover:border-slate-300 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-flash-500/20 lg:hidden" aria-controls="mobile-nav" :aria-expanded="open">
+            <button type="button" @click="open = !open" class="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white p-2 text-slate-700 shadow-soft transition hover:border-slate-300 hover:text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-slate-700 dark:hover:text-white focus:outline-none focus:ring-2 focus:ring-flash-500/20 lg:hidden" aria-controls="mobile-nav" :aria-expanded="open">
                 <span class="sr-only">Toggle navigation</span>
                 <svg x-show="!open" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-5 w-5">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
@@ -208,26 +265,32 @@
     </nav>
 
     <!-- Mobile navigation -->
-    <div x-show="open" x-transition.opacity x-cloak id="mobile-nav" class="border-t border-slate-200 bg-white/95 backdrop-blur md:hidden">
+    <div x-show="open" x-transition.opacity x-cloak id="mobile-nav" class="border-t border-slate-200 bg-white/95 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 md:hidden">
         <div class="space-y-1 px-4 py-4 sm:px-6">
-            <a href="{% url 'core:home' %}" class="block rounded-xl px-3 py-2 text-base font-medium text-slate-700 transition hover:bg-slate-50">{% translate "Home" %}</a>
-            <a href="{% url 'catalog:product-list' %}" class="block rounded-xl px-3 py-2 text-base font-medium text-slate-700 transition hover:bg-slate-50">{% translate "Shop" %}</a>
-            <a href="{% url 'catalog:discovery-hub' %}" class="block rounded-xl px-3 py-2 text-base font-medium text-slate-700 transition hover:bg-slate-50">{% translate "Mood & Occasion" %}</a>
-            <a href="{% url 'catalog:category-list' %}" class="block rounded-xl px-3 py-2 text-base font-medium text-slate-700 transition hover:bg-slate-50">{% translate "Categories" %}</a>
-            <a href="{% url 'catalog:collection-list' %}" class="block rounded-xl px-3 py-2 text-base font-medium text-slate-700 transition hover:bg-slate-50">{% translate "Collections" %}</a>
-            <a href="{% url 'account:studio' %}" class="block rounded-xl px-3 py-2 text-base font-medium text-slate-700 transition hover:bg-slate-50">{% translate "Styling Studio" %}</a>
-            <a href="{% url 'account:outfits' %}" class="block rounded-xl px-3 py-2 text-base font-medium text-slate-700 transition hover:bg-slate-50">{% translate "My Outfits" %}</a>
-            <a href="{% url 'loop:resale-list' %}" class="block rounded-xl px-3 py-2 text-base font-medium text-slate-700 transition hover:bg-slate-50">{% translate "Loop Resale" %}</a>
-            <span class="block rounded-xl px-3 py-2 text-base font-medium text-slate-400">Drops <span class="text-xs">(coming soon)</span></span>
-            <a href="{% url 'catalog:visual-search' %}" class="block rounded-xl px-3 py-2 text-base font-medium text-slate-700 transition hover:bg-slate-50">{% translate "Search by Image" %}</a>
-            <a href="{% url 'shop:cart' %}" class="block rounded-xl px-3 py-2 text-base font-medium text-slate-700 transition hover:bg-slate-50">{% translate "Bag" %}{% if cart_count %} <span class="text-xs text-slate-500">({{ cart_count }})</span>{% endif %}</a>
-            <a href="{% url 'shop:wishlist' %}" class="block rounded-xl px-3 py-2 text-base font-medium text-slate-700 transition hover:bg-slate-50">{% translate "Wishlist" %}{% if wishlist_count %} <span class="text-xs text-slate-500">({{ wishlist_count }})</span>{% endif %}</a>
+            <a href="{% url 'core:home' %}" class="block rounded-xl px-3 py-2 text-base font-medium text-slate-700 transition hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-900">{% translate "Home" %}</a>
+            <a href="{% url 'catalog:product-list' %}" class="block rounded-xl px-3 py-2 text-base font-medium text-slate-700 transition hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-900">{% translate "Shop" %}</a>
+            <a href="{% url 'catalog:discovery-hub' %}" class="block rounded-xl px-3 py-2 text-base font-medium text-slate-700 transition hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-900">{% translate "Mood & Occasion" %}</a>
+            <a href="{% url 'catalog:category-list' %}" class="block rounded-xl px-3 py-2 text-base font-medium text-slate-700 transition hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-900">{% translate "Categories" %}</a>
+            <a href="{% url 'catalog:collection-list' %}" class="block rounded-xl px-3 py-2 text-base font-medium text-slate-700 transition hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-900">{% translate "Collections" %}</a>
+            <a href="{% url 'account:studio' %}" class="block rounded-xl px-3 py-2 text-base font-medium text-slate-700 transition hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-900">{% translate "Styling Studio" %}</a>
+            <a href="{% url 'account:outfits' %}" class="block rounded-xl px-3 py-2 text-base font-medium text-slate-700 transition hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-900">{% translate "My Outfits" %}</a>
+            <a href="{% url 'loop:resale-list' %}" class="block rounded-xl px-3 py-2 text-base font-medium text-slate-700 transition hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-900">{% translate "Loop Resale" %}</a>
+            <span class="block rounded-xl px-3 py-2 text-base font-medium text-slate-400 dark:text-slate-500">Drops <span class="text-xs">(coming soon)</span></span>
+            <a href="{% url 'catalog:visual-search' %}" class="block rounded-xl px-3 py-2 text-base font-medium text-slate-700 transition hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-900">{% translate "Search by Image" %}</a>
+            <a href="{% url 'shop:cart' %}" class="block rounded-xl px-3 py-2 text-base font-medium text-slate-700 transition hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-900">{% translate "Bag" %}{% if cart_count %} <span class="text-xs text-slate-500 dark:text-slate-400">({{ cart_count }})</span>{% endif %}</a>
+            <a href="{% url 'shop:wishlist' %}" class="block rounded-xl px-3 py-2 text-base font-medium text-slate-700 transition hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-900">{% translate "Wishlist" %}{% if wishlist_count %} <span class="text-xs text-slate-500 dark:text-slate-400">({{ wishlist_count }})</span>{% endif %}</a>
             {% if user.is_authenticated %}
-            <a href="{% url 'notifications:center' %}" class="block rounded-xl px-3 py-2 text-base font-medium text-slate-700 transition hover:bg-slate-50">{% translate "Notifications" %}{% if notifications_unread %} <span class="text-xs text-slate-500">({{ notifications_unread }})</span>{% endif %}</a>
+            <a href="{% url 'notifications:center' %}" class="block rounded-xl px-3 py-2 text-base font-medium text-slate-700 transition hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-900">{% translate "Notifications" %}{% if notifications_unread %} <span class="text-xs text-slate-500 dark:text-slate-400">({{ notifications_unread }})</span>{% endif %}</a>
             {% endif %}
 
-            <div class="pt-2 border-t border-slate-100 flex items-center justify-between px-3">
-                <span class="text-xs font-medium text-slate-500">{% translate "Language" %}</span>
+            <div class="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between px-3">
+                <span class="text-xs font-medium text-slate-500 dark:text-slate-400">{% translate "Theme" %}</span>
+                <div class="inline-flex items-center gap-1 rounded-full border border-slate-200 dark:border-slate-800 p-1 bg-slate-50 dark:bg-slate-900">
+                    <button type="button" @click="setTheme('light')" class="rounded-full px-2.5 py-0.5 text-xs font-medium transition" :class="theme === 'light' ? 'bg-amber-500 text-slate-950 font-bold' : 'text-slate-600 dark:text-slate-400'">Light</button>
+                    <button type="button" @click="setTheme('dark')" class="rounded-full px-2.5 py-0.5 text-xs font-medium transition" :class="theme === 'dark' ? 'bg-flash-600 text-white font-bold' : 'text-slate-600 dark:text-slate-400'">Dark</button>
+                    <button type="button" @click="setTheme('auto')" class="rounded-full px-2.5 py-0.5 text-xs font-medium transition" :class="theme === 'auto' ? 'bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-white font-bold' : 'text-slate-600 dark:text-slate-400'">Auto</button>
+                </div>
+            </div>
                 <form action="{% url 'set_language' %}" method="post" class="inline-flex items-center">
                     {% csrf_token %}
                     <input name="next" type="hidden" value="{{ request.path }}">

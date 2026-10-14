@@ -264,6 +264,7 @@ class OrderDispatchForm(forms.Form):
         ),
     )
     tracking_url = forms.URLField(
+        assume_scheme="https",
         label=_("External Tracking URL (Optional)"),
         required=False,
         widget=forms.URLInput(
