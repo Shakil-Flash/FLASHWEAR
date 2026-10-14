@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="FLASHWEAR — Gravitational Particle E-Commerce Experience. Interactive physics accretion disk with 1,000 galaxy particles and dynamic gravitational cards.">
+  <title>FLASHWEAR &bull; Gravitational Cosmic Techwear</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Specification Requirement: <canvas id="particle-canvas"></canvas> MUST be first child of <body> -->
+  <canvas id="particle-canvas"></canvas>
+
+  <div class="site-wrapper">
+    <!-- Header / Nav -->
+    <header class="site-header">
+      <div class="nav-container">
+        <a href="#home" class="brand-logo" aria-label="FLASHWEAR Home">
+          <div class="brand-mark">FW</div>
+          <div class="brand-name">FLASH<span>WEAR</span></div>
+        </a>
+
+        <nav aria-label="Primary Navigation">
+          <ul class="nav-links">
+            <li><a href="#products" class="active">Drop 08</a></li>
+            <li><a href="#outerwear">Outerwear</a></li>
+            <li><a href="#cargos">Modular Pants</a></li>
+            <li><a href="#footwear">Footwear</a></li>
+            <li><a href="#laboratory">Laboratory</a></li>
+          </ul>
+        </nav>
+
+        <div class="nav-actions">
+          <div class="telemetry-pill" title="Particle Gravity Engine Status">
+            <span class="pulse-dot"></span>
+            <span id="telemetry-display">CORE: 1,000P &bull; 60FPS</span>
+          </div>
+
+          <button type="button" class="icon-btn" aria-label="Search Collection" title="Search">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+          </button>
+
+          <button type="button" class="icon-btn" aria-label="Wishlist" title="Wishlist">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+            </svg>
+          </button>
+
+          <button type="button" class="icon-btn" aria-label="Shopping Bag" title="Cart">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+              <line x1="3" y1="6" x2="21" y2="6"></line>
+              <path d="M16 10a4 4 0 0 1-8 0"></path>
+            </svg>
+            <span class="cart-count" id="cart-counter">2</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Hero Section -->
+    <main>
+      <section class="hero-section" id="home">
+        <div class="hero-pill">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+            <circle cx="12" cy="12" r="8"></circle>
+          </svg>
+          <span>ACCRETION DISK &bull; GRAVITATIONAL CORE ACTIVE</span>
+        </div>
+
+        <h1 class="hero-title">
+          GRAVITATIONAL<br>
+          <span class="gradient-text">HYPER-TECHWEAR</span>
+        </h1>
+
+        <p class="hero-description">
+          Engineered for the cosmic void. 1,000 galaxy particles orbit your cursor in real-time
+          with inverse-square astrophysics. Move your cursor to pull product matter into your orbit.
+        </p>
+
+        <div class="hero-cta-group">
+          <a href="#products" class="btn-primary">
+            <span>Explore Drop 08</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+              <polyline points="12 5 19 12 12 19"></polyline>
+            </svg>
+          </a>
+          <a href="#features" class="btn-secondary">
+            <span>Astrophysics Specs</span>
+          </a>
+        </div>
+
+        <!-- Real-Time Physics Telemetry HUD -->
+        <div class="physics-hud">
+          <div class="hud-item">
+            <div class="hud-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"></path>
+                <path d="M2 12h20"></path>
+              </svg>
+            </div>
+            <div class="hud-meta">
+              <span class="hud-label">Particle Swarm</span>
+              <span class="hud-value" id="hud-particles">1,000 Spiral Bodies</span>
+            </div>
+          </div>
+
+          <div class="hud-item">
+            <div class="hud-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+              </svg>
+            </div>
+            <div class="hud-meta">
+              <span class="hud-label">Velocity Damping</span>
+              <span class="hud-value">0.98 Orbit Decay</span>
+            </div>
+          </div>
+
+          <div class="hud-item">
+            <div class="hud-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+              </svg>
+            </div>
+            <div class="hud-meta">
+              <span class="hud-label">Gravity Horizon</span>
+              <span class="hud-value">500px Card Radius</span>
+            </div>
+          </div>
+
+          <div class="hud-item">
+            <div class="hud-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                <line x1="8" y1="21" x2="16" y2="21"></line>
+                <line x1="12" y1="17" x2="12" y2="21"></line>
+              </svg>
+            </div>
+            <div class="hud-meta">
+              <span class="hud-label">Interpolation</span>
+              <span class="hud-value">0.10 Cursor Smooth</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Products Grid Section with Interactive Gravitational Cards -->
+      <section class="products-section" id="products">
+        <div class="section-header">
+          <div class="section-title-wrap">
+            <h2>ACCRETION DROP 08</h2>
+            <p>Cards within 500px bend toward cursor, tilt up to 8°, scale down 8%, and dim.</p>
+          </div>
+
+          <div class="section-filters">
+            <button class="filter-btn active" type="button">All Items (8)</button>
+            <button class="filter-btn" type="button">Outerwear</button>
+            <button class="filter-btn" type="button">Modular Cargo</button>
+            <button class="filter-btn" type="button">Footwear</button>
+          </div>
+        </div>
+
+        <div class="products-grid" id="product-grid">
+          <!-- Card 1 -->
+          <article class="product-card" data-id="1">
+            <span class="card-badge core">CORE GRAVITY</span>
+            <div class="card-action-top">
+              <button class="wish-btn" aria-label="Add to Wishlist" type="button">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+                </svg>
+              </button>
+            </div>
+            <div class="card-media-wrapper">
+              <svg class="card-visual-svg" viewBox="0 0 100 100" fill="none" stroke="currentColor">
+                <!-- Cyber Parka Silhouette -->
+                <path d="M30 25 L50 15 L70 25 L85 45 L75 52 L68 38 L68 85 L32 85 L32 38 L25 52 L15 45 Z" fill="#ff4500" fill-opacity="0.12" stroke="#ff4500" stroke-width="2.5" stroke-linejoin="round"/>
+                <path d="M50 15 L50 85" stroke="#ffa500" stroke-width="1.8" stroke-dasharray="3 3"/>
+                <circle cx="50" cy="35" r="4" fill="#ff4500"/>
+                <rect x="38" y="55" width="8" height="12" rx="2" stroke="#ffa500" stroke-width="1.5"/>
+                <rect x="54" y="55" width="8" height="12" rx="2" stroke="#ffa500" stroke-width="1.5"/>
+              </svg>
+            </div>
+            <div class="card-tags">
+              <span class="card-tag">GORE-TEX 3L</span>
+              <span class="card-tag">FIDLOCK V-BUCKLE</span>
+            </div>
+            <h3 class="card-title">Singularity Cyber-Parka 01</h3>
+            <p class="card-description">
+              3-layer waterproof membrane infused with thermal graphene. Magnetic storm baffle and modular storm hood.
+            </p>
+            <div class="card-footer">
+              <div class="card-price-wrap">
+                <span class="card-price-label">Drop Price</span>
+                <span class="card-price">$340</span>
+              </div>
+              <button class="add-btn" type="button">
+                <span>Quick Add</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+              </button>
+            </div>
+          </article>
+
+          <!-- Card 2 -->
+          <article class="product-card" data-id="2">
+            <span class="card-badge tech">MODULAR CARGO</span>
+            <div class="card-action-top">
+              <button class="wish-btn" aria-label="Add to Wishlist" type="button">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+                </svg>
+              </button>
+            </div>
+            <div class="card-media-wrapper">
+              <svg class="card-visual-svg" viewBox="0 0 100 100" fill="none" stroke="currentColor">
+                <!-- Tech Cargo Silhouette -->
+                <path d="M30 18 L70 18 L76 82 L58 84 L50 42 L42 84 L24 82 Z" fill="#b3e5fc" fill-opacity="0.1" stroke="#b3e5fc" stroke-width="2.5" stroke-linejoin="round"/>
+                <rect x="22" y="38" width="12" height="18" rx="2" stroke="#81d4fa" stroke-width="1.8"/>
+                <rect x="66" y="38" width="12" height="18" rx="2" stroke="#81d4fa" stroke-width="1.8"/>
+                <line x1="30" y1="28" x2="70" y2="28" stroke="#81d4fa" stroke-width="1.5"/>
+              </svg>
+            </div>
+            <div class="card-tags">
+              <span class="card-tag">CORDURA 500D</span>
+              <span class="card-tag">8 POCKETS</span>
+            </div>
+            <h3 class="card-title">Event Horizon Tech-Cargo</h3>
+            <p class="card-description">
+              Ergonomic articulation with quick-cinch ankle hems. Magnetic detachable cargo holsters and D-ring harness.
+            </p>
+            <div class="card-footer">
+              <div class="card-price-wrap">
+                <span class="card-price-label">Drop Price</span>
+                <span class="card-price">$220</span>
+              </div>
+              <button class="add-btn" type="button">
+                <span>Quick Add</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+              </button>
+            </div>
+          </article>
+
+          <!-- Card 3 -->
+          <article class="product-card" data-id="3">
+            <span class="card-badge core">SOLAR FLARE</span>
+            <div class="card-action-top">
+              <button class="wish-btn" aria-label="Add to Wishlist" type="button">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+                </svg>
+              </button>
+            </div>
+            <div class="card-media-wrapper">
+              <svg class="card-visual-svg" viewBox="0 0 100 100" fill="none" stroke="currentColor">
+                <!-- Stealth Hoodie Silhouette -->
+                <path d="M36 20 C36 12 64 12 64 20 L76 30 L88 48 L76 54 L68 40 L68 84 L32 84 L32 40 L24 54 L12 48 L24 30 Z" fill="#ffa500" fill-opacity="0.12" stroke="#ffa500" stroke-width="2.5" stroke-linejoin="round"/>
+                <path d="M40 58 L60 58 L56 72 L44 72 Z" stroke="#ff4500" stroke-width="1.8"/>
+                <circle cx="50" cy="24" r="5" stroke="#ff4500" stroke-width="1.5"/>
+              </svg>
+            </div>
+            <div class="card-tags">
+              <span class="card-tag">480GSM TERRY</span>
+              <span class="card-tag">SOLAR ACCENT</span>
+            </div>
+            <h3 class="card-title">Accretion Stealth Hoodie</h3>
+            <p class="card-description">
+              Heavyweight French Terry in Obsidian Black with high-density orange silicone injection graphics.
+            </p>
+            <div class="card-footer">
+              <div class="card-price-wrap">
+                <span class="card-price-label">Drop Price</span>
+                <span class="card-price">$180</span>
+              </div>
+              <button class="add-btn" type="button">
+                <span>Quick Add</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+              </button>
+            </div>
+          </article>
+
+          <!-- Card 4 -->
+          <article class="product-card" data-id="4">
+            <span class="card-badge limited">KINETIC FOOTWEAR</span>
+            <div class="card-action-top">
+              <button class="wish-btn" aria-label="Add to Wishlist" type="button">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+                </svg>
+              </button>
+            </div>
+            <div class="card-media-wrapper">
+              <svg class="card-visual-svg" viewBox="0 0 100 100" fill="none" stroke="currentColor">
+                <!-- Warp Sneaker Silhouette -->
+                <path d="M15 65 C20 40 40 38 60 45 C75 50 82 58 88 65 L88 74 L15 74 Z" fill="#ff4081" fill-opacity="0.12" stroke="#ff4081" stroke-width="2.5" stroke-linejoin="round"/>
+                <path d="M15 74 L88 74 L84 82 L18 82 Z" fill="#ff4081" fill-opacity="0.25" stroke="#ff80ab" stroke-width="2"/>
+                <path d="M40 48 L65 54" stroke="#ff80ab" stroke-width="2"/>
+                <circle cx="75" cy="62" r="3" fill="#ff4081"/>
+              </svg>
+            </div>
+            <div class="card-tags">
+              <span class="card-tag">VIBRAM MEGAGRIP</span>
+              <span class="card-tag">CARBON PLATE</span>
+            </div>
+            <h3 class="card-title">Nebula Warp Sneaker X</h3>
+            <p class="card-description">
+              Dual-density nitrogen infused foam midsole with full-length aerospace carbon fiber energy plate.
+            </p>
+            <div class="card-footer">
+              <div class="card-price-wrap">
+                <span class="card-price-label">Drop Price</span>
+                <span class="card-price">$260</span>
+              </div>
+              <button class="add-btn" type="button">
+                <span>Quick Add</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+              </button>
+            </div>
+          </article>
+
+          <!-- Card 5 -->
+          <article class="product-card" data-id="5">
+            <span class="card-badge new">TACTICAL GEAR</span>
+            <div class="card-action-top">
+              <button class="wish-btn" aria-label="Add to Wishlist" type="button">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+                </svg>
+              </button>
+            </div>
+            <div class="card-media-wrapper">
+              <svg class="card-visual-svg" viewBox="0 0 100 100" fill="none" stroke="currentColor">
+                <!-- Tactical Vest Silhouette -->
+                <path d="M30 22 L44 22 L44 38 L56 38 L56 22 L70 22 L76 46 L72 80 L28 80 L24 46 Z" fill="#fff37a" fill-opacity="0.1" stroke="#fff37a" stroke-width="2.5" stroke-linejoin="round"/>
+                <line x1="32" y1="50" x2="68" y2="50" stroke="#fff59d" stroke-width="1.8" stroke-dasharray="2 3"/>
+                <line x1="32" y1="62" x2="68" y2="62" stroke="#fff59d" stroke-width="1.8" stroke-dasharray="2 3"/>
+                <rect x="36" y="66" width="10" height="10" rx="1.5" stroke="#fff37a" stroke-width="1.5"/>
+                <rect x="54" y="66" width="10" height="10" rx="1.5" stroke="#fff37a" stroke-width="1.5"/>
+              </svg>
+            </div>
+            <div class="card-tags">
+              <span class="card-tag">MOLLE LATTICE</span>
+              <span class="card-tag">QUICK RELEASE</span>
+            </div>
+            <h3 class="card-title">Dark Matter Tactical Vest</h3>
+            <p class="card-description">
+              Laser-cut MOLLE attachment matrix with Austrian Alpin quick-release buckles and moisture wicking 3D mesh.
+            </p>
+            <div class="card-footer">
+              <div class="card-price-wrap">
+                <span class="card-price-label">Drop Price</span>
+                <span class="card-price">$195</span>
+              </div>
+              <button class="add-btn" type="button">
+                <span>Quick Add</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+              </button>
+            </div>
+          </article>
+
+          <!-- Card 6 -->
+          <article class="product-card" data-id="6">
+            <span class="card-badge tech">3M REFLECTIVE</span>
+            <div class="card-action-top">
+              <button class="wish-btn" aria-label="Add to Wishlist" type="button">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+                </svg>
+              </button>
+            </div>
+            <div class="card-media-wrapper">
+              <svg class="card-visual-svg" viewBox="0 0 100 100" fill="none" stroke="currentColor">
+                <!-- Reflective Anorak Silhouette -->
+                <path d="M28 26 L50 16 L72 26 L84 44 L72 50 L66 38 L66 84 L34 84 L34 38 L28 50 L16 44 Z" fill="#b3e5fc" fill-opacity="0.12" stroke="#b3e5fc" stroke-width="2.5" stroke-linejoin="round"/>
+                <path d="M34 50 L66 50 L58 66 L42 66 Z" fill="#b3e5fc" fill-opacity="0.2" stroke="#81d4fa" stroke-width="1.8"/>
+                <line x1="50" y1="16" x2="50" y2="40" stroke="#81d4fa" stroke-width="2"/>
+              </svg>
+            </div>
+            <div class="card-tags">
+              <span class="card-tag">3M SCOTCHLITE</span>
+              <span class="card-tag">PACKABLE</span>
+            </div>
+            <h3 class="card-title">Pulsar Reflective Anorak</h3>
+            <p class="card-description">
+              Micro-glass bead coating reacts dynamically to headlights and cosmic flashes. Packs into its own chest pouch.
+            </p>
+            <div class="card-footer">
+              <div class="card-price-wrap">
+                <span class="card-price-label">Drop Price</span>
+                <span class="card-price">$290</span>
+              </div>
+              <button class="add-btn" type="button">
+                <span>Quick Add</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+              </button>
+            </div>
+          </article>
+
+          <!-- Card 7 -->
+          <article class="product-card" data-id="7">
+            <span class="card-badge core">MODULAR CARRY</span>
+            <div class="card-action-top">
+              <button class="wish-btn" aria-label="Add to Wishlist" type="button">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+                </svg>
+              </button>
+            </div>
+            <div class="card-media-wrapper">
+              <svg class="card-visual-svg" viewBox="0 0 100 100" fill="none" stroke="currentColor">
+                <!-- Graviton Backpack Silhouette -->
+                <path d="M32 20 L68 20 L74 34 L72 84 L28 84 L26 34 Z" fill="#ff4500" fill-opacity="0.1" stroke="#ff4500" stroke-width="2.5" stroke-linejoin="round"/>
+                <path d="M30 32 L70 32" stroke="#ffa500" stroke-width="2"/>
+                <rect x="36" y="44" width="28" height="26" rx="3" stroke="#ffa500" stroke-width="1.8"/>
+                <line x1="50" y1="44" x2="50" y2="70" stroke="#ffa500" stroke-width="1.5" stroke-dasharray="2 2"/>
+              </svg>
+            </div>
+            <div class="card-tags">
+              <span class="card-tag">30L CAPACITY</span>
+              <span class="card-tag">WEATHERPROOF</span>
+            </div>
+            <h3 class="card-title">Graviton Modular Backpack</h3>
+            <p class="card-description">
+              Roll-top access with Fidlock magnetic sliders, waterproof taped zippers, and floating 16-inch laptop cocoon.
+            </p>
+            <div class="card-footer">
+              <div class="card-price-wrap">
+                <span class="card-price-label">Drop Price</span>
+                <span class="card-price">$210</span>
+              </div>
+              <button class="add-btn" type="button">
+                <span>Quick Add</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+              </button>
+            </div>
+          </article>
+
+          <!-- Card 8 -->
+          <article class="product-card" data-id="8">
+            <span class="card-badge limited">SEAMLESS KNIT</span>
+            <div class="card-action-top">
+              <button class="wish-btn" aria-label="Add to Wishlist" type="button">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+                </svg>
+              </button>
+            </div>
+            <div class="card-media-wrapper">
+              <svg class="card-visual-svg" viewBox="0 0 100 100" fill="none" stroke="currentColor">
+                <!-- Compression Base Layer Silhouette -->
+                <path d="M34 20 L50 24 L66 20 L80 34 L70 42 L64 34 L62 80 L38 80 L36 34 L30 42 L20 34 Z" fill="#ff4081" fill-opacity="0.12" stroke="#ff4081" stroke-width="2.5" stroke-linejoin="round"/>
+                <path d="M42 36 L50 44 L58 36" stroke="#ff80ab" stroke-width="1.8"/>
+                <line x1="50" y1="44" x2="50" y2="76" stroke="#ff80ab" stroke-width="1.5" stroke-dasharray="3 3"/>
+              </svg>
+            </div>
+            <div class="card-tags">
+              <span class="card-tag">THERMAL ADAPT</span>
+              <span class="card-tag">ZERO CHAFE</span>
+            </div>
+            <h3 class="card-title">Zero-G Compression Base</h3>
+            <p class="card-description">
+              Merino-blend seamless gradient knit with targeted micro-ventilation zones for rapid thermal regulation.
+            </p>
+            <div class="card-footer">
+              <div class="card-price-wrap">
+                <span class="card-price-label">Drop Price</span>
+                <span class="card-price">$115</span>
+              </div>
+              <button class="add-btn" type="button">
+                <span>Quick Add</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+              </button>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- Features Section -->
+      <section class="features-section" id="features">
+        <div class="features-grid">
+          <div class="feature-box">
+            <div class="feature-icon-wrap">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="2" y1="12" x2="22" y2="12"></line>
+                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+              </svg>
+            </div>
+            <h3>Orbital Velocity Dispatch</h3>
+            <p>Global express shipping in cryogenic sealed metallic enclosures. Real-time satellite cargo tracking.</p>
+          </div>
+
+          <div class="feature-box">
+            <div class="feature-icon-wrap">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+              </svg>
+            </div>
+            <h3>Quantum Authenticity</h3>
+            <p>Every garment includes an encrypted NFC ceramic beacon linked to an immutable ownership ledger.</p>
+          </div>
+
+          <div class="feature-box">
+            <div class="feature-icon-wrap">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="23 4 23 10 17 10"></polyline>
+                <polyline points="1 20 1 14 7 14"></polyline>
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+              </svg>
+            </div>
+            <h3>Singularity 30-Day Returns</h3>
+            <p>Complete confidence guarantee with complimentary prepaid return carrier labels worldwide.</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="site-footer">
+      <div class="footer-container">
+        <div class="footer-top">
+          <div class="footer-brand">
+            <div class="brand-logo">
+              <div class="brand-mark">FW</div>
+              <div class="brand-name">FLASH<span>WEAR</span></div>
+            </div>
+            <p>
+              Next-generation cosmic apparel utilizing advanced gravitational textiles,
+              kinetic dampening, and aerodynamic modular construction.
+            </p>
+          </div>
+
+          <div class="footer-nav">
+            <div class="footer-col">
+              <h4>Collections</h4>
+              <ul>
+                <li><a href="#products">Drop 08 — Accretion</a></li>
+                <li><a href="#outerwear">Event Horizon Parkas</a></li>
+                <li><a href="#cargos">Graphene Cargos</a></li>
+                <li><a href="#footwear">Kinetic Soles</a></li>
+              </ul>
+            </div>
+
+            <div class="footer-col">
+              <h4>Astrophysics</h4>
+              <ul>
+                <li><a href="#physics">1,000 Particle Engine</a></li>
+                <li><a href="#physics">Inverse-Square Law</a></li>
+                <li><a href="#physics">0.98 Velocity Damping</a></li>
+                <li><a href="#physics">Card Horizon (500px)</a></li>
+              </ul>
+            </div>
+
+            <div class="footer-col">
+              <h4>Protocol</h4>
+              <ul>
+                <li><a href="#account">Staff Portal</a></li>
+                <li><a href="#terms">Quantum Security</a></li>
+                <li><a href="#privacy">Privacy Encryption</a></li>
+                <li><a href="#contact">Contact Mission Control</a></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="footer-bottom">
+          <p>&copy; 2026 FLASHWEAR COSMIC OPERATIONS. ALL RIGHTS RESERVED.</p>
+          <p>ENGINE: HTML5 CANVAS 2D &bull; REQUESTANIMATIONFRAME &bull; 60FPS TARGET</p>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
